@@ -6,119 +6,108 @@ let pendingUserMsgs = [];
 let pendingBubble = null;
 let uiDebounceTimer = null;
 let chatSendInFlight = false;
+let _chatAfterTurnDraft = null;
 
 async function sendChat(options = {}) {
-    if (chatSendInFlight) return;
+    if (chatSendInFlight || !currentScope || !selectedAgent) return;
     const afterTurn = Boolean(options.afterTurn);
+    const targetName = selectedAgent;
+    const targetScope = currentScope;
+    const generation = _chatViewGeneration;
+    const isCurrent = () => generation === _chatViewGeneration
+        && targetName === selectedAgent && targetScope === currentScope;
     const input = $('#chat-input');
-    // Картинка ещё летит → ждём её путь, иначе сообщение уйдёт без картинки.
-    // Поле ввода при этом живое: всё, что допечатают за время ожидания, войдёт в msg.
-    if (_pendingUploads.size) {
-        const btn = afterTurn ? $('#send-after-turn-btn') : $('#send-btn');
-        const label = btn.textContent;
-        btn.textContent = '⏳';
-        await Promise.allSettled([..._pendingUploads]);
-        btn.textContent = label;
-    }
-    const msg = input.value.trim();
-    if (!msg || !currentScope || !selectedAgent) return;
-    chatSendInFlight = true;
     const actionButton = afterTurn ? $('#send-after-turn-btn') : $('#send-btn');
+    chatSendInFlight = true;
     if (actionButton) actionButton.disabled = true;
-    input.value = '';
-    clearPastePreview();
-
-    pendingUserMsgs.push(msg);
-    localMessages.add(msg);
-    showPendingBubble();
-
-    if (uiDebounceTimer) clearTimeout(uiDebounceTimer);
-    uiDebounceTimer = setTimeout(() => finalizePending(), UI_DEBOUNCE_MS);
-
+    let afterTurnDraft = null;
     try {
-        const result = await api(`/api/sessions/${selectedAgent}/send`, {
+        // Upload completion must not send another agent's draft after a switch.
+        if (_pendingUploads.size) await Promise.allSettled([..._pendingUploads]);
+        if (!isCurrent()) return;
+        const inputText = input.value;
+        const msg = inputText.trim();
+        if (!msg) return;
+        if (afterTurn) {
+            afterTurnDraft = {targetName, targetScope, generation, inputText, savedDraft: null, restoredGeneration: null};
+            _chatAfterTurnDraft = afterTurnDraft;
+        }
+        // After-turn input stays recoverable until the server accepts it. It is
+        // not an ordinary sent bubble and must not suppress the later SSE echo.
+        if (!afterTurn) {
+            input.value = '';
+            clearPastePreview();
+            pendingUserMsgs.push(msg);
+            localMessages.add(msg);
+            showPendingBubble();
+            if (uiDebounceTimer) clearTimeout(uiDebounceTimer);
+            uiDebounceTimer = setTimeout(() => finalizePending(), UI_DEBOUNCE_MS);
+        }
+        const result = await api(`/api/sessions/${encodeURIComponent(targetName)}/send`, {
             method: 'POST',
-            body: JSON.stringify({ message: msg, scope: currentScope, channel: "dashboard", after_turn: afterTurn }),
+            body: JSON.stringify({ message: msg, scope: targetScope, channel: "dashboard", after_turn: afterTurn }),
             signal: AbortSignal.timeout(15000),
         });
+        // saveDraft runs before selection resets. A late acceptance also owns
+        // that exact saved draft, but never another scope's or a newer draft.
+        if (afterTurnDraft?.savedDraft) {
+            const saved = afterTurnDraft.savedDraft;
+            saved.text = _voiceRemoveSentPrefix(saved.text, inputText);
+            if (!saved.text) saved.images = [];
+        }
+        const restoredDraft = afterTurnDraft
+            && afterTurnDraft.restoredGeneration === _chatViewGeneration
+            && targetName === selectedAgent && targetScope === currentScope;
+        if (!isCurrent() && !restoredDraft) return;
+        if (afterTurn) {
+            input.value = _voiceRemoveSentPrefix(input.value, inputText);
+            if (!input.value) clearPastePreview();
+        }
         if (result?.queued) {
-            if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
-            pendingUserMsgs = [];
-            if (pendingBubble) { pendingBubble.remove(); pendingBubble = null; }
-            if (_finalizedBubble) { _finalizedBubble.remove(); _finalizedBubble = null; }
-            removeWaitingIndicator();
-            await refreshQueuedMessages();
+            if (!afterTurn) {
+                if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
+                pendingUserMsgs = [];
+                localMessages.delete(msg);
+                if (pendingBubble) { pendingBubble.remove(); pendingBubble = null; }
+                if (_finalizedBubble) { _finalizedBubble.remove(); _finalizedBubble = null; }
+                removeWaitingIndicator();
+            }
         }
     } catch (e) {
-        if (e.name === 'TimeoutError') return;
-        if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
-        if (pendingBubble) { const ring = pendingBubble.querySelector('.debounce-ring'); if (ring) ring.remove(); }
-        pendingBubble = null; pendingUserMsgs = []; _finalizedBubble = null;
-        removeWaitingIndicator();
-        // Перезапуск — штатная операция, и красная строка про неё выглядела бы аварией.
+        if (!isCurrent() || e.name === 'TimeoutError') return;
+        if (!afterTurn) {
+            if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
+            if (pendingBubble) { const ring = pendingBubble.querySelector('.debounce-ring'); if (ring) ring.remove(); }
+            pendingBubble = null; pendingUserMsgs = []; _finalizedBubble = null;
+            removeWaitingIndicator();
+        }
         addChatEntry(e.name === 'RestartPendingError' ? 'notification' : 'error', e.message);
     } finally {
         chatSendInFlight = false;
-        if (actionButton) actionButton.disabled = false;
+        if (_chatAfterTurnDraft === afterTurnDraft) _chatAfterTurnDraft = null;
+        if (actionButton && isCurrent()) actionButton.disabled = false;
     }
 }
 
-let _queuedUnsupported = false;
+let _chatViewGeneration = 0;
 
-async function refreshQueuedMessages() {
-    const panel = $('#queued-messages');
-    if (!panel || !selectedAgent || !currentScope || _queuedUnsupported) return;
-    const targetName = selectedAgent;
-    const targetScope = currentScope;
-    try {
-        const result = await api(
-            `/api/sessions/${encodeURIComponent(targetName)}/queued-messages?scope=${encodeURIComponent(targetScope)}`,
-        );
-        if (targetName !== selectedAgent || targetScope !== currentScope) return;
-        panel.replaceChildren();
-        for (const item of result.messages || []) {
-            const row = document.createElement('div');
-            row.className = 'flex items-center gap-2 rounded bg-slate-800/70 px-2 py-1 text-xs text-slate-300';
-            const body = document.createElement('span');
-            body.className = 'min-w-0 flex-1 truncate';
-            body.textContent = `${T('⏳')} ${item.body}`;
-            row.appendChild(body);
-            if (item.claimed) {
-                const state = document.createElement('span');
-                state.textContent = T('delivering');
-                state.className = 'text-slate-500';
-                row.appendChild(state);
-            } else {
-                const cancel = document.createElement('button');
-                cancel.type = 'button';
-                cancel.textContent = T('Cancel');
-                cancel.className = 'text-red-300 hover:text-red-200';
-                cancel.addEventListener('click', async () => {
-                    cancel.disabled = true;
-                    try {
-                        await api(`/api/sessions/${encodeURIComponent(targetName)}/queued-messages/${item.id}?scope=${encodeURIComponent(targetScope)}`, {method: 'DELETE'});
-                        await refreshQueuedMessages();
-                    } catch (error) {
-                        cancel.disabled = false;
-                        addChatEntry('error', error.message);
-                    }
-                });
-                row.appendChild(cancel);
-            }
-            panel.appendChild(row);
-        }
-    } catch (error) {
-        // 404 означает не сбой, а СТАРЫЙ сервер: маршрут очереди появился вместе с
-        // кнопкой «After turn» и живёт только после рестарта Orchestra, тогда как этот
-        // файл подхватывается браузером сразу. Молча выключаем опрос и прячем панель,
-        // иначе консоль засыпается одинаковой ошибкой каждые несколько секунд.
-        if (String(error.message || '').startsWith('404')) {
-            _queuedUnsupported = true;
-            panel.replaceChildren();
-            panel.classList.add('hidden');
-            return;
-        }
-        console.warn(`[chat] очередь после хода недоступна: ${error.name}: ${error.message}`);
+function _resetChatView() {
+    const sending = _chatAfterTurnDraft;
+    if (sending && selectedAgent === sending.targetName
+        && (sending.generation === _chatViewGeneration || sending.restoredGeneration === _chatViewGeneration)) {
+        const saved = drafts[selectedAgent];
+        if (saved?.text.startsWith(sending.inputText)) sending.savedDraft = saved;
+    }
+    ++_chatViewGeneration;
+}
+
+// Called after restoreDraft(): a pending after-turn send owns its exact saved
+// draft again once the user returns to the same agent and scope.
+function _noteDraftRestored() {
+    const sending = _chatAfterTurnDraft;
+    if (sending && sending.savedDraft && selectedAgent === sending.targetName && currentScope === sending.targetScope
+        && drafts[selectedAgent] === sending.savedDraft && $('#chat-input')?.value === sending.savedDraft.text) {
+        sending.restoredGeneration = _chatViewGeneration;
     }
 }
 
@@ -1771,6 +1760,7 @@ function _resetCodexActivityState() {
 }
 
 function resetChatTransientState() {
+    _resetChatView();
     liveResetActivity();
     localMessages.clear();
     pendingUserMsgs = [];

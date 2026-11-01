@@ -1,0 +1,32 @@
+{
+  "id": "P18",
+  "package": "csvmerge",
+  "prompt": "Add a command that merges a folder of CSV exports into one file with one row per key. It runs as `python -m csvmerge.merge FOLDER KEY OUTPUT`.\n\nEvery file in FOLDER whose name ends in .csv is read the same way the concat command reads its files, in alphabetical order of the file names. Other files in the folder are ignored. A file that cannot be read as a table, for example an empty file or a file with a row that has a different number of fields than its header, is skipped: tell the user which file was skipped and why, and go on with the other files.\n\nKEY names the key column; it is matched like any other column name, after normalization. If a file that was read has no KEY column, merging must fail with an error that a caller can catch, and the message names the file and the column. The command then exits with status 3 and does not write OUTPUT.\n\nOUTPUT is a comma-separated file. Its header holds every column of the files that were read, in order of first appearance (file by file, left to right). It has one row per distinct key value, in the order in which the key values first appear. When a key value appears again, in the same file or in a later one, the first row wins and the later row is dropped. Rows with an empty key value are dropped. A cell is empty when the file of its row has no such column. Create the folder of OUTPUT when it does not exist. After writing, tell the user how many rows were written, how many files were merged and how many repeated rows were dropped.\n\nIf FOLDER does not exist or is not a folder, or no file in it can be read, the command exits with status 2 and does not write OUTPUT. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "LOG",
+      "doc_side": "right"
+    },
+    {
+      "id": "D2",
+      "type": "PATH",
+      "doc_side": "right"
+    },
+    {
+      "id": "D3",
+      "type": "EXC",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "FMT",
+      "doc_side": "left"
+    },
+    {
+      "id": "D5",
+      "type": "IMPORT",
+      "doc_side": "right"
+    }
+  ]
+}

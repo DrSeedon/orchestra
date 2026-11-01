@@ -112,8 +112,14 @@ async def test_graceful_restart_leaves_run_alive_and_next_generation_delivers_it
         new = BgJobManager()
         new.set_session_manager(manager)
         await new.restore_from_db()
+        adopter = new._tasks[created["id"]]
         gate.touch()
         row = await _settled(created["id"])
+        # The row turns terminal before the adopter's finally reaps the group and unlinks
+        # the recovery files, so wait for the adopter itself, not for the DB status.
+        done, _pending = await asyncio.wait({adopter}, timeout=30)
+        assert done, "adopting task never completed"
+        await adopter
 
         assert row["status"] == "triggered"
         assert len(sent) == 1 and "completed" in sent[0]

@@ -1,0 +1,26 @@
+{
+  ".orchestra/pipelines/default/prompts/roles/worker.md": {
+    "before_sha256": "08f882a065c538647bcbd937eefdc878e926d7aa9f0bb8d6e1bc75a3d06e4139",
+    "after_sha256": "eae1112016aee4bb961a42a9c9633fec8f59a91471638a55775328ee2b6c5ee9",
+    "added_lines": 7,
+    "removed_lines": 3
+  },
+  ".orchestra/pipelines/default/prompts/modules/report-format.md": {
+    "before_sha256": "98b91003575d0ba2671272611aa93d7211675b830f62541c5d42c49e44948e7a",
+    "after_sha256": "d17512576a1a7e26d741ebc2a163168077f1c50388547f1e17593181f3ea4678",
+    "added_lines": 5,
+    "removed_lines": 1
+  },
+  ".orchestra/pipelines/default/prompts/roles/orchestrator.md": {
+    "before_sha256": "56dcacdabed758da3f583499fecfc3a0a00933461e3ac3ce51ac399cc6cf8563",
+    "after_sha256": "989d57ec005f2fd2d8db1f187ca968a09d5600dcec1c75c05c7c07f91049a0c2",
+    "added_lines": 4,
+    "removed_lines": 0
+  },
+  "case_sha256": {
+    ".orchestra/tasks/V-1054/cases/v1049.diff": "79938b59f279a9c4d7914c520f65861825417adfc7939e55d79943016e442383",
+    ".orchestra/tasks/V-1054/cases/v1050.diff": "8561cc6657502dd7bc7f06058854f42a3eadf000a741b4fca5eb47b510d2a624",
+    ".orchestra/tasks/V-1054/cases/v1051.diff": "9005345d8a30dd78efe56f622b579b60279455bf5f3a33a7da644bb73b5fec24",
+    ".orchestra/tasks/V-1054/cases/v1052.diff": "c8e94a1ad42f18474d463c4d2886c75a8f266e21e00fec7d3b944938fb5bd4d7"
+  }
+}

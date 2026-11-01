@@ -1,0 +1,5 @@
+SOURCE https://raw.githubusercontent.com/pensados/sentinelx-cloud-core/b4207d6149d95f2d3cc9b219d4e617c365b76fda/LICENSE
+SOURCE https://raw.githubusercontent.com/pensados/sentinelx-cloud-installer/8d4b9a7f4433c7268c165add7494f282d98a6a62/LICENSE
+SOURCE https://raw.githubusercontent.com/pensados/sentinelx-cloud-protocol/00169f8fddbab11082f7ff0f24ef5c7e321c9a47/LICENSE
+SOURCE https://raw.githubusercontent.com/pensados/sentinelx-cloud-protocol/00169f8fddbab11082f7ff0f24ef5c7e321c9a47/python/sentinelx_protocol/messages.py
+SOURCE https://raw.githubusercontent.com/pensados/sentinelx-cloud-protocol/00169f8fddbab11082f7ff0f24ef5c7e321c9a47/python/sentinelx_protocol/__init__.py

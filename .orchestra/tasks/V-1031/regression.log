@@ -1,0 +1,196 @@
+........................................................................ [ 54%]
+...FF..................................................FFF...            [100%]
+=================================== FAILURES ===================================
+__________ test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools __________
+
+repo = PosixPath('<hub-workspace>')
+tmp_path = PosixPath('<hub-workspace>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x779fadaae240>
+
+    @pytest.mark.asyncio
+    async def test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
+        await _turn(backend, "implement the thing")
+        prompt = _first_prompt(mc)
+>       assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
+E       AssertionError: assert ('worker wrk' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...holds everything you need, and any other line in the file is dropped.\n</orchestra-link>\n\nTask:\nimplement the thing')
+
+tests/test_hub_workspace.py:1260: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:231 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+________ test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it _________
+
+repo = PosixPath('<hub-workspace>')
+tmp_path = PosixPath('<hub-workspace>')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x779fae092e70>
+
+    @pytest.mark.asyncio
+    async def test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
+        backend._bridge = None
+        await _turn(backend, "plain task")
+        prompt = _first_prompt(mc)
+>       assert ob.OUTBOX_NAME not in prompt and "plain task" in prompt and "Do not run git push/clone/commit" in prompt
+E       AssertionError: assert ('.orchestra-outbox.jsonl' not in 'You are a w...\nplain task'
+E         
+E         '.orchestra-outbox.jsonl' is contained here:
+E           
+E           plain task and 'plain task' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...her task artifacts under .orchestra/tasks/V-1/ (create it); nowhere else outside the source tree.\n\nTask:\nplain task' and 'Do not run git push/clone/commit' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...her task artifacts under .orchestra/tasks/V-1/ (create it); nowhere else outside the source tree.\n\nTask:\nplain task')
+
+tests/test_hub_workspace.py:1278: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:231 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+____________ test_retarget_resolves_target_policy_and_claude_option ____________
+
+    @pytest.mark.asyncio
+    async def test_retarget_resolves_target_policy_and_claude_option():
+        backend, hub, state = setup(pipeline="default", role="worker")
+        await backend._start(hub, state, "task")
+>       await backend.retarget_model("hub-claude-opus-5-5")
+
+tests/test_hub_effort.py:108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:301: in retarget_model
+    role = get_role(self._pipeline, self._role)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <hub-workspace>
+
+app/pipeline.py:474: FileNotFoundError
+___________ test_hub_policy_matches_native_claude[orchestrator-high] ___________
+
+role = 'orchestrator', opus = 'high'
+
+    @pytest.mark.parametrize("role,opus", [("orchestrator", "high"), ("worker", "medium")])
+    def test_hub_policy_matches_native_claude(role, opus):
+>       policy = get_role("default", role).effort
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_effort.py:117: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <hub-workspace>
+
+app/pipeline.py:474: FileNotFoundError
+_____________ test_hub_policy_matches_native_claude[worker-medium] _____________
+
+role = 'worker', opus = 'medium'
+
+    @pytest.mark.parametrize("role,opus", [("orchestrator", "high"), ("worker", "medium")])
+    def test_hub_policy_matches_native_claude(role, opus):
+>       policy = get_role("default", role).effort
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_effort.py:117: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <hub-workspace>
+
+app/pipeline.py:474: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_hub_workspace.py::test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+FAILED tests/test_hub_workspace.py::test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it
+FAILED tests/test_hub_effort.py::test_retarget_resolves_target_policy_and_claude_option
+FAILED tests/test_hub_effort.py::test_hub_policy_matches_native_claude[orchestrator-high]
+FAILED tests/test_hub_effort.py::test_hub_policy_matches_native_claude[worker-medium]
+5 failed, 128 passed in 29.98s

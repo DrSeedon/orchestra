@@ -1,0 +1,19 @@
+[
+  {
+    "role": "user",
+    "content": "Please change my shipping address to 12 Harbor Rd, Portland, ME 04101. I'm C-1002."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'address': '12 Harbor Rd, Portland, ME 04101'}",
+    "name": "main.update_shipping_address"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"ok\": true}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"ok\": true}"
+  }
+]

@@ -1,0 +1,205 @@
+{
+  "root": "<hub-workspace>",
+  "recordedAt": "2026-10-27T07:32:10.240Z",
+  "gitAvailable": false,
+  "files": [
+    {
+      "path": ".orchestra/pipelines/default/prompts/base.md",
+      "sha256": "2ad132f8392365279c2f54fbe902fe5dd0b2ec1762a3de7082409f93c2c98c91",
+      "bytes": 7502,
+      "lines": 85
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/hub/worker.md",
+      "sha256": "95a0dae651b58852412431074ae3977b59e8eba97f2012c1d50438826880ae66",
+      "bytes": 2248,
+      "lines": 36
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/background-jobs.md",
+      "sha256": "272abb91243ae7c2474527ddcb9d04ab6786c8e424c2b1c191ccc78c979263d1",
+      "bytes": 1637,
+      "lines": 21
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/code-quality.md",
+      "sha256": "1a7fda907336c9c46d2e7ead3f0ea48483cc503704e752c78820e1ab438dfadd",
+      "bytes": 7388,
+      "lines": 98
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/communication-style.md",
+      "sha256": "037a6d2adf0591a1a28c5a8f2ed64a273f849d37cc16376b12eaa359c8a03d98",
+      "bytes": 4797,
+      "lines": 41
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/dynamic-workflows.md",
+      "sha256": "87ed3b12b861ed551f75fe00da29a521e3f551b204c9fc8b7405da0d47d292e1",
+      "bytes": 2258,
+      "lines": 13
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/git-workflow.md",
+      "sha256": "fc195de41eb4c31026b734316c056f6c030c6ac3e8537f0312b5c5bc37c106b3",
+      "bytes": 4786,
+      "lines": 54
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/knowledge.md",
+      "sha256": "6ec24cba1423d3f7f31422850e21d8961c5cafa6b8bae8a7ad387b23cca37df4",
+      "bytes": 5212,
+      "lines": 75
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/model-routing.md",
+      "sha256": "0c85d90a052b15ae2ea1998e363269c229709f4bb0680485ff39539baf237838",
+      "bytes": 11448,
+      "lines": 44
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+      "sha256": "649de595a2fae4dcf8c619256925636c42c6a15ab71372f623ca9f9aa608eda5",
+      "bytes": 20815,
+      "lines": 320
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/project-maintenance.md",
+      "sha256": "eebfd5507070c8ad9a88b9067b2c8fec8ff47aa5e8bc2813a5bac6fc9928dec6",
+      "bytes": 4071,
+      "lines": 52
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/report-format.md",
+      "sha256": "d17512576a1a7e26d741ebc2a163168077f1c50388547f1e17593181f3ea4678",
+      "bytes": 2052,
+      "lines": 40
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/research-method.md",
+      "sha256": "956f373c5c7ac8a6993fa8d26c4bff4ecd8f7455675e8f5bdb6c014d1f217f72",
+      "bytes": 9942,
+      "lines": 142
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/safety.md",
+      "sha256": "55fbf10035644acd0f8716715c3dec6f156deda254ae4201555802a995eb7710",
+      "bytes": 2201,
+      "lines": 30
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/task-management.md",
+      "sha256": "35b21fcfe72f66442000e9c7055415af643683cd11db8ea5e60ca2cd21be1a67",
+      "bytes": 3655,
+      "lines": 44
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/user-values.md",
+      "sha256": "4e272c81a7599f04a9e6641e718875ba3b4bd94ea68ad98d1513c4ee3ebc7396",
+      "bytes": 4889,
+      "lines": 60
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+      "sha256": "eaba54739e7d8eaac438acaea9e3be02416978d6e794ac33805a2157b1b1c9d6",
+      "bytes": 5509,
+      "lines": 80
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/full-cycle.md",
+      "sha256": "5c979fdc9e33701878cee33f90b1c246195c122258ed0475ce15068641a04d88",
+      "bytes": 3869,
+      "lines": 57
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/orchestrator.md",
+      "sha256": "608c9c7de1a2641feaf519ef1a893ddc0049354a921b96ee4e09c7d55bc280ca",
+      "bytes": 10052,
+      "lines": 154
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/reducer.md",
+      "sha256": "950017c0e0d41726e7823411186ba987e15d1b8f5677c0fbd646927a4a33739d",
+      "bytes": 1366,
+      "lines": 22
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/sub-orchestrator.md",
+      "sha256": "055fff0ba859a48ce2f32134e7102cfc4e229f6959be05f9d76f06df4648ad8b",
+      "bytes": 887,
+      "lines": 11
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/worker.md",
+      "sha256": "eae1112016aee4bb961a42a9c9633fec8f59a91471638a55775328ee2b6c5ee9",
+      "bytes": 3578,
+      "lines": 62
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/explainer-craft.md",
+      "sha256": "2eb9a34feaa08dab5f59ef404981a4ae6e57636228092b0ca30b7e008f695846",
+      "bytes": 11781,
+      "lines": 172
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/explainer-craft/references/manim-ce.md",
+      "sha256": "a1c4fbd48aa50a65076fed9e0423d3a3eb954f2954da89712cb4ac0fa247a05a",
+      "bytes": 2539,
+      "lines": 56
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/explainer-craft/references/voice-checks.md",
+      "sha256": "ed031e75eb2e7bceeb05ee245641ae907489093130f2f8c5c9a096da5c29ed85",
+      "bytes": 3120,
+      "lines": 55
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/grill-me.md",
+      "sha256": "3e4fa8cea452610c4a250e5405f0a59c038b92173b85859bc88f4504dda68991",
+      "bytes": 5145,
+      "lines": 145
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/html-artifacts.md",
+      "sha256": "d2d6e9c4f59b2c70c28c3ae635b667a07ec33a723188f96f50f7bbdc8f01c725",
+      "bytes": 10380,
+      "lines": 153
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/html-artifacts/references/animation.md",
+      "sha256": "c9625951476c3effcd2bfb6aa4cd8eb47b79af11a571a3cf7ddd8113cbe4090a",
+      "bytes": 17180,
+      "lines": 164
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/laptop-access.md",
+      "sha256": "e4e1a55b514726113af690633693b3cf4d248fcf3ad3c501aa8be13a43b927cf",
+      "bytes": 5197,
+      "lines": 132
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/orchestra-agents.md",
+      "sha256": "50333ff692d6d44e65c9807adc43b80c03c0e02f210bd6d630231a8d352fe201",
+      "bytes": 6869,
+      "lines": 153
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/video-artifact.md",
+      "sha256": "649d463a5891034ecf3cf4d76888961fe9b134586b71358c32e6bc857bfacfbb",
+      "bytes": 32034,
+      "lines": 444
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/vps-deploy.md",
+      "sha256": "64ad423abfea799695b46660cc927210cb472882327474f63506f27a131a39f2",
+      "bytes": 4120,
+      "lines": 55
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "f486fc0d7618c28cc0db1807f838a9014334792f526bc78270cfce6a70cb6ce4",
+      "bytes": 16356,
+      "lines": 126
+    }
+  ]
+}

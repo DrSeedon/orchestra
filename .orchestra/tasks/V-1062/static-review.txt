@@ -1,0 +1,9 @@
+[Publication-redacted evidence: remote installation prefixes are shown as /remote/workspace; derived installation slugs/account labels are neutralized. Source-relative paths, synthetic test suffixes and actual results are preserved.]
+
+app import: /remote/workspace/app/__init__.py
+app/hub_workspace.py syntax/whitespace OK 897077afcf17d2fe8fae41efb822fda3be2fd77afe6042aa159f3b8f150fdab4
+app/backend_hub.py syntax/whitespace OK d93bc89805f2f798d2c78ab2346a8f21d4cadcaba4e04bf59559ec19063747d1
+app/workspace.py syntax/whitespace OK 506423fb9ffdebb7c4ac1c231cc734243e45e352fe6fbbf438386f5ee05b8d97
+app/diff_budget.py syntax/whitespace OK c7e42508c962c7b005e9122b7df3d0c3cdcf91f9561fdc5cf97a6be674a50517
+tests/test_hub_inputs_v1062.py syntax/whitespace OK cf645b5bedf9eb6d2b773933855e1a90ba1732dd2f4a4a43232f5193433f0cb1
+.orchestra/tasks/V-1062/mutation_check.py syntax/whitespace OK bc011a29e1c74579a69999550729ccdc84a7102dedd65437dc2f06e2dd7cb5b9

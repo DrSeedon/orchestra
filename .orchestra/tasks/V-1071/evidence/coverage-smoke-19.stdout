@@ -1,0 +1,21 @@
+# Chain coverage: production traces against `original`
+
+200 traces, 19 eval tasks.
+
+| chain | agents | traces | % of traces | tasks that run it | passing today |
+| --- | ---: | ---: | ---: | --- | --- |
+| orders -> shipping | 2 | 76 | 38% | t01, t02, t03, t11, t12 | t01 1/1, t02 1/1, t03 1/1, t11 0/1, t12 1/1 |
+| returns | 1 | 32 | 16% | t04, t05, t06, t11, t13 | t04 1/1, t05 1/1, t06 1/1, t11 0/1, t13 1/1 |
+| account | 1 | 24 | 12% | t07, t08, t13, t14 | t07 1/1, t08 1/1, t13 1/1, t14 0/1 |
+| diagnostics | 1 | 16 | 8% | t09, t12, t16, t18, t19 | t09 1/1, t12 1/1, t16 0/1, t18 0/1, t19 1/1 |
+| orders | 1 | 16 | 8% | t01, t02, t03, t11, t12 | t01 1/1, t02 1/1, t03 1/1, t11 0/1, t12 1/1 |
+| orders -> shipping -> returns | 3 | 12 | 6% | t11 | t11 0/1 |
+| claims | 1 | 10 | 5% | t10 | t10 1/1 |
+| diagnostics -> orders -> shipping | 3 | 8 | 4% | t12 | t12 1/1 |
+| account -> returns | 2 | 6 | 3% | t13 | t13 1/1 |
+
+Every chain listed has at least one task.
+
+No covering task passes today for: orders -> shipping -> returns. A task that already fails cannot show a change made things worse. Note what it fails on, so a later pass or fail can be read.
+
+For each chain of two or more agents, open its tasks and check what they grade: what changed in the systems at the end of the chain, and each fact that had to survive the handoff. A task that only checks wording, or only the first agent's part, does not cover the chain.

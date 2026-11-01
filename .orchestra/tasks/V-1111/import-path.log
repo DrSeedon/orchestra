@@ -1,0 +1,3 @@
+app search path: ['<hub-workspace>/app', '<hub-workspace>/app']
+app.error_watch: <hub-workspace>/app/error_watch.py
+Source syntax: OK

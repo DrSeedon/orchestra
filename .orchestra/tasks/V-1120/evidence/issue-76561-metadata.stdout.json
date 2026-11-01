@@ -1,0 +1,9 @@
+{
+  "html_url": "https://github.com/anthropics/claude-code/issues/76561",
+  "title": "Credential writes replace symlinks and clobber shared state: concurrent instances sharing .credentials.json cascade each other (and the user) to logged-out",
+  "author": "SevenX77",
+  "created_at": "2026-07-11T02:04:04Z",
+  "updated_at": "2026-10-06T15:36:45Z",
+  "state": "open",
+  "state_reason": null
+}

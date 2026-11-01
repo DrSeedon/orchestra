@@ -1,0 +1,6 @@
+
+tests/test_codex_limit_resume_v1081.py:547: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_codex_limit_resume_v1081.py::test_legacy_claude_timer_wake_reaches_real_manager_send
+FAILED tests/test_codex_limit_resume_v1081.py::test_claude_waiting_quota_limit_wake_delivery_end_to_end
+2 failed, 51 passed in 10.12s

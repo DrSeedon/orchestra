@@ -1,0 +1,17 @@
+Using CPython 3.12.3 interpreter at: .venv/bin/python
+Resolved 9 packages in 260ms
+Downloading numpy (15.9MiB)
+Downloading onnxruntime (22.5MiB)
+ Downloaded onnxruntime
+ Downloaded numpy
+Prepared 2 packages in 597ms
+Installed 9 packages in 23ms
+ + flatbuffers==25.12.19
+ + numpy==2.5.3
+ + onnxruntime==1.30.0
+ + opencv-python==5.0.0.93
+ + packaging==26.3
+ + pillow==12.3.0
+ + protobuf==7.36.2
+ + pyyaml==6.0.3
+ + rapid-orientation==0.0.11

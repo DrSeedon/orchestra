@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.hub_outbox import MAX_OUTBOX_BYTES, OUTBOX_NAME
+from app import publication_secrets
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 STATE_DIR = DATA_DIR / "hub-workspaces"
@@ -36,6 +37,25 @@ STATE_DIR = DATA_DIR / "hub-workspaces"
 MAX_FILE_BYTES = 20 * 1024 * 1024
 MAX_TOTAL_BYTES = 300 * 1024 * 1024
 MAX_FILES = 20_000
+
+# Broker transport only: retained for pending/uncertain sends until workspace release,
+# never uploaded as source or imported/committed as a worker result.
+PROMPT_DIR = ".orchestra-hub-inputs"
+
+# Copied from the VPS, never resolved through PATH (the hub's uv is a PC relay).
+HUB_UV_VERSION = "0.11.28"
+HUB_UV_BIN = f".local/share/orchestra/tools/uv/{HUB_UV_VERSION}/bin"
+HUB_UV_INSTRUCTIONS = (
+    "For a Python copy with pyproject.toml and uv.lock, the broker provisions real uv "
+    f"{HUB_UV_VERSION}. In each test shell run:\n"
+    f'export PATH="$HOME/{HUB_UV_BIN}:$PATH"\n'
+    "uv run --frozen python -m pytest <paths> -q\n"
+    "The system uv is a dispatcher to a connected PC; use the provisioned binary. "
+    "uv may fetch the locked dependencies from PyPI and write its own cache under HOME; "
+    "tests themselves must stay offline. Keep the environment at the default .venv. "
+    "If setup or imports fail, report the exact blocker and unrun checks; never replace "
+    "the lock or claim another runner is the required check.\n\n"
+)
 
 _WS_ID = re.compile(r"^hub-[0-9a-f]{16}$")
 _BASE_ID = re.compile(r"^proj-[0-9a-f]{12}$")
@@ -58,6 +78,7 @@ _SAFE_REMOTE = re.compile(r"^/[A-Za-z0-9_./-]+$")
 
 # Directory names that never travel in either direction.
 BLOCKED_DIRS = frozenset({
+    PROMPT_DIR,
     ".git", ".ssh", ".gnupg", ".aws", ".docker", ".kube", ".claude", ".codex", ".grok",
     ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".mypy_cache",
 })
@@ -69,19 +90,7 @@ BLOCKED_NAMES = frozenset({
 BLOCKED_SUFFIXES = (".pem", ".key", ".p12", ".pfx", ".token", ".keystore", ".jks", ".gpg")
 _ENV_OK_SUFFIXES = (".example", ".sample", ".template", ".dist")
 
-_SECRET_SHAPES = (
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}"),
-    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{40,}"),
-    re.compile(r"\bsk-(?:ant-)?[A-Za-z0-9_-]{24,}"),
-    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
-    re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}"),
-    re.compile(r"\bAIza[0-9A-Za-z_-]{35}"),
-    re.compile(r"\b\d{8,10}:[A-Za-z0-9_-]{35}\b"),
-    re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
-)
-_SECRET_NAME_WORDS = ("TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "APIKEY",
-                      "PRIVATE_KEY", "CREDENTIAL", "COOKIE", "DSN")
+_SECRET_SHAPES = tuple(pattern for _, pattern in publication_secrets.HUB_SECRET_SHAPES)
 
 
 def base_id_for(scope: str) -> str:
@@ -101,6 +110,7 @@ class ProjectOptions:
     max_files: int = MAX_FILES
     max_file_bytes: int = MAX_FILE_BYTES
     persistent: bool = False   # keep a warm copy of the project on the hub between workers
+    clean_start: bool = False  # owner request: a worker may begin a NEW copy beside quarantined private-file records
 
 
 def project_options(scope: str) -> ProjectOptions:
@@ -125,6 +135,7 @@ def project_options(scope: str) -> ProjectOptions:
         max_files=number("max_files", MAX_FILES),
         max_file_bytes=number("max_file_mb", MAX_FILE_BYTES, mb),
         persistent=entry.get("persistent") is True,
+        clean_start=entry.get("clean_start") is True,
     )
 
 
@@ -144,12 +155,36 @@ class HubWorkspaceError(RuntimeError):
     """Safe-to-display failure of the broker."""
 
 
+class HubFilePolicyError(HubWorkspaceError):
+    """Retained private-file evidence requires owner review, never automatic cleanup."""
+
+
+_COMPANY_FILE = "company-data.md"
+_COMPANY_REASON = "private company record (COMPANY-DATA.md)"
+_COMPANY_REFUSAL = (
+    "hub file policy: COMPANY-DATA.md evidence in an existing copy or upload history; "
+    "provider work refused. Retained files, hashes, provenance and thread history require "
+    "owner review; nothing was automatically sanitized or deleted."
+)
+
+
+def _company_path(rel: str) -> bool:
+    return any(part.casefold() == _COMPANY_FILE for part in rel.replace("\\", "/").split("/"))
+
+
+def assert_file_policy(*path_sets) -> None:
+    if any(_company_path(rel) for paths in path_sets for rel in paths):
+        raise HubFilePolicyError(_COMPANY_REFUSAL)
+
+
 # ── credential exclusion ─────────────────────────────────────────────────────────────
 
 
 def blocked_reason(rel: str) -> str | None:
     """Why a worktree-relative path must not cross the boundary, by name alone."""
-    if rel == OUTBOX_NAME:
+    if _company_path(rel):
+        return _COMPANY_REASON
+    if Path(rel).name == OUTBOX_NAME:
         return "broker outbox file"
     parts = rel.split("/")
     for part in parts[:-1]:
@@ -171,21 +206,11 @@ def blocked_reason(rel: str) -> str | None:
 def known_secret_values(extra: list[str] | None = None) -> list[str]:
     """Literal values of our own credentials: secret-looking environment variables and the
     files under data/secrets. A file or prompt containing one of them must not leave."""
-    values: set[str] = set(extra or [])
-    for key, value in os.environ.items():
-        if len(value) >= 12 and any(word in key.upper() for word in _SECRET_NAME_WORDS):
-            values.add(value.strip())
-    secrets_dir = DATA_DIR / "secrets"
-    if secrets_dir.is_dir():
-        for path in secrets_dir.iterdir():
-            try:
-                if not path.is_file() or path.stat().st_size > 64 * 1024:
-                    continue
-                text = path.read_text(errors="ignore").strip()
-            except OSError:
-                continue
-            values.add(text)
-    return sorted((v for v in values if len(v) >= 12), key=len, reverse=True)
+    values = {value for _, value in publication_secrets.literal_rules(
+        data_dir=DATA_DIR,
+    )}
+    values.update(extra or [])
+    return sorted((v for v in values if len(v) >= publication_secrets._MIN_LEN), key=len, reverse=True)
 
 
 def secret_in_text(text: str, known: list[str]) -> str | None:
@@ -223,6 +248,29 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _uv_snapshot(scratch: Path) -> tuple[Path, str, str]:
+    """Freeze the trusted VPS binary so hashing, validation and upload use the same bytes."""
+    source = Path.home() / ".local/bin/uv"
+    snapshot = scratch / "uv-upload"
+    try:
+        shutil.copyfile(source, snapshot)
+        with snapshot.open("rb") as handle:
+            header = handle.read(20)
+        if header[:6] != b"\x7fELF\x02\x01" or header[18:20] != b"\x3e\x00":
+            raise HubWorkspaceError("hub uv source ~/.local/bin/uv must be a Linux x86_64 ELF binary")
+        snapshot.chmod(0o700)
+        result = subprocess.run([str(snapshot), "--version"], capture_output=True, text=True,
+                                check=True, timeout=20)
+        version = result.stdout.strip()
+        if version.split()[:2] != ["uv", HUB_UV_VERSION] or "\n" in version:
+            raise HubWorkspaceError(f"hub uv source must be version {HUB_UV_VERSION}")
+        return snapshot, sha256_file(snapshot), version
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise HubWorkspaceError(
+            f"cannot prepare hub uv {HUB_UV_VERSION} from ~/.local/bin/uv ({type(exc).__name__})"
+        ) from None
 
 
 @dataclass
@@ -421,6 +469,7 @@ def _file_has_secret(path: Path, known: list[str]) -> bool:
 
 
 def write_tar(root: Path, rels: list[str], out: Path) -> None:
+    assert_file_policy(rels)
     with tarfile.open(out, "w") as archive:
         for rel in rels:
             full = root / rel
@@ -463,23 +512,96 @@ class HubSsh:
             proc = await asyncio.create_subprocess_exec(
                 *self._argv(remote),
                 stdin=fin if fin else asyncio.subprocess.DEVNULL,
-                stdout=fout if fout else asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
+
+            async def download() -> bytes:
+                # Bound the temporary file while receiving, not after an unlimited write.
+                # One extra byte distinguishes an exact-limit archive from an overflow.
+                received = 0
+                while chunk := await proc.stdout.read(min(65536, max_out - received + 1)):
+                    received += len(chunk)
+                    if received > max_out:
+                        raise HubWorkspaceError(
+                            f"hub workspace download exceeds the size limit: received at least "
+                            f"{received} bytes, limit {max_out} bytes (transfer stopped)")
+                    fout.write(chunk)
+                return b""
+
+            readers = []
             try:
-                out, err = await asyncio.wait_for(proc.communicate(), timeout)
-            except asyncio.TimeoutError:
-                proc.kill()
-                await proc.wait()
-                raise HubWorkspaceError("hub SSH command timed out") from None
+                if fout:
+                    readers = [asyncio.create_task(download()), asyncio.create_task(proc.stderr.read()),
+                               asyncio.create_task(proc.wait())]
+                    out, err, _ = await asyncio.wait_for(asyncio.gather(*readers), timeout)
+                else:
+                    out, err = await asyncio.wait_for(proc.communicate(), timeout)
+            except (asyncio.TimeoutError, asyncio.CancelledError, HubWorkspaceError, OSError) as exc:
+                if proc.returncode is None:
+                    proc.kill()
+                # A failed reader must not leave a pending pipe task or SSH process.
+                for reader in readers:
+                    reader.cancel()
+                await asyncio.gather(*readers, return_exceptions=True)
+                if fout:
+                    await proc.communicate()
+                else:
+                    await proc.wait()
+                if isinstance(exc, asyncio.TimeoutError):
+                    raise HubWorkspaceError("hub SSH command timed out") from None
+                raise
         if proc.returncode != 0:
             raise HubWorkspaceError(_ssh_failure(remote, proc.returncode, out, err, stdout is not None))
         if stdout is not None and stdout.stat().st_size > max_out:
-            raise HubWorkspaceError("hub workspace download exceeds the size limit")
+            raise HubWorkspaceError(
+                f"hub workspace download exceeds the size limit: received {stdout.stat().st_size} "
+                f"bytes, limit {max_out} bytes")
         return out or b""
 
     async def home(self) -> str:
         return (await self.run('printf %s "$HOME"', timeout=60)).decode().strip()
+
+    async def ensure_uv(self, scratch: Path) -> None:
+        """Verify on every turn; upload once, or repair corruption, with an atomic rename.
+
+        Only our home-directory tool area is touched. Parallel workers have unique temporary
+        files and publish only a complete, checksum- and version-verified executable.
+        """
+        snapshot = scratch / "uv-upload"
+        try:
+            payload, digest, version = await asyncio.to_thread(_uv_snapshot, scratch)
+            binary = f'"$HOME/{HUB_UV_BIN}/uv"'
+            check = (
+                f'test -x {binary} && '
+                f'test "$(sha256sum {binary} | cut -d " " -f 1)" = {shlex.quote(digest)} && '
+                f'test "$({binary} --version)" = {shlex.quote(version)}'
+            )
+            probe = (
+                'test "$(uname -sm)" = "Linux x86_64" || '
+                '{ echo "hub uv requires Linux x86_64" >&2; exit 1; }; '
+                f'if {check}; then printf ready; else printf install; fi'
+            )
+            status = await self.run(probe, timeout=60)
+            if status == b"ready":
+                return
+            if status != b"install":
+                raise HubWorkspaceError("unexpected hub uv verification response")
+            install = (
+                f'set -eu; umask 077; mkdir -p -- "$HOME/{HUB_UV_BIN}"; '
+                f'tmp=$(mktemp "$HOME/{HUB_UV_BIN}/.uv.XXXXXXXX"); '
+                "trap 'rm -f -- \"$tmp\"' EXIT; "
+                'cat > "$tmp"; '
+                f'test "$(sha256sum "$tmp" | cut -d " " -f 1)" = {shlex.quote(digest)} || '
+                '{ echo "hub uv upload checksum mismatch" >&2; exit 1; }; '
+                'chmod 700 "$tmp"; '
+                f'test "$("$tmp" --version)" = {shlex.quote(version)} || '
+                '{ echo "hub uv upload version mismatch" >&2; exit 1; }; '
+                f'mv -f -- "$tmp" {binary}'
+            )
+            await self.run(install, stdin=payload, timeout=180)
+        finally:
+            snapshot.unlink(missing_ok=True)
 
     async def root(self) -> str:
         if self.workspace_root:
@@ -502,6 +624,30 @@ class HubSsh:
         q = shlex.quote(remote_dir)
         await self.run(f"mkdir -p -- {q} && tar -xf - -C {q}", stdin=tar_path)
 
+    async def put_prompt(self, remote_dir: str, data: bytes, scratch: Path) -> str:
+        """Publish complete UTF-8 input atomically through the existing workspace transport."""
+        _check_remote(remote_dir, base_ok=False)
+        if len(data) > MAX_FILE_BYTES:
+            raise HubWorkspaceError(f"hub task prompt exceeds the workspace file limit ({MAX_FILE_BYTES} bytes)")
+        digest = hashlib.sha256(data).hexdigest()
+        rel = f"{PROMPT_DIR}/{digest}.txt"
+        source = scratch / "prompt.txt"
+        source.write_bytes(data)
+        source.chmod(0o600)
+        # No shared temporary name, no shell interpolation of user content, and no
+        # following a worker-created directory symlink. The digest verifies stdin
+        # before the rename; failures never submit a message referring to partial data.
+        await self.run(
+            f"set -eu; cd {shlex.quote(remote_dir)}; umask 077; "
+            "workspace=$(pwd -P); "
+            f"test ! -L {PROMPT_DIR}; mkdir -p -- {PROMPT_DIR}; "
+            f"cd {PROMPT_DIR}; test \"$(pwd -P)\" = \"$workspace/{PROMPT_DIR}\"; "
+            "t=$(mktemp .upload-XXXXXXXX); "
+            "trap 'rm -f -- \"$t\"' EXIT; cat > \"$t\"; "
+            f"printf '%s  %s\\n' {digest} \"$t\" | sha256sum -c - >/dev/null; "
+            f"mv -fT -- \"$t\" {digest}.txt", stdin=source)
+        return rel
+
     async def delete_files(self, remote_dir: str, rels: list[str]) -> None:
         _check_remote(remote_dir)
         if not rels:
@@ -515,8 +661,18 @@ class HubSsh:
 
     async def get(self, remote_dir: str, out: Path) -> None:
         _check_remote(remote_dir)
-        await self.run(
-            f"tar -cf - -C {shlex.quote(remote_dir)} --exclude=./.git .", stdout=out)
+        # GNU tar's unanchored exclusions match these exact path components at
+        # every depth. Do not consult .gitignore or exclude arbitrary output names.
+        # Keep pyvenv.cfg as evidence: apply_changes uses it to preserve legacy
+        # manifest entries under custom-named environments instead of deleting them.
+        excludes = " ".join(f"--exclude={shlex.quote(name)}" for name in sorted(BLOCKED_DIRS))
+        try:
+            await self.run(
+                f"tar -cf - -C {shlex.quote(remote_dir)} --no-anchored {excludes} "
+                "--exclude-tag=pyvenv.cfg .", stdout=out, max_out=MAX_TOTAL_BYTES * 2)
+        except HubWorkspaceError as exc:
+            raise HubWorkspaceError(
+                f"{exc}; retained workspace {os.path.basename(remote_dir)} for sync-back retry") from exc
 
     async def list_workspaces(self) -> list[tuple[str, float]]:
         """(workspace id, mtime epoch) of every broker directory under our root."""
@@ -558,6 +714,57 @@ class HubSsh:
         _check_remote(dest, base_ok=False)
         await self.run(f"mkdir -p -- {shlex.quote(dest)} && "
                        f"cp -a --reflink=auto -- {shlex.quote(source)}/. {shlex.quote(dest)}/", timeout=1800)
+
+    async def assert_file_policy(self, remote_dir: str) -> None:
+        """Read names only in this exact broker copy, returning no inventory or contents.
+
+        Only lstat's ENOENT means missing; shell test -e also returns false on
+        EACCES. No pipeline hides inspection/find/transport failures. Missing
+        directories are allowed for first upload and lost-workspace recovery.
+        """
+        _check_remote(remote_dir)
+        q = shlex.quote(remote_dir)
+        probe = (
+            "import os, sys\n"
+            "try:\n"
+            "    os.lstat(sys.argv[1])\n"
+            "except FileNotFoundError:\n"
+            "    sys.exit(3)\n"
+            "except OSError as error:\n"
+            "    print(f'hub file-policy path inspection failed (errno {error.errno})', file=sys.stderr)\n"
+            "    sys.exit(1)\n"
+        )
+        found = await self.run(
+            f"if test -L {q}; then printf x; else "
+            f"python3 -c {shlex.quote(probe)} {q}; policy_rc=$?; "
+            f'case "$policy_rc" in 0) test -d {q} && '
+            f"find {q} -iname {_COMPANY_FILE} -printf x -quit;; "
+            '3) :;; *) exit "$policy_rc";; esac; fi')
+        if found:
+            raise HubFilePolicyError(_COMPANY_REFUSAL)
+
+    async def assert_fresh_target(self, remote_dir: str) -> None:
+        """A clean-start directory must not exist in any form (file, symlink, directory).
+
+        Only lstat's ENOENT means absent; EACCES, ENOTDIR and transport failures propagate."""
+        _check_remote(remote_dir, base_ok=False)
+        q = shlex.quote(remote_dir)
+        probe = (
+            "import os, sys\n"
+            "try:\n"
+            "    os.lstat(sys.argv[1])\n"
+            "except FileNotFoundError:\n"
+            "    sys.exit(3)\n"
+            "except OSError as error:\n"
+            "    print(f'hub clean-start path inspection failed (errno {error.errno})', file=sys.stderr)\n"
+            "    sys.exit(1)\n"
+        )
+        found = await self.run(
+            f"if test -L {q}; then printf x; else "
+            f"python3 -c {shlex.quote(probe)} {q}; fresh_rc=$?; "
+            f'case "$fresh_rc" in 0) printf x;; 3) :;; *) exit "$fresh_rc";; esac; fi')
+        if found:
+            raise HubWorkspaceError("hub clean start: the new workspace directory already exists; nothing was uploaded")
 
     async def remove(self, remote_dir: str) -> None:
         _check_remote(remote_dir, base_ok=False)
@@ -625,22 +832,45 @@ def _member_path(name: str) -> str | None:
 
 
 def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
-                  known: list[str] | None = None) -> SyncResult:
+                  known: list[str] | None = None,
+                  inputs: dict[str, str] | None = None) -> SyncResult:
     """Import a hub workspace snapshot into the worktree, touching only regular files that
     changed relative to `manifest`, never leaving `root`, never importing credentials."""
     root = root.resolve()
+    assert_file_policy(manifest, inputs or {})
     known = known_secret_values() if known is None else known
+    inputs = inputs or {}
+    input_parents = _parents(inputs)
     result = SyncResult(manifest=dict(manifest))
     seen: set[str] = set()
+    # Name-blocked directories are omitted by the return packager. Their absence
+    # is never evidence of an intentional deletion, including in legacy records.
+    seen.update(rel for rel in manifest if (blocked_reason(rel) or "").startswith("directory"))
     total = 0
     pending: list[tuple[str, bytes, int]] = []
     with tarfile.open(tar_path, "r:") as archive:
+        # Inspect names first: pyvenv.cfg can follow its siblings in a tar snapshot.
+        # Match directory boundaries, independent of the environment's chosen name.
+        venvs = {str(Path(rel).parent) for member in archive.getmembers()
+                 if (rel := _member_path(member.name)) is not None
+                 and Path(rel).name == "pyvenv.cfg"}
+
+        def in_virtualenv(rel: str) -> bool:
+            path = Path(rel)
+            return str(path) in venvs or any(str(parent) in venvs for parent in path.parents)
+
+        for directory in sorted(venvs):
+            result.rejected.append((directory, "Python virtualenv (contains pyvenv.cfg)"))
+        seen.update(rel for rel in manifest if in_virtualenv(rel))
         for member in archive:
             if member.isdir():
                 continue
             rel = _member_path(member.name)
             if rel is None:
                 result.rejected.append((member.name, "path escapes the workspace"))
+                continue
+            if in_virtualenv(rel):
+                seen.add(rel)  # preserve previously synced files; exclusion is not a deletion
                 continue
             if not member.isreg():
                 result.rejected.append((rel, "not a regular file (link or special)"))
@@ -661,6 +891,15 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
             handle = archive.extractfile(member)
             data = handle.read() if handle else b""
             digest = hashlib.sha256(data).hexdigest()
+            # Upload-origin, untracked files are read-only inputs. Never import or
+            # stage a hub rewrite, deletion, or output colliding with one of them.
+            if _collides(str(Path(rel)), inputs, input_parents):
+                if inputs.get(rel) != digest:
+                    result.rejected.append((rel, "collides with a read-only hub input"))
+                    # Forget the remote baseline, not the immutable provenance:
+                    # the next upload must restore the local original on the hub.
+                    result.manifest.pop(str(Path(rel)), None)
+                continue
             if manifest.get(rel) == digest:
                 continue
             total += member.size
@@ -677,6 +916,10 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
         new = hashlib.sha256(data).hexdigest()
         if target.is_symlink() or (target.exists() and not target.is_file()):
             result.rejected.append((rel, "worktree path is not a regular file"))
+            continue
+        destination = str(Path(os.path.realpath(target)).relative_to(root))
+        if _collides(destination, inputs, input_parents):
+            result.rejected.append((rel, "resolves to a read-only hub input"))
             continue
         if local is not None and local != new and local != manifest.get(rel):
             result.conflicts.append(rel)
@@ -695,12 +938,22 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
         result.changed.append(rel)
         result.manifest[rel] = new
     gone = [rel for rel in manifest if rel not in seen]
-    if gone and len(gone) > 20 and len(gone) * 2 > len(manifest):
-        result.rejected.append(("*", f"{len(gone)} deletions look like a truncated snapshot; ignored"))
+    missing_count = len(gone)
+    for rel in gone:
+        if rel in inputs:
+            result.rejected.append((rel, "read-only hub input missing from snapshot; preserved"))
+            result.manifest.pop(rel, None)  # resend the original on the next upload
+    gone = [rel for rel in gone if rel not in inputs]
+    if missing_count > 20 and missing_count * 2 > len(manifest):
+        result.rejected.append(("*", f"{missing_count} deletions look like a truncated snapshot; ignored"))
         gone = []
     for rel in gone:
         target = root / rel
         if not _contained(root, target) or target.is_symlink():
+            continue
+        destination = str(Path(os.path.realpath(target)).relative_to(root))
+        if _collides(destination, inputs, input_parents):
+            result.rejected.append((rel, "resolves to a read-only hub input; preserved"))
             continue
         if not target.exists():
             result.manifest.pop(rel, None)
@@ -741,9 +994,122 @@ def local_delta(root: Path, plan: UploadPlan, manifest: dict[str, str], keep: fr
     .orchestra/tasks/, say): they sit outside the upload scope, but they are not stale, so they stay
     on the hub and in the manifest. Dropping them forgot their baseline, and the next turn's
     rewrite of the same file looked like a change on both sides."""
+    assert_file_policy(plan.manifest, manifest, keep)
     send = [rel for rel, digest in plan.manifest.items() if manifest.get(rel) != digest]
     drop = [rel for rel in manifest if rel not in plan.manifest and rel not in keep]
     return sorted(send), sorted(drop)
+
+
+def check_refresh(snapshot: Path, manifest: dict[str, str], plan: UploadPlan,
+                  send: list[str], drop: list[str], inputs: dict[str, str]) -> None:
+    """Refuse to replace remote WIP when refreshing a retained conversation.
+
+    Read the existing bounded return archive without applying it. Unchanged baselines
+    and already delivered bytes permit retries; immutable inputs retain their existing
+    restore-original contract after rejected remote edits.
+    """
+    affected = set(send) | set(drop)
+    parents = _parents(affected)
+    actual: dict[str, str] = {}
+    with tarfile.open(snapshot, "r:") as archive:
+        for member in archive:
+            if member.isdir() and member.name in (".", "./"):
+                continue
+            rel = _member_path(member.name)
+            if rel is None:
+                raise HubWorkspaceError("hub refresh: invalid remote snapshot; copy retained")
+            if rel in parents and not member.isdir():
+                raise HubWorkspaceError(f"hub refresh: remote path obstruction at {rel}; copy retained")
+            if _parents([rel]) & affected:
+                raise HubWorkspaceError(f"hub refresh: remote directory collision at {rel}; copy retained")
+            if rel not in affected:
+                continue
+            if not member.isreg() or rel in actual or member.size > MAX_FILE_BYTES:
+                raise HubWorkspaceError(f"hub refresh: unsafe remote path at {rel}; copy retained")
+            handle = archive.extractfile(member)
+            if handle is None:
+                raise HubWorkspaceError("hub refresh: unreadable remote snapshot; copy retained")
+            with handle:
+                actual[rel] = hashlib.file_digest(handle, "sha256").hexdigest()
+    for rel in sorted(affected):
+        desired = plan.manifest.get(rel) if rel in send else None
+        if rel in send and inputs.get(rel) == desired:
+            continue
+        if actual.get(rel) not in (manifest.get(rel), desired):
+            raise HubWorkspaceError(f"hub refresh: remote WIP conflict at {rel}; copy and history retained")
+
+
+def refresh_source(root: Path, branch: str, base: str) -> str:
+    """Optionally fast-forward a bound worker before planning its own upload.
+
+    Never reset/rebase committed work or stash WIP. Divergence and local changes skip
+    this optimization visibly; an independent follow-up can use the existing branch.
+    Git/binding failures and collisions in an attempted fast-forward still refuse.
+    Direct/plain-directory callers without a worker binding keep their upload contract.
+    """
+    from app import workspace
+
+    if not base or not branch:
+        raise HubWorkspaceError("hub source refresh: missing worker branch/base binding; nothing uploaded")
+    repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+    if repository is None:
+        raise HubWorkspaceError("hub source refresh: cannot inspect Git source; nothing uploaded")
+    if repository.returncode:
+        if not any(os.path.lexists(parent / ".git") for parent in (root.resolve(), *root.resolve().parents)):
+            return ""
+        raise HubWorkspaceError("hub source refresh: invalid Git metadata; nothing uploaded")
+    repo = workspace._resolve_repo(str(root), str(root))
+    with workspace.repo_mutation_lock(repo):
+        try:
+            actual_branch, head = workspace.inspect_worktree_identity(str(root))
+            target = workspace._resolve_commit_oid(repo, f"refs/heads/{base}")
+            if actual_branch != branch:
+                raise HubWorkspaceError("hub source refresh: worker branch changed; nothing uploaded")
+            for marker in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply"):
+                done = _git_out(root, "rev-parse", "--git-path", marker)
+                if done is None or done.returncode:
+                    raise HubWorkspaceError("hub source refresh: cannot inspect Git operation state")
+                path = Path(os.fsdecode(done.stdout).strip())
+                if not path.is_absolute():
+                    path = root / path
+                if path.exists():
+                    raise HubWorkspaceError(f"hub source refresh: {marker} in progress; nothing uploaded")
+            contained = _git_out(root, "merge-base", "--is-ancestor", target, head)
+            if contained is None or contained.returncode not in (0, 1):
+                raise HubWorkspaceError("hub source refresh: cannot inspect base ancestry; nothing uploaded")
+            # Validate the source we will actually upload even when base refresh is
+            # skipped. Target-tree collisions matter only if we attempt to install it.
+            inputs = merge_inputs(root, head)
+            if contained.returncode == 0:
+                return ""  # already includes the base, possibly with committed worker output
+            behind = _git_out(root, "merge-base", "--is-ancestor", head, target)
+            if behind is None or behind.returncode not in (0, 1):
+                raise HubWorkspaceError("hub source refresh: cannot inspect worker ancestry; nothing uploaded")
+            status = workspace._worktree_status(root, nul=True)
+            if status.returncode:
+                raise HubWorkspaceError("hub source refresh: cannot inspect working tree; nothing uploaded")
+            if behind.returncode == 1:
+                return (f"hub: source refresh skipped ({branch} and {base} diverged); "
+                        f"working on existing branch {branch} ({head[:12]}); base inputs not refreshed")
+            dirty = any(record and not (record[:2] == "??" and record[3:] in inputs)
+                        for record in status.stdout.split("\0"))
+            if dirty:
+                return ("hub: source refresh skipped (local changes retained); "
+                        f"working on existing branch {branch} ({head[:12]}); base inputs not refreshed")
+            merge_inputs(root, target)
+            advanced = _git_out(root, "merge", "--ff-only", "--no-edit", "--no-overwrite-ignore", target)
+            if advanced is None or advanced.returncode:
+                raise HubWorkspaceError(
+                    "hub source refresh: fast-forward refused; preserve local files and "
+                    "resolve the checkout obstruction before retrying; nothing uploaded")
+            actual_branch, actual_head = workspace.inspect_worktree_identity(str(root))
+            if actual_branch != branch or actual_head != target:
+                raise HubWorkspaceError("hub source refresh: cannot verify updated worker identity; nothing uploaded")
+        except RuntimeError as exc:
+            if isinstance(exc, HubWorkspaceError):
+                raise
+            raise HubWorkspaceError(f"hub source refresh failed: {exc}; nothing uploaded") from exc
+    return f"hub: source fast-forwarded {branch} to {base} ({target[:12]})"
 
 
 # ── persistent record (resume after restart, release by worktree) ────────────────────
@@ -763,6 +1129,18 @@ class WorkspaceState:
     uploaded: bool = False  # the first upload reached the hub; until then the workspace is not established
     activity_pos: int = 0   # live-feed cursor: timeline position already shown
     created_at: float = field(default_factory=time.time)
+    input_manifest: dict[str, str] | None = None  # immutable upload-origin untracked files; None = legacy
+    file_policy_blocked: bool = False  # retained even if a foreign file is later removed by hand
+    # Owner-requested clean start: this record is a NEW generation that never copied from a persistent
+    # base or resumed a thread. `clean_start_of` names the quarantined records it was started beside; the
+    # authorization lives only here, so restart and retry need no setting and cannot reach their ancestry.
+    clean_start: bool = False
+    clean_start_of: list[str] = field(default_factory=list)
+
+    def assert_file_policy(self) -> None:
+        if self.file_policy_blocked:
+            raise HubFilePolicyError(_COMPANY_REFUSAL)
+        assert_file_policy(self.manifest, self.input_manifest or {}, self.hub_made)
 
     @staticmethod
     def new_id() -> str:
@@ -795,6 +1173,7 @@ class BaseState:
     base_id: str
     scope: str
     manifest: dict[str, str] = field(default_factory=dict)
+    file_policy_blocked: bool = False
 
     def path(self) -> Path:
         return STATE_DIR / f"base-{self.base_id}.json"
@@ -817,6 +1196,21 @@ class BaseState:
 _BASE_LOCKS: dict[str, asyncio.Lock] = {}
 
 
+async def check_workspace_file_policy(ssh: HubSsh | None, state: WorkspaceState) -> None:
+    state.assert_file_policy()
+    retained = WorkspaceState.load(state.ws_id)
+    if retained is not None:
+        retained.assert_file_policy()
+    if ssh is None:
+        raise HubWorkspaceError("hub workspace transport is unavailable for file-policy check")
+    try:
+        await ssh.assert_file_policy(state.remote_dir)
+    except HubFilePolicyError:
+        state.file_policy_blocked = True
+        state.save()
+        raise
+
+
 async def provision_from_base(ssh: HubSsh, root: Path, scope: str, plan: UploadPlan,
                               dest_dir: str) -> tuple[int, int]:
     """Make the project's warm copy on the hub match `plan` by sending only what changed, then
@@ -827,7 +1221,17 @@ async def provision_from_base(ssh: HubSsh, root: Path, scope: str, plan: UploadP
     lock = _BASE_LOCKS.setdefault(base_id_for(scope), asyncio.Lock())
     async with lock:
         base = BaseState.load(scope)
+        if base.file_policy_blocked:
+            raise HubFilePolicyError(_COMPANY_REFUSAL)
+        assert_file_policy(base.manifest, plan.manifest)
         base_dir = await ssh.base_dir_for(scope)
+        await ssh.assert_file_policy(dest_dir)
+        try:
+            await ssh.assert_file_policy(base_dir)
+        except HubFilePolicyError:
+            base.file_policy_blocked = True
+            base.save()
+            raise
         send, drop = local_delta(root, plan, base.manifest)
         scratch = local_scratch()
         try:
@@ -838,6 +1242,12 @@ async def provision_from_base(ssh: HubSsh, root: Path, scope: str, plan: UploadP
             else:
                 await ssh.run(f"mkdir -p -- {shlex.quote(base_dir)}")
             await ssh.delete_files(base_dir, drop)
+            try:
+                await ssh.assert_file_policy(base_dir)
+            except HubFilePolicyError:
+                base.file_policy_blocked = True
+                base.save()
+                raise
             base.manifest = dict(plan.manifest)
             base.save()
             await ssh.copy_dir(base_dir, dest_dir)
@@ -866,6 +1276,84 @@ def states_for_worktree(worktree: str) -> list[WorkspaceState]:
     return found
 
 
+def _parents(paths) -> set[str]:
+    return {str(parent) for p in paths for parent in Path(p).parents if str(parent) != "."}
+
+
+def _collides(rel: str, paths, parents: set[str]) -> bool:
+    return rel in paths or rel in parents or any(str(p) in paths for p in Path(rel).parents)
+
+
+def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+    """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+
+    Old records already distinguish hub-made paths. Only uploaded paths still
+    untracked in the index qualify; no directory exemption or Git ignore is used.
+    """
+    if state.input_manifest is not None:
+        return
+    repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+    if repository is not None and repository.returncode:
+        resolved = root.resolve()
+        if not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents)):
+            # plan_upload also supports plain directories. Without a Git index
+            # they receive no input exemptions, even if Git is initialized later.
+            # Existing/broken Git metadata must still fail closed below.
+            state.input_manifest = {}
+            return
+    if state.manifest:
+        staged = _git_out(root, "diff", "--cached", "--quiet")
+        if staged is None or staged.returncode:
+            # A staged original temporarily looks tracked. Do not permanently
+            # forget its provenance: retry migration after the index is clean.
+            raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+    done = _git_out(root, "ls-files", "--cached", "-z")
+    if done is None or done.returncode:
+        raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+    tracked = set(done.stdout.decode("utf-8", "surrogateescape").split("\0"))
+    state.input_manifest = {p: d for p, d in manifest.items()
+                            if p not in tracked and p not in state.hub_made}
+
+
+def merge_inputs(root: Path, *refs: str) -> dict[str, str]:
+    """Return the exact unchanged input files merge may leave untracked.
+
+    Validate every input, including missing/ignored ones which Git status cannot
+    report, and both trees before reset --hard can overwrite untracked data.
+    """
+    inputs: dict[str, str] = {}
+    for state in states_for_worktree(str(root)):
+        capture_inputs(root, state, state.manifest)
+        state.save()  # migrate existing live workers without another upload
+        for rel, digest in (state.input_manifest or {}).items():
+            if rel in inputs and inputs[rel] != digest:
+                raise HubWorkspaceError(f"conflicting hub input provenance: {rel}")
+            inputs[rel] = digest
+    if not inputs:
+        return inputs
+    for rel, digest in inputs.items():
+        full = root / rel
+        try:
+            regular = stat.S_ISREG(full.lstat().st_mode)
+            # Parent symlinks are changes too, even when they point inside root.
+            direct = full.resolve() == full.absolute()
+            unchanged = regular and direct and sha256_file(full) == digest
+        except OSError:
+            unchanged = False
+        if not unchanged:
+            raise HubWorkspaceError(f"hub input changed or missing: {rel}; restore the uploaded original")
+    for ref in refs:
+        done = _git_out(root, "ls-tree", "-r", "--name-only", "-z", ref)
+        if done is None or done.returncode:
+            raise HubWorkspaceError("cannot inspect merge trees for hub input collisions")
+        tree = set(done.stdout.decode("utf-8", "surrogateescape").split("\0")) - {""}
+        parents = _parents(tree)
+        for rel in inputs:
+            if _collides(rel, tree, parents):
+                raise HubWorkspaceError(f"hub input/output path collision in merge tree: {rel}")
+    return inputs
+
+
 # ── git commit of imported work ──────────────────────────────────────────────────────
 
 
@@ -888,8 +1376,21 @@ def commit_sync(root: Path, changed: list[str], deleted: list[str], message: str
 
     staged, failed = paths, []
     if add(paths).returncode != 0:
+        # A failed batch can still stage deletions. Re-adding those paths then
+        # fails because they are absent from both the index and the worktree.
+        removed = set()
+        if deleted:
+            done = subprocess.run(base + ["diff", "--cached", "--name-only", "--diff-filter=D",
+                                          "-z", "--", *deleted],
+                                  capture_output=True, text=True, timeout=30)
+            if done.returncode != 0:
+                raise HubWorkspaceError(f"cannot inspect staged hub deletions: {(done.stderr or done.stdout).strip()[-300:]}")
+            removed = set(done.stdout.split("\0")) - {""}
         staged = []
         for path in paths:
+            if path in removed:
+                staged.append(path)
+                continue
             done = add([path])
             if done.returncode == 0:
                 staged.append(path)
@@ -958,7 +1459,10 @@ async def release_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mc
     purges their messages, turn items and attachments (only an id/title tombstone stays in its
     own event store). What T3 does not own — the workspace directory and the providers' own
     transcripts — is removed here. The local record is deleted only after the check passes."""
+    state.assert_file_policy()
     ssh = ssh or HubSsh.from_env()
+    if ssh is not None and state.remote_dir:
+        await check_workspace_file_policy(ssh, state)
     errors: list[str] = []
     if mcp is not None:
         if state.thread_id:

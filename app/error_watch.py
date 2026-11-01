@@ -23,16 +23,62 @@ DEFAULT_THRESHOLD = 10
 _ORCHESTRA_SCOPE = str(Path(__file__).resolve().parents[1])
 _PYTEST_SIGNATURE = "<PATH>: No module named pytest"
 _FOREIGN_PROJECT_PYTEST_NOISE = "pytest missing outside Orchestra scope"
+_HUB_PROVIDER_LIMIT = re.compile(r"\bhub_provider_limit\b|\busage limit\b", re.I)
+_HUB_CREDENTIAL_REFUSAL = re.compile(
+    r"the task prompt contains a credential-shaped string; refusing to send it to the hub", re.I,
+)
+_HUB_UNFINISHED_TOOL_NOISE = "hub unfinished tool closure"
+_BASH_TERMINATED_NOISE = "bash child process termination"
+_EXPECTED_HUB_NOISE = {
+    "hub provider limit", "hub credential guard refusal", "hub owned_dirs guard refusal",
+    _HUB_UNFINISHED_TOOL_NOISE,
+}
+# session.py emits only these reset labels and ISO times (or "неизвестно").
+# Accept <N> as well so classification survives numeric signature normalization.
+_CODEX_QUOTA_RESET = (
+    r"(?:5h|7d|primary|secondary) (?:неизвестно|"
+    r"(?:\d+|<N>)(?:-(?:\d+|<N>)){2}T(?:\d+|<N>)(?::(?:\d+|<N>)){2}"
+    r"(?:\.(?:\d+|<N>))?(?:Z|[+-](?:\d+|<N>):(?:\d+|<N>)))"
+)
+_CODEX_QUOTA_REFUSAL = re.compile(
+    rf"^квота Codex исчерпана, сброс {_CODEX_QUOTA_RESET}(?:, {_CODEX_QUOTA_RESET})*$", re.I,
+)
+# Only the standalone upstream refusal; embedded or appended failures remain actionable.
+_PROVIDER_CAPACITY_REFUSAL = re.compile(
+    r"\ASelected model is at capacity\. Please try a different model\.\Z",
+)
+# Match only the recoverable input refusal, including its complete recovery hint.
+# Other expected_head failures and appended gate/conflict errors remain visible.
+_MERGE_EXPECTED_HEAD_REFUSAL = re.compile(
+    r"\AMerge operation [^\s:]+: FAILED — "
+    r"expected_head must be the full (?:\d+|<N>)-character SHA from worker_wip\. "
+    r"Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, "
+    r"then start a new operation\.\Z", re.I,
+)
 _NOISE = (
+    ("hub provider limit", _HUB_PROVIDER_LIMIT),
+    ("hub credential guard refusal", _HUB_CREDENTIAL_REFUSAL),
+    ("hub owned_dirs guard refusal", re.compile(
+        r"\bthis hub worker has no owned_dirs, and only projects marked persistent\b", re.I,
+    )),
+    # Only intermediate read retries; exhausted attempts surface without this prefix.
+    ("hub watch read retry", re.compile(
+        r"^hub t3_thread_(?:wait|read) failed; retrying in (?:\d+|<N>)s: .+", re.I,
+    )),
     ("quota/rate limit", re.compile(r"quota|rate[_ -]?limit|rate_limited|subscription limit", re.I)),
+    ("quota/rate limit", _CODEX_QUOTA_REFUSAL),
+    ("external provider capacity", _PROVIDER_CAPACITY_REFUSAL),
     ("hook policy block", re.compile(r"PreToolUse:|hook error:|recursive rm is blocked|bounded quantifier", re.I)),
     ("external timeout", re.compile(r"(?:TG |telegram|Anthropic usage fetch).*?(?:TimeoutError|timed? ?out|rate_limited)", re.I)),
     ("expected command termination", re.compile(r"command exited with code", re.I)),
     ("merge gate refusal", re.compile(r"DIFF TOO LARGE", re.I)),
     ("merge refused: worker not idle", re.compile(r"Worker is (?:waiting|running); wait until it is idle", re.I)),
+    ("merge refused: full expected_head required", _MERGE_EXPECTED_HEAD_REFUSAL),
     ("agent command exit code", re.compile(r"^Exit code (?:\d+|<N>)$", re.I)),
     ("external app tool argument", re.compile(r"This app tool requires", re.I)),
     ("external app unknown tool", re.compile(r"codex_apps/.*Unknown tool", re.I)),
+    # The hub's t3-code preview browser needs the hub owner's PC; agents probing it get this.
+    ("hub preview browser unavailable", re.compile(r"Preview automation open failed", re.I)),
     # Case-sensitive on purpose: a missing real `Bash` tool must still surface.
     ("agent misspelled tool name", re.compile(r"No such tool available: bash(?:_placeholder)?\b")),
     ("TG polling cut by shutdown", re.compile(r"Failed to fetch updates.*ServerDisconnectedError", re.I)),
@@ -69,11 +115,36 @@ _SESSION_NAME = re.compile(r"\[([A-Za-z0-9_.-]+)\]")
 _LISTENER_STATUS = re.compile(r"status=AgentStatus\.([A-Z]+)")
 _URL = re.compile(r"(?:https?://|tg://)\S+", re.I)
 _EMAIL = re.compile(r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b")
+_HUB_TURN_FAILURE = re.compile(r"\bHub worker turn failed:\s*(.*)", re.I | re.S)
+_HUB_HTTP_STATUS = re.compile(r"\bHTTP\s+([1-5]\d{2})\b", re.I)
+_HUB_THREAD_FAILED = re.compile(r"\bhub thread ended with status failed\b", re.I)
+_HUB_EXCEPTION = re.compile(r"\b([A-Za-z_]\w*(?:Error|Timeout|Exception))\b")
 
 
 def normalize_signature(message: str) -> str:
     """Drop volatile logger prefixes, identifiers and values while retaining cause."""
     value = mask_secrets(message or "")
+    # Keep expected outcomes even when a generic exception or '(no output)'
+    # wrapper precedes the real hub failure. Check before truncating the text.
+    if _HUB_PROVIDER_LIMIT.search(value):
+        return "Hub worker turn failed: hub_provider_limit"
+    if _HUB_CREDENTIAL_REFUSAL.search(value):
+        return (
+            "Hub worker turn failed: the task prompt contains a credential-shaped string; "
+            "refusing to send it to the hub"
+        )
+    hub_failure = _HUB_TURN_FAILURE.search(value)
+    if hub_failure:
+        cause = hub_failure.group(1)
+        # HTTP status is a cause, not a volatile number. Return it before _NUMBER.
+        if status := _HUB_HTTP_STATUS.search(cause):
+            return f"Hub worker turn failed: HTTP {status.group(1)}"
+        if _HUB_THREAD_FAILED.search(cause):
+            return "Hub worker turn failed: hub thread ended with status failed"
+        if exception := _HUB_EXCEPTION.search(cause):
+            return f"Hub worker turn failed: {exception.group(1)}"
+        # Preserve unrecognised causes through the usual normalisation below.
+        value = "Hub worker turn failed: " + cause
     value = _SECRET_MARK.sub("<SECRET>", value)
     value = _URL.sub("<URL>", value)
     value = _EMAIL.sub("<EMAIL>", value)
@@ -96,6 +167,21 @@ def classify_noise(signature: str) -> str | None:
     return None
 
 
+def _event_noise(event: dict, signature: str) -> str | None:
+    # HubActivityStream.finish closes open tools with this exact synthetic result.
+    # Check raw content and provenance before grouping identical text from real errors.
+    if (event.get("source") == "logs" and event.get("type") == "tool_result"
+            and event.get("tool_name") == "hub" and event["message"] == "(not finished)"):
+        return _HUB_UNFINISHED_TOOL_NOISE
+    # Bash prints this when a command terminates its own child process.
+    if (event.get("source") == "logs" and event.get("type") == "tool_result"
+            and event.get("tool_name") == "Bash" and event["message"].strip() == "Terminated"):
+        return _BASH_TERMINATED_NOISE
+    if signature == _PYTEST_SIGNATURE and event.get("scope") != _ORCHESTRA_SCOPE:
+        return _FOREIGN_PROJECT_PYTEST_NOISE
+    return classify_noise(signature)
+
+
 def safe_example(message: str) -> str:
     value = normalize_signature(message)
     value = re.sub(r"https?://\S+|\b\S+@\S+", "<URL>", value, flags=re.I)
@@ -114,7 +200,7 @@ def collect_db_events(db_path: Path, since: datetime) -> list[dict]:
     uri = db_path.resolve().as_uri() + "?mode=ro"
     with closing(sqlite3.connect(uri, uri=True, timeout=2)) as connection:
         rows = connection.execute(
-            "SELECT l.ts, l.type, l.content, s.scope, s.name FROM logs l "
+            "SELECT l.ts, l.type, l.content, s.scope, s.name, l.tool_name FROM logs l "
             "LEFT JOIN sessions s ON s.id=l.session_id "
             "WHERE (l.tool_is_error=1 OR l.type='error') AND l.ts >= ? ORDER BY l.ts",
             (since.isoformat(),),
@@ -123,8 +209,9 @@ def collect_db_events(db_path: Path, since: datetime) -> list[dict]:
         {
             "source": "logs", "ts": ts, "message": content,
             "scope": scope or "", "session_name": session_name or "",
+            "type": kind, "tool_name": tool_name,
         }
-        for ts, _kind, content, scope, session_name in rows
+        for ts, kind, content, scope, session_name, tool_name in rows
         if _parse_ts(ts) and _parse_ts(ts) >= since
     ]
 
@@ -211,16 +298,13 @@ def aggregate(events: list[dict], now: datetime, *, threshold=DEFAULT_THRESHOLD)
     grouped: dict[tuple[str, str | None], list[dict]] = defaultdict(list)
     for event in deduplicate_events(events):
         signature = normalize_signature(event["message"])
-        scoped_noise = (
-            _FOREIGN_PROJECT_PYTEST_NOISE
-            if signature == _PYTEST_SIGNATURE and event.get("scope") != _ORCHESTRA_SCOPE
-            else None
-        )
-        grouped[(signature, scoped_noise)].append(event)
+        grouped[(signature, _event_noise(event, signature))].append(event)
     candidates, noise = [], []
-    for (signature, scoped_noise), rows in grouped.items():
+    for (signature, noise_label), rows in grouped.items():
         timestamps = [parsed for row in rows if (parsed := _parse_ts(row["ts"]))]
-        required = 1 if scoped_noise or _UNEXPECTED_LISTENER_END.search(signature) else threshold
+        required = 1 if (
+            noise_label == _FOREIGN_PROJECT_PYTEST_NOISE or _UNEXPECTED_LISTENER_END.search(signature)
+        ) else threshold
         if len(timestamps) < required or not timestamps:
             continue
         item = {
@@ -229,7 +313,7 @@ def aggregate(events: list[dict], now: datetime, *, threshold=DEFAULT_THRESHOLD)
             "first": min(timestamps).isoformat(),
             "last": max(timestamps).isoformat(),
             "examples": list(dict.fromkeys(safe_example(row["message"]) for row in rows))[:2],
-            "noise": scoped_noise or classify_noise(signature),
+            "noise": noise_label,
         }
         (noise if item["noise"] else candidates).append(item)
     sort_key = lambda item: (-item["count"], item["signature"])
@@ -239,7 +323,11 @@ def aggregate(events: list[dict], now: datetime, *, threshold=DEFAULT_THRESHOLD)
 def post_fix_verdict(events: list[dict], signature: str, started_at: datetime, window_hours: int) -> dict:
     matches = [
         event for event in events
-        if normalize_signature(event["message"]) == signature
+        if (event_signature := normalize_signature(event["message"])) == signature
+        and _event_noise(event, event_signature) not in _EXPECTED_HUB_NOISE
+        and not _CODEX_QUOTA_REFUSAL.fullmatch(event_signature)
+        and not _PROVIDER_CAPACITY_REFUSAL.fullmatch(event_signature)
+        and not _MERGE_EXPECTED_HEAD_REFUSAL.fullmatch(event_signature)
         and (signature != _PYTEST_SIGNATURE or event.get("scope") == _ORCHESTRA_SCOPE)
         and (parsed := _parse_ts(event["ts"])) and parsed >= started_at
     ]

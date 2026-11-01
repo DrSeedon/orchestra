@@ -1,0 +1,15 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__ test_single_day_keeps_selective_day_lookup_with_large_old_session_history ___
+tests/test_log_search_v1089.py:104: in test_single_day_keeps_selective_day_lookup_with_large_old_session_history
+    assert work[0] < 2_000
+E   assert 114800 < 2000
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309
+  /<hub-copy>/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1089.py::test_single_day_keeps_selective_day_lookup_with_large_old_session_history
+1 failed, 30 deselected, 1 warning in 3.30s

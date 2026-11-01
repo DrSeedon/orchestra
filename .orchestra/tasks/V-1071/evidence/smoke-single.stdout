@@ -1,0 +1,22 @@
+  t01 rep0: ran   0.0s  2 model calls  744+93 tokens
+  t02 rep0: ran   0.0s  2 model calls  739+93 tokens
+  t03 rep0: ran   0.0s  2 model calls  711+74 tokens
+  t04 rep0: ran   0.0s  2 model calls  995+294 tokens
+  t05 rep0: ran   0.0s  2 model calls  1007+318 tokens
+  t06 rep0: ran   0.0s  2 model calls  1016+314 tokens
+  t07 rep0: ran   0.0s  2 model calls  683+14 tokens
+  t08 rep0: ran   0.0s  2 model calls  665+13 tokens
+  t09 rep0: ran   0.01s  5 model calls  27521+283 tokens
+  t10 rep0: ran   0.0s  9 model calls  3879+322 tokens
+  t11 rep0: ran   0.0s  2 model calls  1163+388 tokens
+  t12 rep0: ran   0.01s  5 model calls  27663+376 tokens
+  t13 rep0: ran   0.0s  2 model calls  1115+309 tokens
+  t14 rep0: ran   0.0s  2 model calls  684+8 tokens
+  t15 rep0: ran   0.0s  1 model calls  327+3 tokens
+  t16 rep0: ran   0.0s  1 model calls  310+3 tokens
+  t17 rep0: ran   0.0s  2 model calls  630+6 tokens
+  t18 rep0: ran   0.01s  6 model calls  27862+286 tokens
+  t19 rep0: ran   0.0s  2 model calls  686+17 tokens
+
+single: 19 tasks ran on the offline stand-in model, 0 harness errors. The plumbing works.
+The stand-in follows keyword rules, so nothing here is scored. Set KIT_MODEL to a real model id for scores. Results in ../../../../evidence/smoke-results/single

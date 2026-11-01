@@ -1,0 +1,306 @@
+$ rg -n image|photo|attachment|resize|thumbnail|view_image|vision|localImage app/backend_claude.py app/backend_codex.py app/backend_hub.py app/harness app/tg_bridge.py app/routes app/static/js/chat.js app/initial_deliveries.py app/backend_harness.py app/backend_grok.py app/hub_workspace.py app/models.py
+app/backend_harness.py:159:        vision_enabled = "image" in getattr(self._llm, "input_modalities", ())
+app/backend_harness.py:160:        schemas = (self._tool_schemas if vision_enabled else [
+app/backend_harness.py:162:            if schema.get("function", {}).get("name") != "read_image"
+app/backend_codex.py:96:    "webSearch", "imageView", "imageGeneration", "sleep", "collabAgentToolCall",
+app/backend_codex.py:1654:        if item_type == "imageView":
+app/backend_codex.py:1660:        if item_type == "imageGeneration":
+app/backend_codex.py:1806:        elif item_type == "imageView":
+app/backend_codex.py:1817:        elif item_type == "imageGeneration":
+app/backend_hub.py:172:                    "tool", "command", "file_change", "file_edit", "web_search", "image_generation")):
+app/backend_hub.py:494:            for note in await self._provision(mc, ssh, root, state, plan, options, fresh, scratch):
+app/backend_hub.py:514:                    for note in await self._provision(mc, ssh, root, state, plan, options, True, scratch):
+app/backend_hub.py:578:    async def _provision(self, mc: MultiCodeClient, ssh: hw.HubSsh, root: Path, state: hw.WorkspaceState,
+app/backend_hub.py:590:            sent, dropped = await hw.provision_from_base(ssh, root, self._scope, plan, state.remote_dir)
+app/backend_hub.py:640:            # Also update a thread that predates uv provisioning, or resumed without PATH.
+app/hub_workspace.py:49:    "For a Python copy with pyproject.toml and uv.lock, the broker provisions real uv "
+app/hub_workspace.py:53:    "The system uv is a dispatcher to a connected PC; use the provisioned binary. "
+app/hub_workspace.py:995:async def provision_from_base(ssh: HubSsh, root: Path, scope: str, plan: UploadPlan,
+app/hub_workspace.py:1211:    purges their messages, turn items and attachments (only an id/title tombstone stays in its
+app/models.py:554:    Zero token prices are not proof of a free route: request/song/image prices can live
+app/tg_bridge.py:48:    MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, photo_geometry_valid, send_as_photo,
+app/tg_bridge.py:1224:    images: deque = field(default_factory=deque)
+app/tg_bridge.py:1226:    image_wake: asyncio.Event = field(default_factory=asyncio.Event)
+app/tg_bridge.py:1231:    image_dispatcher: asyncio.Task | None = None
+app/tg_bridge.py:1233:    image_in_flight: _TgCallItem | None = None
+app/tg_bridge.py:1234:    image_reservations: set = field(default_factory=set)
+app/tg_bridge.py:1238:    image_admission_tasks: set = field(default_factory=set)
+app/tg_bridge.py:1241:    optional_images: int = 0
+app/tg_bridge.py:1252:    image_dropped: int = 0
+app/tg_bridge.py:1253:    image_timeouts: int = 0
+app/tg_bridge.py:1254:    image_lost: int = 0
+app/tg_bridge.py:1261:    image_last_latency: float = 0.0
+app/tg_bridge.py:1262:    image_max_latency: float = 0.0
+app/tg_bridge.py:1295:        state.image_wake.set()
+app/tg_bridge.py:1303:        for item in state.images:
+app/tg_bridge.py:1306:        _settle_tg_item(state.image_in_flight)
+app/tg_bridge.py:1310:        state.images.clear()
+app/tg_bridge.py:1311:        state.image_reservations.clear()
+app/tg_bridge.py:1313:        for task in (state.dispatcher, state.image_dispatcher, registered_task):
+app/tg_bridge.py:1322:        image_admission_tasks = [
+app/tg_bridge.py:1323:            task for task in state.image_admission_tasks
+app/tg_bridge.py:1326:        if image_admission_tasks:
+app/tg_bridge.py:1327:            await asyncio.gather(*image_admission_tasks, return_exceptions=True)
+app/tg_bridge.py:1381:            "optional_images": 0,
+app/tg_bridge.py:1388:            "image_reserved": 0,
+app/tg_bridge.py:1389:            "image_queued": 0,
+app/tg_bridge.py:1390:            "image_in_flight": 0,
+app/tg_bridge.py:1391:            "image_dropped": 0,
+app/tg_bridge.py:1392:            "image_timeouts": 0,
+app/tg_bridge.py:1393:            "image_lost": 0,
+app/tg_bridge.py:1394:            "image_oldest_age": 0.0,
+app/tg_bridge.py:1395:            "image_last_latency": 0.0,
+app/tg_bridge.py:1396:            "image_max_latency": 0.0,
+app/tg_bridge.py:1424:        "optional_images": state.optional_images,
+app/tg_bridge.py:1431:        "image_reserved": len(state.image_reservations),
+app/tg_bridge.py:1432:        "image_queued": len(state.images),
+app/tg_bridge.py:1433:        "image_in_flight": int(state.image_in_flight is not None),
+app/tg_bridge.py:1434:        "image_dropped": state.image_dropped,
+app/tg_bridge.py:1435:        "image_timeouts": state.image_timeouts,
+app/tg_bridge.py:1436:        "image_lost": state.image_lost,
+app/tg_bridge.py:1437:        "image_oldest_age": oldest_age(state.images),
+app/tg_bridge.py:1438:        "image_last_latency": state.image_last_latency,
+app/tg_bridge.py:1439:        "image_max_latency": state.image_max_latency,
+app/tg_bridge.py:1799:        if item.optional_kind == "image":
+app/tg_bridge.py:1800:            state.optional_images -= 1
+app/tg_bridge.py:1861:        if item.optional_kind == "image":
+app/tg_bridge.py:1862:            state.optional_images -= 1
+app/tg_bridge.py:1951:async def _tg_dispatch_images(chat_id: int, state: _TgDeliveryState) -> None:
+app/tg_bridge.py:1954:            if not state.images:
+app/tg_bridge.py:1955:                state.image_wake.clear()
+app/tg_bridge.py:1956:                await state.image_wake.wait()
+app/tg_bridge.py:1958:            item = state.images.popleft()
+app/tg_bridge.py:1960:                state.image_reservations.discard(item.reservation)
+app/tg_bridge.py:1962:            state.image_in_flight = item
+app/tg_bridge.py:1970:                    "image",
+app/tg_bridge.py:1975:                _tg_record_latency(state, "image", item)
+app/tg_bridge.py:1981:                logger.exception(f"TG {item.label} image dispatcher failed: {e}")
+app/tg_bridge.py:1984:                state.image_reservations.discard(item.reservation)
+app/tg_bridge.py:1985:                if state.image_in_flight is item:
+app/tg_bridge.py:1986:                    state.image_in_flight = None
+app/tg_bridge.py:1989:        if state.image_dispatcher is current:
+app/tg_bridge.py:1990:            state.image_dispatcher = None
+app/tg_bridge.py:1999:def _tg_start_image_dispatcher(
+app/tg_bridge.py:2003:    if state.image_dispatcher is None or state.image_dispatcher.done():
+app/tg_bridge.py:2004:        state.image_dispatcher = asyncio.create_task(
+app/tg_bridge.py:2005:            _tg_dispatch_images(chat_id, state),
+app/tg_bridge.py:2038:        image_full = (
+app/tg_bridge.py:2039:            optional_kind == "image"
+app/tg_bridge.py:2040:            and state.optional_images >= _TG_IMAGE_QUEUE_MAX
+app/tg_bridge.py:2042:        if len(state.optional) >= _TG_OPTIONAL_QUEUE_MAX or image_full:
+app/tg_bridge.py:2054:        if optional_kind == "image":
+app/tg_bridge.py:2055:            state.optional_images += 1
+app/tg_bridge.py:2400:async def _tg_send_isolated_photo(
+app/tg_bridge.py:2419:        and len(state.image_reservations) >= _TG_IMAGE_QUEUE_MAX
+app/tg_bridge.py:2421:        state.image_dropped += 1
+app/tg_bridge.py:2422:        logger.warning("TG send_photo dropped: image lane full")
+app/tg_bridge.py:2426:    state.image_reservations.add(reservation)
+app/tg_bridge.py:2429:        f"tg-image-{uuid.uuid4().hex}{suffix}"
+app/tg_bridge.py:2438:            logger.warning(f"TG image snapshot cleanup failed ({owned_path}): {e}")
+app/tg_bridge.py:2443:        state.image_reservations.discard(reservation)
+app/tg_bridge.py:2444:        state.image_lost += 1
+app/tg_bridge.py:2446:        logger.warning(f"TG send_photo snapshot failed: {e}")
+app/tg_bridge.py:2464:            label="send_photo_marker",
+app/tg_bridge.py:2466:            traffic_class="image",
+app/tg_bridge.py:2473:        state.image_reservations.discard(reservation)
+app/tg_bridge.py:2474:        state.image_lost += 1
+app/tg_bridge.py:2479:            f"TG send_photo marker rejected: {type(e).__name__}: {e}"
+app/tg_bridge.py:2485:        state.image_reservations.discard(reservation)
+app/tg_bridge.py:2491:        state.image_reservations.discard(reservation)
+app/tg_bridge.py:2492:        state.image_lost += 1
+app/tg_bridge.py:2497:            f"TG send_photo marker failed: {type(e).__name__}: {e}"
+app/tg_bridge.py:2509:                state.image_lost += 1
+app/tg_bridge.py:2510:                logger.warning("TG send_photo marker result unavailable")
+app/tg_bridge.py:2534:        state.images.append(_TgCallItem(
+app/tg_bridge.py:2540:            traffic_class="image",
+app/tg_bridge.py:2545:        state.image_wake.set()
+app/tg_bridge.py:2546:        _tg_start_image_dispatcher(chat_id, state)
+app/tg_bridge.py:2551:            state.image_reservations.discard(reservation)
+app/tg_bridge.py:2559:        state.image_reservations.discard(reservation)
+app/tg_bridge.py:2573:                state.image_lost += 1
+app/tg_bridge.py:2575:                f"TG send_photo marker continuation failed: "
+app/tg_bridge.py:2580:                state.image_reservations.discard(reservation)
+app/tg_bridge.py:2586:    state.image_admission_tasks.add(continuation)
+app/tg_bridge.py:2587:    continuation.add_done_callback(state.image_admission_tasks.discard)
+app/tg_bridge.py:2593:    *, is_photo: bool, important: bool, placeholder_text: str | None = None,
+app/tg_bridge.py:2596:    if is_photo and not photo_geometry_valid(path):
+app/tg_bridge.py:2597:        logger.info("TG image sent as document because its dimensions are invalid: %s", path)
+app/tg_bridge.py:2598:        is_photo = False
+app/tg_bridge.py:2599:    if is_photo and (not important or isolated_preview):
+app/tg_bridge.py:2600:        return await _tg_send_isolated_photo(
+app/tg_bridge.py:2613:        if is_photo:
+app/tg_bridge.py:2614:            return await bot.send_photo(
+app/tg_bridge.py:2626:    label = "send_photo" if is_photo else "send_video" if is_video else "send_document"
+app/tg_bridge.py:2633:        optional_kind=("image" if is_photo else "file") if not important else None,
+app/tg_bridge.py:2659:    is_photo: bool,
+app/tg_bridge.py:2665:    if is_photo and not photo_geometry_valid(snapshot_path):
+app/tg_bridge.py:2666:        is_photo = False
+app/tg_bridge.py:2671:        if is_photo:
+app/tg_bridge.py:2672:            return await bot.send_photo(
+app/tg_bridge.py:2710:                if item["kind"] == "photo"
+app/tg_bridge.py:2711:                and not photo_geometry_valid(item["snapshot_path"])
+app/tg_bridge.py:2725:        if item["kind"] == "photo":
+app/tg_bridge.py:2993:    orch_name: str, path: str, caption: str, is_photo: bool, is_video: bool = False,
+app/tg_bridge.py:3009:            is_photo=is_photo,
+app/tg_bridge.py:3075:    is_photo = send_as_photo(
+app/tg_bridge.py:3076:        fp.name, file_size, as_document, photo_path=str(fp),
+app/tg_bridge.py:3081:        is_photo=is_photo, important=True, is_video=is_video,
+app/tg_bridge.py:3087:        await _mirror_send_file(orch_name, path, label, is_photo, is_video)
+app/tg_bridge.py:3490:    is_photo: bool = False
+app/tg_bridge.py:3505:                    is_photo=item.is_photo,
+app/tg_bridge.py:3783:                                    is_photo=True, important=True,
+app/tg_bridge.py:3791:                                logger.warning(f"TG send photo failed: {e}")
+app/tg_bridge.py:3883:                            "'type': 'image'" in c or '"type": "image"' in c
+app/tg_bridge.py:3884:                            or "'type':'image'" in c
+app/tg_bridge.py:3894:                                        is_photo=True, important=True,
+app/tg_bridge.py:3900:                                logger.debug(f"Read image send failed: {_e}")
+app/tg_bridge.py:4229:                is_photo=True, important=True,
+app/tg_bridge.py:4295:            is_photo=True,
+app/tg_bridge.py:4405:@dp.message(F.chat.type.in_({"group", "supergroup"}), F.photo)
+app/tg_bridge.py:4406:async def handle_photo(msg: types.Message):
+app/tg_bridge.py:4411:    path = await _download_file(msg.photo[-1].file_id, _media_name("photo", ".jpg", msg), msg.photo[-1].file_unique_id)
+app/tg_bridge.py:4413:    tag = f"[photo: {path}]" if path else "[photo: file too large]"
+app/static/js/chat.js:370:    const saved = drafts[target.sessionName] || {text: '', images: []};
+app/static/js/chat.js:377:        images: input ? [...pastedImages] : [...(saved.images || [])],
+app/static/js/chat.js:412:        const draft = drafts[target.sessionName] || {text: '', images: []};
+app/static/js/chat.js:415:        if (!draft.text) draft.images = [];
+app/static/js/chat.js:813:        const blob = await canvas.convertToBlob({type: 'image/webp', quality: 0.9});
+app/static/js/chat.js:827:        if (!item.type.startsWith('image/')) continue;
+app/static/js/chat.js:853:    const isImage = /\.(png|jpe?g|gif|webp|svg)$/i.test(cardFilename) || file.type.startsWith('image/');
+app/static/js/chat.js:858:        img.className = 'paste-preview-image rounded border border-slate-700';
+app/static/js/chat.js:1044:        img.className = 'paste-preview-image rounded border border-slate-700';
+app/static/js/chat.js:1090:    const imageUrl = (path, preview = false) =>
+app/static/js/chat.js:1092:    const mediaUrl = (path, preview = false) => imageUrl(path, preview && !isVideoMedia(path));
+app/static/js/chat.js:1094:        const previewClass = isVideoMedia(path) && className === 'chat-inline-image' ? 'chat-inline-video' : className;
+app/static/js/chat.js:1101:        const img = makeImage(matches[0], 'chat-inline-image');
+app/static/js/chat.js:1109:    gallery.className = 'chat-image-gallery';
+app/static/js/chat.js:1110:    gallery.dataset.imageCount = String(matches.length);
+app/static/js/chat.js:1111:    gallery.setAttribute('aria-label', T('Gallery: {n} photos', {n: matches.length}));
+app/static/js/chat.js:1114:    header.className = 'chat-image-gallery-header';
+app/static/js/chat.js:1116:    count.className = 'chat-image-gallery-count';
+app/static/js/chat.js:1117:    count.textContent = T('📷 {n} photos', {n: matches.length});
+app/static/js/chat.js:1120:    toggle.className = 'chat-image-gallery-toggle';
+app/static/js/chat.js:1125:    grid.className = 'chat-image-gallery-grid';
+app/static/js/chat.js:1136:            thumb.className = 'chat-image-gallery-thumb';
+app/static/js/chat.js:1137:            thumb.setAttribute('aria-label', T('Open photo {current} of {total}', {current: index + 1, total: matches.length}));
+app/static/js/chat.js:1147:                more.className = 'chat-image-gallery-more';
+app/static/js/chat.js:1150:                thumb.setAttribute('aria-label', T('Show remaining {n} photos', {n: hiddenCount}));
+app/static/js/chat.js:1514:            else if (rawName === 'ViewImage') preview = `🖼 ${(parsed.file_path || '').split('/').pop() || T('image')}`;
+app/static/js/chat.js:1515:            else if (rawName === 'ImageGeneration') preview = T('🎨 generating image');
+app/static/js/chat.js:1865:function _imageGenerationProjection(data) {
+app/static/js/chat.js:1874:    const projected = _imageGenerationProjection(data);
+app/static/js/chat.js:1881:    host.querySelectorAll('.codex-tool-image, .codex-image-prompt').forEach(el => el.remove());
+app/static/js/chat.js:1886:        img.className = 'codex-tool-image';
+app/static/js/chat.js:1892:        prompt.className = 'codex-image-prompt';
+app/static/js/chat.js:1901:    if (!host || !Number.isFinite(logId) || host.dataset.imageRestore === 'loading') return;
+app/static/js/chat.js:1902:    host.dataset.imageRestore = 'loading';
+app/static/js/chat.js:1904:    if (header) header.textContent = T('↻ Restoring generated image');
+app/static/js/chat.js:1908:        const projected = _imageGenerationProjection(data);
+app/static/js/chat.js:1916:        delete host.dataset.imageRestore;
+app/static/js/chat.js:2494:        const image = document.createElement('img');
+app/static/js/chat.js:2495:        image.src = `/charts/${encodeURIComponent(filename)}`;
+app/static/js/chat.js:2496:        image.alt = 'Chart';
+app/static/js/chat.js:2497:        image.loading = 'lazy';
+app/static/js/chat.js:2498:        image.decoding = 'async';
+app/static/js/chat.js:2499:        image.style.cssText = 'display:block;margin-top:6px;max-width:100%;max-height:360px;border-radius:8px;border:1px solid rgba(99,102,241,0.2);cursor:pointer';
+app/static/js/chat.js:2500:        image.addEventListener('click', () => openImageLightbox(image.src));
+app/static/js/chat.js:2501:        image.addEventListener('error', () => {
+app/static/js/chat.js:2502:            image.remove();
+app/static/js/chat.js:2507:        card.appendChild(image);
+app/static/js/chat.js:2517:        if (resultSpan) resultSpan.textContent = T('🖼 image');
+app/static/js/chat.js:2518:        card.dataset.resultContent = '[image]';
+app/static/js/chat.js:3674:            header.textContent = `🖼 ${T('Viewing')} ${(path.split('/').pop() || T('image'))}`;
+app/static/js/chat.js:3677:                className: 'codex-tool-image', alt: path.split('/').pop() || T('Viewed image'),
+app/static/js/chat.js:3680:                media.classList.add('codex-tool-image-error');
+app/static/js/chat.js:3684:                media.classList.remove('codex-tool-image-error');
+app/static/js/chat.js:3691:        header.textContent = T('🎨 Generating image');
+app/static/js/chat.js:3967:            const img = lastTool.querySelector('.codex-tool-image');
+app/static/js/chat.js:4255:                if (parsed.sync_revision) sys.push(`rev: ${parsed.sync_revision}`);
+app/static/js/chat.js:5287:    // Heuristic: detect base64 image payloads from tool results (e.g. screenshot tools)
+app/static/js/chat.js:5288:    const _isBase64Image = content.includes("'type': 'image'") || content.includes('"type": "image"') || content.includes('"type":"image"') || /['"]?data['"]?\s*[:=]\s*['"][A-Za-z0-9+/=\s]{500,}['"]/.test(content);
+app/static/js/chat.js:5364:            img.src = 'data:image/png;base64,' + b64Match[1].replace(/\s/g, '');
+app/harness/loop.py:521:                vision_enabled="image" in getattr(ctx.llm, "input_modalities", ())),
+app/harness/llm.py:32:from app.harness.images import MAX_INLINE_IMAGE_BYTES, read_image
+app/harness/llm.py:46:_IMAGE_TAG = re.compile(r"\[(?:photo|file):\s*([^|\]\n]+)")
+app/harness/llm.py:47:_WORKSPACE_IMAGE_RESULT = re.compile(r"^\[workspace image: ([^\]]+)\]$")
+app/harness/llm.py:362:                 attachments_root: str | Path | None = None,
+app/harness/llm.py:368:        self.attachments_root = Path(attachments_root or Path(__file__).resolve().parents[2] / "data" / "uploads")
+app/harness/llm.py:398:        """Inline only validated Telegram uploads for routes that advertise image input."""
+app/harness/llm.py:399:        if "image" not in self.input_modalities:
+app/harness/llm.py:402:        root = self.attachments_root.resolve()
+app/harness/llm.py:403:        total_image_bytes = 0
+app/harness/llm.py:405:        read_image_ids = {
+app/harness/llm.py:409:            if tc.get("id") and (tc.get("function") or {}).get("name") == "read_image"
+app/harness/llm.py:411:        pending_workspace_images: list[tuple[str, bytes, str]] = []
+app/harness/llm.py:413:        def add_image(path: str, allowed_root: Path, *, root_label: str,
+app/harness/llm.py:415:            nonlocal total_image_bytes
+app/harness/llm.py:416:            resolved, data, mime = read_image(
+app/harness/llm.py:418:            total_image_bytes += len(data)
+app/harness/llm.py:419:            if total_image_bytes > MAX_INLINE_IMAGE_BYTES:
+app/harness/llm.py:420:                raise ValueError(f"inline images in one request exceed {MAX_INLINE_IMAGE_BYTES} bytes")
+app/harness/llm.py:423:        def append_workspace_images() -> None:
+app/harness/llm.py:424:            if not pending_workspace_images:
+app/harness/llm.py:426:            paths = ", ".join(path for path, _, _ in pending_workspace_images)
+app/harness/llm.py:427:            parts = [{"type": "text", "text": f"Inspect the workspace image(s) read by the read_image tool: {paths}"}]
+app/harness/llm.py:428:            parts.extend({"type": "image_url", "image_url": {
+app/harness/llm.py:430:                for _, data, mime in pending_workspace_images)
+app/harness/llm.py:432:            pending_workspace_images.clear()
+app/harness/llm.py:437:                if (message.get("tool_call_id") in read_image_ids and self.workspace_root
+app/harness/llm.py:442:                        resolved, data, mime = add_image(
+app/harness/llm.py:444:                        pending_workspace_images.append((
+app/harness/llm.py:451:            append_workspace_images()
+app/harness/llm.py:459:                _, data, mime = add_image(
+app/harness/llm.py:462:                parts.append({"type": "image_url", "image_url": {
+app/harness/llm.py:465:        append_workspace_images()
+app/routes/tg.py:287:    ext = Path(file.filename or "image.png").suffix or ".png"
+app/routes/tg.py:313:    return FileResponse(path, headers={"Content-Disposition": f'attachment; filename="{path.name}"'})
+app/routes/tg.py:327:    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"})
+app/routes/system.py:290:def _render_image_preview(path: str, mtime_ns: int, size: int, edge: int) -> tuple[bytes, int, int]:
+app/routes/system.py:297:        # full image. The wedding originals are ~24 MP, while dashboard cards are tiny.
+app/routes/system.py:299:        image = ImageOps.exif_transpose(source)
+app/routes/system.py:300:        image.thumbnail((edge, edge), Image.Resampling.LANCZOS)
+app/routes/system.py:301:        if image.mode not in {"RGB", "RGBA"}:
+app/routes/system.py:302:            image = image.convert("RGBA" if "transparency" in image.info else "RGB")
+app/routes/system.py:304:        image.save(output, "WEBP", quality=82, method=4)
+app/routes/system.py:305:        return output.getvalue(), image.width, image.height
+app/routes/system.py:341:                _render_image_preview,
+app/routes/system.py:348:            logger.warning("image preview failed for %s: %s", target, err_text(error))
+app/routes/system.py:364:                media_type="image/webp",
+app/routes/system.py:377:    # download=1 forces a save dialog (Content-Disposition: attachment); default lets
+app/routes/system.py:1480:    return FileResponse(path, media_type="image/png", filename="limits.png")
+app/harness/images.py:1:"""Bounded image loading for Telegram attachments and workspace image tools."""
+app/harness/images.py:11:    "PNG": "image/png",
+app/harness/images.py:12:    "JPEG": "image/jpeg",
+app/harness/images.py:13:    "WEBP": "image/webp",
+app/harness/images.py:14:    "GIF": "image/gif",
+app/harness/images.py:22:        with Image.open(BytesIO(data)) as image:
+app/harness/images.py:23:            image.verify()
+app/harness/images.py:24:            mime = _MIME_TYPES.get(image.format or "")
+app/harness/images.py:26:        raise ValueError("image bytes are not a valid supported image") from exc
+app/harness/images.py:28:        raise ValueError("image MIME is not a supported PNG, JPEG, WEBP or GIF image")
+app/harness/images.py:32:def read_image(path: str, allowed_root: str | Path, *, root_label: str = "workspace",
+app/harness/images.py:34:    """Read and validate one image that resolves inside an explicitly allowed root."""
+app/harness/images.py:41:        raise ValueError(f"image file unavailable: {path}: {exc}") from exc
+app/harness/images.py:44:        raise ValueError(f"image path is outside the {root_label}: {path}")
+app/harness/images.py:48:        with os.fdopen(fd, "rb") as image_file:
+app/harness/images.py:49:            info = os.fstat(image_file.fileno())
+app/harness/images.py:51:                raise ValueError(f"image path is not a regular file: {path}")
+app/harness/images.py:53:                raise ValueError(f"image exceeds {MAX_INLINE_IMAGE_BYTES} bytes: {path}")
+app/harness/images.py:54:            data = image_file.read(MAX_INLINE_IMAGE_BYTES + 1)
+app/harness/images.py:56:            raise ValueError(f"image exceeds {MAX_INLINE_IMAGE_BYTES} bytes: {path}")
+app/harness/images.py:58:        raise ValueError(f"image file unavailable: {path}: {exc}") from exc
+app/harness/tools.py:29:from app.harness.images import read_image as _read_validated_image
+app/harness/tools.py:248:def read_image(path: str, cwd: str) -> str:
+app/harness/tools.py:249:    """Validate a workspace image and return a text-only reference for the next model request."""
+app/harness/tools.py:250:    resolved, _, _ = _read_validated_image(path, cwd)
+app/harness/tools.py:252:    return f"[workspace image: {quote(relative, safe='/._-')}]"
+app/harness/tools.py:459:        fn("read_image", "View a PNG, JPEG, WEBP or GIF image inside the workspace. The image is attached to the next model request; paths outside the workspace are refused.",
+app/harness/tools.py:483:READONLY_NAMES = {"read", "read_image", "glob", "grep"}
+app/harness/tools.py:486:def readonly_tool_schemas(*, vision_enabled: bool = False) -> list[dict]:
+app/harness/tools.py:489:            and (vision_enabled or s["function"]["name"] != "read_image")]
+app/harness/tools.py:543:        if name == "read_image":
+app/harness/tools.py:544:            return await asyncio.to_thread(read_image, args.get("path", ""), cwd), False
+app/harness/tools.py:562:BUILTIN_NAMES = {"bash", "read", "read_image", "write", "edit", "glob", "grep"}
+app/harness/mcp.py:325:    content (images/embedded resources) fall back to a short marker. An MCP-level error
+
+[exit 0]

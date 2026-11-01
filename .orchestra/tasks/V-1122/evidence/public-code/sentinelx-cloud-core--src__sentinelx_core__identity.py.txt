@@ -1,0 +1,77 @@
+     1	"""Identity: load /etc/sentinelx/identity.json (host_id + enrollment token)."""
+     2	
+     3	from __future__ import annotations
+     4	
+     5	import json
+     6	from dataclasses import dataclass
+     7	from pathlib import Path
+     8	
+     9	
+    10	@dataclass(frozen=True)
+    11	class Identity:
+    12	    """Loaded from identity.json — written by sentinelx-installer."""
+    13	
+    14	    host_id: str
+    15	    token: str
+    16	    hub: str
+    17	
+    18	
+    19	class IdentityError(Exception):
+    20	    """Identity file is missing or malformed."""
+    21	
+    22	
+    23	def _validate_token(token: str, path: Path) -> str:
+    24	    """Reject a token that cannot possibly authenticate, loudly and early.
+    25	
+    26	    The commonest field failure is a token corrupted on copy-paste: browser
+    27	    page translation rewrites the DOM and injects invisible / non-ASCII
+    28	    characters, or the token gets split across lines. Left alone, such a token
+    29	    is written to identity.json and the agent then loops forever on an opaque
+    30	    403 at /agent/connect. Failing here, at load, turns that into one clear
+    31	    line in the service log.
+    32	    """
+    33	    if not token:
+    34	        raise IdentityError(
+    35	            f"enrollment token in {path} is empty — re-run enrollment for this host"
+    36	        )
+    37	    if not token.isascii():
+    38	        raise IdentityError(
+    39	            f"enrollment token in {path} contains non-ASCII characters, which almost "
+    40	            "always means it was corrupted on copy-paste (browser page translation is "
+    41	            "the usual cause). Re-run enrollment and paste the token exactly, with page "
+    42	            "translation turned off."
+    43	        )
+    44	    if any(ch.isspace() for ch in token):
+    45	        raise IdentityError(
+    46	            f"enrollment token in {path} contains whitespace — copy the token as one "
+    47	            "unbroken string and re-run enrollment"
+    48	        )
+    49	    if token.count(".") != 2 or not all(token.split(".")):
+    50	        raise IdentityError(
+    51	            f"enrollment token in {path} is not a well-formed token (expected three "
+    52	            "dot-separated parts) — re-run enrollment and copy the whole token"
+    53	        )
+    54	    return token
+    55	
+    56	
+    57	def load_identity(path: Path) -> Identity:
+    58	    if not path.exists():
+    59	        raise IdentityError(
+    60	            f"identity file not found at {path} — run sentinelx-enroll to enroll this host"
+    61	        )
+    62	    try:
+    63	        data = json.loads(path.read_text())
+    64	    except (json.JSONDecodeError, OSError) as exc:
+    65	        raise IdentityError(f"could not read {path}: {exc}") from exc
+    66	
+    67	    for required in ("host_id", "token", "hub"):
+    68	        if required not in data:
+    69	            raise IdentityError(f"identity file missing field: {required}")
+    70	
+    71	    # Trim whitespace/newlines that ride along on copy-paste, then validate the
+    72	    # token so a corrupted paste fails here with a clear message instead of
+    73	    # looping on an opaque 403 forever.
+    74	    host_id = str(data["host_id"]).strip()
+    75	    hub = str(data["hub"]).strip()
+    76	    token = _validate_token(str(data["token"]).strip(), path)
+    77	    return Identity(host_id=host_id, token=token, hub=hub)

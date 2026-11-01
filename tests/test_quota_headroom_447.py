@@ -96,13 +96,15 @@ async def test_quota_map_headroom_is_server_line_minus_fact(mapped):
         + 89.0 * 0.057 / 56.0 * elapsed_night + 91.0 * 8.0 / 168.0
     )
     assert claude["headroom_pp"] == pytest.approx(expected_line - 30.0)
-    assert sol["headroom_pp"] == pytest.approx(81.2858283255199 - 90.0)
+    assert sol["headroom_pp"] == pytest.approx(expected_line - 90.0)
     assert claude["headroom_pp"] == pytest.approx(line_limit(
         0.5, "claude", window_minutes=10080, window_start_at=start,
     ) - 30.0)
-    assert sol["headroom_pp"] == pytest.approx(line_limit(0.5, "sol") - 90.0)
+    assert sol["headroom_pp"] == pytest.approx(line_limit(
+        0.5, "sol", window_minutes=10080, window_start_at=start,
+    ) - 90.0)
     assert sol["headroom_pp"] < 0
-    assert luna["headroom_pp"] is None
+    assert luna["headroom_pp"] == pytest.approx(sol["headroom_pp"])
 
 
 def test_app_js_does_not_reimplement_quota_threshold_formula():

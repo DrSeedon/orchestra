@@ -1,0 +1,196 @@
+[
+  {
+    "repo": "letta-ai/sleep-time-compute",
+    "path": "run_stateful_gsm_symbolic.py",
+    "fetched_at": "2026-10-28T08:18:56.883026+00:00",
+    "revision": "ffdf6626178f55318e1109610fecd95f58b9ee28",
+    "url": "https://raw.githubusercontent.com/letta-ai/sleep-time-compute/ffdf6626178f55318e1109610fecd95f58b9ee28/run_stateful_gsm_symbolic.py",
+    "bytes": 13328,
+    "sha256": "b1cbcabb53d71f0563e91bb1149949e469f1b1ee748069832da212d54abdf97e",
+    "anchors": {
+      "rethink_memory": [
+        34,
+        36,
+        39,
+        82,
+        99,
+        109,
+        124,
+        175,
+        179,
+        180
+      ],
+      "run_memory_edits": [
+        55,
+        231
+      ]
+    }
+  },
+  {
+    "repo": "joonspk-research/generative_agents",
+    "path": "reverie/backend_server/persona/cognitive_modules/reflect.py",
+    "fetched_at": "2026-10-28T08:18:57.579199+00:00",
+    "revision": "fe05a71d3e4ed7d10bf68aa4eda6dd995ec070f4",
+    "url": "https://raw.githubusercontent.com/joonspk-research/generative_agents/fe05a71d3e4ed7d10bf68aa4eda6dd995ec070f4/reverie/backend_server/persona/cognitive_modules/reflect.py",
+    "bytes": 8569,
+    "sha256": "5e2658a90f658ce4f42f6a7c3859fe47fd08925eb77c179a4c38e9233d1c205c",
+    "anchors": {
+      "run_reflect": [
+        99,
+        184
+      ],
+      "reflection_trigger": [
+        135,
+        183
+      ],
+      "generate_insights_and_evidence": [
+        38,
+        39,
+        121
+      ]
+    }
+  },
+  {
+    "repo": "WujiangXu/A-mem-sys",
+    "path": "agentic_memory/memory_system.py",
+    "fetched_at": "2026-10-28T08:18:58.107347+00:00",
+    "revision": "f303dfc71e07bdc787f4bc135d4cea328ae30e99",
+    "url": "https://raw.githubusercontent.com/WujiangXu/A-mem-sys/f303dfc71e07bdc787f4bc135d4cea328ae30e99/agentic_memory/memory_system.py",
+    "bytes": 33308,
+    "sha256": "df3d0697ef4704bb0f94545d925732d39304a68fbb1213b0ffeccf65591b73dd",
+    "anchors": {
+      "class MemoryNote": [
+        24
+      ],
+      "process_memory": [
+        267,
+        625,
+        753
+      ],
+      "_evolution_system_prompt": [
+        131,
+        647
+      ]
+    }
+  },
+  {
+    "repo": "mem0ai/mem0",
+    "path": "mem0/memory/main.py",
+    "fetched_at": "2026-10-28T08:18:58.696241+00:00",
+    "revision": "26cdefb46600c0fa5953c4b5ee5003c125539fc4",
+    "url": "https://raw.githubusercontent.com/mem0ai/mem0/26cdefb46600c0fa5953c4b5ee5003c125539fc4/mem0/memory/main.py",
+    "bytes": 169881,
+    "sha256": "f329ca4a17af1fbefb32ac10d4cc7ae7ddbdb7435a87eb74c30915cff98b8b7c",
+    "anchors": {
+      "_add_to_vector_store": [
+        871,
+        881,
+        2546,
+        2556
+      ],
+      "_create_memory": [
+        905,
+        1975,
+        2045,
+        2587,
+        3671,
+        3763
+      ],
+      "_update_memory": [
+        1879,
+        2052,
+        3558,
+        3770
+      ]
+    }
+  },
+  {
+    "repo": "gepa-ai/gepa",
+    "path": "src/gepa/core/engine.py",
+    "fetched_at": "2026-10-28T08:18:59.278801+00:00",
+    "revision": "80a62c879ecdeb8741faac72a844dceb1c18691f",
+    "url": "https://raw.githubusercontent.com/gepa-ai/gepa/80a62c879ecdeb8741faac72a844dceb1c18691f/src/gepa/core/engine.py",
+    "bytes": 59528,
+    "sha256": "96779c98be8568eeb3899044cb37b0fb87d07a91af2979403dff2a7b6eeba365",
+    "anchors": {
+      "class GEPAEngine": [
+        113
+      ],
+      "eval_before": [
+        74,
+        75,
+        76
+      ],
+      "eval_after": [
+        82,
+        83,
+        84
+      ]
+    }
+  },
+  {
+    "repo": "openai/codex",
+    "path": "codex-rs/memories/README.md",
+    "fetched_at": "2026-10-28T08:18:59.782643+00:00",
+    "revision": "26ad281fd1ca712e4f0c7920a6273cf18c961b8a",
+    "url": "https://raw.githubusercontent.com/openai/codex/26ad281fd1ca712e4f0c7920a6273cf18c961b8a/codex-rs/memories/README.md",
+    "bytes": 7488,
+    "sha256": "c9c63a556b0b83dfcba11d78de4c9d8f0db77c452864d3ca5cd32e62f104cdff",
+    "anchors": {
+      "Phase 1": [
+        5,
+        14,
+        38,
+        40,
+        42,
+        67,
+        77,
+        127,
+        156
+      ],
+      "Phase 2": [
+        5,
+        14,
+        38,
+        79,
+        81,
+        105,
+        112,
+        124,
+        128,
+        129,
+        145,
+        148
+      ],
+      "global phase-2 lock": [
+        85,
+        141
+      ]
+    }
+  },
+  {
+    "repo": "openai/codex",
+    "path": "codex-rs/memories/write/templates/memories/consolidation.md",
+    "fetched_at": "2026-10-28T08:19:00.289665+00:00",
+    "revision": "26ad281fd1ca712e4f0c7920a6273cf18c961b8a",
+    "url": "https://raw.githubusercontent.com/openai/codex/26ad281fd1ca712e4f0c7920a6273cf18c961b8a/codex-rs/memories/write/templates/memories/consolidation.md",
+    "bytes": 51237,
+    "sha256": "1450e24f84c03375aa5114c6c0857f515395129dcc00f65263221d03866852a0",
+    "anchors": {
+      "progressive disclosure": [
+        6
+      ],
+      "Raw rollouts are immutable": [
+        41
+      ],
+      "INCREMENTAL UPDATE": [
+        50,
+        117,
+        126,
+        145,
+        763,
+        782
+      ]
+    }
+  }
+]

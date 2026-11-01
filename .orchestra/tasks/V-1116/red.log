@@ -1,0 +1,76 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 333ms
+FFF....                                                                  [100%]
+=================================== FAILURES ===================================
+___________ test_hub_missing_owned_dirs_refusal_is_expected_noise[] ____________
+
+prefix = ''
+
+    @pytest.mark.parametrize("prefix", [
+        "", "Hub worker turn failed: ",
+        "ERROR:app.backend_hub:Hub worker turn failed: ",
+    ])
+    def test_hub_missing_owned_dirs_refusal_is_expected_noise(prefix):
+        message = prefix + (
+            "this hub worker has no owned_dirs, and only projects marked persistent in data/hub-projects.json "
+            "go to the hub whole. Nothing was uploaded. The orchestrator must set owned_dirs: call "
+            "set_worker_owned_dirs for this worker with the directories (or files) the task touches; "
+            "repo-level files such as CLAUDE.md and pyproject.toml always go along."
+        )
+        signature = watch.normalize_signature(message)
+>       assert watch.classify_noise(message) == "hub owned_dirs guard refusal"
+E       AssertionError: assert None == 'hub owned_dirs guard refusal'
+E        +  where None = <function classify_noise at 0x7e5505a5c180>('this hub worker has no owned_dirs, and only projects marked persistent in data/hub-projects.json go to the hub whole....th the directories (or files) the task touches; repo-level files such as CLAUDE.md and pyproject.toml always go along.')
+E        +    where <function classify_noise at 0x7e5505a5c180> = watch.classify_noise
+
+tests/test_error_watch.py:635: AssertionError
+_ test_hub_missing_owned_dirs_refusal_is_expected_noise[Hub worker turn failed: ] _
+
+prefix = 'Hub worker turn failed: '
+
+    @pytest.mark.parametrize("prefix", [
+        "", "Hub worker turn failed: ",
+        "ERROR:app.backend_hub:Hub worker turn failed: ",
+    ])
+    def test_hub_missing_owned_dirs_refusal_is_expected_noise(prefix):
+        message = prefix + (
+            "this hub worker has no owned_dirs, and only projects marked persistent in data/hub-projects.json "
+            "go to the hub whole. Nothing was uploaded. The orchestrator must set owned_dirs: call "
+            "set_worker_owned_dirs for this worker with the directories (or files) the task touches; "
+            "repo-level files such as CLAUDE.md and pyproject.toml always go along."
+        )
+        signature = watch.normalize_signature(message)
+>       assert watch.classify_noise(message) == "hub owned_dirs guard refusal"
+E       AssertionError: assert None == 'hub owned_dirs guard refusal'
+E        +  where None = <function classify_noise at 0x7e5505a5c180>('Hub worker turn failed: this hub worker has no owned_dirs, and only projects marked persistent in data/hub-projects.j...th the directories (or files) the task touches; repo-level files such as CLAUDE.md and pyproject.toml always go along.')
+E        +    where <function classify_noise at 0x7e5505a5c180> = watch.classify_noise
+
+tests/test_error_watch.py:635: AssertionError
+_ test_hub_missing_owned_dirs_refusal_is_expected_noise[ERROR:app.backend_hub:Hub worker turn failed: ] _
+
+prefix = 'ERROR:app.backend_hub:Hub worker turn failed: '
+
+    @pytest.mark.parametrize("prefix", [
+        "", "Hub worker turn failed: ",
+        "ERROR:app.backend_hub:Hub worker turn failed: ",
+    ])
+    def test_hub_missing_owned_dirs_refusal_is_expected_noise(prefix):
+        message = prefix + (
+            "this hub worker has no owned_dirs, and only projects marked persistent in data/hub-projects.json "
+            "go to the hub whole. Nothing was uploaded. The orchestrator must set owned_dirs: call "
+            "set_worker_owned_dirs for this worker with the directories (or files) the task touches; "
+            "repo-level files such as CLAUDE.md and pyproject.toml always go along."
+        )
+        signature = watch.normalize_signature(message)
+>       assert watch.classify_noise(message) == "hub owned_dirs guard refusal"
+E       AssertionError: assert None == 'hub owned_dirs guard refusal'
+E        +  where None = <function classify_noise at 0x7e5505a5c180>('ERROR:app.backend_hub:Hub worker turn failed: this hub worker has no owned_dirs, and only projects marked persistent ...th the directories (or files) the task touches; repo-level files such as CLAUDE.md and pyproject.toml always go along.')
+E        +    where <function classify_noise at 0x7e5505a5c180> = watch.classify_noise
+
+tests/test_error_watch.py:635: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_error_watch.py::test_hub_missing_owned_dirs_refusal_is_expected_noise[]
+FAILED tests/test_error_watch.py::test_hub_missing_owned_dirs_refusal_is_expected_noise[Hub worker turn failed: ]
+FAILED tests/test_error_watch.py::test_hub_missing_owned_dirs_refusal_is_expected_noise[ERROR:app.backend_hub:Hub worker turn failed: ]
+3 failed, 4 passed, 163 deselected in 22.88s

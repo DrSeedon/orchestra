@@ -1,0 +1,93 @@
+{
+ "key": "S3-W1_r0_b3",
+ "run": "V-1114-rest-ba2ac2ed",
+ "ok": true,
+ "cost_usd": 0.2133378,
+ "usage_rows": [
+  [
+   2,
+   295,
+   13069,
+   25602,
+   0.2133378,
+   null
+  ]
+ ],
+ "response": {
+  "answers": [
+   {
+    "choice": "UNKNOWN",
+    "evidence_ids": [
+     "M24"
+    ],
+    "id": "B16"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "M46",
+     "M26"
+    ],
+    "id": "B06"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "M34",
+     "M15"
+    ],
+    "id": "F17"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "M39"
+    ],
+    "id": "F19"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "M15"
+    ],
+    "id": "F09"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "M37",
+     "M38"
+    ],
+    "id": "B01"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "M40"
+    ],
+    "id": "F20"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "M33"
+    ],
+    "id": "F15"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "M44"
+    ],
+    "id": "F22"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "M21"
+    ],
+    "id": "B08"
+   }
+  ]
+ }
+}

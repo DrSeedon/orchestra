@@ -1,0 +1,151 @@
+................................................FFF..................... [ 98%]
+.                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_retarget_resolves_target_policy_and_claude_option ____________
+
+    @pytest.mark.asyncio
+    async def test_retarget_resolves_target_policy_and_claude_option():
+        backend, hub, state = setup(pipeline="default", role="worker")
+        await backend._start(hub, state, "task")
+>       await backend.retarget_model("hub-claude-opus-5-5")
+
+tests/test_hub_effort.py:108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:364: in retarget_model
+    role = get_role(self._pipeline, self._role)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /remote/workspace/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+___________ test_hub_policy_matches_native_claude[orchestrator-high] ___________
+
+role = 'orchestrator', opus = 'high'
+
+    @pytest.mark.parametrize("role,opus", [("orchestrator", "high"), ("worker", "medium")])
+    def test_hub_policy_matches_native_claude(role, opus):
+>       policy = get_role("default", role).effort
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_effort.py:117: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /remote/workspace/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+_____________ test_hub_policy_matches_native_claude[worker-medium] _____________
+
+role = 'worker', opus = 'medium'
+
+    @pytest.mark.parametrize("role,opus", [("orchestrator", "high"), ("worker", "medium")])
+    def test_hub_policy_matches_native_claude(role, opus):
+>       policy = get_role("default", role).effort
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_effort.py:117: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /remote/workspace/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_hub_effort.py::test_retarget_resolves_target_policy_and_claude_option
+FAILED tests/test_hub_effort.py::test_hub_policy_matches_native_claude[orchestrator-high]
+FAILED tests/test_hub_effort.py::test_hub_policy_matches_native_claude[worker-medium]
+3 failed, 70 passed in 4.92s

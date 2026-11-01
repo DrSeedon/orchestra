@@ -1,0 +1,542 @@
+.........................................s.....F...F.....s.............. [ 67%]
+.........sss..FF..sF..FFs..sFFF.ss                                       [100%]
+=================================== FAILURES ===================================
+___________ test_manual_stress_marker_is_removed_from_scene_caption ____________
+
+    def test_manual_stress_marker_is_removed_from_scene_caption():
+        import json
+    
+        with make.sync_playwright() as playwright:
+>           browser = playwright.chromium.launch()
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_video_artifact.py:81: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7071dbfc8140>
+cb = <function Channel.send.<locals>.<lambda> at 0x7071dbff1b20>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <HOME>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+________ test_tera_requires_spelled_numbers_and_preserves_manual_stress ________
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1086/isolated-tmp/test_tera_requires_spelled_num0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7071dbfd0bf0>
+
+    def test_tera_requires_spelled_numbers_and_preserves_manual_stress(tmp_path, monkeypatch):
+        indexer = tmp_path / "unicode_indexer.json"
+        table = [0] * 65_536
+        table[ord("•")] = -1
+        indexer.write_text(json.dumps(table))
+        monkeypatch.setattr(make, "TERA_INDEXER", indexer)
+        make._tera_character_table.cache_clear()
+    
+        assert make.check_steps([{"t": "ok", "say": "В две тысячи двадцать шестом году лим+ита."}], "ru", "tera")
+        assert make.check_steps([{"t": "pause", "say": "Фраза [0.6] продолжается."}], "ru", "tera")
+        with pytest.raises(SystemExit, match="поддерживает только TeraTTS"):
+>           make.check_steps([{"t": "pause", "say": "Фраза [0.6] дальше."}], "ru", "vosk")
+
+tests/test_video_artifact.py:124: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/video_artifact/make.py:251: in check_steps
+    fail(f"шаг {i}: явные паузы `[секунды]` поддерживают TeraTTS и ElevenLabs")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+message = 'шаг 1: явные паузы `[секунды]` поддерживают TeraTTS и ElevenLabs'
+
+    def fail(message: str) -> None:
+>       sys.exit(f"video_artifact: {message}")
+E       SystemExit: video_artifact: шаг 1: явные паузы `[секунды]` поддерживают TeraTTS и ElevenLabs
+
+scripts/video_artifact/make.py:105: SystemExit
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1086/isolated-tmp/test_tera_requires_spelled_num0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7071dbfd0bf0>
+
+    def test_tera_requires_spelled_numbers_and_preserves_manual_stress(tmp_path, monkeypatch):
+        indexer = tmp_path / "unicode_indexer.json"
+        table = [0] * 65_536
+        table[ord("•")] = -1
+        indexer.write_text(json.dumps(table))
+        monkeypatch.setattr(make, "TERA_INDEXER", indexer)
+        make._tera_character_table.cache_clear()
+    
+        assert make.check_steps([{"t": "ok", "say": "В две тысячи двадцать шестом году лим+ита."}], "ru", "tera")
+        assert make.check_steps([{"t": "pause", "say": "Фраза [0.6] продолжается."}], "ru", "tera")
+>       with pytest.raises(SystemExit, match="поддерживает только TeraTTS"):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'поддерживает только TeraTTS'
+E         Actual message: 'video_artifact: шаг 1: явные паузы `[секунды]` поддерживают TeraTTS и ElevenLabs'
+
+tests/test_video_artifact.py:123: AssertionError
+______ test_video_frame_defaults_to_paper_theme_and_dark_stays_selectable ______
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1086/isolated-tmp/test_video_frame_defaults_to_p0')
+
+    def test_video_frame_defaults_to_paper_theme_and_dark_stays_selectable(tmp_path):
+>       paper = _theme_probe(tmp_path)
+                ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_video_artifact.py:822: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_video_artifact.py:809: in _theme_probe
+    browser, page = make.open_scene(playwright, scene, {"d": [1, 1]}, **kwargs)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/video_artifact/make.py:160: in open_scene
+    browser = pw.chromium.launch()
+              ^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7071dbe625a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x7071db859120>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <HOME>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+__ test_paper_kit_is_pure_in_time_and_miniature_lands_on_the_zoomed_original ___
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1086/isolated-tmp/test_paper_kit_is_pure_in_time0')
+
+    def test_paper_kit_is_pure_in_time_and_miniature_lands_on_the_zoomed_original(tmp_path):
+        scene = tmp_path / "kit.html"
+        scene.write_text("""<svg id="stage" viewBox="0 0 1280 590" width="1280" height="590" style="display:block">
+                <g id="room"><rect width="1280" height="590" fill="#123"/></g>
+                <rect id="orig" x="240" y="20" width="380" height="300"/></svg>""")
+        with make.sync_playwright() as playwright:
+>           browser = playwright.chromium.launch()
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_video_artifact.py:834: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7071dbe688f0>
+cb = <function Channel.send.<locals>.<lambda> at 0x7071db85bce0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <HOME>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+________________ test_text_change_ghost_follows_the_moved_label ________________
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1086/isolated-tmp/test_text_change_ghost_follows0')
+
+    def test_text_change_ghost_follows_the_moved_label(tmp_path):
+        """V-922: при смене текста уходящее слово рисует копия; она должна стоять там же, где подпись сейчас,
+        а не там, где подпись была в начале ролика (иначе старое слово мелькает в другом месте кадра)."""
+        import re as _re
+    
+>       md = (ROOT / ".orchestra/pipelines/default/prompts/skills/html-artifacts/references/animation.md").read_text()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_video_artifact.py:925: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('<WORKSPACE>/.orchestra/pipelines/default/prompts/skills/html-artifacts/references/animation.md')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '<WORKSPACE>/.orchestra/pipelines/default/prompts/skills/html-artifacts/references/animation.md'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+_______ test_bundled_scenes_stand_on_supports_and_zoom_onto_the_diagram ________
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1086/isolated-tmp/test_bundled_scenes_stand_on_s0')
+
+    def test_bundled_scenes_stand_on_supports_and_zoom_onto_the_diagram(tmp_path):
+        """V-935: в готовых сценах ничего не висит в воздухе, и наезд на экран сцены кончается ровно на схеме."""
+        page_file = _scenes_page(tmp_path, '<g id="pic"></g><rect id="dia" x="90" y="40" width="1100" height="390"/>')
+        with make.sync_playwright() as playwright:
+>           browser, page = _with_kit(playwright, page_file)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_video_artifact.py:983: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_video_artifact.py:971: in _with_kit
+    browser = playwright.chromium.launch()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7071dbe5d8e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x7071db859b20>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <HOME>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_______ test_support_check_reports_an_object_floating_beside_its_support _______
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1086/isolated-tmp/test_support_check_reports_an_0')
+
+    def test_support_check_reports_an_object_floating_beside_its_support(tmp_path):
+        page_file = _scenes_page(tmp_path, '<rect id="desk" x="400" y="350" width="500" height="40"/>'
+                                           '<g data-on="desk"><rect x="420" y="300" width="40" height="50"/></g>'
+                                           '<g data-on="desk"><rect x="960" y="300" width="40" height="52"/></g>')
+        with make.sync_playwright() as playwright:
+>           browser, page = _with_kit(playwright, page_file)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_video_artifact.py:1004: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_video_artifact.py:971: in _with_kit
+    browser = playwright.chromium.launch()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7071db828e60>
+cb = <function Channel.send.<locals>.<lambda> at 0x7071dbbd7b00>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <HOME>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_ test_vertical_format_renders_1080x1920_with_caption_in_safe_area_and_landscape_stays_default _
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1086/isolated-tmp/test_vertical_format_renders_10')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7071dbfb2750>
+
+    def test_vertical_format_renders_1080x1920_with_caption_in_safe_area_and_landscape_stays_default(tmp_path, monkeypatch):
+>       width, height, issues, _ = _vertical_probe(tmp_path, monkeypatch)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_video_artifact.py:1126: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_video_artifact.py:1115: in _vertical_probe
+    browser, page = make.open_scene(playwright, scene, {"d": [1, 1]})
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/video_artifact/make.py:160: in open_scene
+    browser = pw.chromium.launch()
+              ^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7071dbfb28a0>
+cb = <function Channel.send.<locals>.<lambda> at 0x7071dbc6ac00>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <HOME>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+____ test_vertical_caption_too_long_for_the_safe_area_fails_the_build_check ____
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1086/isolated-tmp/test_vertical_caption_too_long0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7071dc3ec2f0>
+
+    def test_vertical_caption_too_long_for_the_safe_area_fails_the_build_check(tmp_path, monkeypatch):
+>       _, _, issues, _ = _vertical_probe(tmp_path, monkeypatch, caption="очень длинная подпись " * 14)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_video_artifact.py:1138: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_video_artifact.py:1115: in _vertical_probe
+    browser, page = make.open_scene(playwright, scene, {"d": [1, 1]})
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/video_artifact/make.py:160: in open_scene
+    browser = pw.chromium.launch()
+              ^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7071dc3ece30>
+cb = <function Channel.send.<locals>.<lambda> at 0x7071db859ee0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <HOME>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+____ test_hook_shows_in_the_first_frame_inside_the_safe_area_and_fades_out _____
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1086/isolated-tmp/test_hook_shows_in_the_first_f0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7071dc3b35f0>
+
+    def test_hook_shows_in_the_first_frame_inside_the_safe_area_and_fades_out(tmp_path, monkeypatch):
+        hook = "Ночная заявка — ответ за 40 секунд"
+>       _, _, issues, shown = _vertical_probe(tmp_path, monkeypatch, hook=hook, t=0.0)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_video_artifact.py:1144: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_video_artifact.py:1115: in _vertical_probe
+    browser, page = make.open_scene(playwright, scene, {"d": [1, 1]})
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/video_artifact/make.py:160: in open_scene
+    browser = pw.chromium.launch()
+              ^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7071dc3b3170>
+cb = <function Channel.send.<locals>.<lambda> at 0x7071db858fe0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <HOME>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+=========================== short test summary info ============================
+FAILED tests/test_video_artifact.py::test_manual_stress_marker_is_removed_from_scene_caption
+FAILED tests/test_video_artifact.py::test_tera_requires_spelled_numbers_and_preserves_manual_stress
+FAILED tests/test_video_artifact.py::test_video_frame_defaults_to_paper_theme_and_dark_stays_selectable
+FAILED tests/test_video_artifact.py::test_paper_kit_is_pure_in_time_and_miniature_lands_on_the_zoomed_original
+FAILED tests/test_video_artifact.py::test_text_change_ghost_follows_the_moved_label
+FAILED tests/test_video_artifact.py::test_bundled_scenes_stand_on_supports_and_zoom_onto_the_diagram
+FAILED tests/test_video_artifact.py::test_support_check_reports_an_object_floating_beside_its_support
+FAILED tests/test_video_artifact.py::test_vertical_format_renders_1080x1920_with_caption_in_safe_area_and_landscape_stays_default
+FAILED tests/test_video_artifact.py::test_vertical_caption_too_long_for_the_safe_area_fails_the_build_check
+FAILED tests/test_video_artifact.py::test_hook_shows_in_the_first_frame_inside_the_safe_area_and_fades_out
+10 failed, 86 passed, 10 skipped in 5.12s

@@ -1,0 +1,53 @@
+FFFFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+_ test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[False-message_deliveries-90] _
+tests/test_quota_wait_queue.py:601: in test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers
+    assert sum(await asyncio.gather(quota_queue.release_waiting(), quota_queue.release_waiting())) == 1
+E   assert 0 == 1
+E    +  where 0 = sum([0, 0])
+_ test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[False-message_deliveries-99] _
+tests/test_quota_wait_queue.py:601: in test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers
+    assert sum(await asyncio.gather(quota_queue.release_waiting(), quota_queue.release_waiting())) == 1
+E   assert 0 == 1
+E    +  where 0 = sum([0, 0])
+_ test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[False-initial_deliveries-90] _
+tests/test_quota_wait_queue.py:601: in test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers
+    assert sum(await asyncio.gather(quota_queue.release_waiting(), quota_queue.release_waiting())) == 1
+E   assert 0 == 1
+E    +  where 0 = sum([0, 0])
+_ test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[False-initial_deliveries-99] _
+tests/test_quota_wait_queue.py:601: in test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers
+    assert sum(await asyncio.gather(quota_queue.release_waiting(), quota_queue.release_waiting())) == 1
+E   assert 0 == 1
+E    +  where 0 = sum([0, 0])
+_ test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[True-message_deliveries-90] _
+tests/test_quota_wait_queue.py:601: in test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers
+    assert sum(await asyncio.gather(quota_queue.release_waiting(), quota_queue.release_waiting())) == 1
+E   assert 0 == 1
+E    +  where 0 = sum([0, 0])
+_ test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[True-message_deliveries-99] _
+tests/test_quota_wait_queue.py:601: in test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers
+    assert sum(await asyncio.gather(quota_queue.release_waiting(), quota_queue.release_waiting())) == 1
+E   assert 0 == 1
+E    +  where 0 = sum([0, 0])
+_ test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[True-initial_deliveries-90] _
+tests/test_quota_wait_queue.py:601: in test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers
+    assert sum(await asyncio.gather(quota_queue.release_waiting(), quota_queue.release_waiting())) == 1
+E   assert 0 == 1
+E    +  where 0 = sum([0, 0])
+_ test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[True-initial_deliveries-99] _
+tests/test_quota_wait_queue.py:601: in test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers
+    assert sum(await asyncio.gather(quota_queue.release_waiting(), quota_queue.release_waiting())) == 1
+E   assert 0 == 1
+E    +  where 0 = sum([0, 0])
+=========================== short test summary info ============================
+FAILED tests/test_quota_wait_queue.py::test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[False-message_deliveries-90]
+FAILED tests/test_quota_wait_queue.py::test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[False-message_deliveries-99]
+FAILED tests/test_quota_wait_queue.py::test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[False-initial_deliveries-90]
+FAILED tests/test_quota_wait_queue.py::test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[False-initial_deliveries-99]
+FAILED tests/test_quota_wait_queue.py::test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[True-message_deliveries-90]
+FAILED tests/test_quota_wait_queue.py::test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[True-message_deliveries-99]
+FAILED tests/test_quota_wait_queue.py::test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[True-initial_deliveries-90]
+FAILED tests/test_quota_wait_queue.py::test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers[True-initial_deliveries-99]
+8 failed, 25 deselected in 3.35s
+Mutation model-only-queue: pytest exit=1; TESTS_FAILED is expected

@@ -1,0 +1,27 @@
+# V-1161 — protected read-only evidence handoff
+
+- Event date: 2026-10-31; all times below are UTC. Project P-1 and its actors/messages are aliased; raw identities and bodies remain in the shared private evidence folder.
+- Source service and actual `ORCHESTRA_DB_PATH` were read from the live Orchestra MainPID environment; SQLite was opened `mode=ro` with `PRAGMA query_only=ON`.
+- Target was platform Session S-1, Generation G-1, native Codex thread N-1. Interrupted native turn is T-1; the next recorded native turn is T-2.
+- Owner reports a manual CLI restart. Exact restart action/time is not independently established by the bounded records.
+- 14:15:23.721: Delivery D-1 reached the active Codex turn; platform status followed at 14:15:23.780 (59 ms); message was 4,006 UTF-8 bytes.
+- 14:21:44.403: user steer logged; platform status “message steered into active Codex turn” followed at 14:21:44.491 (87 ms).
+- Native rollout records the steer as role `user`, content `input_text`, 9,532 bytes at 14:21:45.108; its hash matches the complete DB log row.
+- Native T-1 started at 13:38:35.000 and aborted at 14:24:22.132 with `reason=interrupted`, duration 2,746,635 ms (45:46.635).
+- Steer-to-abort latency was 157.729 s from the DB log time (157.024 s from the native input timestamp); completed reasoning items continue through 14:24:21.242.
+- At 14:24:22.151 the DB records “turn ended (interrupted, 0 turns…)”; around the same instant it records `steered messages waiting for next turn: 4`.
+- 14:24:22.165: lifecycle status `waiting for bg jobs`; 14:24:22.201: `mailbox: 6 — продолжаю ход вместо пробуждения`.
+- Six claimed mailbox rows were M-1…M-6: three `codex_steer_backup` and three `direct_message_recovery`; five distinct actors (A–E) are linked in the private alias map.
+- The recovery bundle was sent as a native role-`user` `input_text` at 14:24:25.535: 23,916 bytes, six `[from:]` headers, one `[auto-report]` marker.
+- Reconstructing the six ordered mailbox rows with the current `_deliver_mailbox` format matches that full DB user log byte-for-byte and by SHA-256; this is a mailbox payload, not a repeated developer/system/history bundle or a single owner request.
+- Post-interruption DB records show four delivery transitions with `error_json=NULL`: three direct recoveries and one durable `cron_command` path; all were subsequently `SUBMITTED`.
+- T-2 started at 14:24:24.394. At 14:24:24.372 a 246-byte warning said: `Codex could not find bubblewrap on PATH. Install bubblewrap with your OS package manager.` No JSON-RPC/protocol error appears in the selected native records.
+- A separate 6,267-byte native role-`user` / `user.text` record at 14:24:30.743 has native provenance `user`, but no matching Orchestra log or delivery row; its precise source path is unresolved.
+- At 14:34:54.474 read-only snapshot: session status `running`, `active_turn_id` empty, stored CLI PID absent from `/proc`; mailbox pending count 0; six recurring `cron_command` jobs active.
+- Cited Job J-1 (`merge`) had state `triggered` at capture, no error; it is a mailbox source, not evidence of the cause of the wait.
+- Queue delivery is evidenced; completion/acknowledgement that the subsequent turn processed all six items is unknown. Snapshot shows no undelivered mailbox rows.
+- Reachable path: `Session.send` steer backup [app/session.py:1578]; failed-turn recovery [app/session_turns.py:394] → [app/message_deliveries.py:923]; after-turn claim and send [app/session_turns.py:597] / [app/session_turns.py:662] → `mailbox.claim` / `s.send`.
+- Coverage: 20 target-session DB log rows in UTC 14:15–14:31; full matching rollout scanned (21,978 JSONL lines, 0 malformed), 110 records in-window across 585,044 bytes.
+- Two recent rollout candidates were checked by metadata; the selected file matched native thread N-1 and Project P-1. `search_logs` scanned 852 rows with `scan_truncated=false`; its 30-result cap was reached.
+- `get_log_context` returned 12 and 13 records, but its message bodies were abbreviated (6,597/9,532 and 5,791/23,916 bytes); full DB rows and rollout records are preserved locally.
+- No root cause is established. Evidence and alias map: `/home/kesha/orchestra/.orchestra/private/V-1161/` (`target_logs_utc1415_1431.json`, `target_mailbox_all.json`, `target_deliveries_all.json`, `target_bg_jobs_all.json`, `codex_rollout_excerpt_utc1415_1431.jsonl`, `final_readonly_snapshot.json`, `mcp_log_evidence_*.json`).

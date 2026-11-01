@@ -1,0 +1,12 @@
+{
+  "id": "P22",
+  "package": "photosort",
+  "prompt": "Add a command that sorts the photos of a folder into year and month folders. It runs as `python -m photosort.organize SOURCE DEST [--dry-run]`.\n\nThe command finds the photos under SOURCE in the same way as the catalog command and takes the day of each photo from its file name in the same way. It first builds a plan with one entry per photo. Each entry holds the photo, its target inside DEST and a status. A photo with a date gets the target YYYY/MM/<file name>, for example 2024/03/IMG_20240315_101500.jpg. A photo is skipped, and gets no target, when its file name holds no date, when a file already exists at its target in DEST, or when a photo earlier in the plan already has the same target. The plan goes through the photos in the order of their location inside SOURCE. Tell the user about every skipped photo and why, and at the end tell the user how many photos were moved and how many were skipped.\n\nThen the command carries out the plan: it moves each photo that is not skipped to its target, creates the year and month folders as needed, and marks the entry as moved. With --dry-run nothing is moved and no year or month folder is created; the entries that would be moved get the status planned.\n\nIn both cases the command writes DEST/plan.csv with the header source,target,status and one row per entry, sorted by source. source is the location of the photo inside SOURCE and target its location inside DEST, both with forward slashes. target is empty for a skipped photo. status is moved, planned or skipped. DEST is created if it does not exist.\n\nIf SOURCE does not exist or is not a folder, the command exits with status 2 and creates nothing. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "LOG", "doc_side": "right"},
+    {"id": "D2", "type": "PATH", "doc_side": "left"},
+    {"id": "D3", "type": "REC", "doc_side": "right"},
+    {"id": "D4", "type": "GENERIC", "doc_side": "right"},
+    {"id": "D5", "type": "TFILE", "doc_side": "left"}
+  ]
+}

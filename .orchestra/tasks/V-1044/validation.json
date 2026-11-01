@@ -1,0 +1,61 @@
+{
+  "syntax_checked_files": 23,
+  "required_test_files": [
+    "tests/test_merge_branch_drift.py",
+    "tests/test_merge_completion_watch.py",
+    "tests/test_merge_conflict_report_423.py",
+    "tests/test_merge_foreign_task_ref.py",
+    "tests/test_merge_gate_mutation_702.py",
+    "tests/test_merge_operations.py",
+    "tests/test_merge_progress_424.py",
+    "tests/test_merge_reason_preservation_416.py",
+    "tests/test_merge_recovery_wedge.py",
+    "tests/test_merge_ref_gate.py",
+    "tests/test_merge_stuck.py",
+    "tests/test_merge_target_oracle_386.py",
+    "tests/test_merge_test_gate.py",
+    "tests/test_merge_worker_lifecycle_702.py",
+    "tests/test_merge_worker_v1034.py",
+    "tests/test_task_tracker_integration.py",
+    "tests/test_taskless_merge_no_id_702.py",
+    "tests/test_v848_merge_timings.py",
+    "tests/test_worktree_cleanup_v984.py",
+    "tests/test_workspace.py",
+    "tests/test_work_acceptance.py"
+  ],
+  "app_file": null,
+  "app_namespace_paths": [
+    "<hub-workspace>"
+  ],
+  "missing_dependencies": [
+    "uv",
+    "pytest",
+    "fastapi",
+    "httpx",
+    "mcp",
+    "pytest_asyncio"
+  ],
+  "missing_project_files": [
+    "app/__init__.py",
+    "app/db.py",
+    "app/work_review.py",
+    "app/task_refs.py",
+    "scripts/run_tests.py"
+  ],
+  "artifact_secret_shape_scan": {
+    "files_checked": 12,
+    "matches": 0
+  },
+  "offline_checks": {
+    "passed": 17,
+    "runner": "/usr/bin/python3.12",
+    "kind": "stdlib unittest with AST-extracted functions and seam doubles; not required pytest"
+  },
+  "changed_source_files": [
+    "app/merge_operations.py",
+    "tests/test_task_tracker_integration.py",
+    "tests/test_taskless_merge_no_id_702.py",
+    "tests/test_v848_merge_timings.py",
+    "tests/test_worktree_cleanup_v984.py"
+  ]
+}

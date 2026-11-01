@@ -1,0 +1,37 @@
+[
+  {
+    "role": "user",
+    "content": "Has order 5006 shipped yet?"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'agent': 'orders', 'brief': 'Has order 5006 shipped yet?\\n\\nSpecialist notes so far:\\n'}",
+    "name": "router.delegate"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5006'}",
+    "name": "orders.get_order"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order_id\": \"5006\", \"customer_id\": \"C-1002\", \"sku\": \"SKU-KETTLE-2\", \"item\": \"Arc Kettle\", \"status\": \"processing\", \"delivered_on\": null, \"tracking_id\": null, \"final_sale\": false}"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order_id\": \"5006\", \"customer_id\": \"C-1002\", \"sku\": \"SKU-KETTLE-2\", \"item\": \"Arc Kettle\", \"status\": \"processing\", \"delivered_on\": null, \"tracking_id\": null, \"final_sale\": false}"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'agent': 'shipping', 'brief': 'Has order 5006 shipped yet?\\n\\nSpecialist notes so far:\\n{\"order_id\": \"5006\", \"customer_id\": \"C-1002\", \"sku\": \"SKU-KETTLE-2\", \"item\": \"Arc Kettle\", \"status\": \"processing\", \"delivered_on\": null, \"tracking_id\": null, \"final_sale\": false}'}",
+    "name": "router.delegate"
+  },
+  {
+    "role": "tool_result",
+    "content": "Nothing to do."
+  },
+  {
+    "role": "assistant",
+    "content": "{\"order_id\": \"5006\", \"customer_id\": \"C-1002\", \"sku\": \"SKU-KETTLE-2\", \"item\": \"Arc Kettle\", \"status\": \"processing\", \"delivered_on\": null, \"tracking_id\": null, \"final_sale\": false}\nNothing to do."
+  }
+]

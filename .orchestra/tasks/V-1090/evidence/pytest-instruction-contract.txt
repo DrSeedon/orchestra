@@ -1,0 +1,125 @@
+PUBLIC DERIVATIVE: native hub paths replaced by <hub-user>/<hub-workspace>; not verbatim. Original bytes are preserved under ignored private/raw; see preservation-manifest.json.
+
+FF..FFFFF                                                                [100%]
+=================================== FAILURES ===================================
+____________________ test_symlink_beside_the_source_passes _____________________
+
+root = PosixPath('/home/<hub-user>/<hub-workspace>/.orchestra/tasks/V-1090/pytest-tmp/test_symlink_beside_the_source0')
+
+    def test_symlink_beside_the_source_passes(root):
+>       assert _run(root).returncode == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/<hub-user>/<hub-workspace>/.venv/bin/...<module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n').returncode
+E        +    where CompletedProcess(args=['/home/<hub-user>/<hub-workspace>/.venv/bin/...<module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n') = _run(PosixPath('/home/<hub-user>/<hub-workspace>/.orchestra/tasks/V-1090/pytest-tmp/test_symlink_beside_the_source0'))
+
+tests/test_instruction_contract.py:40: AssertionError
+___________________ test_copy_instead_of_symlink_is_rejected ___________________
+
+root = PosixPath('/home/<hub-user>/<hub-workspace>/.orchestra/tasks/V-1090/pytest-tmp/test_copy_instead_of_symlink_i0')
+
+    def test_copy_instead_of_symlink_is_rejected(root):
+        """Копия — это второй источник правды: он разъедется, и никто не заметит."""
+        link = root / "CLAUDE.md"
+        link.unlink()
+        link.write_text((root / "AGENTS.md").read_text(encoding="utf-8"), encoding="utf-8")
+    
+        result = _run(root)
+    
+        assert result.returncode == 1
+        # Не просто «упало»: проверка обязана назвать причину. Ловушка, на которую я попался:
+        # pytest кладёт tmp_path в каталог с именем теста, и подстрока "symlink" находилась
+        # в ПУТИ из сообщения об ошибке — тест зеленел на любом падении.
+>       assert "must be a symlink" in result.stderr
+E       assert 'must be a symlink' in 'Traceback (most recent call last):\n  File "/home/<hub-user>/orchestra-ws/vmi3407579/hub-47bea1... <module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n'
+E        +  where 'Traceback (most recent call last):\n  File "/home/<hub-user>/orchestra-ws/vmi3407579/hub-47bea1... <module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n' = CompletedProcess(args=['/home/<hub-user>/<hub-workspace>/.venv/bin/...<module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n').stderr
+
+tests/test_instruction_contract.py:55: AssertionError
+______________________ test_oversized_rules_are_rejected _______________________
+
+root = PosixPath('/home/<hub-user>/<hub-workspace>/.orchestra/tasks/V-1090/pytest-tmp/test_oversized_rules_are_rejec0')
+
+    def test_oversized_rules_are_rejected(root):
+        body = (root / "AGENTS.md").read_text(encoding="utf-8")
+        (root / "AGENTS.md").write_text(body + "x" * 17_000, encoding="utf-8")
+    
+        result = _run(root)
+    
+        assert result.returncode == 1
+>       assert "16 KiB" in result.stderr
+E       assert '16 KiB' in 'Traceback (most recent call last):\n  File "/home/<hub-user>/orchestra-ws/vmi3407579/hub-47bea1... <module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n'
+E        +  where 'Traceback (most recent call last):\n  File "/home/<hub-user>/orchestra-ws/vmi3407579/hub-47bea1... <module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n' = CompletedProcess(args=['/home/<hub-user>/<hub-workspace>/.venv/bin/...<module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n').stderr
+
+tests/test_instruction_contract.py:80: AssertionError
+_____________________ test_unindexed_kb_topic_is_rejected ______________________
+
+root = PosixPath('/home/<hub-user>/<hub-workspace>/.orchestra/tasks/V-1090/pytest-tmp/test_unindexed_kb_topic_is_rej0')
+
+    def test_unindexed_kb_topic_is_rejected(root):
+        (root / ".orchestra" / "kb" / "brand-new-topic.md").write_text("# тема", encoding="utf-8")
+    
+        result = _run(root)
+    
+        assert result.returncode == 1
+>       assert "brand-new-topic" in result.stderr
+E       assert 'brand-new-topic' in 'Traceback (most recent call last):\n  File "/home/<hub-user>/orchestra-ws/vmi3407579/hub-47bea1... <module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n'
+E        +  where 'Traceback (most recent call last):\n  File "/home/<hub-user>/orchestra-ws/vmi3407579/hub-47bea1... <module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n' = CompletedProcess(args=['/home/<hub-user>/<hub-workspace>/.venv/bin/...<module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n').stderr
+
+tests/test_instruction_contract.py:89: AssertionError
+___________________ test_missing_kb_index_target_is_rejected ___________________
+
+root = PosixPath('/home/<hub-user>/<hub-workspace>/.orchestra/tasks/V-1090/pytest-tmp/test_missing_kb_index_target_i0')
+
+    def test_missing_kb_index_target_is_rejected(root):
+        index = root / ".orchestra" / "kb" / "README.md"
+        index.write_text(index.read_text().replace("(runtime.md)", "(missing.md)"), encoding="utf-8")
+    
+        result = _run(root)
+    
+        assert result.returncode == 1
+>       assert "missing.md" in result.stderr
+E       assert 'missing.md' in 'Traceback (most recent call last):\n  File "/home/<hub-user>/orchestra-ws/vmi3407579/hub-47bea1... <module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n'
+E        +  where 'Traceback (most recent call last):\n  File "/home/<hub-user>/orchestra-ws/vmi3407579/hub-47bea1... <module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n' = CompletedProcess(args=['/home/<hub-user>/<hub-workspace>/.venv/bin/...<module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n').stderr
+
+tests/test_instruction_contract.py:99: AssertionError
+_____________ test_broken_markdown_and_backtick_paths_are_rejected _____________
+
+root = PosixPath('/home/<hub-user>/<hub-workspace>/.orchestra/tasks/V-1090/pytest-tmp/test_broken_markdown_and_backt0')
+
+    def test_broken_markdown_and_backtick_paths_are_rejected(root):
+        topic = root / ".orchestra" / "kb" / "runtime.md"
+        topic.write_text(
+            "# Runtime\n\n[missing](../missing.md) and `scripts/missing.py` and `scripts/missing`\n",
+            encoding="utf-8",
+        )
+    
+        result = _run(root)
+    
+        assert result.returncode == 1
+>       assert "../missing.md" in result.stderr
+E       assert '../missing.md' in 'Traceback (most recent call last):\n  File "/home/<hub-user>/orchestra-ws/vmi3407579/hub-47bea1... <module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n'
+E        +  where 'Traceback (most recent call last):\n  File "/home/<hub-user>/orchestra-ws/vmi3407579/hub-47bea1... <module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n' = CompletedProcess(args=['/home/<hub-user>/<hub-workspace>/.venv/bin/...<module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n').stderr
+
+tests/test_instruction_contract.py:112: AssertionError
+_______________ test_markdown_examples_inside_code_are_not_links _______________
+
+root = PosixPath('/home/<hub-user>/<hub-workspace>/.orchestra/tasks/V-1090/pytest-tmp/test_markdown_examples_inside_0')
+
+    def test_markdown_examples_inside_code_are_not_links(root):
+        topic = root / ".orchestra" / "kb" / "runtime.md"
+        topic.write_text("# Runtime\n\nExample: `[missing](missing.md)`\n", encoding="utf-8")
+    
+>       assert _run(root).returncode == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/<hub-user>/<hub-workspace>/.venv/bin/...<module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n').returncode
+E        +    where CompletedProcess(args=['/home/<hub-user>/<hub-workspace>/.venv/bin/...<module>\n    from app.kb_index import kb_topic_files, kb_topic_index\nModuleNotFoundError: No module named \'app\'\n') = _run(PosixPath('/home/<hub-user>/<hub-workspace>/.orchestra/tasks/V-1090/pytest-tmp/test_markdown_examples_inside_0'))
+
+tests/test_instruction_contract.py:121: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_instruction_contract.py::test_symlink_beside_the_source_passes
+FAILED tests/test_instruction_contract.py::test_copy_instead_of_symlink_is_rejected
+FAILED tests/test_instruction_contract.py::test_oversized_rules_are_rejected
+FAILED tests/test_instruction_contract.py::test_unindexed_kb_topic_is_rejected
+FAILED tests/test_instruction_contract.py::test_missing_kb_index_target_is_rejected
+FAILED tests/test_instruction_contract.py::test_broken_markdown_and_backtick_paths_are_rejected
+FAILED tests/test_instruction_contract.py::test_markdown_examples_inside_code_are_not_links
+7 failed, 2 passed in 0.38s

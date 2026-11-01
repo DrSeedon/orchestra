@@ -1,0 +1,10 @@
+{
+  "ref": "refs/tags/v0.5.0",
+  "node_id": "REF_kwDOVDijhrByZWZzL3RhZ3MvdjAuNS4w",
+  "url": "https://api.github.com/repos/init-co-jp/diff-tour/git/refs/tags/v0.5.0",
+  "object": {
+    "sha": "77a7ae22813827dcf4252638d5a643aced53e3c6",
+    "type": "tag",
+    "url": "https://api.github.com/repos/init-co-jp/diff-tour/git/tags/77a7ae22813827dcf4252638d5a643aced53e3c6"
+  }
+}

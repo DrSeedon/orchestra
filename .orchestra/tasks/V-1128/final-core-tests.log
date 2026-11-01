@@ -1,0 +1,134 @@
+..............................F......................................... [ 35%]
+........................................................................ [ 70%]
+.............................................................            [100%]
+=================================== FAILURES ===================================
+_________ test_dashboard_js_matches_shared_server_formula_and_history __________
+
+clock = None
+
+    def test_dashboard_js_matches_shared_server_formula_and_history(clock):
+        node = shutil.which("node")
+        if not node:
+            pytest.skip("node is required to run the dashboard formula")
+        policy = gate.quota_policy()
+        old = replace(policy, tolerance_start_pp=65)
+        history = [{"effective_from": START, "policy": gate.quota_policy_snapshot(old)}]
+        samples = []
+        for minutes in [300, 10080]:
+            for lane in ["claude", "sol", "luna", "spark"]:
+                for progress in [0, .1, .5, .9, 1]:
+                    samples.append(dict(lane=lane, progress=progress, minutes=minutes))
+        source = Path(__file__).parents[1] / "app/static/js/quota-lines.js"
+        sample_start = START + 17  # Provider reset timestamps need not land on a minute.
+        script = """
+    const fs = require('fs'), vm = require('vm');
+    global.window = {}; global.orchLocale = () => 'en'; global.T = x => x;
+    global.cssToken = () => '#fff'; global._formatPercent = x => String(x); global._escHtml = String;
+    const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+    const src = fs.readFileSync(input.source, 'utf8').replace('init: initQuotaLines,',
+        'chartForTest(data) { _quotaLinesData=data; return _qlChartSvg({buckets: data.buckets.map(b=>b.bucket)}, data.rule); }, panelForTest(data) { _quotaLinesData=data; return _qlPanelHtml(_QL_PANELS[0]); }, init: initQuotaLines,');
+    vm.runInThisContext(src);
+    const values = input.samples.map(s => window.QuotaPanel.monotoneLimitAt(
+        s.progress, input.policy, s.lane, s.minutes, input.start * 1000,
+        input.history, (input.start + s.progress * s.minutes * 60) * 1000));
+    const buckets = [['codex',['sol','luna']], ['codex_spark',['spark']], ['anthropic',['claude']]]
+        .map(([bucket,lanes]) => ({bucket, data_available:true, fresh:true,
+            window:{window_minutes:10080, utilization:0, progress:.1,
+                resets_at:new Date((input.start + 10080*60)*1000).toISOString()},
+            lanes:lanes.map(lane=>({lane, label:lane, gated:true, limit_pct:20})), trace:{points:[]}}));
+    const chart = window.QuotaPanel.chartForTest({rule:input.policy, buckets}).svg;
+    const panel = window.QuotaPanel.panelForTest({rule:input.policy, buckets});
+    const legacy = {...input.policy, codex_claude_pacing:false, curved_lanes:['sol'], lane_hard_stop_pct:{sol:95}};
+    const oldSol = window.QuotaPanel.limitAt(.5, legacy, 'sol');
+    process.stdout.write(JSON.stringify({values, chart, panel, oldSol}));
+    """
+>       result = subprocess.run([node, "-e", script], input=json.dumps(dict(
+            source=str(source), samples=samples, policy=gate.quota_policy_snapshot(policy),
+            start=sample_start, history=history,
+        )), text=True, capture_output=True, timeout=10, check=True)
+
+tests/test_codex_quota_gate_1121.py:257: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input = '{"source": "<repo>/app/static/js/quota-l...ly_shift_hours": 8.0, "claude_day_start_hour": 8.0, "claude_night_quota_share": 0.057, "codex_claude_pacing": true}}]}'
+capture_output = True, timeout = 10, check = True
+popenargs = (['/usr/local/lib/claude-hub/shims/node', '-e', "\nconst fs = require('fs'), vm = require('vm');\nglobal.window = {}; ...dow.QuotaPanel.limitAt(.5, legacy, 'sol');\nprocess.stdout.write(JSON.stringify({values, chart, panel, oldSol}));\n"],)
+kwargs = {'stderr': -1, 'stdin': -1, 'stdout': -1, 'text': True}
+process = <Popen: returncode: 1 args: ['/usr/local/lib/claude-hub/shims/node', '-e', "...>
+stdout = ''
+stderr = "evalmachine.<anonymous>:807\n    if (Connection.ownsErrors()) return {text: '—', nodata: true};\n    ^\n\nReferenceEr...nternal/process/execution:279:30)\n    at evalTypeScript (node:internal/process/execution:291:3)\n\nNode.js v22.23.3\n"
+retcode = 1
+
+    def run(*popenargs,
+            input=None, capture_output=False, timeout=None, check=False, **kwargs):
+        """Run command with arguments and return a CompletedProcess instance.
+    
+        The returned instance will have attributes args, returncode, stdout and
+        stderr. By default, stdout and stderr are not captured, and those attributes
+        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+        or pass capture_output=True to capture both.
+    
+        If check is True and the exit code was non-zero, it raises a
+        CalledProcessError. The CalledProcessError object will have the return code
+        in the returncode attribute, and output & stderr attributes if those streams
+        were captured.
+    
+        If timeout is given, and the process takes too long, a TimeoutExpired
+        exception will be raised.
+    
+        There is an optional argument "input", allowing you to
+        pass bytes or a string to the subprocess's stdin.  If you use this argument
+        you may not also use the Popen constructor's "stdin" argument, as
+        it will be used internally.
+    
+        By default, all communication is in bytes, and therefore any "input" should
+        be bytes, and the stdout and stderr will be bytes. If in text mode, any
+        "input" should be a string, and stdout and stderr will be strings decoded
+        according to locale encoding, or by "encoding" if set. Text mode is
+        triggered by setting any of text, encoding, errors or universal_newlines.
+    
+        The other arguments are the same as for the Popen constructor.
+        """
+        if input is not None:
+            if kwargs.get('stdin') is not None:
+                raise ValueError('stdin and input arguments may not both be used.')
+            kwargs['stdin'] = PIPE
+    
+        if capture_output:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['/usr/local/lib/claude-hub/shims/node', '-e', "\nconst fs = require('fs'), vm = require('vm');\nglobal.window = {}; global.orchLocale = () => 'en'; global.T = x => x;\nglobal.cssToken = () => '#fff'; global._formatPercent = x => String(x); global._escHtml = String;\nconst input = JSON.parse(fs.readFileSync(0, 'utf8'));\nconst src = fs.readFileSync(input.source, 'utf8').replace('init: initQuotaLines,',\n    'chartForTest(data) { _quotaLinesData=data; return _qlChartSvg({buckets: data.buckets.map(b=>b.bucket)}, data.rule); }, panelForTest(data) { _quotaLinesData=data; return _qlPanelHtml(_QL_PANELS[0]); }, init: initQuotaLines,');\nvm.runInThisContext(src);\nconst values = input.samples.map(s => window.QuotaPanel.monotoneLimitAt(\n    s.progress, input.policy, s.lane, s.minutes, input.start * 1000,\n    input.history, (input.start + s.progress * s.minutes * 60) * 1000));\nconst buckets = [['codex',['sol','luna']], ['codex_spark',['spark']], ['anthropic',['claude']]]\n    .map(([bucket,lanes]) => ({bucket, data_available:true, fresh:true,\n        window:{window_minutes:10080, utilization:0, progress:.1,\n            resets_at:new Date((input.start + 10080*60)*1000).toISOString()},\n        lanes:lanes.map(lane=>({lane, label:lane, gated:true, limit_pct:20})), trace:{points:[]}}));\nconst chart = window.QuotaPanel.chartForTest({rule:input.policy, buckets}).svg;\nconst panel = window.QuotaPanel.panelForTest({rule:input.policy, buckets});\nconst legacy = {...input.policy, codex_claude_pacing:false, curved_lanes:['sol'], lane_hard_stop_pct:{sol:95}};\nconst oldSol = window.QuotaPanel.limitAt(.5, legacy, 'sol');\nprocess.stdout.write(JSON.stringify({values, chart, panel, oldSol}));\n"]' returned non-zero exit status 1.
+
+/usr/lib/python3.12/subprocess.py:571: CalledProcessError
+=========================== short test summary info ============================
+FAILED tests/test_codex_quota_gate_1121.py::test_dashboard_js_matches_shared_server_formula_and_history
+1 failed, 204 passed in 24.29s

@@ -1,0 +1,3323 @@
+{
+  "synthetic": true,
+  "now": "2026-10-25T10:00:00+00:00",
+  "usage": {
+    "anthropic": {
+      "five_hour": {
+        "id": "five_hour",
+        "utilization": 37.9,
+        "window_minutes": 300,
+        "resets_at": "2026-10-25T12:00:00+00:00"
+      },
+      "seven_day": {
+        "id": "seven_day",
+        "utilization": 79.9,
+        "window_minutes": 10080,
+        "resets_at": "2026-10-29T10:00:00+00:00"
+      }
+    },
+    "codex": {
+      "primary": {
+        "id": "primary",
+        "utilization": 26.529999999999998,
+        "window_minutes": 300,
+        "resets_at": "2026-10-25T12:00:00+00:00"
+      },
+      "secondary": {
+        "id": "secondary",
+        "utilization": 62.32200000000001,
+        "window_minutes": 10080,
+        "resets_at": "2026-10-28T10:00:00+00:00"
+      },
+      "spark": {
+        "primary": {
+          "id": "primary",
+          "utilization": 15.16,
+          "window_minutes": 300,
+          "resets_at": "2026-10-25T12:00:00+00:00"
+        }
+      }
+    },
+    "grok": {},
+    "quota_headroom": {
+      "rate": 0.132,
+      "windows_left": 1.52,
+      "available_pct": 62.1,
+      "locked_pct": 0
+    }
+  },
+  "history": {
+    "rows": [
+      {
+        "ts": "2026-10-23T10:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 65.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T10:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 38.0,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T10:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 29.64,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T10:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 6.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 38.4,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 4.55,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 29.951999999999998,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T11:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 13.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 38.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 9.1,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 30.342,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T11:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 19.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 39.3,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 13.649999999999999,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 30.654,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T12:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 26.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 39.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 18.2,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 31.044,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T12:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 32.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 40.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 22.75,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 31.356,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T13:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 39.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 40.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 27.299999999999997,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 31.668000000000003,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T13:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 41.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 31.849999999999998,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 32.058,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T14:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 52.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 41.5,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 36.4,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 32.370000000000005,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T14:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 58.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 41.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 40.949999999999996,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 32.682,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T15:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 65.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 42.4,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T15:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 33.072,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T15:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 6.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 42.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 4.55,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 33.384,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T16:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 13.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 43.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 9.1,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 33.696000000000005,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T16:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 19.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 43.7,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 13.649999999999999,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 34.086000000000006,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T17:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 26.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 44.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 18.2,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 34.398,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T17:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 32.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 44.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 22.75,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 34.788000000000004,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T18:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 39.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 45.0,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 27.299999999999997,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 35.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T18:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 45.4,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 31.849999999999998,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 35.412,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T19:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 52.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 45.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 36.4,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 35.802,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T19:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 58.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 46.3,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 40.949999999999996,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 36.114,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T20:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 65.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 46.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-23T20:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 36.504,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T20:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 6.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 47.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 4.55,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 36.816,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T21:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 13.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 47.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 9.1,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 37.128,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T21:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 19.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 48.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 13.649999999999999,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 37.518,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T22:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 26.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 48.5,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 18.2,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 37.83,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T22:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 32.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 48.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 22.75,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 38.142,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T23:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 39.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 49.4,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 27.299999999999997,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 38.532000000000004,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-23T23:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 49.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 31.849999999999998,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 38.844,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T00:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 52.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 50.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 36.4,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 39.156000000000006,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T00:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 58.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 50.7,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 40.949999999999996,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 39.54600000000001,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T01:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 65.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 51.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T01:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 39.858000000000004,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T01:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 6.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 51.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 4.55,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 40.248000000000005,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T02:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 13.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 52.0,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 9.1,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 40.56,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T02:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 19.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 52.4,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 13.649999999999999,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 40.872,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T03:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 26.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 52.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 18.2,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 41.262,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T03:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 32.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 53.3,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 22.75,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 41.574,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T04:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 39.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 53.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 27.299999999999997,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 41.964,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T04:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 54.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 31.849999999999998,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 42.276,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T05:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 52.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 54.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 36.4,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 42.588,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T05:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 58.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 55.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 40.949999999999996,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 42.978,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T06:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 65.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 55.5,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T06:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 43.29,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T06:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 6.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 55.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 4.55,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 43.602000000000004,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T07:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 13.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 56.4,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 9.1,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 43.992,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T07:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 19.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 56.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 13.649999999999999,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 44.304,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T08:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 26.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 57.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 18.2,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 44.61600000000001,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T08:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 32.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 57.7,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 22.75,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 45.006,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T09:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 39.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 58.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 27.299999999999997,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 45.318000000000005,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T09:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 58.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 31.849999999999998,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 45.708000000000006,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T10:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 52.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 59.0,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 36.4,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 46.02,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T10:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 58.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 59.4,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 40.949999999999996,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 46.332,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T11:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 65.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 59.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T11:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 46.722,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T11:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 6.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 60.3,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 4.55,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 47.034,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T12:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 13.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 60.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 9.1,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 47.424,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T12:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 19.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 61.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 13.649999999999999,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 47.736000000000004,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T13:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 26.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 61.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 18.2,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 48.048,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T13:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 32.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 62.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 22.75,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 48.438,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T14:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 39.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 62.5,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 27.299999999999997,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 48.75,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T14:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 62.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 31.849999999999998,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T16:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 49.062,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T20:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 52.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T21:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 67.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 36.4,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T21:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 52.884,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T20:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 58.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T21:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 68.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 40.949999999999996,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T21:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 53.196000000000005,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T21:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 65.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T21:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 68.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-24T21:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 53.507999999999996,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T21:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 6.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 69.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 4.55,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 53.897999999999996,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T22:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 13.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 69.5,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 9.1,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 54.21,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T22:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 19.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 69.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 13.649999999999999,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 54.522000000000006,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T23:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 26.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 70.4,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 18.2,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 54.912000000000006,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-24T23:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 32.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 70.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 22.75,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 55.224,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T00:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 39.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 71.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 27.299999999999997,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 55.536,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T00:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 71.7,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 31.849999999999998,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 55.926,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T01:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 52.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 72.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 36.4,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 56.238,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T01:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 58.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 72.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 40.949999999999996,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 56.628,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T02:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 65.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 73.0,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T02:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 56.940000000000005,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T02:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 6.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 73.4,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 4.55,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 57.25200000000001,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T03:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 13.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 73.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 9.1,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 57.642,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T03:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 19.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 74.3,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 13.649999999999999,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 57.954,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T04:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 26.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 74.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 18.2,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 58.344,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T04:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 32.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 75.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 22.75,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 58.656000000000006,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T05:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 39.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 75.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 27.299999999999997,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 58.967999999999996,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T05:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 76.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 31.849999999999998,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 59.358,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T06:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 52.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 76.5,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 36.4,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 59.67,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T06:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 58.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 76.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 40.949999999999996,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 59.982000000000006,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T07:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 65.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 77.4,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 45.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T07:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 60.37200000000001,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T07:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 6.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 77.8,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 4.55,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 60.684,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T08:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 13.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 78.2,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 9.1,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 60.996,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex_spark": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 5.2,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              }
+            ]
+          },
+          "grok": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 32,
+                "window_minutes": 120,
+                "resets_at": "2026-10-25T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T08:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 19.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 78.7,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 13.649999999999999,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 61.386,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex_spark": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 7.800000000000001,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T09:00:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 26.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 79.1,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 18.2,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 61.698,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T09:30:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 32.5,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 79.6,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 22.75,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 62.088,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex_spark": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 13.0,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ts": "2026-10-25T09:55:00+00:00",
+        "providers": {
+          "anthropic": {
+            "windows": [
+              {
+                "id": "five_hour",
+                "utilization": 37.9,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "seven_day",
+                "utilization": 79.9,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-29T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 26.529999999999998,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              },
+              {
+                "id": "secondary",
+                "utilization": 62.32200000000001,
+                "window_minutes": 10080,
+                "resets_at": "2026-10-28T10:00:00+00:00"
+              }
+            ]
+          },
+          "codex_spark": {
+            "windows": [
+              {
+                "id": "primary",
+                "utilization": 15.16,
+                "window_minutes": 300,
+                "resets_at": "2026-10-25T12:00:00+00:00"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "step_minutes": 30
+  }
+}

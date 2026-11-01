@@ -1,0 +1,52 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_____ test_unrelated_dirty_target_survives_and_stays_out_of_commit[False] ______
+
+git_repo = PosixPath('.orchestra/tasks/V-1034/mutation-tmp/test_unrelated_dirty_target_su0/repo')
+wt_root = PosixPath('.orchestra/tasks/V-1034/mutation-tmp/test_unrelated_dirty_target_su0/worktrees')
+staged = False
+
+    @pytest.mark.parametrize('staged', [False, True])
+    def test_unrelated_dirty_target_survives_and_stays_out_of_commit(git_repo, wt_root, staged):
+        from app.workspace import merge_worktree_to_main
+        wt = worker(git_repo, wt_root)
+        readme = git_repo / 'README.md'
+        readme.write_text('another session staged\n')
+        if staged:
+            git(git_repo, 'add', 'README.md')
+            readme.write_text('another session unstaged\n')
+        before = git(git_repo, 'status', '--porcelain')
+        index_before = git(git_repo, 'show', ':README.md')
+        result = merge_worktree_to_main(wt.path, str(git_repo))
+>       assert result['ok'], result
+E       AssertionError: {'commit_point': 'not_reached', 'conflicts': [], 'diff_budget_limit': 2000, 'diff_budget_waived': False, ...}
+E       assert False
+
+tests/test_merge_worker_v1034.py:90: AssertionError
+______ test_unrelated_dirty_target_survives_and_stays_out_of_commit[True] ______
+
+git_repo = PosixPath('.orchestra/tasks/V-1034/mutation-tmp/test_unrelated_dirty_target_su1/repo')
+wt_root = PosixPath('.orchestra/tasks/V-1034/mutation-tmp/test_unrelated_dirty_target_su1/worktrees')
+staged = True
+
+    @pytest.mark.parametrize('staged', [False, True])
+    def test_unrelated_dirty_target_survives_and_stays_out_of_commit(git_repo, wt_root, staged):
+        from app.workspace import merge_worktree_to_main
+        wt = worker(git_repo, wt_root)
+        readme = git_repo / 'README.md'
+        readme.write_text('another session staged\n')
+        if staged:
+            git(git_repo, 'add', 'README.md')
+            readme.write_text('another session unstaged\n')
+        before = git(git_repo, 'status', '--porcelain')
+        index_before = git(git_repo, 'show', ':README.md')
+        result = merge_worktree_to_main(wt.path, str(git_repo))
+>       assert result['ok'], result
+E       AssertionError: {'commit_point': 'not_reached', 'conflicts': [], 'diff_budget_limit': 2000, 'diff_budget_waived': False, ...}
+E       assert False
+
+tests/test_merge_worker_v1034.py:90: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_worker_v1034.py::test_unrelated_dirty_target_survives_and_stays_out_of_commit[False]
+FAILED tests/test_merge_worker_v1034.py::test_unrelated_dirty_target_survives_and_stays_out_of_commit[True]
+2 failed in 4.59s

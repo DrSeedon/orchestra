@@ -1,0 +1,60 @@
+bringing up nodes...
+bringing up nodes...
+
+.........................F.............................................. [ 33%]
+......F.................F............................................... [ 66%]
+...................F...............F...................F................ [ 99%]
+..                                                                       [100%]
+=================================== FAILURES ===================================
+_ TestCodexProjectDocPreflight.test_multibyte_overflow_reports_first_incomplete_line_and_bounded_fallback _
+[gw3] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_prompting.py:203: in test_multibyte_overflow_reports_first_incomplete_line_and_bounded_fallback
+    assert len(result.instruction) < 600
+E   AssertionError: assert 669 < 600
+E    +  where 669 = len('[Orchestra project-doc warning: Codex auto-load is incomplete. /home/<runtime-user-redacted>/orchestra-ws/vm...0/repo/AGENTS.md from line 2 through EOF once; that line may overlap the auto-loaded prefix. Do not rewrite the file.]')
+E    +    where '[Orchestra project-doc warning: Codex auto-load is incomplete. /home/<runtime-user-redacted>/orchestra-ws/vm...0/repo/AGENTS.md from line 2 through EOF once; that line may overlap the auto-loaded prefix. Do not rewrite the file.]' = CodexProjectDocPreflight(path='/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.or...verflow_report0/repo/AGENTS.md is 9 bytes, project_doc_max_bytes=4; first line not fully inside the budget is line 2.').instruction
+________ test_repair_ownership_cli_prints_the_plan_and_repeats_to_zero _________
+[gw0] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_owned_dirs_migration_473.py:297: in test_repair_ownership_cli_prints_the_plan_and_repeats_to_zero
+    dry = run("--dry-run", str(repo))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_owned_dirs_migration_473.py:294: in run
+    assert done.returncode == 0, done.stdout + done.stderr
+E   AssertionError: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3: can't open file '/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py': [Errno 2] No such file or directory
+E     
+E   assert 2 == 0
+E    +  where 2 = CompletedProcess(args=['/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/...hestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py': [Errno 2] No such file or directory\n").returncode
+_____________ test_dry_run_alone_cannot_commit_a_layout_migration ______________
+[gw0] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_owned_dirs_migration_473.py:462: in test_dry_run_alone_cannot_commit_a_layout_migration
+    assert "--dry-run is only supported together with --repair-ownership" in done.stderr
+E   assert '--dry-run is only supported together with --repair-ownership' in "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3: can't open fil...chestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py': [Errno 2] No such file or directory\n"
+E    +  where "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3: can't open fil...chestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py': [Errno 2] No such file or directory\n" = CompletedProcess(args=['/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/...hestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py': [Errno 2] No such file or directory\n").stderr
+____________ test_supported_explicit_repair_then_spawn_keeps_memory ____________
+[gw0] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_source_layout_spawn_v1130.py:192: in test_supported_explicit_repair_then_spawn_keeps_memory
+    repair = subprocess.run(
+/usr/lib/python3.12/subprocess.py:571: in run
+    raise CalledProcessError(retcode, process.args,
+E   subprocess.CalledProcessError: Command '['/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3', '/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py', '--repair', '/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-6/popen-gw0/test_supported_explicit_repair0/source']' returned non-zero exit status 2.
+_______________ test_the_dirty_error_command_fixes_the_worktree ________________
+[gw1] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_worker_worktree_layout_v635.py:106: in test_the_dirty_error_command_fixes_the_worktree
+    subprocess.run(
+/usr/lib/python3.12/subprocess.py:571: in run
+    raise CalledProcessError(retcode, process.args,
+E   subprocess.CalledProcessError: Command 'git -C /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-6/popen-gw1/test_the_dirty_error_command_f0/wt add -A && git -C /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-6/popen-gw1/test_the_dirty_error_command_f0/wt commit -m 'WIP before layout migration' && /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-6/popen-gw1/test_the_dirty_error_command_f0/wt' returned non-zero exit status 2.
+___________________ test_pre_push_hook_blocks_listed_string ____________________
+[gw1] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_publish_guard.py:150: in test_pre_push_hook_blocks_listed_string
+    assert run.returncode == 1 and "forbidden-string line 1" in run.stderr
+E   assert (2 == 1)
+E    +  where 2 = CompletedProcess(args=['python3', '/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f...m-911aird/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/secret_scan.py': [Errno 2] No such file or directory\n").returncode
+=========================== short test summary info ============================
+FAILED tests/test_prompting.py::TestCodexProjectDocPreflight::test_multibyte_overflow_reports_first_incomplete_line_and_bounded_fallback
+FAILED tests/test_owned_dirs_migration_473.py::test_repair_ownership_cli_prints_the_plan_and_repeats_to_zero
+FAILED tests/test_owned_dirs_migration_473.py::test_dry_run_alone_cannot_commit_a_layout_migration
+FAILED tests/test_source_layout_spawn_v1130.py::test_supported_explicit_repair_then_spawn_keeps_memory
+FAILED tests/test_worker_worktree_layout_v635.py::test_the_dirty_error_command_fixes_the_worktree
+FAILED tests/test_publish_guard.py::test_pre_push_hook_blocks_listed_string
+6 failed, 212 passed in 122.63s (0:02:02)

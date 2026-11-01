@@ -1,0 +1,113 @@
+{
+  "sha": "a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
+  "node_id": "C_kwDOTm1W0NoAKGEyNzM1YTNlYWYwOTJlYWFmZmI2ZGMxN2RmMjVkZTMzZWYzYmQwNDg",
+  "commit": {
+    "author": {
+      "name": "elayadesign",
+      "email": "elaya.designer@gmail.com",
+      "date": "2026-10-26T00:14:04Z"
+    },
+    "committer": {
+      "name": "elayadesign",
+      "email": "elaya.designer@gmail.com",
+      "date": "2026-10-26T00:14:04Z"
+    },
+    "message": "Credit taste-skill and rewrite overlapping sections\n\nAdd credits and the taste-skill MIT notice by Leon Lin (@LexnLin).\nRewrite the motion/navigation and content realism sections in original\nwording, and remove the upgrade techniques list.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_017GzKYVoLuK4bRyvkHRxRxK",
+    "tree": {
+      "sha": "dc471d9ca016a607792a69ae92ead7d246d4e543",
+      "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/trees/dc471d9ca016a607792a69ae92ead7d246d4e543"
+    },
+    "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/commits/a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
+    "comment_count": 0,
+    "verification": {
+      "verified": false,
+      "reason": "unknown_key",
+      "signature": "-----BEGIN SSH SIGNATURE-----\nU1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgrLzsfFISF4by8Q+FKz27YpkK1USsBB+m\namu1QkJnbDsAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5AAAAQNXk8zOx\ngg/eroIyzDvIT6xIF7iwkM5GkPJMiHAGWvxt90taGRs0vsW34/uA2O2FAPBFydcIGH5BL8mO/2Jw\nigo=\n-----END SSH SIGNATURE-----",
+      "payload": "tree dc471d9ca016a607792a69ae92ead7d246d4e543\nparent 38bbe5765600b9178b5395a823c9f6c8d2b8e730\nauthor elayadesign <elaya.designer@gmail.com> 1792973644 +0400\ncommitter elayadesign <elaya.designer@gmail.com> 1792973644 +0400\n\nCredit taste-skill and rewrite overlapping sections\n\nAdd credits and the taste-skill MIT notice by Leon Lin (@LexnLin).\nRewrite the motion/navigation and content realism sections in original\nwording, and remove the upgrade techniques list.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_017GzKYVoLuK4bRyvkHRxRxK\n",
+      "verified_at": null
+    }
+  },
+  "url": "https://api.github.com/repos/elayadesign/ai-design-skills/commits/a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
+  "html_url": "https://github.com/elayadesign/ai-design-skills/commit/a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
+  "comments_url": "https://api.github.com/repos/elayadesign/ai-design-skills/commits/a2735a3eaf092eaaffb6dc17df25de33ef3bd048/comments",
+  "author": {
+    "login": "elayadesign",
+    "id": 218383883,
+    "node_id": "U_kgDODQRGCw",
+    "avatar_url": "https://avatars.githubusercontent.com/u/218383883?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/elayadesign",
+    "html_url": "https://github.com/elayadesign",
+    "followers_url": "https://api.github.com/users/elayadesign/followers",
+    "following_url": "https://api.github.com/users/elayadesign/following{/other_user}",
+    "gists_url": "https://api.github.com/users/elayadesign/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/elayadesign/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/elayadesign/subscriptions",
+    "organizations_url": "https://api.github.com/users/elayadesign/orgs",
+    "repos_url": "https://api.github.com/users/elayadesign/repos",
+    "events_url": "https://api.github.com/users/elayadesign/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/elayadesign/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "elayadesign",
+    "id": 218383883,
+    "node_id": "U_kgDODQRGCw",
+    "avatar_url": "https://avatars.githubusercontent.com/u/218383883?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/elayadesign",
+    "html_url": "https://github.com/elayadesign",
+    "followers_url": "https://api.github.com/users/elayadesign/followers",
+    "following_url": "https://api.github.com/users/elayadesign/following{/other_user}",
+    "gists_url": "https://api.github.com/users/elayadesign/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/elayadesign/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/elayadesign/subscriptions",
+    "organizations_url": "https://api.github.com/users/elayadesign/orgs",
+    "repos_url": "https://api.github.com/users/elayadesign/repos",
+    "events_url": "https://api.github.com/users/elayadesign/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/elayadesign/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "38bbe5765600b9178b5395a823c9f6c8d2b8e730",
+      "url": "https://api.github.com/repos/elayadesign/ai-design-skills/commits/38bbe5765600b9178b5395a823c9f6c8d2b8e730",
+      "html_url": "https://github.com/elayadesign/ai-design-skills/commit/38bbe5765600b9178b5395a823c9f6c8d2b8e730"
+    }
+  ],
+  "stats": {
+    "total": 90,
+    "additions": 60,
+    "deletions": 30
+  },
+  "files": [
+    {
+      "sha": "99387ba735fabf044220ca8799e2b7aef4b82b41",
+      "filename": "README.md",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 0,
+      "changes": 2,
+      "blob_url": "https://github.com/elayadesign/ai-design-skills/blob/a2735a3eaf092eaaffb6dc17df25de33ef3bd048/README.md",
+      "raw_url": "https://github.com/elayadesign/ai-design-skills/raw/a2735a3eaf092eaaffb6dc17df25de33ef3bd048/README.md",
+      "contents_url": "https://api.github.com/repos/elayadesign/ai-design-skills/contents/README.md?ref=a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
+      "patch": "@@ -74,6 +74,8 @@ Every skill's design values (fonts, colors, spacing, motion) live in one section\n \n ## Credits\n \n+`landing-page-design` adapts content realism and motion ideas from [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) by Leon Lin, MIT licensed. Details are at the end of [its SKILL.md](./skills/landing-page-design/SKILL.md#credits).\n+\n `design-to-motion` adapts a few general motion rules from [emilkowalski/skills](https://github.com/emilkowalski/skills), [Owl-Listener/designer-skills](https://github.com/Owl-Listener/designer-skills), and [dylantarre/animation-principles](https://github.com/dylantarre/animation-principles), all MIT licensed. Details are at the end of [its SKILL.md](./skills/design-to-motion/SKILL.md#credits).\n \n ---"
+    },
+    {
+      "sha": "39caa206ac2b179b110562db65e3e3c79a759fb5",
+      "filename": "skills/landing-page-design/SKILL.md",
+      "status": "modified",
+      "additions": 58,
+      "deletions": 30,
+      "changes": 88,
+      "blob_url": "https://github.com/elayadesign/ai-design-skills/blob/a2735a3eaf092eaaffb6dc17df25de33ef3bd048/skills%2Flanding-page-design%2FSKILL.md",
+      "raw_url": "https://github.com/elayadesign/ai-design-skills/raw/a2735a3eaf092eaaffb6dc17df25de33ef3bd048/skills%2Flanding-page-design%2FSKILL.md",
+      "contents_url": "https://api.github.com/repos/elayadesign/ai-design-skills/contents/skills%2Flanding-page-design%2FSKILL.md?ref=a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
+      "patch": "@@ -264,51 +264,45 @@ This is the one place gradients are used, and only on text, never on the backgro\n \n **Never use:** Material Icons, Material Symbols.\n \n-## B7. Motion choreography (fluid dynamics)\n+## B7. Motion\n \n-Never use default transitions. All motion simulates real world mass and spring physics through custom cubic beziers.\n+Motion should feel weighted and decelerate into place. Never ship a browser default curve (`ease`, `linear`, `ease-in-out`).\n \n-```\n-transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]\n-```\n+**Base curve:** `ease-[cubic-bezier(0.22,1,0.36,1)]` with `duration-500` for layout and position changes. Color and opacity shifts on hover may use `duration-300`, never shorter than 200ms.\n \n-### Fluid island nav\n+Animate only `transform` and `opacity`. Never animate `top`, `left`, `width`, or `height`.\n \n-**Closed state.** The navbar is a floating glass pill detached from the top: `mt-6`, `mx-auto`, `w-max`, `rounded-full`.\n+Respect `prefers-reduced-motion`: replace movement with a plain opacity change.\n \n-**Hamburger morph.** On click, the hamburger lines fluidly rotate and translate into a perfect X using `rotate-45` and `-rotate-45` with absolute positioning. They must never simply disappear.\n+### Navigation\n \n-**Modal expansion.** The menu opens as a screen filling overlay with a heavy glass effect: `backdrop-blur-3xl bg-black/80` or `bg-white/80`.\n+**Resting state.** A compact bar that floats off the top edge rather than sitting flush against it, centered and sized to its content. It uses a translucent surface over a background blur so page content stays faintly visible behind it. Spacing comes from B2, radius from B3.\n \n-**Staggered mask reveal.** Nav links inside the expanded state fade in and slide up from an invisible box, `translate-y-12 opacity-0` resolving to `translate-y-0 opacity-100`, staggered per item with `delay-100`, `delay-150`, `delay-200`, and so on.\n+**Menu toggle.** The open and close icon transforms between its two states instead of swapping instantly. Use an icon from B6 or draw the lines yourself; either way the change is animated with the base curve.\n \n-### Scroll interpolation\n+**Mobile menu.** Opens as a full height panel, not a small dropdown. The panel background uses the theme's base surface at high opacity with a strong blur.\n \n-Elements never appear statically on load. As they enter the viewport they execute a gentle, heavy fade up:\n+**Link entrance.** Links inside the open menu arrive one after another in reading order, each moving up a short distance (Spacing-300, 24px) while fading in. Step each item 60ms after the previous one and cap the total sequence at 400ms so long menus never feel slow.\n \n-```\n-translate-y-16 blur-md opacity-0  →  translate-y-0 blur-0 opacity-100\n-```\n+### Scroll reveals\n \n-over 800ms or longer.\n+Sections entering the viewport rise a short distance (Spacing-400, 32px) and fade from 0 to full opacity over 600 to 800ms on the base curve. Reveal each section once; do not replay on scroll back up.\n \n-For JavaScript driven reveals use `IntersectionObserver` or Framer Motion's `whileInView`. **Never use `window.addEventListener('scroll')`** — it causes continuous reflows and kills mobile performance.\n+Trigger reveals with `IntersectionObserver` or Framer Motion's `whileInView`. Never attach work to an unthrottled `window.addEventListener('scroll')`, since it runs on every frame and drags down mobile performance.\n \n ---\n \n ## B8. Content realism\n \n-Never ship filler. These are the tells that a page was generated rather than made.\n+Every piece of sample content should read like it came from a real product with real users.\n \n-- **No Lorem Ipsum.** Write real draft copy.\n-- **No \"John Doe\".** Use diverse, realistic names.\n-- **No placeholder brands** like \"Acme Corp\", \"Nexus\", or \"SmartFlow\". Invent contextual, believable names.\n-- **No round fake numbers** like `99.99%`, `50%`, `$100.00`. Use organic data: `47.2%`, `$99.00`, `+1 (312) 847-1928`.\n-- **No AI cliches.** Never \"Elevate\", \"Seamless\", \"Unleash\", \"Next Gen\", \"Game changer\", \"Delve\", \"Tapestry\", or \"In the world of\".\n-- **Sentence case headers**, not Title Case On Everything.\n-- **Active voice.** \"We could not save your changes\", not \"Mistakes were made\".\n-- **No exclamation marks in success messages**, and no \"Oops!\" in errors. Be direct: \"Connection failed. Please try again.\"\n-- **Unique avatars** per person, and varied blog post dates.\n+- **Write the copy.** No placeholder Latin, no \"Your headline here\". Draft real sentences in the product's voice.\n+- **People.** Give testimonials and team members full, specific names that fit the product's audience and region. Never reuse one face for two people.\n+- **Brands and logos.** Invent names that sound like they belong in the product's industry. A logistics tool's customers sound like logistics companies, not generic tech startups.\n+- **Numbers.** Avoid suspiciously round figures. Pricing should look like real pricing, metrics should carry a decimal or an odd final digit, and dates across a list should vary.\n+- **Banned filler words.** Do not write \"revolutionize\", \"supercharge\", \"cutting edge\", \"effortless\", \"transform your workflow\", \"take it to the next level\", \"harness the power\", or \"world class\". Say what the product does in plain terms instead.\n+- **Sentence case** for headings and buttons.\n+- **System messages.** Confirmations are calm and specific (\"Invoice sent to Dana\"). Errors say what failed and what to do next (\"Upload failed. The file is over 20 MB.\"). No cute interjections, no exclamation marks.\n \n ## B9. States\n \n@@ -353,7 +347,7 @@ Every landing page includes one large type section stating the core benefit or t\n **Animation**\n - Text starts in a subtle, muted tone, roughly 25 to 35% opacity of the theme's base text color.\n - As the section scrolls into view, each word transitions individually from that muted tone to the full text color, in reading order.\n-- Words activate one at a time as they cross a trigger line, not the entire block flipping at once. The transition uses the custom easing curve from B7, never a linear fade.\n+- Words activate one at a time as they cross a trigger line, not the entire block flipping at once. The transition uses the base curve from B7, never a linear fade.\n - Implement with `IntersectionObserver` per word, or a single scroll listener throttled through `requestAnimationFrame`. Never an unthrottled `window.addEventListener('scroll')`, per B7.\n \n ---\n@@ -393,11 +387,45 @@ Then build section by section per A6.\n - [ ] No single sided card borders, no background gradients\n - [ ] Hero heading and subheading capped at 680px with meaningful line breaks\n - [ ] Icons from Phosphor, Solar, or Iconamoon\n-- [ ] Every transition uses a custom cubic bezier, scroll reveals use IntersectionObserver\n+- [ ] Every transition uses the B7 base curve, scroll reveals use IntersectionObserver\n - [ ] Tagline reveal section present, minimum two lines, words activate one at a time on scroll\n \n **Content and ship**\n-- [ ] No Lorem Ipsum, no placeholder brands, no AI cliches, no round fake numbers\n+- [ ] Real draft copy, believable names and numbers, no banned filler words\n - [ ] Hover, active, focus, loading, empty, and error states all present\n - [ ] No dead links, current nav item indicated\n - [ ] 404, legal links, form validation, favicon, meta tags, alt text\n+\n+---\n+\n+## Credits\n+\n+Parts of this skill were adapted from [taste-skill](https://github.com/Leonxlnx/taste-skill) by Leon Lin ([@LexnLin](https://x.com/LexnLin)), MIT licensed. Its redesign audit structure, content realism checks, and motion and navigation ideas informed the matching sections here, which have since been rewritten.\n+\n+<details>\n+<summary>taste-skill license</summary>\n+\n+```\n+MIT License\n+\n+Copyright (c) 2026 Leonxlnx\n+\n+Permission is hereby granted, free of charge, to any person obtaining a copy\n+of this software and associated documentation files (the \"Software\"), to deal\n+in the Software without restriction, including without limitation the rights\n+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+copies of the Software, and to permit persons to whom the Software is\n+furnished to do so, subject to the following conditions:\n+\n+The above copyright notice and this permission notice shall be included in all\n+copies or substantial portions of the Software.\n+\n+THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+SOFTWARE.\n+```\n+</details>"
+    }
+  ]
+}

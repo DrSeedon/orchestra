@@ -1,0 +1,468 @@
+    35	    @property
+    36	    def path(self) -> Path:
+    37	        return self._path
+    38	
+    39	    def _ensure_open(self) -> None:
+    40	        if self._fh is None:
+    41	            self._dir.mkdir(parents=True, exist_ok=True)
+    42	            self._fh = open(self._path, "a", encoding="utf-8")
+    43	
+    44	    async def append(self, entry: dict) -> None:
+    45	        """Append one JSON entry as a single LF-terminated line, flushed to disk."""
+    46	        await self.append_messages([entry])
+    47	
+    48	    async def append_messages(self, messages: list[dict]) -> None:
+    49	        """Append a batch with one flush/fsync instead of one disk barrier per message."""
+    50	        if not messages:
+    51	            return
+    52	        lines = [json.dumps(message, ensure_ascii=False) + "\n" for message in messages]
+    53	        async with self._lock:
+    54	            self._ensure_open()
+    55	            fh = self._fh
+    56	            assert fh is not None
+    57	            fh.writelines(lines)
+    58	            fh.flush()
+    59	            os.fsync(fh.fileno())
+    60	
+    61	    async def replace_messages(self, messages: list[dict]) -> None:
+    62	        """Atomically replace the JSONL snapshot after context compaction.
+    63	
+    64	        Append-only persistence would resurrect discarded history on the next process
+    65	        start. The temp file lives beside the target so os.replace stays atomic.
+    66	        """
+    67	        async with self._lock:
+    68	            self._dir.mkdir(parents=True, exist_ok=True)
+    69	            if self._fh is not None:
+    70	                self._fh.flush()
+    71	                os.fsync(self._fh.fileno())
+    72	                self._fh.close()
+    73	                self._fh = None
+    74	
+    75	            tmp_path: str | None = None
+    76	            try:
+    77	                with tempfile.NamedTemporaryFile(
+    78	                    mode="w", encoding="utf-8", dir=self._dir,
+    79	                    prefix=f".{self.session_id}.", suffix=".tmp", delete=False,
+    80	                ) as tmp:
+    81	                    tmp_path = tmp.name
+    82	                    for message in messages:
+    83	                        tmp.write(json.dumps(message, ensure_ascii=False) + "\n")
+    84	                    tmp.flush()
+    85	                    os.fsync(tmp.fileno())
+    86	                os.replace(tmp_path, self._path)
+    87	                tmp_path = None
+    88	                dir_fd = os.open(self._dir, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    89	                try:
+    90	                    os.fsync(dir_fd)
+    91	                finally:
+    92	                    os.close(dir_fd)
+    93	            finally:
+    94	                if tmp_path is not None:
+    95	                    try:
+    96	                        os.unlink(tmp_path)
+    97	                    except FileNotFoundError:
+    98	                        pass
+    99	
+   100	    def load(self) -> list[dict]:
+   101	        """Read JSONL → messages; tolerate only a crash-truncated final record.
+   102	
+   103	        Corruption in the middle means later history cannot be trusted and is loud.
+   104	        Only OpenAI-message-shaped entries (have a supported role) are returned.
+   105	        """
+   106	        if not self._path.exists():
+   107	            return []
+   108	        out: list[dict] = []
+   109	        with open(self._path, encoding="utf-8") as f:
+   110	            lines = f.readlines()
+   111	        nonempty = [i for i, line in enumerate(lines) if line.strip()]
+   112	        last_nonempty = nonempty[-1] if nonempty else -1
+   113	        for index, ln in enumerate(lines):
+   114	            ln = ln.strip()
+   115	            if not ln:
+   116	                continue
+   117	            try:
+   118	                obj = json.loads(ln)
+   119	            except (ValueError, TypeError) as exc:
+   120	                if index == last_nonempty:
+   121	                    continue
+   122	                raise RuntimeError(
+   123	                    f"corrupt harness session {self.session_id}: invalid JSONL line {index + 1}"
+   124	                ) from exc
+   125	            if isinstance(obj, dict) and obj.get("role") in ("user", "assistant", "tool", "system"):
+   126	                out.append(obj)
+   127	        return out
+   128	
+   129	    async def close(self) -> None:
+   130	        async with self._lock:
+   131	            if self._fh is not None:
+   132	                try:
+   133	                    self._fh.flush()
+   134	                    os.fsync(self._fh.fileno())
+   135	                finally:
+   136	                    self._fh.close()
+   137	                    self._fh = None
+   379	async def accept_message_delivery(
+   380	    *,
+   381	    delivery_id: str,
+   382	    source_session_id: str | None = None,
+   383	    source_principal: str = "",
+   384	    source_name: str = "",
+   385	    source_scope: str,
+   386	    source_task_id: str = "",
+   387	    target_session_id: str,
+   388	    target_name: str,
+   389	    target_scope: str,
+   390	    target_task_id: str = "",
+   391	    target_generation: str,
+   392	    message: str,
+   393	    rendered_message: str,
+   394	    message_kind: str | None = None,
+   395	    wake: bool = True,
+   396	    provenance: MessageProvenance,
+   397	    quota_wait=None,
+   398	    cron_job_id: str | None = None,
+   399	) -> tuple[dict, int]:
+   400	    """Commit one receipt, then best-effort wake its target runner.
+   401	
+   402	    `quota_wait` — решение гейта квот, отбившее приёмку: сообщение всё равно принимается,
+   403	    но сразу в `WAITING_QUOTA`, и runner его не трогает, пока `quota_queue` не отпустит.
+   404	    """
+   405	    delivery_id = _validate_id(delivery_id)
+   406	    origin, origin_detail = provenance.to_storage()
+   407	    payload_hash = _payload_hash(
+   408	        source_session_id=source_session_id,
+   409	        source_principal=source_principal,
+   410	        source_scope=source_scope,
+   411	        source_task_id=source_task_id,
+   412	        target_session_id=target_session_id,
+   413	        target_scope=target_scope,
+   414	        target_task_id=target_task_id,
+   415	        target_generation=target_generation,
+   416	        message=message,
+   417	        rendered_message=rendered_message,
+   418	        message_kind=message_kind,
+   419	        wake=bool(wake),
+   420	        origin=origin,
+   421	        origin_detail=json.loads(origin_detail),
+   422	    )
+   423	    now = _now()
+   424	    connection = db._conn()
+   425	    inserted = False
+   426	    retrying = False
+   427	    wake_runner = False
+   428	    resource: dict | None = None
+   429	    try:
+   430	        connection.execute("BEGIN IMMEDIATE")
+   431	        existing = connection.execute(
+   432	            "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,)
+   433	        ).fetchone()
+   434	        if existing is not None:
+   435	            if existing["payload_hash"] != payload_hash:
+   436	                connection.rollback()
+   437	                return _conflict(delivery_id)
+   438	            if existing["state"] == "FAILED_BEFORE_SUBMIT":
+   439	                connection.execute(
+   440	                    """UPDATE message_deliveries
+   441	                       SET state=?, error_json=?, updated_at=?
+   442	                       WHERE delivery_id=? AND state='FAILED_BEFORE_SUBMIT'""",
+   443	                    (
+   444	                        "WAITING_QUOTA" if quota_wait is not None else "PREPARING",
+   445	                        json.dumps(wait_error(quota_wait, delivery_id=delivery_id), ensure_ascii=False)
+     1	"""Outbox of a hub worker: the only way its agent can reach Orchestra (V-1008).
+     2	
+     3	The hub link is outbound only: the hub agent has no Orchestra tools and no path back. It appends
+     4	JSON lines ``{"tool": ..., "args": {...}}`` to ``.orchestra-outbox.jsonl`` in its copy; when the
+     5	broker syncs the turn back it reads that file (it never reaches the worktree or git) and runs
+     6	the entries itself, as the worker's own identity, through the same local API a native worker's
+     7	MCP process uses. Three tools only; anything else is dropped and reported.
+     8	
+     9	Authority stays with the broker: the recipient of ``send_message`` is the worker's own parent,
+    10	whatever the entry says; ``file_path`` and every other unknown argument are ignored.
+    11	"""
+    12	
+    13	from __future__ import annotations
+    14	
+    15	import json
+    16	import logging
+    17	import os
+    18	import uuid
+    19	from dataclasses import dataclass, field
+    20	from typing import Awaitable, Callable
+    21	from urllib.parse import quote
+    22	
+    23	from app.message_deliveries import report_receipt_accepted
+    24	
+    25	logger = logging.getLogger(__name__)
+    26	
+    27	OUTBOX_NAME = ".orchestra-outbox.jsonl"
+    28	ALLOWED_TOOLS = ("send_message", "update_checklist", "update_progress")
+    29	MAX_OUTBOX_BYTES = 256 * 1024
+    30	MAX_ENTRIES = 50
+    31	MAX_MESSAGE_CHARS = 20_000
+    32	MAX_STATUS_CHARS = 300
+    33	
+    34	ApiCall = Callable[[str, str, dict], Awaitable[object]]
+    35	
+    36	
+    37	@dataclass
+    38	class Identity:
+    39	    session_id: str
+    40	    name: str
+    41	    scope: str
+    42	    parent_name: str = ""
+    43	    role: str = "worker"
+    44	    branch: str = ""
+    45	    pipeline: str = ""
+    46	    turn_gen: int = 0
+    47	
+    48	
+    49	@dataclass
+    50	class OutboxReport:
+    51	    done: list[str] = field(default_factory=list)
+    52	    dropped: list[str] = field(default_factory=list)
+    53	
+    54	    def summary(self) -> str:
+    55	        if not self.done and not self.dropped:
+    56	            return ""
+    57	        text = f"[hub outbox] {len(self.done)} delivered"
+    58	        if self.done:
+    59	            text += " (" + ", ".join(self.done[:10]) + ")"
+    60	        if self.dropped:
+    61	            text += f", {len(self.dropped)} dropped: " + "; ".join(self.dropped[:10])
+    62	        return text
+    63	
+    64	
+    65	def parse_outbox(data: bytes) -> tuple[list[dict], list[str]]:
+    66	    """(valid entries, reasons for everything dropped). Never raises on hostile content."""
+    67	    dropped: list[str] = []
+    68	    if len(data) > MAX_OUTBOX_BYTES:
+    69	        dropped.append(f"outbox larger than {MAX_OUTBOX_BYTES // 1024} KiB; the tail was ignored")
+    70	        data = data[:MAX_OUTBOX_BYTES]
+    71	    entries: list[dict] = []
+    72	    for number, raw in enumerate(data.decode("utf-8", "replace").splitlines(), 1):
+    73	        if not raw.strip():
+    74	            continue
+    75	        if len(entries) >= MAX_ENTRIES:
+    76	            dropped.append(f"line {number}: more than {MAX_ENTRIES} entries in one turn")
+    77	            break
+    78	        try:
+    79	            entry = json.loads(raw)
+    80	        except ValueError:
+    81	            dropped.append(f"line {number}: not JSON")
+    82	            continue
+    83	        if not isinstance(entry, dict) or not isinstance(entry.get("tool"), str):
+    84	            dropped.append(f"line {number}: no tool name")
+    85	            continue
+    86	        args = entry.get("args", {})
+    87	        if not isinstance(args, dict):
+    88	            dropped.append(f"line {number}: args must be an object")
+    89	            continue
+    90	        if entry["tool"] not in ALLOWED_TOOLS:
+    91	            dropped.append(f"line {number}: tool '{entry['tool'][:40]}' is not available to hub workers")
+    92	            continue
+    93	        entries.append({"tool": entry["tool"], "args": args})
+    94	    return entries, dropped
+    95	
+    96	
+    97	def _request_for(tool: str, args: dict, who: Identity) -> tuple[str, str, dict] | str:
+    98	    """(method, path, body) for an allowed tool, or the reason it cannot run."""
+    99	    if tool == "send_message":
+   100	        if not who.parent_name:
+   101	            return "send_message: this worker has no parent orchestrator"
+   102	        message = args.get("message")
+   103	        if not isinstance(message, str) or not message.strip():
+   104	            return "send_message: message must be non-empty text"
+   105	        # `to` is never read: a hub worker may talk to its own parent only.
+   106	        return ("POST", f"/api/sessions/{quote(who.parent_name, safe='')}/send", {
+   107	            "message": message[:MAX_MESSAGE_CHARS], "sender": who.name, "scope": who.scope,
+   108	            "delivery_id": str(uuid.uuid4())})
+   109	    if tool == "update_progress":
+   110	        percent = args.get("percent")
+   111	        if isinstance(percent, bool) or not isinstance(percent, (int, float)):
+   112	            return "update_progress: percent must be a number"
+   113	        return ("POST", f"/api/sessions/{quote(who.name, safe='')}/progress", {
+   114	            "percent": int(percent), "status": str(args.get("status", ""))[:MAX_STATUS_CHARS],
+   115	            "scope": who.scope})
+   116	    items, completed = args.get("items"), args.get("completed")
+   117	    if not (isinstance(items, list) and all(isinstance(i, str) for i in items)):
+   118	        return "update_checklist: items must be a list of strings"
+   119	    if not (isinstance(completed, list) and all(isinstance(i, int) and not isinstance(i, bool) for i in completed)):
+   120	        return "update_checklist: completed must be a list of step numbers"
+   121	    return ("POST", f"/api/sessions/{quote(who.name, safe='')}/checklist", {
+   122	        "items": items, "completed": completed, "current": args.get("current"),
+   123	        "estimates_minutes": args.get("estimates_minutes")})
+   124	
+   125	
+   126	async def execute(entries: list[dict], who: Identity, call: ApiCall) -> OutboxReport:
+   127	    report = OutboxReport()
+   128	    for entry in entries:
+   129	        tool = entry["tool"]
+   130	        planned = _request_for(tool, entry["args"], who)
+   131	        if isinstance(planned, str):
+   132	            report.dropped.append(planned)
+   133	            continue
+   134	        method, path, body = planned
+   135	        try:
+   136	            result = await call(method, path, body)
+   137	        except Exception as exc:   # noqa: BLE001 - one bad entry must not lose the turn's other entries
+   138	            report.dropped.append(f"{tool}: {type(exc).__name__}: {str(exc)[:120]}")
+   139	            continue
+   140	        error = result.get("error") if isinstance(result, dict) else None
+   141	        if tool == "send_message":
+   142	            if report_receipt_accepted(result):
+   143	                error = None  # WAITING_QUOTA's error metadata describes a retained receipt.
+   144	            else:
+   145	                error = error or "parent report was not accepted"
+   146	        if error:
+   147	            report.dropped.append(f"{tool}: {str(error)[:160]}")
+   148	        else:
+   149	            report.done.append(tool)
+   150	    for reason in report.dropped:
+   151	        logger.warning("hub outbox of %s: dropped %s", who.name, reason)
+   152	    return report
+   153	
+   154	
+   155	async def local_api_call(who: Identity, method: str, path: str, body: dict) -> object:
+    50	ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
+    51	WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
+    52	# Имя агента меняется и может быть переиспользовано; id — нет. Нужен там, где
+    53	# идентичность СОХРАНЯЕТСЯ и сравнивается позже: держатель тест-лока (#82).
+    54	SESSION_ID = os.environ.get("ORCHESTRA_SESSION_ID", "")
+    55	PARENT_NAME = os.environ.get("PARENT_NAME", "")
+    56	_INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")
+    57	_MCP_PROOF = os.environ.get("ORCHESTRA_MCP_PROOF", "")
+    58	ACCESS_MODE = os.environ.get("ORCHESTRA_ACCESS_MODE", "full").strip().lower()
+    59	# Backend plants this nonce in our env. We write a proof file so Grok's same-name
+    60	# MCP merge cannot pass off a foreign `orchestra` server as ours.
+    61	ORCHESTRA_MCP_CANARY_ENV = "ORCHESTRA_MCP_CANARY"
+    62	_ORCHESTRA_MCP_CANARY_RE = re.compile(r"^[0-9a-f]{32}$")
+    63	
+    64	
+    65	def mcp_canary_proof_path(nonce: str) -> Path:
+    66	    return Path(tempfile.gettempdir()) / f"orchestra-mcp-canary-{nonce}"
+    67	
+    68	
+    69	def publish_mcp_identity_canary(environ: dict[str, str] | None = None) -> Path | None:
+    70	    """Prove this process is Orchestra's mcp_stdio, not a same-name impostor.
+    71	
+    72	    Returns the proof path, or None when no canary was planted (non-Grok launch).
+    73	    """
+    74	    env = os.environ if environ is None else environ
+    75	    nonce = str(env.get(ORCHESTRA_MCP_CANARY_ENV) or "").strip()
+    76	    if not nonce:
+    77	        return None
+    78	    if not _ORCHESTRA_MCP_CANARY_RE.fullmatch(nonce):
+    79	        raise RuntimeError("ORCHESTRA_MCP_CANARY is not a 32-char hex nonce")
+    80	    path = mcp_canary_proof_path(nonce)
+    81	    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    82	    try:
+    83	        tmp.write_text(nonce, encoding="utf-8")
+    84	        tmp.replace(path)
+    85	    finally:
+    86	        tmp.unlink(missing_ok=True)
+    87	    return path
+    88	
+    89	READ_ONLY_MCP_TOOLS = frozenset({
+    90	    "test_lock_status",
+    91	    "list_agents",
+    92	    "list_pending_deliveries",
+    93	    "list_orchestrators",
+    94	    "get_worker_logs",
+    95	    "search_logs",
+   630	            return {"error": "job not found or not active"}
+   631	        task = self._tasks.pop(job_id, None)
+   632	        if task and not task.done():
+   633	            task.cancel()
+   634	        proc = self._procs.pop(job_id, None)
+   635	        if proc:
+   636	            await _kill_proc(proc)
+   637	        if row.get("type") == "run":
+   638	            await self._interrupt_run_notify(
+   639	                job_id, row.get("message") or "Background run", row.get("target_name") or "?",
+   640	                row.get("target_scope") or "",
+   641	                reason="Отменён вызывающим агентом; повторный запуск не выполнялся.",
+   642	                output=row.get("last_output") or "",
+   643	            )
+   644	        return {"ok": True}
+   645	
+   646	    async def cancel_by_session(self, session_id: str) -> None:
+   647	        active = bg_get_jobs(session_id=session_id, active_only=True)
+   648	        job_ids = [j["id"] for j in active]
+   649	        cancelled_count = bg_cancel_by_session(session_id)
+   650	        for jid in job_ids:
+   651	            task = self._tasks.pop(jid, None)
+   652	            if task and not task.done():
+   653	                task.cancel()
+   654	            proc = self._procs.pop(jid, None)
+   655	            if proc:
+   656	                await _kill_proc(proc)
+   657	            row = next((job for job in active if job["id"] == jid), {})
+   658	            if row.get("type") == "run":
+   659	                await self._report_undelivered_job(
+   660	                    jid, row.get("target_name") or "?", row.get("target_scope") or "",
+   661	                    "target session stopped while its run job was active",
+   662	                )
+   663	        if cancelled_count:
+   664	            logger.info(f"bg_jobs: cancelled {cancelled_count} jobs for session {session_id}")
+   665	
+   666	    async def restore_from_db(self) -> None:
+   667	        legacy_idle = bg_cancel_removed_idle()
+   668	        if legacy_idle:
+   669	            logger.info("bg_jobs: cancelled %s legacy idle watches (type removed)", legacy_idle)
+   670	        cleaned = bg_cleanup_old(24)
+   671	        if cleaned:
+   672	            logger.info(f"bg_jobs: cleaned up {cleaned} old terminated jobs")
+   673	        wake_reset_ids = bg_reset_wake_triggering()
+   674	        if wake_reset_ids:
+   675	            logger.info(
+   280	                    if absorbed:
+   281	                        continue
+   282	                    # V-637: a GigaChat worker wrote tests calling functions that do not exist,
+   283	                    # never ran them and reported "all tests pass"; the orchestrator then
+   284	                    # rewrote the user's script to fit them. One reminder per turn.
+   285	                    if self._unrun_code and not self._unrun_nudged and not self._tools_off:
+   286	                        self._unrun_nudged = True
+   287	                        entry = {"role": "user", "content": (
+   288	                            "[harness] You wrote " + ", ".join(self._unrun_code) + " in this turn "
+   289	                            "but never ran it. Run it (or its tests) with bash now and report the "
+   290	                            "real output; if it fails, fix it first.")}
+   291	                        self.history.append(entry)
+   292	                        self.new_messages.append(entry)
+   293	                        continue
+   294	                    # No tools requested → turn is done. Normalize the OpenAI "stop"/""
+   295	                    # finish to "end_turn" (parity with other backends); pass through other
+   296	                    # explicit reasons (e.g. "length", "content_filter").
+   297	                    fr = self.stop_reason
+   298	                    stop = "end_turn" if fr in ("stop", "tool_calls", "") else fr
+   299	                    self._terminal(stop, ok=True)
+   300	                    return
+   301	
+   302	                # Abort that arrives AFTER tool_calls are known: do NOT execute the tools
+   303	                # (could be destructive). Append synthetic aborted tool results so the
+   304	                # assistant tool_calls message is never left dangling (else the next request
+   305	                # is rejected), then end the turn.
+   306	                if self._abort():
+   307	                    for tc in tool_calls:
+   308	                        self._append_tool_result(tc.get("id", ""), "[aborted by interrupt]")
+   309	                    self._terminal("aborted", ok=False, detail="aborted before tool dispatch")
+   310	                    return
+   311	
+   312	                # Dispatch tools sequentially, preserving tool_call ids.
+   313	                for tc in tool_calls:
+   314	                    async for ev in self._dispatch_tool(tc):
+   315	                        yield ev
+   316	                # Дальше этот же assistant-месседж уезжает в КАЖДЫЙ следующий запрос.
+   317	                # Строгий провайдер (Cohere) отвергает весь запрос, если аргументы хоть
+   318	                # одного вызова — не объект JSON: «invalid tool call provided in
+   319	                # messages[42].tool_calls[0]». Один кривой вызов модели убивал остаток
+   320	                # сессии. Дефект уже отработан выше и лежит в tool_result, поэтому в
+   321	                # истории аргументы обезвреживаем.
+   322	                _sanitize_tool_args(tool_calls)
+   323	
+   324	            # ran out of rounds
+   325	            self._terminal("max_turns", ok=False,
+   326	                           detail=f"exceeded {self.max_rounds} tool rounds")
+   327	        finally:
+   328	            self._round_hint = None
+   329	
+   330	    def _absorb_injected(self) -> list[str]:

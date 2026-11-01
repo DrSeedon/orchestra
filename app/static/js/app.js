@@ -895,6 +895,7 @@ function restoreDraft() {
         pastedImages = [...d.images];
         d.images.forEach(url => showImagePreview(url));
     }
+    _noteDraftRestored();
 }
 
 
@@ -912,7 +913,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.OrchestraOwnerActivity?.init();
     $('#send-btn').addEventListener('click', sendChat);
     $('#send-after-turn-btn').addEventListener('click', () => sendChat({afterTurn: true}));
-    window._queuedMessagesTimer = setInterval(() => refreshQueuedMessages(), 5000);
     $('#stop-btn').addEventListener('click', stopAgent);
     $('#chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
@@ -952,6 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#project-picker').classList.add('hidden');
         loadProfilesDropdown();
         loadPipelinesDropdown();
+        loadModels();
         $('#orch-cwd').focus();
     });
     $('#orch-pipeline').addEventListener('change', populateRoleDropdown);
@@ -1195,6 +1196,7 @@ function connectSSE(fromHistoryLoad) {
                 liveAgentStatus(l.agent_status);
             }
             else if (Number.isFinite(l.id)) _wakeStatusRefreshFromStream();
+            _refreshContextAfterCompact(targetAgent, l);
             if (l.type === '__session') return;  // рукопожатие: сессию уже сверили выше
             if (l.type === 'user_message' && localMessages.size > 0) {
                 const isLocal = localMessages.has(l.content) ||
@@ -1344,6 +1346,15 @@ function _renderModels(data) {
     _modelsLoaded = true;
     const select = $('#orch-model');
     if (select) {
+        if (!select.dataset.modelSelectionBound) {
+            select.addEventListener('change', () => {
+                select.dataset.userSelectedModel = select.value;
+            });
+            select.dataset.modelSelectionBound = 'true';
+        }
+        const selected = select.dataset.userSelectedModel;
+        const explicit = models.some(model => model.id === selected);
+        if (!explicit) delete select.dataset.userSelectedModel;
         select.innerHTML = '';
         for (const m of models) {
             const opt = document.createElement('option');
@@ -1351,6 +1362,8 @@ function _renderModels(data) {
             opt.textContent = `${m.name} (${m.id})`;
             select.appendChild(opt);
         }
+        const preferred = explicit ? selected : data.default_orchestrator_model;
+        if (models.some(model => model.id === preferred)) select.value = preferred;
     }
     _updateProxyStatus(data.proxy_connected);
 }
@@ -1444,6 +1457,8 @@ async function compactAgent() {
     try {
         const res = await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/compact`, {
             method: 'POST',
+            // Native compact has a 600s backend budget; allow the response to drain.
+            timeoutMs: 660000,
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({scope: currentScope}),
         });
@@ -2664,7 +2679,6 @@ async function onOrchestratorChange() {
     updateAgentInfo(null);
     updateInputState();
     restoreDraft();
-    refreshQueuedMessages();
     // История и поток идут первыми и не ждут refreshSessions: тому нужно два круга
     // (sessions+stats, затем orchestrators), а нам для показа чата не нужно ни одного (D2).
     _showChatFor(selectedAgent, currentScope);
@@ -2690,7 +2704,6 @@ async function selectAgent(name) {
     _prepareChatAnchorRestore(false);
     updateInputState();
     restoreDraft();
-    refreshQueuedMessages();
     const hadContext = Boolean(contextCache[`${currentScope}:${name}`]);
     renderAgentList(currentSessions);
     if (_infoTabActive) loadInfoPanel();
@@ -2999,6 +3012,7 @@ function setContextDisplay(text) {
 }
 
 function formatContext(ctx) {
+    if (ctx.known === false) return T('Context usage unknown');
     const pct = Math.round(ctx.percentage || 0);
     const total = ctx.total_tokens || 0;
     const max = ctx.max_tokens || 0;
@@ -3302,6 +3316,13 @@ function createAgentItem(s) {
     }
 
     info.append(nameRow, meta);
+    if (s.report_quota_hold) {
+        const held = document.createElement('div');
+        held.className = 'agent-report-hold text-xs mt-0.5 text-amber-400';
+        held.textContent = _reportHoldLabel(s.report_quota_hold);
+        held.title = `${s.report_quota_hold.reason} ${s.report_quota_hold.hint}`;
+        info.appendChild(held);
+    }
     if (s.limit_wake) {
         const mark = document.createElement('div');
         mark.className = 'agent-limit-wake text-xs mt-0.5';
@@ -3386,6 +3407,13 @@ function _refreshContextAfterTurn(name, status) {
     _agentLiveStatuses.set(key, status);
     if (!wasRunning || status === 'running') return;
     delete contextCache[key];
+    if (name === selectedAgent) fetchAgentContext(name);
+}
+
+function _refreshContextAfterCompact(name, entry) {
+    if (!currentScope || entry.type !== 'status'
+        || !String(entry.content || '').startsWith('compact done (native Codex):')) return;
+    delete contextCache[`${currentScope}:${name}`];
     if (name === selectedAgent) fetchAgentContext(name);
 }
 
@@ -4183,7 +4211,7 @@ function switchLeftTab(tab) {
         _pollWake('tasks');
     } else _pollStop('tasks');
     if (_jobsTabActive) {
-        _pollRegister('jobs', loadJobs, 10000);
+        _pollRegister('jobs', loadJobs, 5000);
         _pollWake('jobs');
     } else _pollStop('jobs');
     if (_infoTabActive) {

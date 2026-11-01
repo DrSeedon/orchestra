@@ -1,0 +1,183 @@
+3:     3	# Designed to be `curl -fsSL https://get.sentinelx.app | bash`-friendly.
+6:     6	#   SENTINELX_HUB_URL       Hub URL (default: https://mcp.sentinelx.app)
+15:    15	#   SENTINELX_ENROLL_TOKEN  The full one-time enrollment token, for automation
+17:    17	#   SENTINELX_SKIP_SUDO     Set to 1 to skip the sudoers helper
+33:    33	# When `curl | bash` is used, the script's $0 is "bash" (not a file path)
+36:    36	# needs to read the user's enrollment token. Even with the /dev/tty
+48:    48	    # real file path → we're being piped from curl.
+52:    52	        chmod +x "$TMPSCRIPT"
+72:    72	    # Ubuntu is the sudo+use_pty token-prompt issue. Make the fix that works
+75:    75	        echo "    Enrollment couldn't read your token. On modern Ubuntu (sudo with"
+80:    80	        echo "        curl -fsSL https://get.sentinelx.app | bash"
+88:    88	HUB_URL="${SENTINELX_HUB_URL:-https://mcp.sentinelx.app}"
+91:    91	CORE_REPO="${SENTINELX_CORE_REPO:-https://github.com/pensados/sentinelx-cloud-core.git}"
+118:   118	echo "  ${c_bold}Cloud Installer${c_rst} — connect this server to ${HUB_URL#https://}"
+190:   190	    if ! git clone --quiet --depth 1 --branch "$ref" "$repo" "$stage" >&2; then
+233:   233	# Required tools. systemctl is deliberately not one of them: without systemd
+236:   236	for cmd in curl git; do
+320:   320	    chmod 644 "$ETC_DIR/host_id"
+338:   338	# so operations like `systemctl restart nginx`, editing files under /etc or
+343:   343	# What it actually means, stated plainly: granting NOPASSWD:ALL makes the
+356:   356	# To remove later: rm /etc/sudoers.d/sentinelx
+359:   359	SUDOERS_FILE="/etc/sudoers.d/sentinelx"
+374:   374	    # Default NO, including the non-interactive curl|bash case: installing the
+392:   392	        echo "    This lets the agent run systemctl, edit /etc/, install"
+409:   409	        info "Installing sudoers rule at $SUDOERS_FILE"
+411:   411	        # If validation fails, sudoers stays untouched.
+412:   412	        SUDOERS_TMP="$(mktemp /tmp/sentinelx-sudoers.XXXXXX)"
+422:   422	# To revoke: rm /etc/sudoers.d/sentinelx  (then restart the agent)
+423:   423	sentinelx ALL=(ALL) NOPASSWD: ALL
+428:   428	            fatal "Generated sudoers file failed visudo validation. Aborting."
+432:   432	        chmod 0440 "$SUDOERS_TMP"
+447:   447	# --- install core code via git clone -----------------------------------------
+454:   454	    fatal "Couldn't download the agent from $CORE_REPO ($CORE_REF). Nothing was changed: the installed agent is intact. If this host can't reach GitHub, set SENTINELX_CORE_REPO to a mirror of https://github.com/pensados/sentinelx-cloud-core and run again."
+460:   460	# We use `pip install -e` (editable mode) so the venv's site-packages
+463:   463	#   cd $INSTALL_DIR && sudo -u sentinelx git pull && \
+464:   464	#       sudo systemctl restart sentinelx-cloud-core
+484:   484	INSTALLER_ENROLL_URL="https://raw.githubusercontent.com/pensados/sentinelx-cloud-installer/main/enroll.py"
+488:   488	curl -fsSL "$INSTALLER_ENROLL_URL" -o "$ENROLL_PY"
+489:   489	chmod 755 "$ENROLL_PY"
+491:   491	if [[ -f "$ETC_DIR/identity.json" ]]; then
+492:   492	    warn "Existing identity.json found at $ETC_DIR/identity.json"
+495:   495	    # Preflight: the interactive token prompt hangs when `sudo` uses
+499:   499	        && grep -REqs '^[[:space:]]*Defaults[^!]*use_pty' /etc/sudoers /etc/sudoers.d 2>/dev/null; then
+500:   500	        warn "Your sudo uses 'Defaults use_pty'. If the token prompt below stalls"
+503:   503	        warn "    curl -fsSL https://get.sentinelx.app | bash"
+509:   509	        --output "$ETC_DIR/identity.json" \
+511:   511	    chmod 600 "$ETC_DIR/identity.json"
+512:   512	    chown sentinelx:sentinelx "$ETC_DIR/identity.json"
+516:   516	# In non-interactive mode (SENTINELX_ENROLL_TOKEN) enroll.py records the token's
+517:   517	# own host id, which is not the one this run generated. identity.json is what
+523:   523	    "$ETC_DIR/identity.json" 2>/dev/null || true)"
+527:   527	    chmod 644 "$ETC_DIR/host_id"
+554:   554	    chmod 644 "$ETC_DIR/config.yaml"
+562:   562	# NoNewPrivileges is the difference between the two profiles, and it is
+570:   570	    HARDENING="# This host granted the agent passwordless sudo, so NoNewPrivileges
+573:   573	# To lock it down, remove /etc/sudoers.d/sentinelx and re-run the installer."
+578:   578	NoNewPrivileges=yes"
+582:   582	cat > /etc/systemd/system/sentinelx-cloud-core.service <<EOF
+590:   590	User=sentinelx
+594:   594	    --identity $ETC_DIR/identity.json \\
+634:   634	# templates) ship `systemctl` but can't actually talk to PID 1.
+637:   637	if ! systemctl list-units --type=service --no-pager >/dev/null 2>&1; then
+639:   639	    warn "Skipping systemctl steps. The agent is installed but won't auto-start."
+646:   646	    warn "      --identity $ETC_DIR/identity.json \\"
+650:   650	    warn "  /etc/systemd/system/sentinelx-cloud-core.service"
+659:   659	        warn "  https://github.com/pensados/sentinelx-cloud-installer/blob/main/docs/ANDROID-TERMUX.md"
+664:   664	systemctl daemon-reload
+665:   665	systemctl enable sentinelx-cloud-core.service
+672:   672	# version. restart covers both cases: it starts a stopped service and replaces
+674:   674	systemctl restart sentinelx-cloud-core.service
+678:   678	if systemctl is-active --quiet sentinelx-cloud-core.service; then
+690:   690	    echo "  Status:   systemctl status sentinelx-cloud-core"
+702:   702	    echo "  ChatGPT:  https://chatgpt.com/apps/sentinelx/asdk_app_69f63e01766881919640f03b5e7912a5"
+704:   704	    echo "  Full guide:  https://sentinelx.app/#setup"
+6:     6	    (default) SERVICE mode -- registers the agent as a Windows service via WinSW,
+7:     7	              running as LocalSystem, started at boot. Needs an ELEVATED
+17:    17	  so service mode wraps it with WinSW and user mode supervises it with a Scheduled
+25:    25	    -HubUrl      Hub base URL.                       Default: https://mcp.sentinelx.app
+28:    28	                 Omit -> pip install from git main.
+51:    51	  [string]$HubUrl     = 'https://mcp.sentinelx.app',
+67:    67	# NATIVE command (pip, winsw, python) into a terminating error -- it only
+69:    69	# failed pip install, tailored a config against a package that was not there,
+95:    95	  Write-Host '    ChatGPT:  https://chatgpt.com/apps/sentinelx/asdk_app_69f63e01766881919640f03b5e7912a5'
+97:    97	  Write-Host '    Full guide:  https://sentinelx.app/#setup'
+127:   127	$RepoUrl    = 'git+https://github.com/pensados/sentinelx-cloud-core.git'
+128:   128	$ExampleUrl = 'https://raw.githubusercontent.com/pensados/sentinelx-cloud-core/main/config.example.windows.yaml'
+174:   174	  # GitHub "latest" release, pick the x64 executable asset. WinSW-x64.exe is
+176:   176	  $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/winsw/winsw/releases/latest' `
+178:   178	  $asset = $rel.assets | Where-Object { $_.name -eq 'WinSW-x64.exe' } | Select-Object -First 1
+179:   179	  if (-not $asset) { Fatal 'Could not find WinSW-x64.exe in the latest WinSW release.' }
+196:   196	  $t = Get-ScheduledTask -TaskName $SvcId -ErrorAction SilentlyContinue | Select-Object -First 1
+212:   212	  Info ('Mode       : ' + $(if ($User) { 'USER (Scheduled Task, no admin)' } else { 'SERVICE (WinSW, LocalSystem, admin)' }))
+227:   227	    try { Info "WinSW url  : $(Resolve-WinswUrl)" } catch { Warn "WinSW url  : lookup failed ($($_.Exception.Message))" }
+267:   267	Info ("Plan: " + $(if ($User) { 'USER install (Scheduled Task, no admin)' } else { 'SERVICE install (WinSW, starts at boot)' }) + "  |  dir: $InstallDir  |  host: $HostId")
+280:   280	# Make the venv SELF-CONTAINED: hide the invoking user's site-packages so pip
+281:   281	# installs ALL deps INTO the venv (a service running as LocalSystem can't see a
+293:   293	  Info 'Upgrading pip'
+294:   294	  & $PyExe -m pip install --upgrade pip | Out-Null
+295:   295	  Assert-NativeOk 'Upgrading pip'
+301:   301	  # dependency (which pip would otherwise try to fetch+build from git, needing
+307:   307	    Invoke-WebRequest -Uri $Bundle -OutFile $tmpZip
+321:   321	  # without it, pip sees the version already present and skips the update (#9).
+322:   322	  & $PyExe -m pip install --no-index --no-deps --force-reinstall @whls
+326:   326	  & $PyExe -m pip install -e $Source
+330:   330	  & $PyExe -m pip install $RepoUrl
+334:   334	# Belt and braces: exit codes catch a pip that FAILS, this catches a pip that
+342:   342	  Fatal "The agent package is not importable from $Venv after installation. Nothing was configured or registered. Re-run the installer; if it persists, the pip output above is the place to look."
+509:   509	    Invoke-WebRequest -Uri $ExampleUrl -OutFile $ConfigPath
+570:   570	# then routes through the SCM/WinSW path and fails service_restart_unsafe, even
+595:   595	if want == "task" and "WinSW" in desc:
+598:   598	    svc["description"] = "The SentinelX agent itself (WinSW service)."
+609:   609	  # ---- USER mode: per-user Scheduled Task (no admin, no WinSW) ------------
+613:   613	  $action    = New-ScheduledTaskAction -Execute $PywExe -Argument $taskArg -WorkingDirectory $InstallDir
+614:   614	  $trigger   = New-ScheduledTaskTrigger -AtLogOn -User $me
+615:   615	  $principal = New-ScheduledTaskPrincipal -UserId $me -LogonType Interactive -RunLevel Limited
+616:   616	  $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+619:   619	  Register-ScheduledTask -TaskName $SvcId -Action $action -Trigger $trigger `
+622:   622	  # -MultipleInstances IgnoreNew, Start-ScheduledTask is a no-op while an old
+625:   625	  Stop-ScheduledTask -TaskName $SvcId -ErrorAction SilentlyContinue
+627:   627	  Start-ScheduledTask -TaskName $SvcId
+629:   629	  $state = (Get-ScheduledTask -TaskName $SvcId -ErrorAction SilentlyContinue).State
+633:   633	    Info "Manage: schtasks /Run /TN $SvcId  |  schtasks /End /TN $SvcId  |  Get-ScheduledTask $SvcId"
+638:   638	  # ---- SERVICE mode: WinSW (LocalSystem, boot) ---------------------------
+643:   643	    Stop-ScheduledTask -TaskName $SvcId -ErrorAction SilentlyContinue
+644:   644	    Unregister-ScheduledTask -TaskName $SvcId -Confirm:$false -ErrorAction SilentlyContinue
+656:   656	    Info "Downloading WinSW: $url"
+657:   657	    Invoke-WebRequest -Uri $url -OutFile $WinswExe
+668:   668	    Info 'Installing + starting the SentinelX service (LocalSystem, auto-start at boot)'
+7:     7	#   system           - LaunchDaemon in /Library/LaunchDaemons; launchd starts it
+9:     9	#                      same per-user install (uv's Python stays reachable); uses
+10:    10	#                      sudo ONLY for the daemon step, so run it as your normal
+15:    15	#   SENTINELX_HUB_URL              (default: https://mcp.sentinelx.app)
+24:    24	HUB_URL="${SENTINELX_HUB_URL:-https://mcp.sentinelx.app}"
+26:    26	REPO_URL="git+https://github.com/pensados/sentinelx-cloud-core.git"
+27:    27	ENROLL_URL="https://raw.githubusercontent.com/pensados/sentinelx-cloud-installer/main/enroll.py"
+28:    28	EXAMPLE_URL="https://raw.githubusercontent.com/pensados/sentinelx-cloud-core/main/config.example.macos.yaml"
+48:    48	  echo "  ${c_ylw}What you'll get:${c_rst} a SentinelX agent that lets AI assistants"
+54:    54	# Scoped passwordless sudo (macOS "option 1"): the agent runs as your user
+55:    55	# (not an isolated account), so we grant NOPASSWD only for the allowlisted
+56:    56	# commands that need root - launchctl (services) + the file ops - NOT
+57:    57	# "NOPASSWD: ALL". python3 is deliberately excluded (arbitrary code as root).
+59:    59	setup_sudoers() {
+60:    60	  local f="/etc/sudoers.d/sentinelx" tmp
+63:    63	# SentinelX agent - scoped passwordless sudo (managed by install-macos.sh).
+65:    65	${SVC_USER} ALL=(root) NOPASSWD: /bin/launchctl, /bin/cat, /usr/bin/grep, /usr/bin/touch, /usr/bin/tee, /bin/cp, /bin/mv, /bin/mkdir, /bin/rm, /bin/ln, /bin/unlink, /bin/chmod, /usr/sbin/chown, /usr/bin/sed, ${INSTALL_DIR}/.venv/bin/sentinelx-pensa-safe-edit
+69:    69	    info "Installed scoped sudoers at $f (passwordless sudo for allowlisted root cmds)."
+71:    71	    warn "sudoers failed visudo validation; skipped (sudo will prompt for a password)."
+76:    76	# Both modes install per-user: uv places its Python under the user's home, so a
+78:    78	# the service - a LaunchDaemon that launchd starts at boot, running as this user.
+109:   109	    <key>StandardOutPath</key><string>${INSTALL_DIR}/agent.log</string>
+110:   110	    <key>StandardErrorPath</key><string>${INSTALL_DIR}/agent.err</string>
+136:   136	# uv's per-user Python is reachable. We elevate only for the daemon step.
+142:   142	if ! command -v git >/dev/null 2>&1; then
+143:   143	  info "Command Line Tools (git) not found - triggering install"
+149:   149	if ! command -v uv >/dev/null 2>&1; then
+150:   150	  info "Installing uv (brings a modern Python without sudo)"
+151:   151	  curl -LsSf https://astral.sh/uv/install.sh | sh
+154:   154	command -v uv >/dev/null 2>&1 || fatal "uv install failed; ensure ~/.local/bin is on PATH."
+156:   156	# ---------- install the agent ------------------------------------------------
+157:   157	info "Installing agent into $INSTALL_DIR"
+159:   159	[[ -d "$INSTALL_DIR/.venv" ]] || uv venv --python 3.12 "$INSTALL_DIR/.venv"
+162:   162	uv pip install --refresh "$REPO_URL"
+169:   169	  curl -fsSL "$ENROLL_URL" -o "$INSTALL_DIR/enroll.py"
+193:   193	# We deliberately never `bootout` a running agent: running this installer THROUGH
+194:   194	# the SentinelX agent and tearing it down mid-install would sever the connection
+195:   195	# driving the install. RunAtLoad starts the agent at boot/login, so a fresh
+197:   197	# running agent alone. Restarting to apply changes is an explicit kickstart.
+198:   198	info "Installing launchd service ($MODE)"
+206:   206	  if sudo launchctl print "system/$LABEL" >/dev/null 2>&1; then
+207:   207	    info "LaunchDaemon already loaded; plist refreshed (agent left running)."
+208:   208	    info "  Apply changes now (restarts the agent): sudo launchctl kickstart -k system/$LABEL"
+210:   210	    sudo launchctl bootstrap system "$PLIST" && info "LaunchDaemon loaded (starts at boot, survives logout)."
+212:   212	  setup_sudoers
+217:   217	  if launchctl print "$DOM/$LABEL" >/dev/null 2>&1; then
+218:   218	    info "LaunchAgent already loaded; plist refreshed (agent left running)."
+219:   219	    info "  Apply changes now (restarts the agent): launchctl kickstart -k $DOM/$LABEL"
+221:   221	    { launchctl bootstrap "$DOM" "$PLIST" 2>/dev/null || launchctl load "$PLIST"; } && info "LaunchAgent loaded."
+228:   228	  running=$(sudo launchctl print "system/$LABEL" 2>/dev/null | grep -c "state = running" || true)
+230:   230	  running=$(launchctl print "gui/$(id -u)/$LABEL" 2>/dev/null | grep -c "state = running" || true)
+233:   233	  info "Done. Agent running under launchd. Logs: $INSTALL_DIR/agent.log"
+241:   241	  echo "  ChatGPT:  https://chatgpt.com/apps/sentinelx/asdk_app_69f63e01766881919640f03b5e7912a5"
+243:   243	  echo "  Full guide:  https://sentinelx.app/#setup"
+245:   245	  warn "Service loaded but not confirmed running yet - check $INSTALL_DIR/agent.log"

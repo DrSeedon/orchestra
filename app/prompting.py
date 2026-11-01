@@ -13,6 +13,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.workspace import _exclude_worktree_artifacts, tracked_paths
+from app.private_folder import has_worker_memory_project_state as _has_worker_memory_project_state
 
 logger = logging.getLogger(__name__)
 
@@ -177,16 +178,13 @@ def load_worker_memory(
     if not layout_file.is_file():
         if not allow_missing_layout:
             if allow_absent_project:
-                # LEGACY_PATH_FIXTURE: classify old paths without reading them as fallbacks.
-                managed_state_signals = (
-                    base / "docs" / "kb",
-                    base / "docs" / "tasks",
-                    base / "docs" / "workers",
-                    base / "docs" / "archive",
-                    base / "pipelines",
-                    base / ".orchestra",
-                )
-                if not any(path.exists() for path in managed_state_signals):
+                from app.orchestra_layout import _base_checkout
+
+                # A linked branch can contain task outputs over a source-only base.
+                # Do not skip missing memory if either checkout has managed state.
+                if not any(_has_worker_memory_project_state(root) for root in (
+                    base, _base_checkout(base),
+                )):
                     return ""
             from app.orchestra_layout import LayoutMigrationError
             raise LayoutMigrationError(

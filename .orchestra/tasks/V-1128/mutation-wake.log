@@ -1,0 +1,23 @@
+.F.FF                                                                    [100%]
+=================================== FAILURES ===================================
+_ test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity[96-True] _
+tests/test_codex_limit_resume_v1081.py:516: in test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity
+    assert await _release_and_run(env) == 1
+E   assert 0 == 1
+_ test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity[99-True] _
+tests/test_codex_limit_resume_v1081.py:516: in test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity
+    assert await _release_and_run(env) == 1
+E   assert 0 == 1
+__________ test_orchestrator_wake_exemption_does_not_fabricate_usage ___________
+tests/test_codex_limit_resume_v1081.py:628: in test_orchestrator_wake_exemption_does_not_fabricate_usage
+    assert decision.state == "available" and decision.allowed and not decision.gated
+E   AssertionError: assert ('blocked' == 'available'
+E     
+E     - available
+E     + blocked)
+=========================== short test summary info ============================
+FAILED tests/test_codex_limit_resume_v1081.py::test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity[96-True]
+FAILED tests/test_codex_limit_resume_v1081.py::test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity[99-True]
+FAILED tests/test_codex_limit_resume_v1081.py::test_orchestrator_wake_exemption_does_not_fabricate_usage
+3 failed, 2 passed, 69 deselected in 3.22s
+Mutation forced-wake-gate: pytest exit=1; TESTS_FAILED is expected

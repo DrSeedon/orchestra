@@ -1,0 +1,21 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 85ms
+
+==================================== ERRORS ====================================
+__________________ ERROR collecting tests/test_error_watch.py __________________
+ImportError while importing test module '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-43e35c110430406d/tests/test_error_watch.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_error_watch.py:10: in <module>
+    from app import error_watch as watch
+app/error_watch.py:18: in <module>
+    from app.db import DB_PATH
+E   ModuleNotFoundError: No module named 'app.db'
+=========================== short test summary info ============================
+ERROR tests/test_error_watch.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.63s

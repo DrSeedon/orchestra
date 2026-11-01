@@ -1,0 +1,48 @@
+.Executing <Task finished name='Task-7' coro=<Edges.test_mcp_accepts_error_receipts_without_losing_identity() done, defined at <hub-workspace>:74> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.292 seconds
+..Executing <Task finished name='Task-17' coro=<Edges.test_mcp_still_raises_rejections_with_id() done, defined at <hub-workspace>:81> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.107 seconds
+.Executing <Task finished name='Task-22' coro=<Edges.test_receipt_text_reports_failure_and_quota_eta() done, defined at <hub-workspace>:96> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.115 seconds
+.EFFExecuting <Task finished name='Task-27' coro=<Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator() done, defined at <hub-workspace>:115> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.321 seconds
+
+======================================================================
+ERROR: test_spawn_admission_precedes_every_allocation_and_skips_orchestrator (__main__.Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator) (state='blocked', orchestrator=False, planned=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 165, in test_spawn_admission_precedes_every_allocation_and_skips_orchestrator
+    await method(manager, name="new", scope="scope", cwd=".", model="chosen-model",
+  File "app/manager.py", line 773, in _create_session_locked
+    base_branch = self._resolve_base_branch(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/mock.py", line 1193, in _execute_mock_call
+    raise effect
+Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator.<locals>.ReachedAllocation
+
+======================================================================
+FAIL: test_spawn_admission_precedes_every_allocation_and_skips_orchestrator (__main__.Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator) (state='available', orchestrator=False, planned=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 177, in test_spawn_admission_precedes_every_allocation_and_skips_orchestrator
+    gate.get_worker_admission.assert_awaited_once_with("chosen-model")
+  File "/usr/lib/python3.12/unittest/mock.py", line 2333, in assert_awaited_once_with
+    raise AssertionError(msg)
+AssertionError: Expected mock to have been awaited once. Awaited 0 times.
+
+======================================================================
+FAIL: test_spawn_admission_precedes_every_allocation_and_skips_orchestrator (__main__.Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator) (state='unknown', orchestrator=False, planned=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 177, in test_spawn_admission_precedes_every_allocation_and_skips_orchestrator
+    gate.get_worker_admission.assert_awaited_once_with("chosen-model")
+  File "/usr/lib/python3.12/unittest/mock.py", line 2333, in assert_awaited_once_with
+    raise AssertionError(msg)
+AssertionError: Expected mock to have been awaited once. Awaited 0 times.
+
+----------------------------------------------------------------------
+Ran 6 tests in 1.000s
+
+FAILED (failures=2, errors=1)

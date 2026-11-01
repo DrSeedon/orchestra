@@ -30,9 +30,13 @@ Skip this whenever the answer is in our own code (known file, clear repro, given
 
 <before-done>
 ## MANDATORY: Before reporting DONE
-- **Pre-mortem:** consider concrete regressions for callers, old data and recovery. Check the
-  plausible ones in proportion to risk; do not invent a quota of failure scenarios. Report
-  checks actually performed and what remains unverified.
+- **Pre-mortem:** consider concrete regressions for callers, old data and recovery. Where relevant
+  (owner decision, 2026-10-23), ask: which old contract must still hold, including unchanged
+  callers/config/hooks that consume the changed code; what happens on failure or a repeated call;
+  what happens to old data and on rollback? Check the plausible risks in proportion to their
+  impact; do not invent a quota of failure scenarios. Name the evidence for each claim that a
+  risk is covered; otherwise mark it unverified. Report checks actually performed and what
+  remains unverified.
 - All changes committed (`git status` must be clean)
 - Code works — you ran/tested it
 - No leftover debug prints, TODOs, commented-out code

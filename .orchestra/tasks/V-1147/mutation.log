@@ -1,0 +1,94 @@
+.......F.....F....                                                       [100%]
+=================================== FAILURES ===================================
+_ test_hub_preamble_examples_are_valid_outbox_requests[fallback-synthetic-parent-True] _
+
+parent = 'synthetic-parent', has_link = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("has_link", [False, True])
+    @pytest.mark.parametrize("parent", ["synthetic-parent", "", None])
+    async def test_hub_preamble_examples_are_valid_outbox_requests(parent, has_link):
+        who = _who(parent)
+        prompt = backend_hub.hub_preamble(who, "V-1147", has_link=has_link)
+>       entries = _prompt_outbox_examples(prompt)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_workspace.py:1661: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_hub_workspace.py:1648: in _prompt_outbox_examples
+    examples = [json.loads(span) for span in spans]
+                ^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x7b3c5aa7c5f0>
+s = '{"tool":"send_message","args":{"message":"..."}', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+>           obj, end = self.scan_once(s, idx)
+                       ^^^^^^^^^^^^^^^^^^^^^^
+E           json.decoder.JSONDecodeError: Expecting ',' delimiter: line 1 column 48 (char 47)
+
+/usr/lib/python3.12/json/decoder.py:353: JSONDecodeError
+_ test_hub_preamble_examples_are_valid_outbox_requests[synthetic-role-synthetic-parent-True] _
+
+parent = 'synthetic-parent', has_link = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("has_link", [False, True])
+    @pytest.mark.parametrize("parent", ["synthetic-parent", "", None])
+    async def test_hub_preamble_examples_are_valid_outbox_requests(parent, has_link):
+        who = _who(parent)
+        prompt = backend_hub.hub_preamble(who, "V-1147", has_link=has_link)
+>       entries = _prompt_outbox_examples(prompt)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_workspace.py:1661: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_hub_workspace.py:1648: in _prompt_outbox_examples
+    examples = [json.loads(span) for span in spans]
+                ^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x7b3c5aa7c5f0>
+s = '{"tool":"send_message","args":{"message":"..."}', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+>           obj, end = self.scan_once(s, idx)
+                       ^^^^^^^^^^^^^^^^^^^^^^
+E           json.decoder.JSONDecodeError: Expecting ',' delimiter: line 1 column 48 (char 47)
+
+/usr/lib/python3.12/json/decoder.py:353: JSONDecodeError
+=========================== short test summary info ============================
+FAILED .orchestra/tasks/V-1147/test_preamble_isolated.py::test_hub_preamble_examples_are_valid_outbox_requests[fallback-synthetic-parent-True]
+FAILED .orchestra/tasks/V-1147/test_preamble_isolated.py::test_hub_preamble_examples_are_valid_outbox_requests[synthetic-role-synthetic-parent-True]
+2 failed, 16 passed in 1.21s

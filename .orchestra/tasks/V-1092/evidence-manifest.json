@@ -1,0 +1,75 @@
+{
+  "purpose": "Raw private evidence; public report omits private absolute workspace prefixes. Pytest temporary repositories are excluded and ignored.",
+  "files": [
+    {
+      "path": "private/fixed-final.log",
+      "bytes": 99,
+      "sha256": "a6e0131ffd7cb51c3ecab69e04f7afc27edd3c0c4c286f09ed8228074c2a8e1d"
+    },
+    {
+      "path": "private/hub_workspace.before.py",
+      "bytes": 62848,
+      "sha256": "616ea00b39b9ba01cd0e5e3bdf9c33ffa3ace316dcbd6207f1005c76655257df"
+    },
+    {
+      "path": "private/original-final.log",
+      "bytes": 22071,
+      "sha256": "838a883869114afac837dea4ca7052a1fded947339df010388932d900eb977f4"
+    },
+    {
+      "path": "private/production.diff",
+      "bytes": 1174,
+      "sha256": "287928c6d54ad8f16af6ff0d64a6adbc4d1daed1fab31ed6c47929c579f20fbd"
+    },
+    {
+      "path": "private/regression-after.log",
+      "bytes": 99,
+      "sha256": "dea9836011c7cfd32b9e54aba51893f169c593a9f37f57327f610f91d6f5935c"
+    },
+    {
+      "path": "private/regression-before.log",
+      "bytes": 20799,
+      "sha256": "f295d435d4cbef38c43ad3f1090f842f9135ebf3a4348e33e51f1ee0cc925bbc"
+    },
+    {
+      "path": "private/rename-before.log",
+      "bytes": 99,
+      "sha256": "f94cdb2487c5f6fb0de49706ebafae2add8c05b3131c5f01d38f2611882737a6"
+    },
+    {
+      "path": "private/reproduce-before.log",
+      "bytes": 810,
+      "sha256": "2e1e5b794a21dea5b9532dfc65525c8af4d07089e5656846fbfe1afe162c0361"
+    },
+    {
+      "path": "private/reproduce.py",
+      "bytes": 1811,
+      "sha256": "facf1bc80ade8dff6b77e5b1d8ec8c4dba173e283c512e04301f4309e21feb66"
+    },
+    {
+      "path": "private/required-before.log",
+      "bytes": 1252,
+      "sha256": "1acd5ced19f7edf9d19533167058c5e3ae43470355f6859b191b00189719a2a9"
+    },
+    {
+      "path": "private/required-final.log",
+      "bytes": 1978,
+      "sha256": "bb12e3d366df46b308e0aefbc822500db93724dfe1f1637a7e3cd86f1e606646"
+    },
+    {
+      "path": "private/test_source_slice.py",
+      "bytes": 1411,
+      "sha256": "66c761c9d0f7bb55cc1b61020c93d868c82d66852b1fafdab8e956659b5238e3"
+    },
+    {
+      "path": "private/verification.log",
+      "bytes": 564,
+      "sha256": "819740f7c9ae5e5708481b0e959bef509b0feb349f99d784bef0718f0d6927d2"
+    },
+    {
+      "path": "private/verify.py",
+      "bytes": 2154,
+      "sha256": "fc8b74f6923fdfa92ee0ac147307c0e4c65a5649ac7f6a51f950915af9727cc4"
+    }
+  ]
+}

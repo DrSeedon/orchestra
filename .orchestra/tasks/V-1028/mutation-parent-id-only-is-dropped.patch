@@ -1,0 +1,11 @@
+--- app/session_turns.py
++++ app/session_turns.py
+@@ -288,7 +288,7 @@
+         # An unparented worker started directly from dashboard/TG has nobody to report
+         # to. A parented child must still report: parent_name survives service restarts
+         # even when the transient last_task_sender metadata does not.
+-        if not s.last_task_sender and not (s.parent_name or s.parent_id):
++        if not s.last_task_sender and not s.parent_name:
+             skipped("no parent")
+             return
+         # #219 T1b, ГЕЙТ 2 из 2: молчаливое завершение хода. Через

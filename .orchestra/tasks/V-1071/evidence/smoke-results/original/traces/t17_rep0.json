@@ -1,0 +1,18 @@
+[
+  {
+    "role": "user",
+    "content": "Hi, I need to send something back."
+  },
+  {
+    "role": "assistant",
+    "content": "I can help with orders, returns, accounts and devices."
+  },
+  {
+    "role": "user",
+    "content": "It's the kettle from order 5001. It's too small for us."
+  },
+  {
+    "role": "assistant",
+    "content": "I can help with orders, returns, accounts and devices."
+  }
+]

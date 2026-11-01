@@ -1,0 +1,746 @@
+{
+  "sha": "b4207d6149d95f2d3cc9b219d4e617c365b76fda",
+  "truncated": false,
+  "tree": [
+    {
+      "path": ".github",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": ".github/workflows",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "type": "blob",
+      "size": 2205
+    },
+    {
+      "path": ".github/workflows/macos.yml",
+      "type": "blob",
+      "size": 2992
+    },
+    {
+      "path": ".gitignore",
+      "type": "blob",
+      "size": 118
+    },
+    {
+      "path": "CHANGELOG.md",
+      "type": "blob",
+      "size": 124416
+    },
+    {
+      "path": "LICENSE",
+      "type": "blob",
+      "size": 11450
+    },
+    {
+      "path": "README.md",
+      "type": "blob",
+      "size": 20796
+    },
+    {
+      "path": "SECURITY.md",
+      "type": "blob",
+      "size": 8907
+    },
+    {
+      "path": "THREAT_MODEL.md",
+      "type": "blob",
+      "size": 23530
+    },
+    {
+      "path": "config.example.macos.yaml",
+      "type": "blob",
+      "size": 20449
+    },
+    {
+      "path": "config.example.windows.yaml",
+      "type": "blob",
+      "size": 14860
+    },
+    {
+      "path": "config.example.yaml",
+      "type": "blob",
+      "size": 75145
+    },
+    {
+      "path": "config.orion.example.yaml",
+      "type": "blob",
+      "size": 10538
+    },
+    {
+      "path": "glama.json",
+      "type": "blob",
+      "size": 101
+    },
+    {
+      "path": "pyproject.toml",
+      "type": "blob",
+      "size": 1500
+    },
+    {
+      "path": "src",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "src/sentinelx_core",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "src/sentinelx_core/__init__.py",
+      "type": "blob",
+      "size": 234
+    },
+    {
+      "path": "src/sentinelx_core/__main__.py",
+      "type": "blob",
+      "size": 4968
+    },
+    {
+      "path": "src/sentinelx_core/client.py",
+      "type": "blob",
+      "size": 41016
+    },
+    {
+      "path": "src/sentinelx_core/executor.py",
+      "type": "blob",
+      "size": 10295
+    },
+    {
+      "path": "src/sentinelx_core/executor_engine.py",
+      "type": "blob",
+      "size": 14305
+    },
+    {
+      "path": "src/sentinelx_core/handlers",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "src/sentinelx_core/handlers/__init__.py",
+      "type": "blob",
+      "size": 9729
+    },
+    {
+      "path": "src/sentinelx_core/handlers/basic.py",
+      "type": "blob",
+      "size": 26230
+    },
+    {
+      "path": "src/sentinelx_core/handlers/edit.py",
+      "type": "blob",
+      "size": 25598
+    },
+    {
+      "path": "src/sentinelx_core/handlers/exec.py",
+      "type": "blob",
+      "size": 13973
+    },
+    {
+      "path": "src/sentinelx_core/handlers/file_export.py",
+      "type": "blob",
+      "size": 7702
+    },
+    {
+      "path": "src/sentinelx_core/handlers/fileops.py",
+      "type": "blob",
+      "size": 47442
+    },
+    {
+      "path": "src/sentinelx_core/handlers/fsmutate.py",
+      "type": "blob",
+      "size": 23825
+    },
+    {
+      "path": "src/sentinelx_core/handlers/git_ops.py",
+      "type": "blob",
+      "size": 48342
+    },
+    {
+      "path": "src/sentinelx_core/handlers/local_api.py",
+      "type": "blob",
+      "size": 6377
+    },
+    {
+      "path": "src/sentinelx_core/handlers/progressive_help.py",
+      "type": "blob",
+      "size": 14555
+    },
+    {
+      "path": "src/sentinelx_core/handlers/project_snapshot.py",
+      "type": "blob",
+      "size": 14426
+    },
+    {
+      "path": "src/sentinelx_core/handlers/script.py",
+      "type": "blob",
+      "size": 25645
+    },
+    {
+      "path": "src/sentinelx_core/handlers/service.py",
+      "type": "blob",
+      "size": 30429
+    },
+    {
+      "path": "src/sentinelx_core/handlers/upload.py",
+      "type": "blob",
+      "size": 25136
+    },
+    {
+      "path": "src/sentinelx_core/identity.py",
+      "type": "blob",
+      "size": 2931
+    },
+    {
+      "path": "src/sentinelx_core/instance_lock.py",
+      "type": "blob",
+      "size": 4242
+    },
+    {
+      "path": "src/sentinelx_core/jobs.py",
+      "type": "blob",
+      "size": 4308
+    },
+    {
+      "path": "src/sentinelx_core/local_api.py",
+      "type": "blob",
+      "size": 39313
+    },
+    {
+      "path": "src/sentinelx_core/local_api_relay.py",
+      "type": "blob",
+      "size": 2303
+    },
+    {
+      "path": "src/sentinelx_core/local_audit.py",
+      "type": "blob",
+      "size": 12677
+    },
+    {
+      "path": "src/sentinelx_core/pending_results.py",
+      "type": "blob",
+      "size": 4885
+    },
+    {
+      "path": "src/sentinelx_core/platform_guidance.py",
+      "type": "blob",
+      "size": 8046
+    },
+    {
+      "path": "src/sentinelx_core/policy.py",
+      "type": "blob",
+      "size": 48228
+    },
+    {
+      "path": "src/sentinelx_core/preflight.py",
+      "type": "blob",
+      "size": 4360
+    },
+    {
+      "path": "src/sentinelx_core/rotation.py",
+      "type": "blob",
+      "size": 5593
+    },
+    {
+      "path": "src/sentinelx_core/segment_check.py",
+      "type": "blob",
+      "size": 27660
+    },
+    {
+      "path": "src/sentinelx_core/staging.py",
+      "type": "blob",
+      "size": 2525
+    },
+    {
+      "path": "src/sentinelx_core/vendored",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "src/sentinelx_core/vendored/__init__.py",
+      "type": "blob",
+      "size": 59
+    },
+    {
+      "path": "src/sentinelx_core/vendored/pensa_safe_edit.py",
+      "type": "blob",
+      "size": 34968
+    },
+    {
+      "path": "src/sentinelx_core/winspawn.py",
+      "type": "blob",
+      "size": 3780
+    },
+    {
+      "path": "systemd",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "systemd/sentinelx-core.service",
+      "type": "blob",
+      "size": 452
+    },
+    {
+      "path": "tests",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "tests/__init__.py",
+      "type": "blob",
+      "size": 46
+    },
+    {
+      "path": "tests/loop_probe.py",
+      "type": "blob",
+      "size": 1629
+    },
+    {
+      "path": "tests/test_audit_outcome.py",
+      "type": "blob",
+      "size": 5552
+    },
+    {
+      "path": "tests/test_backoff_retry.py",
+      "type": "blob",
+      "size": 3375
+    },
+    {
+      "path": "tests/test_capabilities_full_is_bounded.py",
+      "type": "blob",
+      "size": 2271
+    },
+    {
+      "path": "tests/test_capabilities_policy_evidence.py",
+      "type": "blob",
+      "size": 2434
+    },
+    {
+      "path": "tests/test_capabilities_upload_base.py",
+      "type": "blob",
+      "size": 2897
+    },
+    {
+      "path": "tests/test_children_shed_agent_priority.py",
+      "type": "blob",
+      "size": 2820
+    },
+    {
+      "path": "tests/test_client.py",
+      "type": "blob",
+      "size": 11067
+    },
+    {
+      "path": "tests/test_client_late_completion.py",
+      "type": "blob",
+      "size": 3539
+    },
+    {
+      "path": "tests/test_client_result_replay.py",
+      "type": "blob",
+      "size": 6008
+    },
+    {
+      "path": "tests/test_config_edit_guidance.py",
+      "type": "blob",
+      "size": 2965
+    },
+    {
+      "path": "tests/test_config_encoding.py",
+      "type": "blob",
+      "size": 2748
+    },
+    {
+      "path": "tests/test_config_example_update_playbooks.py",
+      "type": "blob",
+      "size": 1252
+    },
+    {
+      "path": "tests/test_delete_own_backup.py",
+      "type": "blob",
+      "size": 3484
+    },
+    {
+      "path": "tests/test_disabled_ops.py",
+      "type": "blob",
+      "size": 4730
+    },
+    {
+      "path": "tests/test_edit_advances_mtime.py",
+      "type": "blob",
+      "size": 2154
+    },
+    {
+      "path": "tests/test_edit_helper_on_windows.py",
+      "type": "blob",
+      "size": 2124
+    },
+    {
+      "path": "tests/test_edit_secret.py",
+      "type": "blob",
+      "size": 6369
+    },
+    {
+      "path": "tests/test_empty_command_prefix.py",
+      "type": "blob",
+      "size": 1846
+    },
+    {
+      "path": "tests/test_exec_chain_check.py",
+      "type": "blob",
+      "size": 3718
+    },
+    {
+      "path": "tests/test_exec_chain_shell_grammar.py",
+      "type": "blob",
+      "size": 1686
+    },
+    {
+      "path": "tests/test_exec_deny_all_bypass.py",
+      "type": "blob",
+      "size": 6239
+    },
+    {
+      "path": "tests/test_exec_first_command_boundary.py",
+      "type": "blob",
+      "size": 2468
+    },
+    {
+      "path": "tests/test_exec_mode.py",
+      "type": "blob",
+      "size": 3074
+    },
+    {
+      "path": "tests/test_exec_process_tree.py",
+      "type": "blob",
+      "size": 4473
+    },
+    {
+      "path": "tests/test_exec_strict.py",
+      "type": "blob",
+      "size": 5144
+    },
+    {
+      "path": "tests/test_exec_strict_bypasses.py",
+      "type": "blob",
+      "size": 3093
+    },
+    {
+      "path": "tests/test_exec_strict_filters.py",
+      "type": "blob",
+      "size": 3573
+    },
+    {
+      "path": "tests/test_exec_timeout_survivor.py",
+      "type": "blob",
+      "size": 2452
+    },
+    {
+      "path": "tests/test_fileops.py",
+      "type": "blob",
+      "size": 3917
+    },
+    {
+      "path": "tests/test_fileops_budget_and_pools.py",
+      "type": "blob",
+      "size": 7106
+    },
+    {
+      "path": "tests/test_fileops_event_loop.py",
+      "type": "blob",
+      "size": 4059
+    },
+    {
+      "path": "tests/test_git_dubious_ownership.py",
+      "type": "blob",
+      "size": 2428
+    },
+    {
+      "path": "tests/test_git_locale_pinned.py",
+      "type": "blob",
+      "size": 2054
+    },
+    {
+      "path": "tests/test_git_network.py",
+      "type": "blob",
+      "size": 9080
+    },
+    {
+      "path": "tests/test_git_ops_option_injection.py",
+      "type": "blob",
+      "size": 1170
+    },
+    {
+      "path": "tests/test_git_permission_denied.py",
+      "type": "blob",
+      "size": 5785
+    },
+    {
+      "path": "tests/test_git_recount.py",
+      "type": "blob",
+      "size": 3655
+    },
+    {
+      "path": "tests/test_handlers.py",
+      "type": "blob",
+      "size": 16878
+    },
+    {
+      "path": "tests/test_handlers_edit.py",
+      "type": "blob",
+      "size": 18748
+    },
+    {
+      "path": "tests/test_handlers_fsmutate.py",
+      "type": "blob",
+      "size": 10081
+    },
+    {
+      "path": "tests/test_handlers_script.py",
+      "type": "blob",
+      "size": 3898
+    },
+    {
+      "path": "tests/test_handlers_upload.py",
+      "type": "blob",
+      "size": 10921
+    },
+    {
+      "path": "tests/test_happy_eyeballs.py",
+      "type": "blob",
+      "size": 2410
+    },
+    {
+      "path": "tests/test_help_respects_disabled_ops.py",
+      "type": "blob",
+      "size": 2981
+    },
+    {
+      "path": "tests/test_identity.py",
+      "type": "blob",
+      "size": 1917
+    },
+    {
+      "path": "tests/test_instance_lock.py",
+      "type": "blob",
+      "size": 4599
+    },
+    {
+      "path": "tests/test_jobs.py",
+      "type": "blob",
+      "size": 4743
+    },
+    {
+      "path": "tests/test_kill_process_tree.py",
+      "type": "blob",
+      "size": 3242
+    },
+    {
+      "path": "tests/test_list_search_unreadable.py",
+      "type": "blob",
+      "size": 3991
+    },
+    {
+      "path": "tests/test_local_api.py",
+      "type": "blob",
+      "size": 18217
+    },
+    {
+      "path": "tests/test_local_api_stdio.py",
+      "type": "blob",
+      "size": 18859
+    },
+    {
+      "path": "tests/test_local_api_stdio_windows.py",
+      "type": "blob",
+      "size": 2698
+    },
+    {
+      "path": "tests/test_local_audit.py",
+      "type": "blob",
+      "size": 6707
+    },
+    {
+      "path": "tests/test_local_audit_compact.py",
+      "type": "blob",
+      "size": 2388
+    },
+    {
+      "path": "tests/test_macos_manual_restart.py",
+      "type": "blob",
+      "size": 849
+    },
+    {
+      "path": "tests/test_partial_output_on_timeout.py",
+      "type": "blob",
+      "size": 2318
+    },
+    {
+      "path": "tests/test_pending_results.py",
+      "type": "blob",
+      "size": 4352
+    },
+    {
+      "path": "tests/test_policy.py",
+      "type": "blob",
+      "size": 11403
+    },
+    {
+      "path": "tests/test_preflight.py",
+      "type": "blob",
+      "size": 4873
+    },
+    {
+      "path": "tests/test_protocol_features_match.py",
+      "type": "blob",
+      "size": 2754
+    },
+    {
+      "path": "tests/test_python_validator_writes_nothing.py",
+      "type": "blob",
+      "size": 1828
+    },
+    {
+      "path": "tests/test_read_bounds.py",
+      "type": "blob",
+      "size": 8810
+    },
+    {
+      "path": "tests/test_rotation.py",
+      "type": "blob",
+      "size": 4529
+    },
+    {
+      "path": "tests/test_safe_edit_dry_run.py",
+      "type": "blob",
+      "size": 4526
+    },
+    {
+      "path": "tests/test_safe_edit_keeps_owner.py",
+      "type": "blob",
+      "size": 4067
+    },
+    {
+      "path": "tests/test_script_cwd_errors.py",
+      "type": "blob",
+      "size": 2862
+    },
+    {
+      "path": "tests/test_script_windows_encoding.py",
+      "type": "blob",
+      "size": 11029
+    },
+    {
+      "path": "tests/test_search_streaming.py",
+      "type": "blob",
+      "size": 7812
+    },
+    {
+      "path": "tests/test_service_readonly_sudo.py",
+      "type": "blob",
+      "size": 1965
+    },
+    {
+      "path": "tests/test_service_user_units.py",
+      "type": "blob",
+      "size": 6324
+    },
+    {
+      "path": "tests/test_staging.py",
+      "type": "blob",
+      "size": 4003
+    },
+    {
+      "path": "tests/test_staging_oserror.py",
+      "type": "blob",
+      "size": 2137
+    },
+    {
+      "path": "tests/test_sudo_cwd.py",
+      "type": "blob",
+      "size": 3484
+    },
+    {
+      "path": "tests/test_systemd_validator_and_permissions.py",
+      "type": "blob",
+      "size": 4728
+    },
+    {
+      "path": "tests/test_unreadable_parent.py",
+      "type": "blob",
+      "size": 4603
+    },
+    {
+      "path": "tests/test_unusable_commands.py",
+      "type": "blob",
+      "size": 2825
+    },
+    {
+      "path": "tests/test_upload_cross_device.py",
+      "type": "blob",
+      "size": 2512
+    },
+    {
+      "path": "tests/test_upload_finalize_other_drive.py",
+      "type": "blob",
+      "size": 1959
+    },
+    {
+      "path": "tests/test_upload_land_in_place.py",
+      "type": "blob",
+      "size": 3741
+    },
+    {
+      "path": "tests/test_upload_sha_case.py",
+      "type": "blob",
+      "size": 4180
+    },
+    {
+      "path": "tests/test_upload_target_authorisation.py",
+      "type": "blob",
+      "size": 2735
+    },
+    {
+      "path": "tests/test_vendored_pensa_safe_edit.py",
+      "type": "blob",
+      "size": 11042
+    },
+    {
+      "path": "tests/test_win_powershell_resolve.py",
+      "type": "blob",
+      "size": 5189
+    },
+    {
+      "path": "tests/test_win_service_account.py",
+      "type": "blob",
+      "size": 2940
+    },
+    {
+      "path": "tests/test_win_service_cim.py",
+      "type": "blob",
+      "size": 4336
+    },
+    {
+      "path": "tests/test_windows_name_quoting.py",
+      "type": "blob",
+      "size": 2625
+    },
+    {
+      "path": "tests/test_windows_no_console_window.py",
+      "type": "blob",
+      "size": 3826
+    },
+    {
+      "path": "tests/test_windows_restart_target.py",
+      "type": "blob",
+      "size": 2428
+    }
+  ]
+}

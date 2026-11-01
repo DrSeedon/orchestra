@@ -1,0 +1,20 @@
+[
+  {
+    "sha": "00169f8fddbab11082f7ff0f24ef5c7e321c9a47",
+    "html_url": "https://github.com/pensados/sentinelx-cloud-protocol/commit/00169f8fddbab11082f7ff0f24ef5c7e321c9a47",
+    "date": "2026-10-06T04:12:58Z",
+    "subject": "fix(bounding): trim dicts too and record omissions in metadata, not in containers (1.13.2)"
+  },
+  {
+    "sha": "0beabdf2630ad46b718fdfeebf50bc09da1ad881",
+    "html_url": "https://github.com/pensados/sentinelx-cloud-protocol/commit/0beabdf2630ad46b718fdfeebf50bc09da1ad881",
+    "date": "2026-10-06T01:50:22Z",
+    "subject": "fix(bounding): trim long lists instead of dropping the whole result (1.13.1)"
+  },
+  {
+    "sha": "df753ca4a73c919b7e467734c524e9a068634e1b",
+    "html_url": "https://github.com/pensados/sentinelx-cloud-protocol/commit/df753ca4a73c919b7e467734c524e9a068634e1b",
+    "date": "2026-09-15T22:36:06Z",
+    "subject": "feat(protocol): local_api op (1.13.0)"
+  }
+]

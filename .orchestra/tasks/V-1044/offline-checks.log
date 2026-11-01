@@ -1,0 +1,22 @@
+test_active_precedes_missing_acceptance (__main__.AdmissionChecks.test_active_precedes_missing_acceptance) ... ok
+test_busy_precedes_missing_acceptance (__main__.AdmissionChecks.test_busy_precedes_missing_acceptance) ... ok
+test_finished_worker_still_requires_acceptance (__main__.AdmissionChecks.test_finished_worker_still_requires_acceptance) ... ok
+test_finished_worker_with_acceptance_is_admitted (__main__.AdmissionChecks.test_finished_worker_with_acceptance_is_admitted) ... ok
+test_full_but_different_head_is_rejected (__main__.AdmissionChecks.test_full_but_different_head_is_rejected) ... ok
+test_idle_invalid_inputs_never_snapshot (__main__.AdmissionChecks.test_idle_invalid_inputs_never_snapshot) ... ok
+test_legacy_replay_does_not_require_new_acceptance (__main__.AdmissionChecks.test_legacy_replay_does_not_require_new_acceptance) ... ok
+test_pre_fix_validation_order_is_detected (__main__.AdmissionChecks.test_pre_fix_validation_order_is_detected) ... ok
+test_running_timeout_precedes_missing_acceptance (__main__.AdmissionChecks.test_running_timeout_precedes_missing_acceptance) ... ok
+test_worker_becoming_busy_during_snapshot_is_rejected (__main__.AdmissionChecks.test_worker_becoming_busy_during_snapshot_is_rejected) ... ok
+test_checkpoint_recovery_after_root_requires_exact_trailer_and_tree (__main__.GitAndPresentationChecks.test_checkpoint_recovery_after_root_requires_exact_trailer_and_tree) ... ok
+test_compact_output_removes_logs_and_preserves_original (__main__.GitAndPresentationChecks.test_compact_output_removes_logs_and_preserves_original) ... ok
+test_root_base_squash_preserves_headline_trailer_and_parent (__main__.GitAndPresentationChecks.test_root_base_squash_preserves_headline_trailer_and_parent) ... ok
+test_root_parent_inspection_is_empty_and_safe (__main__.GitAndPresentationChecks.test_root_parent_inspection_is_empty_and_safe) ... ok
+test_substituted_task_ref_is_rejected_with_current_builder_signature (__main__.GitAndPresentationChecks.test_substituted_task_ref_is_rejected_with_current_builder_signature) ... ok
+test_unchanged_root_is_not_a_completed_merge (__main__.GitAndPresentationChecks.test_unchanged_root_is_not_a_completed_merge) ... ok
+test_unrelated_root_is_not_claimed_as_checkpoint_recovery (__main__.GitAndPresentationChecks.test_unrelated_root_is_not_claimed_as_checkpoint_recovery) ... ok
+
+----------------------------------------------------------------------
+Ran 17 tests in 1.133s
+
+OK

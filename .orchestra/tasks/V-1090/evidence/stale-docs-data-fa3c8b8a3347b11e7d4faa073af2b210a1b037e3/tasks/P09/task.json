@@ -1,0 +1,27 @@
+{
+  "id": "P09",
+  "package": "recipebox",
+  "prompt": "We cook from a weekly meal plan and want recipebox to write the shopping list for it. Please add a command: `python -m recipebox.shopping PLAN OUTPUT`.\n\nPLAN is a text file. Each non-blank line holds a recipe file name and a number of servings, separated by whitespace, e.g. `pancakes.txt 6`. Recipe file names are resolved against the folder that holds PLAN, not the current folder. The same recipe may appear on more than one line.\n\nScale every planned recipe to its servings and convert each ingredient amount to its base unit (g, ml or pc). Ingredients with the same name (ignoring case) and the same base unit become one shopping item. A shopping item has a name (lower case), a total quantity, a base unit and the titles of the recipes that use it, in plan order, each title once. The same name with two different base units, e.g. butter in g and butter in ml, gives two items.\n\nWrite OUTPUT as JSON with exactly two keys:\n- \"items\": one object per shopping item, sorted by name and then by unit. Each object has exactly the keys \"name\", \"quantity\", \"unit\" and \"recipes\". \"quantity\" is the total rounded the way recipes show amounts: to a whole number from 100 up, to the nearest half from 10 up, otherwise to two digits after the point.\n- \"lines\": one text line per item, in the same order. A line shows the amount the way a recipe shows an ingredient, followed by the recipe titles in parentheses, separated by a comma and a space, e.g. \"650 g flour (Pancakes, Bread)\" or \"4 eggs (Pancakes)\".\n\nIf PLAN or a recipe file cannot be read or parsed, or a plan line has no servings or servings that are not a whole number of at least 1, the command tells the user what is wrong, writes no OUTPUT and exits with status 2. On success it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "REC",
+      "doc_side": "right"
+    },
+    {
+      "id": "D2",
+      "type": "FMT",
+      "doc_side": "left"
+    },
+    {
+      "id": "D3",
+      "type": "NAME",
+      "doc_side": "right"
+    },
+    {
+      "id": "D4",
+      "type": "GENERIC",
+      "doc_side": "left"
+    }
+  ]
+}

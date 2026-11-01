@@ -1,0 +1,5 @@
+SYNTHETIC ONLY: one newline added to an in-memory read of app/backend_codex.py; no source file written
+PASS: research Python scripts parse without importing or running foreign code
+FAIL: sources differ from saved orchestra-source-manifest.json; manifest not changed
+app/backend_codex.py: saved sha256=ef96690394c582881f9420408b56f6903d999bc7e68d4f4032e8f0338d3cf232 bytes=122849; current sha256=8f04290eaf3a7507b4afdc75293a1eb4be93847e517c219d4c5ea99cf30e4745 bytes=122850
+PASS: synthetic mismatch rejected with exit code 1; saved manifest and full report bytes unchanged

@@ -1,0 +1,72 @@
+[
+  {
+    "mutation": "any-target-counts-as-report",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "failed-send-counts-as-report",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "harness-mcp-error-is-success",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "parent-id-only-is-dropped",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "provider-interrupt-is-silenced",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "signal-quota-hold-stays-silent",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "accepted-quota-report-stays-silent",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "dispatch-quota-report-stays-silent",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "crash-repeats-upstream-notice",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "quota-hold-not-in-dashboard-api",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "quota-hold-not-in-worker-card",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "auto-report-bypasses-quota",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "hub-outbox-done-followed-by-auto-report",
+    "exit_code": 1,
+    "killed": true
+  },
+  {
+    "mutation": "failed-hub-outbox-counts-as-report",
+    "exit_code": 1,
+    "killed": true
+  }
+]

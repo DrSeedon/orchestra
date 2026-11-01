@@ -1,0 +1,25 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_public_merge_worker_verbose_is_presentation_only _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70c5cba15a60>
+
+    @pytest.mark.asyncio
+    async def test_public_merge_worker_verbose_is_presentation_only(monkeypatch):
+        import app.mcp_stdio as mcp
+        bodies = []
+        async def api(method, path, **kwargs):
+            bodies.append(kwargs.get('json'))
+            return {'result': receipt()}
+        monkeypatch.setattr(mcp, '_api', api)
+        compact = await mcp.merge_worker('worker', operation_id='operation')
+        verbose = await mcp.merge_worker('worker', operation_id='operation', verbose=True)
+        assert 'output' not in compact.structuredContent['result']['test_gate']
+>       assert verbose.structuredContent['result']['test_gate']['output'] == receipt()['test_gate']['output']
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'output'
+
+tests/test_merge_worker_v1034.py:193: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_merge_worker_v1034.py::test_public_merge_worker_verbose_is_presentation_only
+1 failed in 3.22s

@@ -1,0 +1,498 @@
+FF..FF..FF..FF..FF..FFFFFFFFFFFF                                         [100%]
+=================================== FAILURES ===================================
+_ test_source_ownership_persists_without_parent_memory[parent-missing-source-cwd-detached] _
+tests/test_source_owned_dirs_v1151.py:152: in test_source_ownership_persists_without_parent_memory
+    before = snapshot(env.parent), snapshot(checkout)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:95: in api
+    ???
+tests/test_source_owned_dirs_v1151.py:89: in request
+    transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+.venv/lib/python3.12/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/applications.py:1159: in __call__
+    await super().__call__(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:680: in app
+    await route.handle(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:276: in handle
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/routing.py:134: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/fastapi/routing.py:120: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:674: in app
+    raw_response = await run_endpoint_function(
+.venv/lib/python3.12/site-packages/fastapi/routing.py:328: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/routes/sessions.py:2020: in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1806: in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:610: in _transition_prompt
+    prompt = refresh_worker_memory(
+app/prompting.py:231: in refresh_worker_memory
+    mem = load_worker_memory(
+app/prompting.py:190: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists0/parent; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists0/parent
+_ test_source_ownership_persists_without_parent_memory[parent-missing-source-cwd-loaded] _
+tests/test_source_owned_dirs_v1151.py:152: in test_source_ownership_persists_without_parent_memory
+    before = snapshot(env.parent), snapshot(checkout)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:95: in api
+    ???
+tests/test_source_owned_dirs_v1151.py:89: in request
+    transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+.venv/lib/python3.12/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/applications.py:1159: in __call__
+    await super().__call__(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:680: in app
+    await route.handle(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:276: in handle
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/routing.py:134: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/fastapi/routing.py:120: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:674: in app
+    raw_response = await run_endpoint_function(
+.venv/lib/python3.12/site-packages/fastapi/routing.py:328: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/routes/sessions.py:2020: in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1806: in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:610: in _transition_prompt
+    prompt = refresh_worker_memory(
+app/prompting.py:231: in refresh_worker_memory
+    mem = load_worker_memory(
+app/prompting.py:190: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists1/parent; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists1/parent
+_ test_source_ownership_persists_without_parent_memory[parent-missing-reports-cwd-detached] _
+tests/test_source_owned_dirs_v1151.py:152: in test_source_ownership_persists_without_parent_memory
+    before = snapshot(env.parent), snapshot(checkout)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:95: in api
+    ???
+tests/test_source_owned_dirs_v1151.py:89: in request
+    transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+.venv/lib/python3.12/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/applications.py:1159: in __call__
+    await super().__call__(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:680: in app
+    await route.handle(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:276: in handle
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/routing.py:134: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/fastapi/routing.py:120: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:674: in app
+    raw_response = await run_endpoint_function(
+.venv/lib/python3.12/site-packages/fastapi/routing.py:328: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/routes/sessions.py:2020: in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1806: in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:610: in _transition_prompt
+    prompt = refresh_worker_memory(
+app/prompting.py:231: in refresh_worker_memory
+    mem = load_worker_memory(
+app/prompting.py:190: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists4/parent; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists4/parent
+_ test_source_ownership_persists_without_parent_memory[parent-missing-reports-cwd-loaded] _
+tests/test_source_owned_dirs_v1151.py:152: in test_source_ownership_persists_without_parent_memory
+    before = snapshot(env.parent), snapshot(checkout)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:95: in api
+    ???
+tests/test_source_owned_dirs_v1151.py:89: in request
+    transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+.venv/lib/python3.12/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+.venv/lib/python3.12/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/applications.py:1159: in __call__
+    await super().__call__(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:680: in app
+    await route.handle(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:276: in handle
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/routing.py:134: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.12/site-packages/fastapi/routing.py:120: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:674: in app
+    raw_response = await run_endpoint_function(
+.venv/lib/python3.12/site-packages/fastapi/routing.py:328: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/routes/sessions.py:2020: in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1806: in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:610: in _transition_prompt
+    prompt = refresh_worker_memory(
+app/prompting.py:231: in refresh_worker_memory
+    mem = load_worker_memory(
+app/prompting.py:190: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists5/parent; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists5/parent
+_ test_source_ownership_persists_without_parent_memory[parent-current-source-cwd-detached] _
+tests/test_source_owned_dirs_v1151.py:159: in test_source_ownership_persists_without_parent_memory
+    assert json.loads(row["owned_dirs"] or "[]") == expected
+E   AssertionError: assert ('FOREIGN' not in 'KEEP ROLE\n...rker-memory>'
+E     
+E     'FOREIGN' is contained here:
+E       r-memory>
+E       FOREIGN PARENT MEMORY
+E     ? +++++++
+E       </worker-memory>)
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists8/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists8/parent/.orchestra/workers/w.md (21 chars)
+_ test_source_ownership_persists_without_parent_memory[parent-current-source-cwd-loaded] _
+tests/test_source_owned_dirs_v1151.py:159: in test_source_ownership_persists_without_parent_memory
+    assert json.loads(row["owned_dirs"] or "[]") == expected
+E   AssertionError: assert ('FOREIGN' not in 'KEEP ROLE\n...rker-memory>'
+E     
+E     'FOREIGN' is contained here:
+E       r-memory>
+E       FOREIGN PARENT MEMORY
+E     ? +++++++
+E       </worker-memory>)
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists9/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists9/parent/.orchestra/workers/w.md (21 chars)
+_ test_source_ownership_persists_without_parent_memory[parent-current-reports-cwd-detached] _
+tests/test_source_owned_dirs_v1151.py:159: in test_source_ownership_persists_without_parent_memory
+    assert json.loads(row["owned_dirs"] or "[]") == expected
+E   AssertionError: assert ('FOREIGN' not in 'KEEP ROLE\n...rker-memory>'
+E     
+E     'FOREIGN' is contained here:
+E       r-memory>
+E       FOREIGN PARENT MEMORY
+E     ? +++++++
+E       </worker-memory>)
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists12/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists12/parent/.orchestra/workers/w.md (21 chars)
+_ test_source_ownership_persists_without_parent_memory[parent-current-reports-cwd-loaded] _
+tests/test_source_owned_dirs_v1151.py:159: in test_source_ownership_persists_without_parent_memory
+    assert json.loads(row["owned_dirs"] or "[]") == expected
+E   AssertionError: assert ('FOREIGN' not in 'KEEP ROLE\n...rker-memory>'
+E     
+E     'FOREIGN' is contained here:
+E       r-memory>
+E       FOREIGN PARENT MEMORY
+E     ? +++++++
+E       </worker-memory>)
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists13/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_source_ownership_persists13/parent/.orchestra/workers/w.md (21 chars)
+__________ test_managed_ownership_refreshes_own_memory[cwd-detached] ___________
+tests/test_source_owned_dirs_v1151.py:192: in test_managed_ownership_refreshes_own_memory
+    response = await env.request(["source.txt"])
+E   AssertionError: assert 'UPDATED OWN MEMORY' in 'KEEP ROLE\n\nKEEP TASK\n\n## Directory ownership\nExpected work areas (advisory, not an edit allowlist):\n- source.tx...plicit task exclusions and coordinate overlapping changes.\n\n<worker-memory>\nFOREIGN PARENT MEMORY\n</worker-memory>'
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_managed_ownership_refresh0/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_managed_ownership_refresh0/parent/.orchestra/workers/w.md (21 chars)
+___________ test_managed_ownership_refreshes_own_memory[cwd-loaded] ____________
+tests/test_source_owned_dirs_v1151.py:192: in test_managed_ownership_refreshes_own_memory
+    response = await env.request(["source.txt"])
+E   AssertionError: assert 'UPDATED OWN MEMORY' in 'KEEP ROLE\n\nKEEP TASK\n\n## Directory ownership\nExpected work areas (advisory, not an edit allowlist):\n- source.tx...plicit task exclusions and coordinate overlapping changes.\n\n<worker-memory>\nFOREIGN PARENT MEMORY\n</worker-memory>'
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_managed_ownership_refresh1/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_managed_ownership_refresh1/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[.orchestra/workers/w.md-detached] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st0/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st0/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[.orchestra/workers/w.md-loaded] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st1/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st1/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[docs/workers/w.md-detached] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st2/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st2/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[docs/workers/w.md-loaded] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st3/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st3/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[.orchestra/.layout-migration.json-detached] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st4/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st4/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[.orchestra/.layout-migration.json-loaded] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st5/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st5/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[.orchestra/unknown/keep.md-detached] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st6/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st6/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[.orchestra/unknown/keep.md-loaded] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st7/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st7/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[.orchestra/layout.json/broken-detached] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st8/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st8/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[.orchestra/layout.json/broken-loaded] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st9/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st9/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[.orchestra/workers-detached] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st10/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st10/parent/.orchestra/workers/w.md (21 chars)
+_ test_own_missing_or_damaged_state_refuses_atomically[.orchestra/workers-loaded] _
+tests/test_source_owned_dirs_v1151.py:217: in test_own_missing_or_damaged_state_refuses_atomically
+    session.owned_dirs[:], session._prompt_injected)
+E   Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+----------------------------- Captured stderr call -----------------------------
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st11/parent/.orchestra/workers/w.md (21 chars)
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:206 Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/tmp/pytest-of-<runtime-user-redacted>/pytest-2/test_own_missing_or_damaged_st11/parent/.orchestra/workers/w.md (21 chars)
+=========================== short test summary info ============================
+FAILED tests/test_source_owned_dirs_v1151.py::test_source_ownership_persists_without_parent_memory[parent-missing-source-cwd-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_source_ownership_persists_without_parent_memory[parent-missing-source-cwd-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_source_ownership_persists_without_parent_memory[parent-missing-reports-cwd-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_source_ownership_persists_without_parent_memory[parent-missing-reports-cwd-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_source_ownership_persists_without_parent_memory[parent-current-source-cwd-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_source_ownership_persists_without_parent_memory[parent-current-source-cwd-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_source_ownership_persists_without_parent_memory[parent-current-reports-cwd-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_source_ownership_persists_without_parent_memory[parent-current-reports-cwd-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_managed_ownership_refreshes_own_memory[cwd-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_managed_ownership_refreshes_own_memory[cwd-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[.orchestra/workers/w.md-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[.orchestra/workers/w.md-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[docs/workers/w.md-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[docs/workers/w.md-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[.orchestra/.layout-migration.json-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[.orchestra/.layout-migration.json-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[.orchestra/unknown/keep.md-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[.orchestra/unknown/keep.md-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[.orchestra/layout.json/broken-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[.orchestra/layout.json/broken-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[.orchestra/workers-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_own_missing_or_damaged_state_refuses_atomically[.orchestra/workers-loaded]
+22 failed, 10 passed in 113.15s (0:01:53)

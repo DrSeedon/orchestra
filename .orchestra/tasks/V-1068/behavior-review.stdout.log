@@ -1,0 +1,7 @@
+uv 0.11.28 (x86_64-unknown-linux-gnu)
+app/error_watch.py: unchanged, sha256=af1b30464907a13bf7b1692db5d9747495afa0b3a4380e6c5550678c00b52a53
+CHANGELOG.md: unchanged, sha256=09ee11111667f5f24a49360103138ac9ac608fdf4d4cb4e357289eb6899d20ed
+Removed CLI-wording assertions verified within tests/test_error_watch.py only.
+Added tests and task artifacts: credential-shape findings=0; paths sanitized.
+Imported app: /remote/workspace/app/__init__.py
+Temporary fixtures and snapshots removed; stdout logs retained.

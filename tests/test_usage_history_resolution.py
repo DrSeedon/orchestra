@@ -205,3 +205,15 @@ async def test_explicit_step_is_honoured(db, owner):
 
     assert answer["step_minutes"] == 60
     assert len(answer["rows"]) <= 8
+
+
+def test_grid_retains_real_sample_time_for_static_charts(db):
+    """A carried grid row must not pretend it is a fresh measurement in a PNG."""
+    from app.db import usage_get_history
+
+    sample = datetime.now(timezone.utc) - timedelta(minutes=12)
+    _seed(db, [sample])
+    rows = usage_get_history(24, 5)
+    assert len(rows) == 3
+    assert {row["sample_ts"] for row in rows} == {sample.isoformat()}
+    assert len({row["ts"] for row in rows}) == 3

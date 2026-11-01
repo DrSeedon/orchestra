@@ -1,0 +1,25 @@
+PASS: changed Python files compile
+PASS: actual fire_auto_report logs the explicit-report skip using the fixed stub
+RED confirmed: removing _Child._log reproduces AttributeError("'_Child' object has no attribute '_log'")
+PASS: fixture overrides an inherited path with a nonexistent sandbox list
+PASS: test_blocks_added_line_and_names_rule_without_value
+PASS: test_blocks_commit_message_and_path
+PASS: test_allows_clean_change_and_removal_of_a_leak
+PASS: test_missing_list_allows_everything
+PASS: test_default_list_is_isolated_from_live_checkout
+PASS: test_orphan_branch_is_scanned_without_a_merge_base[content]
+PASS: test_orphan_branch_is_scanned_without_a_merge_base[shared_content]
+PASS: test_orphan_branch_is_scanned_without_a_merge_base[path]
+PASS: test_orphan_branch_is_scanned_without_a_merge_base[message]
+PASS: test_orphan_branch_is_scanned_without_a_merge_base[clean]
+PASS: test_merge_base_failure_is_not_treated_as_unrelated_history
+RED confirmed: disabling the fixture override fails the added isolation regression
+RED confirmed: reverting the scanner fallback fails orphan regression [content]
+RED confirmed: reverting the scanner fallback fails orphan regression [shared_content]
+RED confirmed: reverting the scanner fallback fails orphan regression [path]
+RED confirmed: reverting the scanner fallback fails orphan regression [message]
+RED confirmed: reverting the scanner fallback fails orphan regression [clean]
+RED confirmed: target-tip diff misses shared forbidden content; empty-tree regression catches it
+app search locations: ['<hub-workspace>']
+app.__file__: None
+LIMIT: full application dependencies and pytest are absent; this is not the pytest gate

@@ -20,6 +20,7 @@ from typing import Optional, Literal
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, StrictFloat, StrictInt, field_validator, model_validator
 
 from app.db import (
@@ -33,6 +34,7 @@ from app.db import (
     get_runtime_handoff,
     get_session as get_session_row,
     get_session_by_name,
+    parse_log_kinds,
     search_logs,
 )
 from app.deps import manager
@@ -57,7 +59,7 @@ router = APIRouter()
 async def search_logs_endpoint(query: str, scope: str | None = None,
                               all_projects: bool = False, agent: str | None = None,
                               date_from: str | None = None, date_to: str | None = None,
-                              limit: int = 20):
+                              limit: int = 20, kinds: str | None = None):
     query = query.strip()
     if not query or len(query) > 200:
         return JSONResponse({"error": "query must contain 1–200 characters"}, status_code=400)
@@ -79,9 +81,16 @@ async def search_logs_endpoint(query: str, scope: str | None = None,
         return JSONResponse({"error": "agent must contain 1–100 characters"}, status_code=400)
     if agent is not None:
         agent = agent.strip()
-    result = search_logs(
+    try:
+        parse_log_kinds(kinds)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    # The worker owns the SQLite connection for its entire lifetime. AnyIO bounds
+    # concurrent workers; cancellation never closes a connection from the loop.
+    result = await run_in_threadpool(
+        search_logs,
         query, scope=None if all_projects else scope, agent=agent,
-        date_from=date_from, date_to=date_to, limit=max(1, min(limit, 50)),
+        date_from=date_from, date_to=date_to, limit=max(1, min(limit, 50)), kinds=kinds,
     )
     return JSONResponse(result)
 
@@ -308,6 +317,16 @@ class CreateSessionRequest(BaseModel):
     def validate_worktree(self):
         if self.use_worktree and not self.repo_path:
             raise ValueError("repo_path required when use_worktree=True")
+        if self.is_orchestrator and "model" not in self.model_fields_set:
+            from app.pipeline import get_role
+            from yaml import YAMLError
+
+            try:
+                role = get_role(self.pipeline or "default", self.role or "orchestrator")
+            except (OSError, YAMLError) as error:
+                raise ValueError(str(error)) from error
+            if role is not None and role.is_orchestrator:
+                self.model = resolve_model(role.model)
         return self
 
 
@@ -1647,25 +1666,38 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
 
 @router.get("/api/sessions/{name}/queued-messages")
 async def get_queued_messages(name: str, request: Request = None):
-    """Dashboard projection of the durable after-turn mailbox."""
+    """Pending mailbox entries, including current-turn recovery copies.
+
+    A Codex steering backup is already submitted to the current turn, unlike an
+    after-turn message. Neither a backup nor a claim proves final delivery.
+    """
     from app import mailbox
 
     scope = (request.query_params.get("scope", "") if request is not None else "").strip()
     if not scope:
         return JSONResponse({"error": "scope is required"}, status_code=400)
+    messages = []
+    for item in mailbox.pending(name, scope):
+        provenance = item["provenance"]
+        if provenance.origin != "user" and provenance.subtype != "dashboard":
+            continue
+        state = {
+            "codex_steer_backup": "current_turn",
+            "codex_steer_backup_pending": "current_turn_unconfirmed",
+        }.get(provenance.subtype, "after_turn")
+        if item["claimed_at"] is not None:
+            state = "handing_off"
+        messages.append({
+            "id": item["id"],
+            "body": item["body"],
+            "created_at": item["created_at"],
+            "claimed": item["claimed_at"] is not None,
+            "state": state,
+            "cancellable": state == "after_turn",
+        })
     return {
         "ok": True,
-        "messages": [
-            {
-                "id": item["id"],
-                "body": item["body"],
-                "created_at": item["created_at"],
-                "claimed": item["claimed_at"] is not None,
-            }
-            for item in mailbox.pending(name, scope)
-            if item["provenance"].origin == "user"
-            or item["provenance"].subtype == "dashboard"
-        ],
+        "messages": messages,
     }
 
 
@@ -1769,6 +1801,21 @@ async def cancel_message_delivery(delivery_id: str, request: Request = None):
         except ValueError as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
     return JSONResponse(resource, status_code=status)
+
+
+@router.get("/api/pending-deliveries")
+async def list_pending_deliveries(target: str = "", request: Request = None):
+    """One-shot cleanup view of the authenticated sender's held deliveries."""
+    from app import message_deliveries
+
+    caller = _delivery_caller(request)
+    if caller is None:
+        return keyed_auth_required()
+    _operator, source_id = caller
+    if not source_id:
+        # An operator cookie has no sender identity; do not expose other callers.
+        return {"deliveries": []}
+    return {"deliveries": message_deliveries.list_pending_deliveries(source_id, target)}
 
 
 @router.post("/api/sessions/{name}/compact")
@@ -2002,7 +2049,7 @@ async def change_model(name: str, req: dict):
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
     try:
         if via == "mcp":
-            ensure_spawn_allowed(new_model)
+            ensure_spawn_allowed(new_model, model_reason=req.get("model_reason") or "")
         else:
             ensure_dashboard_visible(new_model)
     except ValueError as exc:
@@ -2192,7 +2239,7 @@ async def delete_session(name: str, scope: str, force: bool = False):
         wt = found.worktree_path
         if wt and Path(wt).is_dir():
             status_proc = await asyncio.create_subprocess_exec(
-                "git", "status", "--porcelain", cwd=wt,
+                "git", "status", "--porcelain", "--untracked-files=all", cwd=wt,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
             try:
@@ -2202,7 +2249,8 @@ async def delete_session(name: str, scope: str, force: bool = False):
                 return JSONResponse({"error": "git status timed out in worktree. Use force=true if certain"}, status_code=400)
             if status_proc.returncode != 0:
                 return JSONResponse({"error": f"git status failed: {stderr.decode().strip()}. Use force=true if certain"}, status_code=400)
-            dirty = stdout.decode().strip()
+            from app.private_folder import filter_worktree_status
+            dirty = await asyncio.to_thread(filter_worktree_status, wt, stdout.decode())
             if dirty:
                 files = [l[3:] for l in dirty.splitlines()[:10]]
                 return JSONResponse({"error": f"worker has uncommitted changes: {', '.join(files)}. Commit or discard first (or force=true)"}, status_code=400)
@@ -2898,6 +2946,7 @@ async def execute_merge_session(
                         _resolve_candidate_refs if finalization is not None else None
                     ),
                     commit_receipt=commit_receipt,
+                    acceptance_note=str(req.get("acceptance_note") or ""),
                 )
             except Exception as e:
                 git_ms = max(0, round((time.perf_counter() - git_started) * 1000))

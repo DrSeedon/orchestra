@@ -1,0 +1,27 @@
+{
+  "id": "P32",
+  "package": "cronlint",
+  "prompt": "Add a classify command for crontab files. It runs as `python -m cronlint.classify CRONTAB_FILE REPORT_FILE`. It reads CRONTAB_FILE the same way as the other commands and writes a plain text report to REPORT_FILE, creating the folder of REPORT_FILE when it is missing.\n\nEvery schedule entry gets a kind. A field is unrestricted when it matches every value it allows (for minutes: `*`, `*/1` or `0-59`). Take the first rule that fits:\n- yearly: the month field is restricted.\n- monthly: the day-of-month field is restricted.\n- weekly: the day-of-week field is restricted.\n- daily: the hour field is restricted.\n- hourly: the minute field is restricted.\n- minutely: no field is restricted.\n\nEvery entry also gets an interval: the number of minutes from one run to the next, if that number is the same for all runs. For hourly, daily and weekly entries, look at the runs in one hour, day or week and include the gap from the last run of that cycle to the first run of the next cycle. A minutely entry has an interval of 1. Monthly and yearly entries, and entries whose gaps differ, are irregular. The classify code keeps the result of each entry as its kind and its interval, with None as the interval of an irregular entry.\n\nThe report has one line per entry in file order, then a totals line. Every line ends with a newline:\n\nline 4: hourly (every 15 min) /usr/local/bin/sync --quiet\nline 9: weekly (irregular) /opt/standup.sh\nminutely=1 hourly=1 daily=2 weekly=2 monthly=1 yearly=2\n\nThe number after \"line\" is the line number of the entry in CRONTAB_FILE (comment, blank and variable lines count; the first line is 1). Then come the kind, the interval and the command text of the entry. The totals line always names all six kinds in this order, with 0 for a kind without entries.\n\nAn entry that cannot be parsed is invalid. So is an entry that can never run: its day-of-week field is `*` and none of its day-of-month values exists in any of its months (count February as 29 days), for example `0 0 30 2 *`. The classify code must signal an invalid entry to its caller as an error that the caller can catch. For an invalid entry or a missing CRONTAB_FILE, the command exits with status 2 and does not write REPORT_FILE. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "ENUM",
+      "doc_side": "left"
+    },
+    {
+      "id": "D2",
+      "type": "EXC",
+      "doc_side": "left"
+    },
+    {
+      "id": "D3",
+      "type": "OPT",
+      "doc_side": "right"
+    },
+    {
+      "id": "D4",
+      "type": "FMT",
+      "doc_side": "right"
+    }
+  ]
+}

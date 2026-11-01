@@ -1,0 +1,682 @@
+     1	﻿#Requires -Version 5.1
+     2	<#
+     3	  SentinelX Core - Windows installer (companion to install.sh / install-macos.sh).
+     4	
+     5	  Two modes:
+     6	    (default) SERVICE mode -- registers the agent as a Windows service via WinSW,
+     7	              running as LocalSystem, started at boot. Needs an ELEVATED
+     8	              PowerShell (admin). The Windows analogue of the systemd unit /
+     9	              macOS LaunchDaemon.
+    10	    -User     USER mode -- NO admin. Installs under %LOCALAPPDATA% and runs the
+    11	              agent as a per-user Scheduled Task at logon (via pythonw, windowless).
+    12	              Runs as YOU, so it can do anything you can without elevation -- the
+    13	              right fit for locked-down / corporate machines. Analogue of the
+    14	              macOS per-user LaunchAgent.
+    15	
+    16	  A bare `python -m sentinelx_core` is neither a Windows service nor self-starting,
+    17	  so service mode wraps it with WinSW and user mode supervises it with a Scheduled
+    18	  Task -- just as systemd/launchd supervise the process on the other platforms.
+    19	
+    20	  Parameters (all optional):
+    21	    -User        No-admin per-user install (Scheduled Task). Default install dir
+    22	                 becomes %LOCALAPPDATA%\SentinelX.
+    23	    -InstallDir  Where the venv, config, logs live.
+    24	                 Default: C:\ProgramData\SentinelX (service) / %LOCALAPPDATA%\SentinelX (-User)
+    25	    -HubUrl      Hub base URL.                       Default: https://mcp.sentinelx.app
+    26	    -HostId      Host id.                            Default: win-<hostname>
+    27	    -Source      Local checkout path -> EDITABLE install (dev: `git pull` + restart iterates).
+    28	                 Omit -> pip install from git main.
+    29	    -ImportFrom  A dir holding an existing identity.json / config.yaml to REUSE.
+    30	    -Bundle      Offline install from a wheel bundle (a .zip, a directory, or an
+    31	                 https URL to a .zip) instead of PyPI -- for networks that block
+    32	                 PyPI (corporate filters). Installs every wheel with --no-deps.
+    33	    -Check       Dry-run: print the plan, touch nothing. Does NOT require admin.
+    34	    -MigrateFromUser
+    35	                 Service mode only: switch a machine that runs the USER-mode agent
+    36	                 to service mode. Stops and removes the per-user Scheduled Task,
+    37	                 reuses its identity.json and config.yaml (paths rewritten to the
+    38	                 new install dir), and keeps the old folder as a backup.
+    39	
+    40	  Use ONE mode per machine. Both register under the name 'SentinelX' (service or
+    41	  Scheduled Task); installing one mode while the other is present would run two
+    42	  agents with the same identity that keep replacing each other's hub connection,
+    43	  so the installer stops instead (re-run in the installed mode, or migrate).
+    44	
+    45	  Service-mode real installs need an ELEVATED PowerShell. -User and -Check do not.
+    46	#>
+    47	[CmdletBinding()]
+    48	param(
+    49	  [switch]$User,
+    50	  [string]$InstallDir = 'C:\ProgramData\SentinelX',
+    51	  [string]$HubUrl     = 'https://mcp.sentinelx.app',
+    52	  [string]$HostId,
+    53	  [string]$Source,
+    54	  [string]$ImportFrom,
+    55	  [string]$Bundle,
+    56	  [switch]$Check,
+    57	  [switch]$MigrateFromUser
+    58	)
+    59	$ErrorActionPreference = 'Stop'
+    60	
+    61	function Info($m){ Write-Host "    [+] $m" -ForegroundColor Green }
+    62	function Warn($m){ Write-Host "    [!] $m" -ForegroundColor Yellow }
+    63	function Fatal($m){ Write-Host "    [x] $m" -ForegroundColor Red; exit 1 }
+    64	function Ok($m){ Write-Host ''; Write-Host "  [OK] $m" -ForegroundColor Green }
+    65	
+    66	# $ErrorActionPreference = 'Stop' does NOT turn a non-zero exit code from a
+    67	# NATIVE command (pip, winsw, python) into a terminating error -- it only
+    68	# governs PowerShell's own errors. Without this the installer sailed past a
+    69	# failed pip install, tailored a config against a package that was not there,
+    70	# and registered a service that restart-looped every ten seconds. The operator
+    71	# was left with a broken install and the original failure buried far above.
+    72	#
+    73	# Call this after every native invocation whose failure should stop us.
+    74	function Assert-NativeOk($what){
+    75	  if ($LASTEXITCODE -ne 0) {
+    76	    Fatal "$what failed (exit code $LASTEXITCODE). Nothing further was installed or registered; fix the error above and re-run."
+    77	  }
+    78	}
+    79	
+    80	$script:_stepN = 0
+    81	function Step($m){
+    82	  $script:_stepN++
+    83	  Write-Host ''
+    84	  Write-Host ("  [{0}/4] {1}" -f $script:_stepN, $m) -ForegroundColor Cyan
+    85	}
+    86	
+    87	function Show-Connect {
+    88	  Write-Host ''
+    89	  Write-Host '  One step left - connect SentinelX to your AI assistant:' -ForegroundColor Cyan
+    90	  Write-Host ''
+    91	  Write-Host "    Connector URL:  $HubUrl/mcp/mcp"
+    92	  Write-Host "    Dashboard:      $HubUrl/dashboard   (view and manage your hosts)"
+    93	  Write-Host ''
+    94	  Write-Host '    Claude:   Settings -> Connectors -> Add custom connector -> paste the Connector URL'
+    95	  Write-Host '    ChatGPT:  https://chatgpt.com/apps/sentinelx/asdk_app_69f63e01766881919640f03b5e7912a5'
+    96	  Write-Host ''
+    97	  Write-Host '    Full guide:  https://sentinelx.app/#setup'
+    98	  Write-Host ''
+    99	  Write-Host '    Then try asking your assistant:  "List my SentinelX servers."' -ForegroundColor DarkGray
+   100	}
+   101	
+   102	function Write-Banner {
+   103	  # UTF-8 so the block-glyph logo renders on modern consoles; degrades to the
+   104	  # console default if this host can't switch encodings.
+   105	  try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+   106	  $c = 'Cyan'
+   107	  Write-Host ''
+   108	  Write-Host '  ███████╗███████╗███╗   ██╗████████╗██╗███╗   ██╗███████╗██╗     ██╗  ██╗' -ForegroundColor $c
+   109	  Write-Host '  ██╔════╝██╔════╝████╗  ██║╚══██╔══╝██║████╗  ██║██╔════╝██║     ╚██╗██╔╝' -ForegroundColor $c
+   110	  Write-Host '  ███████╗█████╗  ██╔██╗ ██║   ██║   ██║██╔██╗ ██║█████╗  ██║      ╚███╔╝' -ForegroundColor $c
+   111	  Write-Host '  ╚════██║██╔══╝  ██║╚██╗██║   ██║   ██║██║╚██╗██║██╔══╝  ██║      ██╔██╗' -ForegroundColor $c
+   112	  Write-Host '  ███████║███████╗██║ ╚████║   ██║   ██║██║ ╚████║███████╗███████╗██╔╝ ██╗' -ForegroundColor $c
+   113	  Write-Host '  ╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚═╝  ╚═╝' -ForegroundColor $c
+   114	  Write-Host ''
+   115	  Write-Host '  Cloud Installer' -ForegroundColor White -NoNewline
+   116	  Write-Host ' — connect this Windows host to mcp.sentinelx.app'
+   117	  Write-Host '  via the Model Context Protocol.'
+   118	  Write-Host ''
+   119	  Write-Host "  What you'll get:" -ForegroundColor Yellow -NoNewline
+   120	  Write-Host ' a SentinelX agent that lets AI assistants'
+   121	  Write-Host '  (Claude, ChatGPT, etc.) operate this host through MCP.'
+   122	  Write-Host ''
+   123	}
+   124	
+   125	$SvcId      = 'SentinelX'
+   126	$SvcName    = 'SentinelX Agent'
+   127	$RepoUrl    = 'git+https://github.com/pensados/sentinelx-cloud-core.git'
+   128	$ExampleUrl = 'https://raw.githubusercontent.com/pensados/sentinelx-cloud-core/main/config.example.windows.yaml'
+   129	if (-not $HostId) { $HostId = "win-$($env:COMPUTERNAME.ToLower())" }
+   130	# User mode installs under the user profile (no admin needed).
+   131	if ($User -and $InstallDir -eq 'C:\ProgramData\SentinelX') {
+   132	  $InstallDir = Join-Path $env:LOCALAPPDATA 'SentinelX'
+   133	}
+   134	
+   135	$Venv         = Join-Path $InstallDir '.venv'
+   136	$PyExe        = Join-Path $Venv 'Scripts\python.exe'
+   137	$PywExe       = Join-Path $Venv 'Scripts\pythonw.exe'
+   138	$IdentityPath = Join-Path $InstallDir 'identity.json'
+   139	$ConfigPath   = Join-Path $InstallDir 'config.yaml'
+   140	$AuditPath    = Join-Path $InstallDir 'audit.jsonl'
+   141	$LogDir       = Join-Path $InstallDir 'logs'
+   142	$AgentLog     = Join-Path $LogDir 'agent.log'
+   143	$WinswExe     = Join-Path $InstallDir 'sentinelx-service.exe'
+   144	$WinswXml     = Join-Path $InstallDir 'sentinelx-service.xml'
+   145	
+   146	function Test-Admin {
+   147	  $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+   148	  (New-Object Security.Principal.WindowsPrincipal($id)).IsInRole(
+   149	    [Security.Principal.WindowsBuiltinRole]::Administrator)
+   150	}
+   151	
+   152	function Get-ServiceXml {
+   153	@"
+   154	<service>
+   155	  <id>$SvcId</id>
+   156	  <name>$SvcName</name>
+   157	  <description>SentinelX cloud agent - structured, auditable host access via MCP.</description>
+   158	  <executable>$PyExe</executable>
+   159	  <arguments>-m sentinelx_core --hub $HubUrl --identity "$IdentityPath" --config "$ConfigPath"</arguments>
+   160	  <workingdirectory>$InstallDir</workingdirectory>
+   161	  <env name="SENTINELX_AUDIT_PATH" value="$AuditPath" />
+   162	  <startmode>Automatic</startmode>
+   163	  <onfailure action="restart" delay="10 sec" />
+   164	  <logpath>$LogDir</logpath>
+   165	  <log mode="roll-by-size">
+   166	    <sizeThreshold>10240</sizeThreshold>
+   167	    <keepFiles>3</keepFiles>
+   168	  </log>
+   169	</service>
+   170	"@
+   171	}
+   172	
+   173	function Resolve-WinswUrl {
+   174	  # GitHub "latest" release, pick the x64 executable asset. WinSW-x64.exe is
+   175	  # present across v2 and v3, so this avoids pinning a version that may move.
+   176	  $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/winsw/winsw/releases/latest' `
+   177	                           -Headers @{ 'User-Agent' = 'sentinelx-installer' }
+   178	  $asset = $rel.assets | Where-Object { $_.name -eq 'WinSW-x64.exe' } | Select-Object -First 1
+   179	  if (-not $asset) { Fatal 'Could not find WinSW-x64.exe in the latest WinSW release.' }
+   180	  $asset.browser_download_url
+   181	}
+   182	
+   183	Write-Banner
+   184	
+   185	# ------------------------- one mode per machine ---------------------------
+   186	# Both modes register under $SvcId: a Windows service (service mode) or a
+   187	# Scheduled Task (user mode). Installing one while the other is present leaves
+   188	# two agents with one identity that keep replacing each other's connection
+   189	# (win-comet, 2026-10-06: 192 version flips in an hour after an update run in
+   190	# the other mode). Querying a service needs no admin; an elevated session sees
+   191	# other users' tasks.
+   192	function Get-ServiceModeInstall {
+   193	  Get-Service -Name $SvcId -ErrorAction SilentlyContinue | Select-Object -First 1
+   194	}
+   195	function Get-UserModeInstall {
+   196	  $t = Get-ScheduledTask -TaskName $SvcId -ErrorAction SilentlyContinue | Select-Object -First 1
+   197	  if (-not $t) { return $null }
+   198	  $exe = [string](($t.Actions | Select-Object -First 1).Execute)
+   199	  $dir = $null
+   200	  if ($exe -match '^(.+?)\\\.venv\\Scripts\\pythonw?\.exe$') { $dir = $Matches[1] }
+   201	  [pscustomobject]@{ Task = $t; Dir = $dir; Who = [string]$t.Principal.UserId }
+   202	}
+   203	$OtherSvc  = if ($User) { Get-ServiceModeInstall } else { $null }
+   204	$OtherTask = if (-not $User) { Get-UserModeInstall } else { $null }
+   205	$MsgSvc = "This machine already runs SentinelX as a Windows service (C:\ProgramData\SentinelX). " +
+   206	          "Update that one instead: run this installer WITHOUT -User, from an elevated PowerShell. " +
+   207	          "A user-mode agent next to it would share its identity and keep replacing its connection."
+   208	
+   209	# ------------------------- CHECK (dry-run) --------------------------------
+   210	if ($Check) {
+   211	  Info 'check mode - nothing will be installed.'
+   212	  Info ('Mode       : ' + $(if ($User) { 'USER (Scheduled Task, no admin)' } else { 'SERVICE (WinSW, LocalSystem, admin)' }))
+   213	  Info "InstallDir : $InstallDir"
+   214	  Info "HostId     : $HostId   |  Hub: $HubUrl"
+   215	  if ($Source)     { Info "Source     : $Source (EDITABLE install)" } else { Info "Source     : $RepoUrl (git main)" }
+   216	  if ($ImportFrom) { Info "ImportFrom : $ImportFrom (reuse identity/config)" }
+   217	  if ($Bundle)     { Info "Bundle     : $Bundle (OFFLINE install, no PyPI)" }
+   218	  if ($OtherSvc)  { Warn "CONFLICT   : $MsgSvc" }
+   219	  if ($OtherTask) {
+   220	    if ($MigrateFromUser) { Info "Migrate    : user-mode install in $($OtherTask.Dir) (task for $($OtherTask.Who)) would be stopped, removed and kept as a backup" }
+   221	    else { Warn "CONFLICT   : a user-mode install exists (task '$SvcId' for $($OtherTask.Who), dir $($OtherTask.Dir)). A real run stops here; re-run with -User to update it, or with -MigrateFromUser to switch to service mode." }
+   222	  }
+   223	  if ($User) {
+   224	    Info "Startup    : per-user Scheduled Task '$SvcId' at logon, running:"
+   225	    Info "             $PywExe -m sentinelx_core --hub $HubUrl --identity `"$IdentityPath`" --config `"$ConfigPath`" --log-file `"$AgentLog`""
+   226	  } else {
+   227	    try { Info "WinSW url  : $(Resolve-WinswUrl)" } catch { Warn "WinSW url  : lookup failed ($($_.Exception.Message))" }
+   228	    Info '---- service XML that would be written ----'
+   229	    Get-ServiceXml
+   230	  }
+   231	  exit 0
+   232	}
+   233	
+   234	# ------------------------- real install -----------------------------------
+   235	if (-not $User -and -not (Test-Admin)) {
+   236	  Fatal 'Service mode needs an ELEVATED PowerShell (Run as administrator). On a machine where you are not a local admin, use -User for a no-admin per-user install. (-Check is a no-admin dry-run.)'
+   237	}
+   238	
+   239	if ($MigrateFromUser -and $User) {
+   240	  Fatal '-MigrateFromUser switches a machine TO service mode; it cannot be combined with -User.'
+   241	}
+   242	if ($OtherSvc) { Fatal $MsgSvc }
+   243	$MigrateFrom = $null
+   244	if ($OtherTask) {
+   245	  if (-not $MigrateFromUser) {
+   246	    Fatal ("A user-mode SentinelX install already exists (Scheduled Task '$SvcId' for $($OtherTask.Who), dir: $($OtherTask.Dir)). " +
+   247	           "To update it, re-run this installer with -User (no admin needed). To switch this machine to service mode, " +
+   248	           "re-run with -MigrateFromUser: it stops and removes that task, reuses its identity and config, and keeps the old folder as a backup. " +
+   249	           "Nothing was changed.")
+   250	  }
+   251	  $MigrateFrom = $OtherTask
+   252	  Info "Migrating from the user-mode install in $($MigrateFrom.Dir) (task for $($MigrateFrom.Who))."
+   253	  $oldId = if ($MigrateFrom.Dir) { Join-Path $MigrateFrom.Dir 'identity.json' } else { $null }
+   254	  if ($oldId -and (Test-Path $oldId)) {
+   255	    if (-not (Test-Path $IdentityPath) -and -not $ImportFrom) {
+   256	      $ImportFrom = $MigrateFrom.Dir
+   257	      Info "Reusing its identity and config (same host, no new enrollment token)."
+   258	    } elseif (Test-Path $IdentityPath) {
+   259	      $a = (Get-Content $IdentityPath -Raw | ConvertFrom-Json).host_id
+   260	      $b = (Get-Content $oldId -Raw | ConvertFrom-Json).host_id
+   261	      Warn "This service install already has an identity (host $a); keeping it. The user-mode one (host $b) stays in the backup folder."
+   262	    }
+   263	  } elseif (-not $MigrateFrom.Dir) {
+   264	    Warn "Could not tell the user-mode install folder from the task; its identity is not reused. The task and its processes are still stopped."
+   265	  }
+   266	}
+   267	Info ("Plan: " + $(if ($User) { 'USER install (Scheduled Task, no admin)' } else { 'SERVICE install (WinSW, starts at boot)' }) + "  |  dir: $InstallDir  |  host: $HostId")
+   268	
+   269	Step 'Checking prerequisites (Python + install dir)'
+   270	# 1) Python launcher. NB: distinct name from $PyExe -- PowerShell variables are
+   271	# case-INSENSITIVE, so a `$pyExe` here would be the SAME variable as $PyExe and
+   272	# clobber the venv python path.
+   273	$BootPy = $null; $pyPre = @()
+   274	if     (Get-Command py     -ErrorAction SilentlyContinue) { $BootPy = 'py'; $pyPre = @('-3') }
+   275	elseif (Get-Command python -ErrorAction SilentlyContinue) { $BootPy = 'python' }
+   276	else   { Fatal 'Python not found. Install Python 3.12+ (python.org) and re-run.' }
+   277	
+   278	New-Item -ItemType Directory -Force -Path $InstallDir, $LogDir | Out-Null
+   279	
+   280	# Make the venv SELF-CONTAINED: hide the invoking user's site-packages so pip
+   281	# installs ALL deps INTO the venv (a service running as LocalSystem can't see a
+   282	# user's per-user site-packages, so deps left "already satisfied" there crash it).
+   283	$env:PYTHONNOUSERSITE = '1'
+   284	
+   285	Step 'Installing the SentinelX agent (virtualenv + package)'
+   286	# 2) venv + agent
+   287	if (-not (Test-Path $PyExe)) {
+   288	  Info "Creating venv at $Venv"
+   289	  & $BootPy @pyPre -m venv $Venv
+   290	  Assert-NativeOk 'Creating the virtual environment'
+   291	}
+   292	if (-not $Bundle) {
+   293	  Info 'Upgrading pip'
+   294	  & $PyExe -m pip install --upgrade pip | Out-Null
+   295	  Assert-NativeOk 'Upgrading pip'
+   296	}
+   297	if ($Bundle) {
+   298	  # Offline install from a wheel bundle (zip or dir). For networks that block
+   299	  # PyPI (corporate filters). Install ALL wheels with --no-deps: the bundle is
+   300	  # the complete closure, and --no-deps avoids the agent's git-URL protocol
+   301	  # dependency (which pip would otherwise try to fetch+build from git, needing
+   302	  # PyPI for the build backend -> the exact thing a blocked network breaks).
+   303	  $whlDir = $Bundle
+   304	  if ($Bundle -match '^https?://') {
+   305	    $tmpZip = Join-Path $env:TEMP 'sentinelx-bundle.zip'
+   306	    Info "Downloading bundle: $Bundle"
+   307	    Invoke-WebRequest -Uri $Bundle -OutFile $tmpZip
+   308	    $whlDir = Join-Path $env:TEMP 'sentinelx-bundle'
+   309	    if (Test-Path $whlDir) { Remove-Item -Recurse -Force $whlDir }
+   310	    Expand-Archive -Path $tmpZip -DestinationPath $whlDir -Force
+   311	  } elseif ($Bundle -match '\.zip$') {
+   312	    $whlDir = Join-Path $env:TEMP 'sentinelx-bundle'
+   313	    if (Test-Path $whlDir) { Remove-Item -Recurse -Force $whlDir }
+   314	    Expand-Archive -Path $Bundle -DestinationPath $whlDir -Force
+   315	  }
+   316	  $whls = Get-ChildItem -Path $whlDir -Recurse -Filter *.whl | Select-Object -ExpandProperty FullName
+   317	  if (-not $whls) { Fatal "No .whl files found in bundle: $Bundle" }
+   318	  Info "Installing agent offline from bundle ($($whls.Count) wheels)"
+   319	  # --force-reinstall so a rebuilt bundle at the SAME semantic version (e.g.
+   320	  # a 0.4.1 with a fresh fix) actually replaces the installed core wheel --
+   321	  # without it, pip sees the version already present and skips the update (#9).
+   322	  & $PyExe -m pip install --no-index --no-deps --force-reinstall @whls
+   323	  Assert-NativeOk 'Installing the agent from the offline bundle'
+   324	} elseif ($Source) {
+   325	  Info "Installing agent (editable) from $Source"
+   326	  & $PyExe -m pip install -e $Source
+   327	  Assert-NativeOk 'Installing the agent (editable)'
+   328	} else {
+   329	  Info 'Installing agent from git main'
+   330	  & $PyExe -m pip install $RepoUrl
+   331	  Assert-NativeOk 'Installing the agent'
+   332	}
+   333	
+   334	# Belt and braces: exit codes catch a pip that FAILS, this catches a pip that
+   335	# "succeeded" without leaving a usable package -- a partial wheel, a venv built
+   336	# against a Python that later moved, an interrupted download. Everything after
+   337	# this point (config tailoring, service registration) assumes the agent imports,
+   338	# and registering a service that cannot import restart-loops forever while the
+   339	# real cause scrolls out of view.
+   340	& $PyExe -c "import sentinelx_core, yaml" 2>$null
+   341	if ($LASTEXITCODE -ne 0) {
+   342	  Fatal "The agent package is not importable from $Venv after installation. Nothing was configured or registered. Re-run the installer; if it persists, the pip output above is the place to look."
+   343	}
+   344	
+   345	# --- enrollment token handling ----------------------------------------------
+   346	# Read a JWT payload WITHOUT verifying it. There is no key here; the hub
+   347	# verifies. This only decides whether to write the token as-is or exchange it,
+   348	# so a forged payload gains nothing: the hub rejects it at the exchange or on
+   349	# connect. Mirrors enroll.py so Windows and Linux behave the same.
+   350	function Get-TokenClaims([string]$Token) {
+   351	  try {
+   352	    $seg = ($Token -split '\.')[1].Replace('-', '+').Replace('_', '/')
+   353	    switch ($seg.Length % 4) { 2 { $seg += '==' } 3 { $seg += '=' } }
+   354	    $json = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($seg))
+   355	    return ($json | ConvertFrom-Json)
+   356	  } catch {
+   357	    return [pscustomobject]@{}
+   358	  }
+   359	}
+   360	
+   361	# Trade a one-time enrollment token for this host's session credential. Every
+   362	# failure calls Fatal BEFORE identity.json is written: the installer skips
+   363	# enrollment whenever that file exists, so a file holding a token that never
+   364	# worked would strand the host, and re-running would not fix it.
+   365	function Invoke-EnrollExchange([string]$Hub, [string]$Token) {
+   366	  $url = "$($Hub.TrimEnd('/'))/agent/enroll"
+   367	  try {
+   368	    $r = Invoke-RestMethod -Method Post -Uri $url -Headers @{ Authorization = "Bearer $Token" } -Body '' -TimeoutSec 30
+   369	  } catch {
+   370	    $code = $null; $err = $null
+   371	    try { $code = [int]$_.Exception.Response.StatusCode } catch {}
+   372	    try { $err = ($_.ErrorDetails.Message | ConvertFrom-Json).error } catch {}
+   373	    if ($err -eq 'enrollment_token_already_used') {
+   374	      Fatal 'This enrollment token was already used. Enrollment tokens work once; generate a new one from the dashboard and run the installer again.'
+   375	    }
+   376	    if ($err -eq 'expired') {
+   377	      Fatal 'This enrollment token has expired. Generate a new one from the dashboard and run the installer again.'
+   378	    }
+   379	    if ($err -eq 'host_disabled') {
+   380	      Fatal 'This host id has been disabled on your account, so it cannot be enrolled. Generate a token for a new host from the dashboard.'
+   381	    }
+   382	    if ($code) {
+   383	      Fatal "The hub refused the enrollment token (HTTP $code, $err). Nothing was written."
+   384	    }
+   385	    Fatal "Could not reach $Hub to exchange the enrollment token: $($_.Exception.Message). Nothing was written; check connectivity and re-run."
+   386	  }
+   387	  if (-not $r -or -not $r.ok -or -not $r.credential -or (([string]$r.credential -split '\.').Count -ne 3)) {
+   388	    Fatal 'The hub did not return a host credential. Nothing was written.'
+   389	  }
+   390	  return [string]$r.credential
+   391	}
+   392	
+   393	# A full enrollment token: three dot-separated segments, hundreds long. The
+   394	# length matters: a code typed with dots between its groups also has three.
+   395	function Test-LooksLikeToken([string]$Value) {
+   396	  return ((($Value -split '\.').Count -eq 3) -and ($Value.Length -gt 64))
+   397	}
+   398	
+   399	# Trade a short enrollment code (XXXX-XXXX-XXXX) for this host's credential.
+   400	# The hub normalises it (case, dashes, spaces, I/L/O) and returns the host id it
+   401	# was made for, which is the one recorded. Same rule as the token: every
+   402	# failure calls Fatal BEFORE identity.json is written. Mirrors enroll.py.
+   403	function Invoke-EnrollCodeExchange([string]$Hub, [string]$Code) {
+   404	  $url = "$($Hub.TrimEnd('/'))/agent/enroll"
+   405	  $body = @{ code = $Code } | ConvertTo-Json -Compress
+   406	  try {
+   407	    $r = Invoke-RestMethod -Method Post -Uri $url -ContentType 'application/json' -Body $body -TimeoutSec 30
+   408	  } catch {
+   409	    # Not $code: PowerShell names are case-insensitive, so that would be the
+   410	    # [string] parameter $Code, and the status 0 of an unreachable hub would
+   411	    # become the truthy string '0'.
+   412	    $status = $null; $err = $null; $retry = $null
+   413	    try { $status = [int]$_.Exception.Response.StatusCode } catch {}
+   414	    try { $j = ($_.ErrorDetails.Message | ConvertFrom-Json); $err = $j.error; $retry = $j.retry_after } catch {}
+   415	    if ($err -eq 'invalid_or_expired_code') {
+   416	      Fatal 'That enrollment code is wrong or has expired. Codes work once and expire after a few hours. Check it, or get a new one (dashboard: + Enroll a new host, or ask your assistant) and run the installer again. Nothing was written.'
+   417	    }
+   418	    if ($err -eq 'too_many_attempts') {
+   419	      $min = 10
+   420	      try { $min = [Math]::Max(1, [int][Math]::Ceiling([double]$retry / 60)) } catch {}
+   421	      Fatal "Too many wrong enrollment codes from this network. Wait $min minute(s) and run the installer again. Nothing was written."
+   422	    }
+   423	    if ($err -eq 'enrollment_token_already_used') {
+   424	      Fatal 'This enrollment code was already used. Codes work once; get a new one (dashboard: + Enroll a new host, or ask your assistant) and run the installer again. Nothing was written.'
+   425	    }
+   426	    if ($err -eq 'host_disabled') {
+   427	      Fatal 'The host this code was made for has been disabled on your account, so it cannot be enrolled. Get a new code from the dashboard.'
+   428	    }
+   429	    if ($err -eq 'enroll_unavailable') {
+   430	      Fatal 'The hub could not check the code just now. Nothing was written; wait a minute and run the installer again with the same code.'
+   431	    }
+   432	    if ($status) {
+   433	      Fatal "The hub refused the enrollment code (HTTP $status, $err). Nothing was written."
+   434	    }
+   435	    Fatal "Could not reach $Hub to exchange the enrollment code: $($_.Exception.Message). Nothing was written; check connectivity and re-run."
+   436	  }
+   437	  if (-not $r -or -not $r.ok -or -not $r.credential -or (([string]$r.credential -split '\.').Count -ne 3)) {
+   438	    Fatal 'The hub did not return a host credential. Nothing was written.'
+   439	  }
+   440	  return $r
+   441	}
+   442	
+   443	Step 'Identity & configuration'
+   444	# 3) identity + config
+   445	if (-not (Test-Path $IdentityPath)) {
+   446	  if ($ImportFrom -and (Test-Path (Join-Path $ImportFrom 'identity.json'))) {
+   447	    Info "Importing identity.json from $ImportFrom"
+   448	    Copy-Item (Join-Path $ImportFrom 'identity.json') $IdentityPath -Force
+   449	  } else {
+   450	    $envTok = $env:SENTINELX_ENROLL_TOKEN
+   451	    $envCode = $env:SENTINELX_ENROLL_CODE
+   452	    $enrollCode = $null
+   453	    if ($envTok) {
+   454	      $tok = $envTok.Trim()
+   455	      Info 'Using SENTINELX_ENROLL_TOKEN (non-interactive enrollment).'
+   456	    } elseif ($envCode) {
+   457	      $enrollCode = $envCode.Trim()
+   458	      Info 'Using SENTINELX_ENROLL_CODE (non-interactive enrollment).'
+   459	    } else {
+   460	      Info "Get an enrollment code in your browser: $HubUrl/auth/dashboard/enroll?host_id=$HostId"
+   461	      $tok = ([string](Read-Host 'Paste the enrollment code (or token)')).Trim()
+   462	      if (-not $tok) { Fatal 'Nothing entered. Nothing was written.' }
+   463	      # Anything that is not a full token is taken as a code; the hub says
+   464	      # plainly if it is not one.
+   465	      if (-not (Test-LooksLikeToken $tok)) { $enrollCode = $tok }
+   466	    }
+   467	    if ($enrollCode) {
+   468	      # A code is exchanged BEFORE anything is written, like a one-time token;
+   469	      # the hub returns the host id the code was made for.
+   470	      $r = Invoke-EnrollCodeExchange -Hub $HubUrl -Code $enrollCode
+   471	      $idHost = if ($r.host_id) { [string]$r.host_id } else { $HostId }
+   472	      @{ host_id = $idHost; token = [string]$r.credential; hub = $HubUrl } | ConvertTo-Json |
+   473	        Set-Content -Encoding ascii $IdentityPath
+   474	    } else {
+   475	      # Refuse an obviously broken paste NOW, before anything is written, instead
+   476	      # of letting the agent loop on an opaque rejection later.
+   477	      if (($tok -split '\.').Count -ne 3) {
+   478	        Fatal 'That does not look like an enrollment token (expected 3 dot-separated segments). Nothing was written.'
+   479	      }
+   480	      $idHost = $HostId
+   481	      $claims = Get-TokenClaims $tok
+   482	      # A token whose payload can't be read was damaged when it was copied (cut or
+   483	      # retyped; sxrep_VV880Z9JHFXV lost 20 of ~658 characters). It used to fall
+   484	      # through to the legacy branch and be written as-is, leaving an identity the
+   485	      # hub rejects forever -- and a re-run skips enrollment because the file exists.
+   486	      if (@($claims.PSObject.Properties).Count -eq 0) {
+   487	        Fatal 'This token is damaged: part of it was lost when it was copied, so it cannot be read. Nothing was written. Generate a new one from the dashboard and paste it exactly as shown, without retyping it.'
+   488	      }
+   489	      # A non-interactive token was not minted for the id this run generated; the
+   490	      # hub treats the token's own host_id as authoritative, so use it.
+   491	      if ($envTok -and $claims.host_id) { $idHost = [string]$claims.host_id }
+   492	      # A one-time enrollment token is exchanged BEFORE anything is written.
+   493	      # Legacy tokens (no typ) -- every token issued today -- are written as-is.
+   494	      if ($claims.typ -eq 'enroll') {
+   495	        if ($claims.host_id) { $idHost = [string]$claims.host_id }
+   496	        $tok = Invoke-EnrollExchange -Hub $HubUrl -Token $tok
+   497	      }
+   498	      @{ host_id = $idHost; token = $tok; hub = $HubUrl } | ConvertTo-Json |
+   499	        Set-Content -Encoding ascii $IdentityPath
+   500	    }
+   501	  }
+   502	}
+   503	if (-not (Test-Path $ConfigPath)) {
+   504	  if ($ImportFrom -and (Test-Path (Join-Path $ImportFrom 'config.yaml'))) {
+   505	    Info "Importing config.yaml from $ImportFrom"
+   506	    Copy-Item (Join-Path $ImportFrom 'config.yaml') $ConfigPath -Force
+   507	  } else {
+   508	    Info 'Fetching + tailoring the example config'
+   509	    Invoke-WebRequest -Uri $ExampleUrl -OutFile $ConfigPath
+   510	    # Fill in machine-specific file_ops paths (profile r, workspace rw, config.yaml
+   511	    # rw for self-management) + upload_base, and set the sentinelx service backend
+   512	    # (service vs task), via the venv Python. Without this a fresh config has no
+   513	    # readable/writable paths.
+   514	    $backend = if ($User) { 'task' } else { 'service' }
+   515	    $tailor = @'
+   516	import sys, os, yaml
+   517	cfg_path, install_dir, backend = sys.argv[1], sys.argv[2], sys.argv[3]
+   518	cfg = yaml.safe_load(open(cfg_path, encoding="utf-8").read()) or {}
+   519	home = os.environ.get("USERPROFILE", r"C:\Users\Public")
+   520	ws = os.path.join(install_dir, "workspace")
+   521	os.makedirs(ws, exist_ok=True)
+   522	cfg["file_ops"] = {"paths": [
+   523	    {"path": home, "access": "r"},
+   524	    {"path": ws, "access": "rw"},
+   525	    {"path": os.path.join(install_dir, "config.yaml"), "access": "rw"},
+   526	]}
+   527	cfg["upload_base"] = os.path.join(install_dir, "uploads")
+   528	svc = (cfg.get("services") or {}).get("sentinelx")
+   529	if isinstance(svc, dict):
+   530	    svc["backend"] = backend
+   531	open(cfg_path, "w", encoding="utf-8").write(
+   532	    yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True, width=100))
+   533	print("  tailored: " + home + " (r), " + ws + " (rw), config self-managed, backend=" + backend)
+   534	'@
+   535	    $tailor | & $PyExe - $ConfigPath $InstallDir $backend
+   536	  }
+   537	}
+   538	
+   539	
+   540	# --- Migration: point an imported user-mode config at the new install dir ---
+   541	# Its file_ops paths and upload_base live under the old %LOCALAPPDATA% folder,
+   542	# which is renamed to a backup below; left as-is they would point into it.
+   543	if ($MigrateFrom -and $MigrateFrom.Dir -and $ImportFrom -eq $MigrateFrom.Dir) {
+   544	  $rewrite = @'
+   545	import sys, yaml
+   546	cfg_path, old, new = sys.argv[1], sys.argv[2].rstrip("\\"), sys.argv[3].rstrip("\\")
+   547	cfg = yaml.safe_load(open(cfg_path, encoding="utf-8").read()) or {}
+   548	def fix(v):
+   549	    # The folder itself or something inside it; never a sibling like ...\\SentinelX2.
+   550	    if not isinstance(v, str):
+   551	        return v
+   552	    lv, lo = v.lower(), old.lower()
+   553	    return new + v[len(old):] if lv == lo or lv.startswith(lo + "\\") else v
+   554	n = 0
+   555	for e in ((cfg.get("file_ops") or {}).get("paths") or []):
+   556	    if isinstance(e, dict) and fix(e.get("path")) != e.get("path"):
+   557	        e["path"] = fix(e["path"]); n += 1
+   558	if fix(cfg.get("upload_base")) != cfg.get("upload_base"):
+   559	    cfg["upload_base"] = fix(cfg["upload_base"]); n += 1
+   560	open(cfg_path, "w", encoding="utf-8").write(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True, width=100))
+   561	print("  config paths moved to the new install dir: " + str(n))
+   562	'@
+   563	  $rewrite | & $PyExe - $ConfigPath $MigrateFrom.Dir $InstallDir
+   564	}
+   565	
+   566	# --- Migrate an existing config's service backend to match the real install ---
+   567	# The tailoring above only runs for a FRESH config. On an UPGRADE the config is
+   568	# preserved untouched, so a user-mode host installed before the Scheduled-Task
+   569	# backend existed keeps services.sentinelx.backend = "service". sentinel_restart
+   570	# then routes through the SCM/WinSW path and fails service_restart_unsafe, even
+   571	# though the running install is a Scheduled Task and 0.18.3 has a correct task
+   572	# backend. Reported by a paying operator; reproduced on our own Spanish host.
+   573	#
+   574	# Fix the field in place, every run, for the mode we are actually installing.
+   575	# Idempotent: if it already matches, nothing is written.
+   576	if (Test-Path $ConfigPath) {
+   577	  Info 'Checking service backend matches install mode'
+   578	  $wantBackend = if ($User) { 'task' } else { 'service' }
+   579	  $migrate = @'
+   580	import sys, yaml
+   581	cfg_path, want = sys.argv[1], sys.argv[2]
+   582	try:
+   583	    cfg = yaml.safe_load(open(cfg_path, encoding="utf-8").read()) or {}
+   584	except Exception as e:
+   585	    print("  backend check skipped (config unreadable): " + str(e)); sys.exit(0)
+   586	svc = (cfg.get("services") or {}).get("sentinelx")
+   587	if not isinstance(svc, dict):
+   588	    print("  no services.sentinelx block; nothing to migrate"); sys.exit(0)
+   589	cur = svc.get("backend")
+   590	if cur == want:
+   591	    print("  backend already '" + want + "'; no change"); sys.exit(0)
+   592	svc["backend"] = want
+   593	# Keep the human-readable description honest too, if it named the old mechanism.
+   594	desc = svc.get("description") or ""
+   595	if want == "task" and "WinSW" in desc:
+   596	    svc["description"] = "The SentinelX agent itself (Scheduled Task)."
+   597	elif want == "service" and "Scheduled Task" in desc:
+   598	    svc["description"] = "The SentinelX agent itself (WinSW service)."
+   599	open(cfg_path, "w", encoding="utf-8").write(
+   600	    yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True, width=100))
+   601	print("  migrated service backend: '" + str(cur) + "' -> '" + want + "'")
+   602	'@
+   603	  $migrate | & $PyExe - $ConfigPath $wantBackend
+   604	}
+   605	
+   606	Step 'Registering startup & launching the agent'
+   607	# 4) startup mechanism
+   608	if ($User) {
+   609	  # ---- USER mode: per-user Scheduled Task (no admin, no WinSW) ------------
+   610	  Info "Registering per-user Scheduled Task '$SvcId' (runs at your logon, restarts on failure)"
+   611	  $me      = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+   612	  $taskArg = "-m sentinelx_core --hub $HubUrl --identity `"$IdentityPath`" --config `"$ConfigPath`" --log-file `"$AgentLog`""
+   613	  $action    = New-ScheduledTaskAction -Execute $PywExe -Argument $taskArg -WorkingDirectory $InstallDir
+   614	  $trigger   = New-ScheduledTaskTrigger -AtLogOn -User $me
+   615	  $principal = New-ScheduledTaskPrincipal -UserId $me -LogonType Interactive -RunLevel Limited
+   616	  $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+   617	                 -RestartCount 720 -RestartInterval (New-TimeSpan -Minutes 1) `
+   618	                 -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
+   619	  Register-ScheduledTask -TaskName $SvcId -Action $action -Trigger $trigger `
+   620	                         -Principal $principal -Settings $settings -Force | Out-Null
+   621	  # End any instance left over from a previous install BEFORE starting. With
+   622	  # -MultipleInstances IgnoreNew, Start-ScheduledTask is a no-op while an old
+   623	  # instance is running, which would leave the pre-update agent (old code)
+   624	  # alive. Stopping first guarantees the freshly-installed code is what runs.
+   625	  Stop-ScheduledTask -TaskName $SvcId -ErrorAction SilentlyContinue
+   626	  Start-Sleep -Milliseconds 500
+   627	  Start-ScheduledTask -TaskName $SvcId
+   628	  Start-Sleep -Seconds 4
+   629	  $state = (Get-ScheduledTask -TaskName $SvcId -ErrorAction SilentlyContinue).State
+   630	  if ($state -eq 'Running') {
+   631	    Ok "Task '$SvcId' is running as you (starts at logon). Logs: $AgentLog"
+   632	    Show-Connect
+   633	    Info "Manage: schtasks /Run /TN $SvcId  |  schtasks /End /TN $SvcId  |  Get-ScheduledTask $SvcId"
+   634	  } else {
+   635	    Warn "Task registered but state is '$state'. Check $AgentLog. If your org blocks Task Scheduler by policy, that is the likely cause."
+   636	  }
+   637	} else {
+   638	  # ---- SERVICE mode: WinSW (LocalSystem, boot) ---------------------------
+   639	  if ($MigrateFrom) {
+   640	    # Only now, with everything else in place: a failure earlier leaves the
+   641	    # user-mode agent running, never a machine with no agent.
+   642	    Info "Stopping and removing the user-mode Scheduled Task '$SvcId'"
+   643	    Stop-ScheduledTask -TaskName $SvcId -ErrorAction SilentlyContinue
+   644	    Unregister-ScheduledTask -TaskName $SvcId -Confirm:$false -ErrorAction SilentlyContinue
+   645	    if ($MigrateFrom.Dir) {
+   646	      Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine -like "*$($MigrateFrom.Dir)*" } |
+   647	        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+   648	      Start-Sleep -Seconds 2
+   649	      $bak = "$($MigrateFrom.Dir).migrated-$(Get-Date -Format yyyyMMdd-HHmmss)"
+   650	      try { Move-Item -LiteralPath $MigrateFrom.Dir -Destination $bak; Info "Old user-mode folder kept as $bak" }
+   651	      catch { Warn "Could not rename $($MigrateFrom.Dir) ($($_.Exception.Message)); its agent is stopped and its task removed, so it will not start again." }
+   652	    }
+   653	  }
+   654	  if (-not (Test-Path $WinswExe)) {
+   655	    $url = Resolve-WinswUrl
+   656	    Info "Downloading WinSW: $url"
+   657	    Invoke-WebRequest -Uri $url -OutFile $WinswExe
+   658	  }
+   659	  Info 'Writing service definition'
+   660	  Get-ServiceXml | Set-Content -Encoding utf8 $WinswXml
+   661	
+   662	  $status = ''
+   663	  try { $status = (& $WinswExe status 2>$null | Out-String).Trim() } catch {}
+   664	  if ($status -and $status -notmatch 'NonExistent') {
+   665	    Info "Service already present (status: $status) - refreshing + restarting."
+   666	    & $WinswExe restart
+   667	  } else {
+   668	    Info 'Installing + starting the SentinelX service (LocalSystem, auto-start at boot)'
+   669	    & $WinswExe install
+   670	    & $WinswExe start
+   671	  }
+   672	  Start-Sleep -Seconds 4
+   673	  $final = ''
+   674	  try { $final = (& $WinswExe status 2>$null | Out-String).Trim() } catch {}
+   675	  if ($final -match 'Started|Running') {
+   676	    Ok "Service '$SvcId' is running (starts at boot). Logs: $LogDir"
+   677	    Show-Connect
+   678	    Info "Manage: Restart-Service $SvcId  |  Get-Service $SvcId  |  `"$WinswExe`" status"
+   679	  } else {
+   680	    Warn "Service installed but not confirmed running (status: '$final'). Check $LogDir\sentinelx-service.*.log."
+   681	  }
+   682	}

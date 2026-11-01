@@ -6,8 +6,10 @@ import json
 import os
 from pathlib import Path
 import shutil
+import re
 import subprocess
 import sys
+import tempfile
 import time
 
 from . import isolation, snapshot
@@ -39,7 +41,7 @@ def sandbox_command(config, workspace, home, command, port=0, readonly=False):
     return base + ['/usr/bin/python3', '/bench-network.py', str(port), *command]
 
 
-async def evaluate(config, submitted, frozen_oracle, output, execution=None):
+async def evaluate(config, submitted, frozen_oracle, output, execution=None, response=None):
     work = output / 'work'
     output.mkdir(parents=True)
     snapshot.copy_tree(submitted, work)
@@ -49,17 +51,20 @@ async def evaluate(config, submitted, frozen_oracle, output, execution=None):
         dest = context / ('transcript.jsonl' if name == 'stdout.jsonl' else name)
         original = execution / name if execution else None
         dest.write_bytes(original.read_bytes() if original and original.exists() else b'')
+    if response is not None:
+        (context / 'response.txt').write_bytes(Path(response).read_bytes())
     home = output / 'home'; home.mkdir()
     tmp = output / 'tmp'; tmp.mkdir()
-    cmd = argv(config['oracle']['command'], config, '/work' if config['_provider'] else work)
-    env = environment('/home/bench' if config['_provider'] else home, '/tmp' if config['_provider'] else tmp)
-    if config['_provider']:
+    boxed = config['_provider'] and not config['_unboxed']
+    cmd = argv(config['oracle']['command'], config, '/work' if boxed else work)
+    env = environment('/home/bench' if boxed else home, '/tmp' if boxed else tmp)
+    if boxed:
         cmd = sandbox_command(config, work, home, cmd, readonly=True)
     result = await run_process(cmd, work, env, output / 'execution', timeout=config['oracle'].get('timeout_seconds', 60), grace=config['grace_seconds'])
     return {'passed': result['returncode'] == 0 and result['completion'] == 'exited', 'process': result}
 
 
-def provider_command(arm, home, env):
+def provider_command(arm, home, env, codex_home='/home/bench/.codex'):
     runtime = arm['runtime']
     binary = shutil.which(runtime)
     if not binary:
@@ -68,7 +73,7 @@ def provider_command(arm, home, env):
         source = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex'))) / 'auth.json'
         target = home / '.codex'; target.mkdir()
         shutil.copyfile(source, target / 'auth.json')
-        env['CODEX_HOME'] = '/home/bench/.codex'
+        env['CODEX_HOME'] = codex_home
         cmd = [binary, '-m', arm['model'], '-s', 'danger-full-access', '-a', 'never', 'exec', '--ephemeral', '--ignore-rules', '--ignore-user-config', '--skip-git-repo-check', '--json', '-c', 'web_search="disabled"']
         if arm.get('effort'):
             cmd += ['-c', f'model_reasoning_effort="{arm["effort"]}"']
@@ -87,12 +92,41 @@ def provider_command(arm, home, env):
     return cmd
 
 
+SAFE_ABSOLUTE = ('/usr/', '/bin/', '/sbin/', '/lib/', '/lib64/', '/dev/null', '/dev/stdin', '/dev/stdout', '/dev/stderr')
+OUTSIDE_WORDS = ('..', '~', '$HOME', '${HOME}', '.orchestra', '.env', '.ssh', 'orchestra.db')
+
+
+def audit_transcript(path, work):
+    """Unsandboxed mode: every shell command must stay inside the working copy."""
+    violations, commands = [], 0
+    for line in Path(path).read_text(errors='replace').splitlines():
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        item = row.get('item') if isinstance(row, dict) else None
+        if not isinstance(item, dict) or item.get('type') != 'command_execution' or row.get('type') != 'item.completed':
+            continue
+        command = item.get('command') or ''
+        commands += 1
+        bad = [t for t in OUTSIDE_WORDS if t in command]
+        for found in re.findall(r'(?<![\w.:-])/[\w./+@%-]+', command):
+            if found.startswith(str(work)) or found.startswith(SAFE_ABSOLUTE) or found == '/' or not os.path.exists('/' + found.split('/')[1]):
+                continue
+            bad.append(found)
+        if bad:
+            violations.append({'command': command[:500], 'outside': sorted(set(bad))})
+    return {'commands': commands, 'violations': violations}
+
+
 async def trial(config, arm, seed, frozen_oracle, root, start, ready):
     output = root / 'arms' / arm['name']
     output.mkdir(parents=True)
-    work = output / 'work'
-    home = output / 'home'; home.mkdir(mode=0o700)
-    tmp = output / 'tmp'; tmp.mkdir()
+    unboxed = config['_unboxed']
+    scratch = Path(tempfile.mkdtemp(prefix='local-bench-')) if unboxed else None
+    work = scratch / 'work' if unboxed else output / 'work'
+    home = scratch / 'home' if unboxed else output / 'home'; home.mkdir(mode=0o700)
+    tmp = scratch / 'tmp' if unboxed else output / 'tmp'; tmp.mkdir()
     relay = None
     prepared = False
     result = {'name': arm['name'], 'runtime': arm['runtime'], 'model': arm.get('model'), 'oracle_pass': False}
@@ -103,8 +137,16 @@ async def trial(config, arm, seed, frozen_oracle, root, start, ready):
             subprocess.run(command, cwd=work, env=git_env, check=True, capture_output=True)
         before = snapshot.inventory(work)
         result['input_sha256'] = hashlib.sha256(json.dumps(before, sort_keys=True).encode()).hexdigest()
-        env = environment('/home/bench' if config['_provider'] else home, '/tmp' if config['_provider'] else tmp)
-        if config['_provider']:
+        env = environment('/home/bench' if config['_provider'] and not unboxed else home, '/tmp' if config['_provider'] and not unboxed else tmp)
+        if unboxed:
+            env['PATH'] = '/usr/local/bin:/usr/bin:/bin'
+            cmd = provider_command(arm, home, env, str(home / '.codex'))
+            version = subprocess.run([cmd[0], '--version'], cwd=work, env=env, capture_output=True, text=True, timeout=15)
+            if version.returncode:
+                raise RuntimeError(f'CLI version preflight failed: {version.stderr.strip()}')
+            result['runtime_version'] = version.stdout.strip()
+            result['unsandboxed_workdir'] = str(work)
+        elif config['_provider']:
             relay = await isolation.Relay().start()
             env.update({k: f'http://127.0.0.1:{relay.port}' for k in ('HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy')})
             env['NO_PROXY'] = ''
@@ -125,10 +167,13 @@ async def trial(config, arm, seed, frozen_oracle, root, start, ready):
         after = snapshot.inventory(work)
         changed, unexpected = snapshot.changes(before, after, config.get('writable_paths', ['*']))
         result.update({'changed_paths': changed, 'out_of_scope': unexpected, 'submitted_sha256': after})
+        if unboxed:
+            result['audit'] = audit_transcript(output / 'execution/stdout.jsonl', work)
+            result['valid'] = not result['audit']['violations']
         (output / 'patch.diff').write_text(snapshot.diff(seed, work, changed))
         oracle = await evaluate(config, work, frozen_oracle, output / 'oracle', output / 'execution')
         result['oracle'] = oracle
-        result['oracle_pass'] = oracle['passed'] and not unexpected
+        result['oracle_pass'] = oracle['passed'] and not unexpected and result.get('valid', True)
     except asyncio.CancelledError:
         result['error'] = 'cancelled; execution receipt retained'
         receipt = output / 'execution/process.json'
@@ -147,6 +192,8 @@ async def trial(config, arm, seed, frozen_oracle, root, start, ready):
         credential = home / '.codex' / 'auth.json'
         if credential.exists():
             credential.unlink()
+        if scratch:
+            shutil.rmtree(scratch, ignore_errors=True)
         write_json(output / 'result.json', result)
     return result
 
@@ -211,8 +258,9 @@ async def run(config, output, allow_provider=False):
     if config['_provider']:
         if not allow_provider:
             raise ValueError('provider launch requires explicit --allow-provider; no CLI was started')
-        validate_runtime_mounts(config, output)
-        config['_isolation'] = isolation.preflight(config.get('runtime_paths', []))
+        if not config['_unboxed']:
+            validate_runtime_mounts(config, output)
+            config['_isolation'] = isolation.preflight(config.get('runtime_paths', []))
     output = Path(output).resolve()
     if 'directory' in config['source']:
         source_root = Path(config['source']['directory'])
@@ -236,6 +284,16 @@ async def run(config, output, allow_provider=False):
         if control_results['baseline']['passed']:
             write_json(output / 'controls.json', control_results)
             raise ValueError('baseline unexpectedly passes the oracle; arms not launched')
+    if controls.get('reference_response'):
+        control_results['reference_response'] = await evaluate(config, seed, frozen_oracle, output / 'reference-response-control', response=controls['reference_response'])
+        if not control_results['reference_response']['passed']:
+            write_json(output / 'controls.json', control_results)
+            raise ValueError('reference response fails the oracle; arms not launched')
+    for label, response in controls.get('negative_responses', {}).items():
+        control_results[f'negative:{label}'] = await evaluate(config, seed, frozen_oracle, output / f'negative-control-{label}', response=response)
+        if control_results[f'negative:{label}']['passed']:
+            write_json(output / 'controls.json', control_results)
+            raise ValueError(f'negative response {label!r} unexpectedly passes the oracle; arms not launched')
     if controls.get('reference_files'):
         reference = output / 'reference'
         snapshot.copy_tree(seed, reference)

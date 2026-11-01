@@ -150,48 +150,6 @@ def _providers_snapshot(*, codex_reset: float, spark_reset: float, claude_reset:
     }
 
 
-def _expected_release_status(
-    utilization: float,
-    progress: float,
-    resets_at: str,
-    lane: str = "sol",
-) -> tuple[str, float | None]:
-    """Момент открытия полосы по спеке — считается здесь, а не берётся у гейта.
-
-    Константы продублированы намеренно (см. заголовок файла): тест обязан краснеть,
-    когда правило поменяют. У кривой полосы обратной функции в замкнутом виде нет,
-    поэтому корень ищется делением пополам — ровно как в `line_release_progress`.
-    """
-    hard_stop = 99.0
-    start = 10.0
-    end = 1.0
-    exponent = 2.5
-    curved_lanes = ("sol",)
-
-    def limit_at(point: float) -> float:
-        norm = point
-        if lane in curved_lanes and point > 0.0:
-            norm = point ** (1.0 / exponent)
-        tolerance = start + (end - start) * point
-        return min(hard_stop, norm * 100.0 + tolerance)
-
-    if utilization >= hard_stop:
-        return "at_reset", (datetime.fromisoformat(resets_at).timestamp() - NOW)
-
-    if utilization <= limit_at(progress):
-        return "open", None
-    if utilization > limit_at(1.0):
-        return "at_reset", datetime.fromisoformat(resets_at).timestamp() - NOW
-    low, high = progress, 1.0
-    for _ in range(60):
-        middle = (low + high) / 2.0
-        if limit_at(middle) < utilization:
-            low = middle
-        else:
-            high = middle
-    return "opens_in", (high - progress) * 300 * 60.0
-
-
 @pytest.mark.asyncio
 async def test_rule_constants_travel_with_the_payload(mapped):
     """Панель не хардкодит числа правила — иначе она разойдётся с гейтом молча."""
@@ -201,20 +159,20 @@ async def test_rule_constants_travel_with_the_payload(mapped):
 
     assert payload["rule"] == {
         "hard_stop_pct": 99.0,
-        # Потолок Sol ниже общего: без этого поля панель нарисует ему чужие 99%.
-        "lane_hard_stop_pct": {"sol": 95.0},
+        "lane_hard_stop_pct": {},
         "tolerance_start_pp": 10.0,
         "tolerance_end_pp": 1.0,
         "claude_weekly_shift_hours": 8.0,
         "claude_day_start_hour": 8.0,
         "claude_night_quota_share": 0.057,
+        "codex_claude_pacing": True,
         # Кривизна — такая же часть правила, как допуск: панель рисует порог сама и
         # без этих двух полей нарисует ПРЯМУЮ там, где гейт блокирует по параболе.
         "curve_exponent": 2.5,
-        "curved_lanes": ["sol"],
+        "curved_lanes": [],
         # Состав гейтящихся полос: по нему панель отличает работающее правило от
         # снятого со всех полос — без него оба состояния выглядят одинаково.
-        "gated_lanes": ["claude", "sol"],
+        "gated_lanes": ["claude", "luna", "sol", "spark"],
         # Остаток временного снятия (#V-578): 0 — снятия нет.
         "override_seconds_left": 0.0,
         "override_until": None,
@@ -354,8 +312,9 @@ async def test_rule_constants_reflect_environment_overrides(mapped, configured_q
         "claude_weekly_shift_hours": 8.0,
         "claude_day_start_hour": 8.0,
         "claude_night_quota_share": 0.057,
+        "codex_claude_pacing": True,
         "curve_exponent": 2.5,
-        "curved_lanes": ["sol"],
+        "curved_lanes": [],
         # Гейт снят оператором — панель обязана узнать об этом из правила, а не
         # догадываться по тому, что ни одна полоса сейчас не блокируется.
         "gated_lanes": [],
@@ -585,36 +544,31 @@ async def test_trace_is_downsampled(mapped):
 
 
 @pytest.mark.asyncio
-async def test_release_fields_arrive_for_each_gating_status(mapped):
-    progress = 0.5
-    resets_at = _iso(NOW + 300 * 60 * (1.0 - progress))
-
-    payload_open = await mapped(_observation(
-        codex=[_window(300, 55.5, window_id="primary", label="5h", progress=progress)],
-    ))
-    lane_open = _lane(_pool(payload_open, "codex"), "sol")
-    assert lane_open["release_status"] == "open"
-    assert lane_open["release_in_seconds"] is None
-
-    # 60% при кривой полосе уже ОТКРЫТО (порог Sol в середине окна 81.3%), поэтому
-    # прежнее число перестало проверять статус `opens_in` вовсе. 90% лежит между
-    # порогом середины окна и жёстким стопом — то есть проверяет именно его.
-    payload_opens_in = await mapped(_observation(
-        codex=[_window(300, 90.0, window_id="primary", label="5h", progress=progress)],
-    ))
-    lane_opens_in = _lane(_pool(payload_opens_in, "codex"), "sol")
-    expected_status, expected_seconds = _expected_release_status(90.0, progress, resets_at)
-    assert expected_status == "opens_in", "фикстура обязана проверять именно статус opens_in"
-    assert lane_opens_in["release_status"] == expected_status
-    assert lane_opens_in["release_in_seconds"] == pytest.approx(expected_seconds)
-
-    payload_at_reset = await mapped(_observation(
-        codex=[_window(300, 99.0, window_id="primary", label="5h", progress=progress)],
-    ))
-    lane_at_reset = _lane(_pool(payload_at_reset, "codex"), "sol")
-    expected_status, expected_seconds = _expected_release_status(99.0, progress, resets_at)
-    assert lane_at_reset["release_status"] == expected_status
-    assert lane_at_reset["release_in_seconds"] == pytest.approx(expected_seconds)
+async def test_release_fields_arrive_for_each_gating_status(mapped, monkeypatch):
+    # 14:00 Krasnoyarsk start; at hour 96 exactly 4 days have elapsed:
+    # line = 10 + 89 * .943 * 4/7 + 89 * .057 * 4/7 + 91 * 8/168.
+    start = datetime(2026, 10, 20, 7, tzinfo=timezone.utc).timestamp()
+    monkeypatch.setattr(sys.modules[__name__], "NOW", start + 84 * 3600)
+    # This window already ran under day/night pacing. Do not seed a policy change
+    # halfway through it: that would correctly retain the older linear envelope.
+    db.append_quota_policy_history(
+        quota_gate.quota_policy_snapshot(quota_gate.quota_policy()), start - 1, source="test",
+    )
+    utilization_at_hour_96 = 10 + 89 * 4/7 + 91 * 8/168
+    for used, status, seconds in [
+        (30, "open", None),
+        (utilization_at_hour_96, "opens_in", 12 * 3600),
+        (99, "at_reset", 84 * 3600),
+    ]:
+        payload = await mapped(_observation(codex=[
+            _window(10080, used, window_id="primary", label="7d", progress=.5),
+        ]))
+        lane = _lane(_pool(payload, "codex"), "sol")
+        assert lane["release_status"] == status
+        if seconds is None:
+            assert lane["release_in_seconds"] is None
+        else:
+            assert lane["release_in_seconds"] == pytest.approx(seconds)
 
 
 @pytest.mark.asyncio
@@ -638,16 +592,18 @@ async def test_line_point_is_computed_server_side_for_every_pool(mapped):
     assert codex["window"]["progress"] == pytest.approx(0.25)
     assert codex["tolerance_pp"] == pytest.approx(7.75)
     assert "limit_pct" not in codex
-    assert _lane(codex, "sol")["limit_pct"] == pytest.approx(line_limit(0.25, "sol"))
+    assert _lane(codex, "sol")["limit_pct"] == pytest.approx(line_limit(
+        0.25, "sol", window_minutes=300, window_start_at=NOW - .25 * 300 * 60,
+    ))
 
 
 @pytest.mark.asyncio
-async def test_gated_and_free_lanes_split_on_the_same_number(mapped):
-    """90% в 10% окна: Sol и Claude стоят, Luna и Spark работают."""
+async def test_all_local_lanes_are_paced_on_the_same_weekly_number(mapped):
+    """90% в 10% недельного окна: все местные полосы ждут."""
     payload = await mapped(_observation(
         anthropic=[_window(10080, 90, window_id="seven_day", label="7d", progress=0.1)],
-        codex=[_window(300, 90, window_id="primary", label="5h", progress=0.1)],
-        codex_spark=[_window(300, 90, window_id="primary", label="5h", progress=0.1)],
+        codex=[_window(10080, 90, window_id="primary", label="7d", progress=0.1)],
+        codex_spark=[_window(10080, 90, window_id="primary", label="7d", progress=0.1)],
     ))
 
     claude = _pool(payload, "anthropic")
@@ -657,13 +613,13 @@ async def test_gated_and_free_lanes_split_on_the_same_number(mapped):
 
     codex = _pool(payload, "codex")
     assert _lane(codex, "sol")["blocked"] is True
-    assert _lane(codex, "luna")["gated"] is False
-    assert _lane(codex, "luna")["blocked"] is False
-    assert _model(codex, "gpt-6-luna")["state"] == "available"
+    assert _lane(codex, "luna")["gated"] is True
+    assert _lane(codex, "luna")["blocked"] is True
+    assert _model(codex, "gpt-6-luna")["state"] == "blocked"
 
     spark = _pool(payload, "codex_spark")
-    assert _lane(spark, "spark")["gated"] is False
-    assert _model(spark, "gpt-5.3-codex-spark")["state"] == "available"
+    assert _lane(spark, "spark")["gated"] is True
+    assert _model(spark, "gpt-5.3-codex-spark")["state"] == "blocked"
 
 
 @pytest.mark.asyncio
@@ -802,7 +758,7 @@ async def test_panel_sees_the_manual_override_and_its_expiry(mapped):
             codex=[_window(300, 98.0, window_id="primary", label="5h", progress=0.3)],
         ))
         assert payload["rule"]["override_seconds_left"] > 0
-        assert payload["rule"]["gated_lanes"] == ["claude", "sol"]
+        assert payload["rule"]["gated_lanes"] == ["claude", "luna", "sol", "spark"]
         codex = _pool(payload, "codex")
         assert all(not lane["gated"] for lane in codex["lanes"])
     finally:

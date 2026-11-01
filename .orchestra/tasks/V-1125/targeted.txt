@@ -1,0 +1,28 @@
+[EDITED FOR PUBLICATION: private absolute paths and deployment identities generalized; original stdout SHA-256=b9d5d01e02b1b32f9fe7196b6af1c8103f2640af4e55758b11bf33e5577fcd4d. This is a sanitized version, not byte-for-byte original stdout. Test verdicts and timings unchanged.]
+
+........................................................................ [ 33%]
+.........................................................F.............. [ 67%]
+......................................................................   [100%]
+=================================== FAILURES ===================================
+__________ test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools __________
+
+repo = PosixPath('.orchestra/tasks/V-1125/tmp/pytest-of-test-user/pytest-3/test_hub_model_gets_a_trimmed_0/wt')
+tmp_path = PosixPath('.orchestra/tasks/V-1125/tmp/pytest-of-test-user/pytest-3/test_hub_model_gets_a_trimmed_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71a38e072900>
+
+    @pytest.mark.asyncio
+    async def test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
+        await _turn(backend, "implement the thing")
+        prompt = _first_prompt(mc)
+>       assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
+E       AssertionError: assert ('worker wrk' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...holds everything you need, and any other line in the file is dropped.\n</orchestra-link>\n\nTask:\nimplement the thing')
+
+tests/test_hub_workspace.py:1649: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+=========================== short test summary info ============================
+FAILED tests/test_hub_workspace.py::test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+1 failed, 213 passed in 147.31s (0:02:27)

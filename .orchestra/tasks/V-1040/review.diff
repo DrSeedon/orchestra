@@ -1,0 +1,688 @@
+--- a/app/multicode_client.py
++++ b/app/multicode_client.py
+@@ -18,6 +18,10 @@
+ class MultiCodeError(RuntimeError):
+     """A safe-to-display MultiCode transport or protocol error."""
+ 
++    def __init__(self, message: str, *, retryable: bool = False):
++        super().__init__(message)
++        # Retry only read operations: a failed send may already have reached the hub.
++        self.retryable = retryable
+ 
+ 
+ class MultiCodeClient:
+@@ -59,7 +63,8 @@
+             await self._client.aclose()
+             self._client = None
+ 
+-    async def _post(self, message: dict[str, Any]) -> tuple[dict[str, Any] | None, httpx.Headers]:
++    async def _post(self, message: dict[str, Any], *,
++                    _retry_session: bool = True) -> tuple[dict[str, Any] | None, httpx.Headers]:
+         if self._client is None:
+             raise MultiCodeError("MultiCode client must be used as an async context manager")
+         headers = {
+@@ -72,9 +77,29 @@
+         try:
+             response = await self._client.post(self.base_url, headers=headers, json=message)
+         except httpx.HTTPError as exc:
+-            raise MultiCodeError(f"MultiCode MCP request failed: {type(exc).__name__}") from None
++            raise MultiCodeError(
++                f"MultiCode MCP request failed: {type(exc).__name__}",
++                retryable=isinstance(exc, (httpx.RemoteProtocolError, httpx.ReadError,
++                                           httpx.ConnectError, httpx.TimeoutException)),
++            ) from None
+         if response.status_code >= 400:
+-            raise MultiCodeError(f"MultiCode MCP returned HTTP {response.status_code}")
++            body = response.text
++            session_expired = "Mcp-Session-Id" in headers and (
++                response.status_code == 404 or (
++                    response.status_code == 400 and
++                    any(marker in body.lower() for marker in ("session", "not initialized"))))
++            if session_expired:
++                self._session_id = None
++                self._initialized = False
++                if _retry_session:
++                    await self.initialize()
++                    return await self._post(message, _retry_session=False)
++            # Redact before truncating: slicing a token first could expose its prefix.
++            detail = self._redact(body)[:300]
++            raise MultiCodeError(
++                f"MultiCode MCP returned HTTP {response.status_code}: {detail}",
++                retryable=session_expired or 500 <= response.status_code < 600,
++            )
+         self._session_id = response.headers.get("Mcp-Session-Id", self._session_id)
+         if not response.content:
+             return None, response.headers
+@@ -108,10 +133,11 @@
+             "jsonrpc": "2.0", "id": request_id, "method": "initialize",
+             "params": {"protocolVersion": PROTOCOL_VERSION, "capabilities": {},
+                        "clientInfo": CLIENT_INFO},
+-        })
++        }, _retry_session=False)
+         if not result or result.get("id") != request_id or not isinstance(result.get("result"), dict):
+             raise MultiCodeError("MultiCode MCP initialize handshake failed")
+-        await self._post({"jsonrpc": "2.0", "method": "notifications/initialized"})
++        await self._post({"jsonrpc": "2.0", "method": "notifications/initialized"},
++                         _retry_session=False)
+         self._initialized = True
+ 
+     async def tool_call(self, name: str, arguments: dict[str, Any]) -> Any:
+--- a/app/backend_hub.py
++++ b/app/backend_hub.py
+@@ -157,6 +157,8 @@
+ 
+ def _workspace_lost(exc: Exception) -> bool:
+     """The hub says the project it was asked to start in does not exist (any more)."""
++    if isinstance(exc, MultiCodeError) and exc.retryable:
++        return False
+     text = str(exc).lower()
+     return "orchestration_error" in text or "not_found" in text or "not found" in text
+ 
+@@ -281,6 +283,8 @@
+                     "threadId": state.thread_id, "message": message, "mode": "steer"})
+                 return
+             except MultiCodeError as exc:
++                if exc.retryable:
++                    raise  # Delivery may have succeeded; do not queue the same steer again.
+                 logger.warning("hub steer failed, queuing instead: %s", exc)
+         self._early_steer.append(message)
+ 
+@@ -546,11 +550,17 @@
+                         "threadId": state.thread_id, "modelSelection": selection})
+                 sent = await mc.tool_call("t3_thread_send", {
+                     "threadId": state.thread_id, "message": prompt, "mode": "auto"})
+-                return sent["runId"]
+-            except (MultiCodeError, KeyError, TypeError) as exc:
++            except MultiCodeError as exc:
++                # Delivery is uncertain on transport errors. Launching again can duplicate work.
++                if exc.retryable:
++                    raise
+                 logger.warning("hub thread %s unusable (%s); starting a new one", state.thread_id, exc)
+                 state.thread_id = ""
+                 prompt = self._preamble() + prompt
++            else:
++                if not isinstance(sent, dict) or not sent.get("runId"):
++                    raise MultiCodeError("MultiCode send returned no runId")
++                return sent["runId"]
+         launched = await mc.tool_call("t3_thread_launch", {
+             "title": f"{state.ws_id}", "projectId": state.project_id, "message": prompt,
+             "runtimeMode": "full-access",
+@@ -571,7 +581,7 @@
+         limit = float(os.environ.get("MULTICODE_HUB_TURN_TIMEOUT_S", "14400"))
+         deadline = time.monotonic() + limit
+         while True:
+-            waited = await mc.tool_call("t3_thread_wait", {
++            waited = await self._watch_call(mc, "t3_thread_wait", {
+                 "threadId": thread_id, "runId": run_id, "timeoutMs": WAIT_SLICE_MS})
+             status = waited.get("status", "") if isinstance(waited, dict) else ""
+             status_limit = _provider_limit(status)
+@@ -590,6 +600,26 @@
+                     await mc.tool_call("t3_thread_interrupt", {"threadId": thread_id})
+                 raise MultiCodeError("hub thread exceeded the turn time limit")
+ 
++    async def _watch_call(self, mc: MultiCodeClient, name: str, arguments: dict):
++        """Bounded recovery for read calls only; never replay a send or launch here."""
++        last_error = None
++        try:
++            async with asyncio.timeout(60):
++                for attempt in range(5):
++                    try:
++                        return await mc.tool_call(name, arguments)
++                    except MultiCodeError as exc:
++                        if not exc.retryable or attempt == 4 or self._abort:
++                            raise
++                        last_error = exc
++                        delay = 2 ** attempt
++                        logger.warning("hub %s failed; retrying in %ss: %s", name, delay, exc)
++                        await asyncio.sleep(delay)
++        except TimeoutError:
++            if last_error is not None:
++                raise last_error from None
++            raise MultiCodeError("hub watch request exceeded 60 seconds", retryable=True) from None
++
+     async def _poll(self, mc: MultiCodeClient, thread_id: str, stream: HubActivityStream) -> list[AgentEvent]:
+         """New timeline items since the cursor. A failed poll only loses live detail, never the turn."""
+         events: list[AgentEvent] = []
+@@ -598,7 +628,7 @@
+                 args = {"threadId": thread_id, "view": "activity", "limit": 100, "maxCharsPerItem": 6000}
+                 if stream.cursor is not None:
+                     args["afterPosition"] = stream.cursor
+-                page = await mc.tool_call("t3_thread_read", args)
++                page = await self._watch_call(mc, "t3_thread_read", args)
+                 items = page.get("items", []) if isinstance(page, dict) else []
+                 events.extend(stream.feed(items))
+                 if not (isinstance(page, dict) and page.get("hasMore")) or not items:
+@@ -608,7 +638,7 @@
+         return events
+ 
+     async def _read_reply(self, mc: MultiCodeClient, thread_id: str, run_id: str) -> str:
+-        read = await mc.tool_call("t3_thread_read", {
++        read = await self._watch_call(mc, "t3_thread_read", {
+             "threadId": thread_id, "view": "messages", "limit": 100})
+         if isinstance(read, dict):
+             for run in read.get("runs") or []:
+--- a/tests/test_multicode_client.py
++++ b/tests/test_multicode_client.py
+@@ -180,3 +180,145 @@
+         ]},
+     ]}) == "latest answer"
+ 
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("status,detail", [
++    (400, "Unknown Mcp-Session-Id"),
++    (400, "SESSION expired"),
++    (400, "Not initialized"),
++    (404, "gone"),
++])
++async def test_long_lived_client_recovers_expired_session_once(status, detail):
++    calls = []
++    handshakes = 0
++    tools = 0
++
++    async def handler(request):
++        nonlocal handshakes, tools
++        body = json.loads(request.content)
++        session = request.headers.get("Mcp-Session-Id")
++        calls.append((body, session))
++        if body["method"] == "initialize":
++            assert session is None
++            handshakes += 1
++            return httpx.Response(200, json={"id": body["id"], "result": {}},
++                                  headers={"Mcp-Session-Id": f"session-{handshakes}"})
++        if body["method"] == "notifications/initialized":
++            assert session == f"session-{handshakes}"
++            return httpx.Response(202)
++        tools += 1
++        if tools == 2:  # The server forgot the session between two turns of this client.
++            assert session == "session-1"
++            return httpx.Response(status, text=detail)
++        return httpx.Response(200, json={"id": body["id"], "result": {
++            "structuredContent": {"ok": True}}})
++
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        client = MultiCodeClient("http://mock", "test-token", client=transport)
++        assert await client.tool_call("t3_thread_read", {"threadId": "first"}) == {"ok": True}
++        assert await client.tool_call("t3_thread_read", {"threadId": "next"}) == {"ok": True}
++        assert client._session_id == "session-2"
++        assert client._initialized
++    assert [body["method"] for body, _ in calls] == [
++        "initialize", "notifications/initialized", "tools/call", "tools/call",
++        "initialize", "notifications/initialized", "tools/call"]
++    assert calls[3][0] == calls[6][0]  # Same request, including its JSON-RPC id.
++    assert calls[6][1] == "session-2"
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("has_session", [False, True])
++async def test_plain_http_400_has_redacted_bounded_body_without_retry(has_session):
++    token = "bearer-value-for-http-error-test"
++    # Include a token crossing the truncation boundary as well as one at the start.
++    body = f"invalid arguments: Bearer {token}; " + "x" * 240 + token + "tail" * 100
++    calls = []
++
++    async def handler(request):
++        calls.append(request)
++        return httpx.Response(400, text=body)
++
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        client = MultiCodeClient("http://mock", token, client=transport)
++        client._initialized = True
++        client._session_id = "old" if has_session else None
++        with pytest.raises(MultiCodeError) as error:
++            await client.tool_call("t3_thread_send", {"message": "once"})
++    assert len(calls) == 1
++    assert str(error.value) == "MultiCode MCP returned HTTP 400: " + body.replace(token, "[redacted]")[:300]
++    assert token not in str(error.value)
++    assert "bearer-value" not in str(error.value)
++    assert not error.value.retryable
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("second_status,second_body", [
++    (400, "session still unknown"), (404, "still gone"),
++    (400, "invalid arguments after recovery"), (503, "upstream unavailable"),
++])
++async def test_second_session_failure_surfaces_without_another_initialize(second_status, second_body):
++    calls = []
++    token = "test-private-second-failure"
++
++    async def handler(request):
++        body = json.loads(request.content)
++        calls.append(body)
++        if body["method"] == "initialize":
++            assert "Mcp-Session-Id" not in request.headers
++            return _rpc_response(body["id"], {})
++        if body["method"] == "notifications/initialized":
++            return httpx.Response(202)
++        if len(calls) == 1:
++            return httpx.Response(400, text="session expired")
++        return httpx.Response(second_status, text=second_body + " " + token)
++
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        client = MultiCodeClient("http://mock", token, client=transport)
++        client._initialized = True
++        client._session_id = "stale"
++        with pytest.raises(MultiCodeError) as error:
++            await client.tool_call("t3_thread_wait", {"threadId": "running"})
++        if second_status == 404 or "session" in second_body:
++            assert client._session_id is None
++            assert not client._initialized
++    assert [body["method"] for body in calls] == [
++        "tools/call", "initialize", "notifications/initialized", "tools/call"]
++    assert calls[0] == calls[3]
++    assert str(second_status) in str(error.value)
++    assert second_body in str(error.value)
++    assert token not in str(error.value)
++    assert "[redacted]" in str(error.value)
++
++
++@pytest.mark.asyncio
++async def test_session_400_without_session_header_is_not_retried():
++    calls = []
++
++    async def handler(request):
++        calls.append(request)
++        return httpx.Response(400, text="session not initialized")
++
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        client = MultiCodeClient("http://mock", "test-token", client=transport)
++        with pytest.raises(MultiCodeError, match="session not initialized") as error:
++            await client.tool_call("t3_thread_read", {})
++    assert len(calls) == 1
++    assert not error.value.retryable
++
++
++@pytest.mark.asyncio
++async def test_failed_reinitialize_does_not_recurse():
++    calls = []
++
++    async def handler(request):
++        body = json.loads(request.content)
++        calls.append(body)
++        return httpx.Response(400, text="session not initialized")
++
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        client = MultiCodeClient("http://mock", "test-token", client=transport)
++        client._initialized = True
++        client._session_id = "stale"
++        with pytest.raises(MultiCodeError, match="session not initialized"):
++            await client.tool_call("t3_thread_read", {})
++    assert [body["method"] for body in calls] == ["tools/call", "initialize"]
+--- a/tests/test_backend_hub.py
++++ b/tests/test_backend_hub.py
+@@ -0,0 +1,374 @@
++"""Offline transport regressions for watching a running hub thread (V-1040)."""
++
++import asyncio
++import json
++from types import SimpleNamespace
++from unittest.mock import AsyncMock, Mock
++
++import httpx
++import pytest
++
++from app import backend_hub as hub
++from app.multicode_client import MultiCodeClient, MultiCodeError
++
++
++def _backend():
++    return hub.HubBackend("hub-gpt-6.1-sol", ".")
++
++
++def _stream():
++    return SimpleNamespace(cursor=None, feed=Mock(return_value=[]))
++
++
++def _ready_client(transport):
++    client = MultiCodeClient("http://mock", "test-watch-token", client=transport)
++    client._initialized = True
++    client._session_id = "live-session"
++    return client
++
++
++def _result(body, value):
++    return httpx.Response(200, json={"id": body["id"], "result": {"structuredContent": value}})
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("failure", [
++    httpx.RemoteProtocolError, httpx.ReadError, httpx.ConnectError, httpx.ReadTimeout,
++    500, 502, 503, 599, 400, 404,
++])
++async def test_watch_survives_transient_transport_or_session_error(monkeypatch, failure):
++    calls = []
++    waits = 0
++    sleep = AsyncMock()
++    monkeypatch.setattr(hub.asyncio, "sleep", sleep)
++
++    async def handler(request):
++        nonlocal waits
++        body = json.loads(request.content)
++        calls.append(body)
++        if body["method"] == "initialize":
++            return httpx.Response(200, json={"id": body["id"], "result": {}},
++                                  headers={"Mcp-Session-Id": "new-session"})
++        if body["method"] == "notifications/initialized":
++            return httpx.Response(202)
++        name = body["params"]["name"]
++        if name == "t3_thread_wait":
++            waits += 1
++            if waits == 1:
++                if isinstance(failure, int):
++                    return httpx.Response(failure, text="session forgotten" if failure < 500 else "upstream broken")
++                raise failure("test-watch-token", request=request)
++            return _result(body, {"status": "completed", "timedOut": False})
++        assert name == "t3_thread_read"
++        return _result(body, {"items": [], "hasMore": False})
++
++    backend = _backend()
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        assert [event async for event in backend._watch(
++            _ready_client(transport), "thread", "run", _stream())] == []
++    assert backend._watch_status == "completed"
++    assert waits == 2
++    if failure in (400, 404):
++        sleep.assert_not_awaited()  # MCP session recovery itself is immediate and single-shot.
++        assert sum(body["method"] == "initialize" for body in calls) == 1
++    else:
++        sleep.assert_awaited_once_with(1)
++    assert all(body.get("params", {}).get("name") in (None, "t3_thread_wait", "t3_thread_read")
++               for body in calls)
++
++
++@pytest.mark.asyncio
++async def test_watch_bounds_retries_and_surfaces_last_redacted_error(monkeypatch):
++    calls = []
++    sleep = AsyncMock()
++    monkeypatch.setattr(hub.asyncio, "sleep", sleep)
++
++    async def handler(request):
++        calls.append(json.loads(request.content))
++        return httpx.Response(503, text=f"failure-{len(calls)} test-watch-token")
++
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        with pytest.raises(MultiCodeError) as error:
++            _ = [event async for event in _backend()._watch(
++                _ready_client(transport), "thread", "run", _stream())]
++    assert len(calls) == 5
++    assert [call.args[0] for call in sleep.await_args_list] == [1, 2, 4, 8]
++    assert "failure-5" in str(error.value)
++    assert "test-watch-token" not in str(error.value)
++    assert "[redacted]" in str(error.value)
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("status", [400, 401, 403])
++async def test_watch_does_not_retry_non_transient_http_error(monkeypatch, status):
++    calls = []
++    sleep = AsyncMock()
++    monkeypatch.setattr(hub.asyncio, "sleep", sleep)
++
++    async def handler(request):
++        calls.append(request)
++        return httpx.Response(status, text="invalid arguments")
++
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        with pytest.raises(MultiCodeError, match="invalid arguments"):
++            _ = [event async for event in _backend()._watch(
++                _ready_client(transport), "thread", "run", _stream())]
++    assert len(calls) == 1
++    sleep.assert_not_awaited()
++
++
++@pytest.mark.asyncio
++async def test_watch_retries_exhausted_session_recovery(monkeypatch):
++    calls = []
++    waits = 0
++    sleep = AsyncMock()
++    monkeypatch.setattr(hub.asyncio, "sleep", sleep)
++
++    async def handler(request):
++        nonlocal waits
++        body = json.loads(request.content)
++        calls.append(body)
++        if body["method"] == "initialize":
++            assert "Mcp-Session-Id" not in request.headers
++            return httpx.Response(200, json={"id": body["id"], "result": {}},
++                                  headers={"Mcp-Session-Id": "new-session"})
++        if body["method"] == "notifications/initialized":
++            return httpx.Response(202)
++        if body["params"]["name"] == "t3_thread_wait":
++            waits += 1
++            if waits <= 2:
++                return httpx.Response(400, text="session not found")
++            return _result(body, {"status": "completed"})
++        return _result(body, {"items": []})
++
++    backend = _backend()
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        _ = [event async for event in backend._watch(_ready_client(transport), "thread", "run", _stream())]
++    assert backend._watch_status == "completed"
++    assert waits == 3
++    sleep.assert_awaited_once_with(1)
++    assert sum(body["method"] == "initialize" for body in calls) == 2
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("operation", ["_poll", "_read_reply"])
++async def test_watch_reads_survive_transient_error(monkeypatch, operation):
++    reads = 0
++    sleep = AsyncMock()
++    monkeypatch.setattr(hub.asyncio, "sleep", sleep)
++
++    async def handler(request):
++        nonlocal reads
++        body = json.loads(request.content)
++        assert body["params"]["name"] == "t3_thread_read"
++        reads += 1
++        if reads == 1:
++            return httpx.Response(502, text="upstream temporarily unavailable")
++        return _result(body, {"items": [
++            {"type": "assistant_message", "runId": "run", "text": "reply"}]})
++
++    backend = _backend()
++    stream = _stream()
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        client = _ready_client(transport)
++        if operation == "_poll":
++            assert await backend._poll(client, "thread", stream) == []
++            stream.feed.assert_called_once()
++        else:
++            assert await backend._read_reply(client, "thread", "run") == "reply"
++    assert reads == 2
++    sleep.assert_awaited_once_with(1)
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("failure", [
++    httpx.ReadError, httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadTimeout,
++    500, 503, "missing_run_id",
++])
++async def test_start_never_relaunches_after_uncertain_send(monkeypatch, failure):
++    calls = []
++
++    async def handler(request):
++        body = json.loads(request.content)
++        calls.append(body)
++        assert body["params"]["name"] == "t3_thread_send"
++        if failure == "missing_run_id":
++            return _result(body, {})
++        if isinstance(failure, int):
++            return httpx.Response(failure, text="upstream unavailable")
++        raise failure("connection lost after delivery", request=request)
++
++    backend = _backend()
++    monkeypatch.setattr(backend, "_preamble", lambda: "preamble: ")
++    state = SimpleNamespace(thread_id="existing-thread", ws_id="ws", project_id="project", save=Mock())
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        with pytest.raises(MultiCodeError):
++            await backend._start(_ready_client(transport), state, "do once")
++    assert len(calls) == 1
++    assert state.thread_id == "existing-thread"
++    state.save.assert_not_called()
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("refused_tool,status,detail", [
++    ("t3_thread_send", 400, "thread is in error state"),
++    ("t3_thread_send", 403, "thread is archived"),
++    ("t3_thread_send", 409, "thread cannot accept messages"),
++    ("t3_thread_send", 422, "thread rejected this turn"),
++    ("t3_thread_configure", 400, "configuration rejected"),
++    ("t3_thread_configure", 409, "thread is archived"),
++])
++async def test_explicit_thread_refusal_launches_replacement(monkeypatch, refused_tool, status, detail):
++    calls = []
++    backend = _backend()
++    monkeypatch.setattr(backend, "_preamble", lambda: "preamble: ")
++    monkeypatch.setattr(backend, "_model_selection", AsyncMock(return_value={"model": "test-model"}))
++    if refused_tool == "t3_thread_configure":
++        backend._effort = "high"
++
++    async def handler(request):
++        body = json.loads(request.content)
++        params = body["params"]
++        calls.append(params)
++        if params["name"] == refused_tool:
++            return httpx.Response(status, text=detail)
++        assert params["name"] == "t3_thread_launch"
++        return _result(body, {"threadId": "replacement", "runId": "new-run"})
++
++    state = SimpleNamespace(thread_id="old-thread", ws_id="ws", project_id="project", save=Mock())
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        assert await backend._start(_ready_client(transport), state, "prompt") == "new-run"
++    assert [call["name"] for call in calls] == [refused_tool, "t3_thread_launch"]
++    assert calls[1]["arguments"]["message"] == "preamble: prompt"
++    assert state.thread_id == "replacement"
++    state.save.assert_called_once()
++
++
++@pytest.mark.parametrize("status", [400, 404, 503])
++def test_session_or_transport_error_is_not_workspace_loss(status):
++    assert not hub._workspace_lost(MultiCodeError(
++        f"MultiCode MCP returned HTTP {status}: session not found", retryable=True))
++    assert hub._workspace_lost(MultiCodeError("orchestration_error: project not found"))
++
++
++@pytest.mark.asyncio
++async def test_watch_retry_budget_includes_request_time(monkeypatch):
++    original_timeout = asyncio.timeout
++    budgets = []
++
++    def short_timeout(seconds):
++        budgets.append(seconds)
++        return original_timeout(0)  # Expire at the next suspension, without a real 60s wait.
++
++    monkeypatch.setattr(hub.asyncio, "timeout", short_timeout)
++    calls = []
++
++    async def handler(request):
++        calls.append(request)
++        await asyncio.Future()
++
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        with pytest.raises(MultiCodeError, match="60 seconds"):
++            _ = [event async for event in _backend()._watch(
++                _ready_client(transport), "thread", "run", _stream())]
++    assert budgets == [60]
++    assert len(calls) == 1
++
++
++@pytest.mark.asyncio
++async def test_watch_budget_preserves_last_safe_error(monkeypatch):
++    original_timeout = asyncio.timeout
++    monkeypatch.setattr(hub.asyncio, "timeout", lambda _: original_timeout(0))
++    calls = []
++
++    async def handler(request):
++        calls.append(request)
++        return httpx.Response(503, text="last failure test-watch-token")
++
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        with pytest.raises(MultiCodeError, match="503: last failure") as error:
++            _ = [event async for event in _backend()._watch(
++                _ready_client(transport), "thread", "run", _stream())]
++    assert len(calls) == 1
++    assert "test-watch-token" not in str(error.value)
++
++
++@pytest.mark.asyncio
++async def test_watch_cancellation_is_not_retried(monkeypatch):
++    sleep = AsyncMock()
++    monkeypatch.setattr(hub.asyncio, "sleep", sleep)
++
++    async def handler(request):
++        raise asyncio.CancelledError
++
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        with pytest.raises(asyncio.CancelledError):
++            _ = [event async for event in _backend()._watch(
++                _ready_client(transport), "thread", "run", _stream())]
++    sleep.assert_not_awaited()
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("failure", [httpx.RemoteProtocolError, 503])
++async def test_initial_launch_is_not_retried(failure):
++    calls = []
++
++    async def handler(request):
++        calls.append(json.loads(request.content))
++        if isinstance(failure, int):
++            return httpx.Response(failure, text="upstream unavailable")
++        raise failure("delivery unknown", request=request)
++
++    state = SimpleNamespace(thread_id="", ws_id="ws", project_id="project", save=Mock())
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        with pytest.raises(MultiCodeError):
++            await _backend()._start(_ready_client(transport), state, "do once")
++    assert [body["params"]["name"] for body in calls] == ["t3_thread_launch"]
++    state.save.assert_not_called()
++
++
++@pytest.mark.asyncio
++async def test_confirmed_missing_thread_can_still_start_replacement(monkeypatch):
++    calls = []
++    backend = _backend()
++    monkeypatch.setattr(backend, "_preamble", lambda: "preamble: ")
++
++    async def handler(request):
++        body = json.loads(request.content)
++        calls.append(body["params"])
++        if body["params"]["name"] == "t3_thread_send":
++            return httpx.Response(200, json={"id": body["id"], "error": {
++                "code": -32000, "message": "thread not found"}})
++        return _result(body, {"threadId": "replacement", "runId": "new-run"})
++
++    state = SimpleNamespace(thread_id="gone", ws_id="ws", project_id="project", save=Mock())
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        assert await backend._start(_ready_client(transport), state, "prompt") == "new-run"
++    assert [call["name"] for call in calls] == ["t3_thread_send", "t3_thread_launch"]
++    assert calls[1]["arguments"]["message"] == "preamble: prompt"
++    assert state.thread_id == "replacement"
++    state.save.assert_called_once()
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("failure", [httpx.ReadError, 503])
++async def test_uncertain_steer_is_not_queued_for_redelivery(failure):
++    calls = []
++
++    async def handler(request):
++        calls.append(json.loads(request.content))
++        if isinstance(failure, int):
++            return httpx.Response(failure, text="upstream unavailable")
++        raise failure("delivery unknown", request=request)
++
++    backend = _backend()
++    backend._ssh = object()
++    backend._state = SimpleNamespace(thread_id="existing")
++    backend._run_id = "running"
++    backend._turn_active = True
++    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
++        backend._mc = _ready_client(transport)
++        with pytest.raises(MultiCodeError):
++            await backend.send("steer once")
++    assert len(calls) == 1
++    assert backend._early_steer == []

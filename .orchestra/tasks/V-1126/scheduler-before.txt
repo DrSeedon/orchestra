@@ -1,0 +1,20 @@
+Selected real pytest output; verbose logs and tracebacks omitted.
+E           TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement; remote outcome=transport_closed
+E           TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification; remote outcome=transport_closed
+E           TimeoutError: Codex compact timed out after 0.06s while waiting for turn lifecycle; remote outcome=transport_closed
+E           TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement; remote outcome=transport_closed
+E           TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification; remote outcome=transport_closed
+E           TimeoutError: Codex compact timed out after 0.06s while waiting for turn lifecycle; remote outcome=transport_closed
+E           TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement; remote outcome=transport_closed
+E           TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification; remote outcome=transport_closed
+E           TimeoutError: Codex compact timed out after 0.06s while waiting for turn lifecycle; remote outcome=transport_closed
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-eof-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-eof-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-eof-terminal]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-read_error-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-read_error-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-read_error-terminal]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-disconnect-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-disconnect-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-disconnect-terminal]
+9 failed, 9 passed, 85 deselected in 20.92s

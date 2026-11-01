@@ -1,0 +1,138 @@
+.......FF...................                                             [100%]
+=================================== FAILURES ===================================
+____________________ test_live_probe_inventory_is_explicit _____________________
+
+    def test_live_probe_inventory_is_explicit():
+        """Живая проба не может исчезнуть из гейта незаметно.
+    
+        Маркер снимает тест с merge-gate, то есть выводит его из-под общей проверки. Такой
+        ход обязан быть заявленным: список ниже — единственное место, где он заявляется.
+        Появился маркер где-то ещё (или пропал отсюда) — тест краснеет и заставляет
+        объяснить, почему проба тратит настоящий ход провайдера.
+        """
+        from app.merge_test_gate import LIVE_PROBE_MARKER
+    
+        expected = {
+            "tests/test_native_history_import.py": 1,
+            "tests/test_runtime_history.py": 1,
+            # Требует настоящий `~/.codex/auth.json` владельца: предмет проверки — живая
+            # подписка, герметичным он не бывает. На публичном раннике таких кред нет и быть
+            # не должно (#515).
+            "tests/test_mcp_config_isolation.py": 1,
+        }
+    
+        # Считаем ДЕКОРАТОРЫ, а не вхождения строки: первая версия этой проверки насчитала 3
+        # вместо 2, потому что имя маркера упомянуто в докстринге файла. Проза не должна ни
+        # раздувать инвентарь, ни прятать в себе настоящий маркер.
+        decorator = f"@pytest.mark.{LIVE_PROBE_MARKER}"
+        root = Path(__file__).resolve().parent
+        found = {}
+        for path in sorted(root.rglob("*.py")):
+            count = sum(
+                1
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip().startswith(decorator)
+            )
+            if count:
+                found[str(path.relative_to(root.parent))] = count
+    
+>       assert found == expected, (
+            "инвентарь живых проб разошёлся с заявленным; добавляешь пробу — впиши её сюда "
+            f"и в докстринг её файла. Найдено: {found}"
+        )
+E       AssertionError: инвентарь живых проб разошёлся с заявленным; добавляешь пробу — впиши её сюда и в докстринг её файла. Найдено: {'tests/test_mcp_config_isolation.py': 1, 'tests/test_native_history_import.py': 1}
+E       assert {'tests/test_...import.py': 1} == {'tests/test_...istory.py': 1}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'tests/test_runtime_history.py': 1}
+E         Use -v to get more diff
+
+tests/test_merge_test_gate.py:1058: AssertionError
+______________________ test_browser_inventory_is_explicit ______________________
+
+    def test_browser_inventory_is_explicit():
+        """Состав снятого с гейта ВИДЕН и проверяем, а не спрятан в неявном исключении.
+    
+        Браузерные тесты не блокируют merge-гейт (`-m "not live_probe and not browser"`), но
+        продолжают гоняться. Значит их состав обязан быть заявленным: маркер ставится
+        автоматически по факту запроса браузерной фикстуры (`tests/conftest.py`), и если он
+        начнёт цеплять лишнее или потеряет файл — тест краснеет и заставляет объяснить.
+        Проверяется РАСКЛАДКА ПО ФАЙЛАМ, а не список имён: имена тестов меняются свободно,
+        а вот «браузерных узлов стало вдвое больше» или «целый файл ушёл из-под гейта» —
+        именно то изменение, которое нельзя пропускать молча.
+        """
+        import subprocess
+        import sys
+    
+        root = Path(__file__).resolve().parent.parent
+        expected = {
+        # Collection includes the voice-input test explicitly skipped since #365;
+        # V-1027 adds three model-picker request cases using dashboard_browser.
+        "tests/test_frontend.py": 105,
+        # +1 с #V-546: потолок полосы на графике (`test_lane_ceiling_is_drawn_and_capped_like_the_gate`);
+        # +2 с #V-547: два плеча состояния гейта (включён на части полос / снят со всех).
+        "tests/test_t344_quota_lines_browser.py": 20,
+        "tests/test_usage_analytics_frontend.py": 14,
+        "tests/test_usage_history_frontend.py": 11,
+        "tests/test_grok_usage_frontend.py": 11,
+        "tests/test_antigravity_usage_frontend.py": 6,
+        # +1 с 5f7e72c5 (08.09): `test_dashboard_channel_renders_as_chat_without_hiding_unknown_api_sender`
+        # пришёл вместе с меткой канала сообщений на дашборде, инвентарь тогда не обновили.
+        "tests/test_system_chat_entry.py": 2,
+        "tests/test_quota_headroom_447.py": 1,
+        "tests/test_model_catalog_frontend.py": 1,
+        "tests/test_frontend_context_panel_468.py": 1,
+        "tests/test_i18n_dashboard.py": 6,  # добавились с английской локалью #V-591
+        }
+    
+        result = subprocess.run(
+            [sys.executable, "-m", "pytest", "--rootdir", str(root), "-c", str(root / "pyproject.toml"),
+             "--collect-only", "-q", "-m", "browser", "tests/"],
+            cwd=root, capture_output=True, text=True, timeout=600,
+        )
+>       assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
+E       AssertionError:  sure your test modules/packages have valid Python names.
+E         Traceback:
+E         /usr/lib/python3.12/importlib/__init__.py:90: in import_module
+E             return _bootstrap._gcd_import(name[level:], package, level)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         tests/test_video_artifact.py:16: in <module>
+E             from video_text import caption_text, normalize_vosk_text, UnsupportedVoskSymbol
+E         E   ModuleNotFoundError: No module named 'video_text'
+E         ____________________ ERROR collecting tests/test_wf_run.py _____________________
+E         ImportError while importing test module './tests/test_wf_run.py'.
+E         Hint: make sure your test modules/packages have valid Python names.
+E         Traceback:
+E         /usr/lib/python3.12/importlib/__init__.py:90: in import_module
+E             return _bootstrap._gcd_import(name[level:], package, level)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         tests/test_wf_run.py:11: in <module>
+E             from scripts.wf_adapters import (
+E         E   ModuleNotFoundError: No module named 'scripts'
+E         =========================== short test summary info ============================
+E         ERROR tests/local_bench/test_local_bench.py
+E         ERROR tests/test_check_pipeline_manifest.py - FileNotFoundError: [Errno 2] No...
+E         ERROR tests/test_dynamic_workflows.py
+E         ERROR tests/test_enc_cli_dir.py - FileNotFoundError: [Errno 2] No such file o...
+E         ERROR tests/test_kb_index_injection_522.py - FileNotFoundError: pipeline 'def...
+E         ERROR tests/test_kb_markdown_contract.py
+E         ERROR tests/test_migrate_agent.py - FileNotFoundError: [Errno 2] No such file...
+E         ERROR tests/test_multicode_oauth_renew.py
+E         ERROR tests/test_orchestra_backup.py
+E         ERROR tests/test_probe_free_models.py
+E         ERROR tests/test_process_guard.py
+E         ERROR tests/test_process_guard_calibration.py
+E         ERROR tests/test_video_artifact.py
+E         ERROR tests/test_wf_run.py
+E         !!!!!!!!!!!!!!!!!!! Interrupted: 14 errors during collection !!!!!!!!!!!!!!!!!!!
+E         221/4835 tests collected (4614 deselected), 14 errors in 14.40s
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['./.venv/bin/...s during collection !!!!!!!!!!!!!!!!!!!\n221/4835 tests collected (4614 deselected), 14 errors in 14.40s\n', stderr='').returncode
+
+tests/test_merge_test_gate.py:1104: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_test_gate.py::test_live_probe_inventory_is_explicit
+FAILED tests/test_merge_test_gate.py::test_browser_inventory_is_explicit - As...
+2 failed, 26 passed in 25.43s

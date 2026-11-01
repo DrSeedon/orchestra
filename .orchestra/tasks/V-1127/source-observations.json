@@ -1,0 +1,166 @@
+{
+  "collectedAt": "2026-10-29T11:37:55.813Z",
+  "method": "Unauthenticated public GET via curl; bodies hashed, not retained",
+  "observations": [
+    {
+      "id": "credits",
+      "url": "https://developers.openai.com/api/docs/guides/chatgpt-api-credits.md",
+      "effectiveUrl": "https://developers.openai.com/api/docs/guides/chatgpt-api-credits.md",
+      "observedAt": "2026-10-29T11:37:54.391Z",
+      "status": 200,
+      "bodySha256": "9b67d001e3b6e7c49087b64e37eb223e61f6a332199e2cd432b17e80cecfe360",
+      "bytes": 8508
+    },
+    {
+      "id": "sharing-current",
+      "url": "https://help.openai.com/en/articles/10306912-sharing-feedback-evals-and-api-data-with-openai",
+      "observedAt": "2026-10-29T11:37:54.463Z",
+      "status": 403,
+      "effectiveUrl": "https://help.openai.com/en/articles/10306912-sharing-feedback-evals-and-api-data-with-openai",
+      "error": "curl exit 22"
+    },
+    {
+      "id": "sharing-mirror",
+      "url": "https://help-lb.openai.com/en/articles/10306912-sharing-feedback-evals-and-api-data-with-openai",
+      "observedAt": "2026-10-29T11:37:54.553Z",
+      "status": 403,
+      "effectiveUrl": "https://help-lb.openai.com/en/articles/10306912-sharing-feedback-evals-and-api-data-with-openai",
+      "error": "curl exit 22"
+    },
+    {
+      "id": "rate-limits",
+      "url": "https://developers.openai.com/api/docs/guides/rate-limits.md",
+      "effectiveUrl": "https://developers.openai.com/api/docs/guides/rate-limits.md",
+      "observedAt": "2026-10-29T11:37:54.661Z",
+      "status": 200,
+      "bodySha256": "02647768a2dc1a03ae307c2bc5d2688d5e507a8f37fcda792e827aea33caffde",
+      "bytes": 22637
+    },
+    {
+      "id": "spend-limits",
+      "url": "https://developers.openai.com/api/docs/guides/spend-limits.md",
+      "effectiveUrl": "https://developers.openai.com/api/docs/guides/spend-limits.md",
+      "observedAt": "2026-10-29T11:37:54.740Z",
+      "status": 200,
+      "bodySha256": "c390d663cfc85416270be1804ab1fd52f731bbaa7d2d789ea037156426b5343c",
+      "bytes": 4489
+    },
+    {
+      "id": "function-calling",
+      "url": "https://developers.openai.com/api/docs/guides/function-calling.md",
+      "effectiveUrl": "https://developers.openai.com/api/docs/guides/function-calling.md",
+      "observedAt": "2026-10-29T11:37:54.888Z",
+      "status": 200,
+      "bodySha256": "0002e5db5d8dc7e4f9298ab44940df180b401daf8d04858d623f9e57bc07339c",
+      "bytes": 77509
+    },
+    {
+      "id": "pricing",
+      "url": "https://developers.openai.com/api/docs/pricing.md",
+      "effectiveUrl": "https://developers.openai.com/api/docs/pricing.md",
+      "observedAt": "2026-10-29T11:37:55.047Z",
+      "status": 200,
+      "bodySha256": "93d302a9b7a384877533bc3ab5bb48eebf4b56bd6add0f194095054b2a13f952",
+      "bytes": 22824
+    },
+    {
+      "id": "prompt-caching",
+      "url": "https://developers.openai.com/api/docs/guides/prompt-caching.md",
+      "effectiveUrl": "https://developers.openai.com/api/docs/guides/prompt-caching.md",
+      "observedAt": "2026-10-29T11:37:55.109Z",
+      "status": 200,
+      "bodySha256": "2da1ea8a2404b306773bee6aa1027ca36c9d0bc2f8a4ea3df83166d3da9d7e6c",
+      "bytes": 56625
+    },
+    {
+      "id": "your-data",
+      "url": "https://developers.openai.com/api/docs/guides/your-data.md",
+      "effectiveUrl": "https://developers.openai.com/api/docs/guides/your-data.md",
+      "observedAt": "2026-10-29T11:37:55.190Z",
+      "status": 200,
+      "bodySha256": "16e953514150dd5cbf2c599868ca14253c3b8d78cd7268e950a6f665418565ed",
+      "bytes": 85798
+    },
+    {
+      "id": "changelog",
+      "url": "https://developers.openai.com/api/docs/changelog.md",
+      "effectiveUrl": "https://developers.openai.com/api/docs/changelog.md",
+      "observedAt": "2026-10-29T11:37:55.256Z",
+      "status": 200,
+      "bodySha256": "fa5c1c76849b5121bda8106f6085fa9ffabd5890764cde4d3ac63825dd1ce7c0",
+      "bytes": 78782
+    },
+    {
+      "id": "sentinelx",
+      "url": "https://openai.com/business/plugins/sentinelx/",
+      "observedAt": "2026-10-29T11:37:55.333Z",
+      "status": 403,
+      "effectiveUrl": "https://openai.com/business/plugins/sentinelx/",
+      "error": "curl exit 22"
+    },
+    {
+      "id": "work-faq",
+      "url": "https://learn.chatgpt.com/docs/enterprise/work-admin-faq.md",
+      "effectiveUrl": "https://learn.chatgpt.com/docs/enterprise/work-admin-faq.md",
+      "observedAt": "2026-10-29T11:37:55.412Z",
+      "status": 200,
+      "bodySha256": "dd0adeb8fa3c83e158daa70aadef6f155a54dafd07952bd90f4b74338e32d3fc",
+      "bytes": 38357
+    },
+    {
+      "id": "chat-pricing",
+      "url": "https://learn.chatgpt.com/docs/pricing.md",
+      "effectiveUrl": "https://learn.chatgpt.com/docs/pricing.md",
+      "observedAt": "2026-10-29T11:37:55.611Z",
+      "status": 200,
+      "bodySha256": "a0c502cccae440c42e790e4fec0a3733d670328dce9eb2d3904d1bce647cb246",
+      "bytes": 46961
+    }
+  ],
+  "localSources": [
+    {
+      "path": "app/models.py",
+      "sha256": "7ba86c0dc5d42ff25ca947281218cd91e84bfb3f38022906b39b5c74d77b6bdc"
+    },
+    {
+      "path": "app/runtime_registry.py",
+      "sha256": "8dc46ccb3a469a9c388a504d218604d15cd6facecdecf955d26a881fc58166f1"
+    },
+    {
+      "path": "app/backend_codex.py",
+      "sha256": "ef96690394c582881f9420408b56f6903d999bc7e68d4f4032e8f0338d3cf232"
+    },
+    {
+      "path": "app/backend_harness.py",
+      "sha256": "ec12cdb462c4f453c617d72929f030c2eaf41739c29834f62f6b4dbd1fabd92e"
+    },
+    {
+      "path": "app/harness/llm.py",
+      "sha256": "d6d415964aa2014ab8580c2af955c1e9a407cfd4f11a8e90453060d8c06e642e"
+    },
+    {
+      "path": "app/harness/loop.py",
+      "sha256": "9e87059a53bfa755fedd00ad0a77f8ed7af208094e750cc033f71ec4224ff80d"
+    },
+    {
+      "path": "app/backend_hub.py",
+      "sha256": "8fc8d359df41fc4fa043ef863ce1af59b61d6b0a5b2a9989a37de93c963f5271"
+    },
+    {
+      "path": "app/claude_api_credits.py",
+      "sha256": "b4d61923f0cf3ed3a3fd70810948088a927ea177378499b4fac6138d1b474016"
+    },
+    {
+      "path": "app/db.py",
+      "sha256": "b5b781fe367efeb50bbd29157b0ccfb731d5a411ef92838270a09a978d91e8d7"
+    },
+    {
+      "path": "app/mcp_stdio.py",
+      "sha256": "4ae626b55ae71d82d00223de44d68b1e34e6109eca12de5539017984526e8f55"
+    },
+    {
+      "path": "app/secret_mask.py",
+      "sha256": "ec4acd0d8491df791fdce4180eb32ac732bf5f432b6a4476e4292ebe880adfdf"
+    }
+  ]
+}

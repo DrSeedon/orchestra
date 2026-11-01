@@ -1,0 +1,87 @@
+{
+ "key": "S1-W0_r1_b2",
+ "run": "V-1114-rest-ba2ac2ed",
+ "ok": true,
+ "cost_usd": 0.1506458,
+ "usage_rows": [
+  [
+   2,
+   888,
+   13069,
+   16283,
+   0.1506458,
+   null
+  ]
+ ],
+ "response": {
+  "answers": [
+   {
+    "choice": "UNKNOWN",
+    "evidence_ids": [],
+    "id": "F11"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "MEMORY:Ловушки:pipeline-model-id-after-restart",
+     "AGENTS.md:disk-code-not-live-process"
+    ],
+    "id": "B15"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "AGENTS.md:idle-restart-watch"
+    ],
+    "id": "B03"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "MEMORY:Ловушки:live-db-and-task-repository"
+    ],
+    "id": "B10"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "MEMORY:Ловушки:merge-gate-tests-worker-branch"
+    ],
+    "id": "F04"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "MEMORY:Инфраструктура:credit-api-key"
+    ],
+    "id": "F14"
+   },
+   {
+    "choice": "UNKNOWN",
+    "evidence_ids": [],
+    "id": "F12"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "model-routing.md:multicode-hub"
+    ],
+    "id": "B07"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "MEMORY:Инфраструктура:local-tts-tera"
+    ],
+    "id": "F24"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "MEMORY:Ловушки:live-db-and-task-repository"
+    ],
+    "id": "F01"
+   }
+  ]
+ }
+}

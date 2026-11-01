@@ -1,0 +1,14 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___ test_invalid_parameters_or_uncertain_send_never_replace_thread[rpc-send] ___
+tests/test_hub_message_v1066.py:184: in test_invalid_parameters_or_uncertain_send_never_replace_thread
+    assert error.value.retryable if failure == "uncertain" else error.value.invalid_params
+E   assert False
+----------------------------- Captured stderr call -----------------------------
+hub thread old-thread unusable (MultiCode MCP error -32602: Expected value length at most 120000 at message; not found); starting a new one
+------------------------------ Captured log call -------------------------------
+WARNING  app.backend_hub:backend_hub.py:687 hub thread old-thread unusable (MultiCode MCP error -32602: Expected value length at most 120000 at message; not found); starting a new one
+=========================== short test summary info ============================
+FAILED tests/test_hub_message_v1066.py::test_invalid_parameters_or_uncertain_send_never_replace_thread[rpc-send]
+1 failed in 2.36s
+MUTATION params: pytest_exit=1; killed=True

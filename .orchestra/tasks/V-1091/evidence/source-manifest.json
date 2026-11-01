@@ -1,0 +1,58 @@
+{
+  "pinned_commit": "a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
+  "commit_date": "2026-10-26T00:14:04Z",
+  "tree": "dc471d9ca016a607792a69ae92ead7d246d4e543",
+  "github": [
+    {
+      "path": "README.md",
+      "local": "sources/github/README.md",
+      "bytes": 3139,
+      "lines": 85,
+      "git_blob_sha1": "99387ba735fabf044220ca8799e2b7aef4b82b41",
+      "sha256": "1b0a86ac530d5720cb84f5f447bacb9c9f3bee2f5bf8b2a639ec6bddf30f01cf",
+      "url": "https://github.com/elayadesign/ai-design-skills/blob/a2735a3eaf092eaaffb6dc17df25de33ef3bd048/README.md"
+    },
+    {
+      "path": "LICENSE",
+      "local": "sources/github/LICENSE",
+      "bytes": 1062,
+      "lines": 21,
+      "git_blob_sha1": "9ff21c8c5b2e713c357d3e15e641172a211eac21",
+      "sha256": "5f9af6ce7083838497676a8dfa651ad8e2559fdabd4586afc73587beec476b0e",
+      "url": "https://github.com/elayadesign/ai-design-skills/blob/a2735a3eaf092eaaffb6dc17df25de33ef3bd048/LICENSE"
+    },
+    {
+      "path": "skills/landing-page-design/SKILL.md",
+      "local": "sources/github/landing-page-design.SKILL.md",
+      "bytes": 18801,
+      "lines": 431,
+      "git_blob_sha1": "39caa206ac2b179b110562db65e3e3c79a759fb5",
+      "sha256": "203569792660ab6d71dcb2e4fa673c0c7a0df7c99801d04ab419a4cb08aceb2c",
+      "url": "https://github.com/elayadesign/ai-design-skills/blob/a2735a3eaf092eaaffb6dc17df25de33ef3bd048/skills/landing-page-design/SKILL.md"
+    },
+    {
+      "path": "skills/design-to-motion/SKILL.md",
+      "local": "sources/github/design-to-motion.SKILL.md",
+      "bytes": 39109,
+      "lines": 513,
+      "git_blob_sha1": "b7326add823b585689f065a83e7b6b3aadc252fa",
+      "sha256": "12240f8065147f3623424cf38bc198a94857441446736bb449429451d87a3d55",
+      "url": "https://github.com/elayadesign/ai-design-skills/blob/a2735a3eaf092eaaffb6dc17df25de33ef3bd048/skills/design-to-motion/SKILL.md"
+    }
+  ],
+  "official": [
+    {
+      "local": "sources/openai/build-skills.md",
+      "url": "https://learn.chatgpt.com/docs/build-skills.md",
+      "bytes": 11035,
+      "sha256": "ed6e324f747d47adf6f60ee1fca13ba469b3671f55f58c3a78f35947af6919d5"
+    },
+    {
+      "local": "sources/openai/agents-md.md",
+      "url": "https://learn.chatgpt.com/docs/agent-configuration/agents-md.md",
+      "bytes": 9149,
+      "sha256": "9d1f87a2d1cb55b4782b95abe710692b35b9659789c2db31a22c7074a3383e8e"
+    }
+  ],
+  "official_snapshot_scope": "Live official documentation fetched 2026-10-26 UTC; not a version-pinned product binary."
+}

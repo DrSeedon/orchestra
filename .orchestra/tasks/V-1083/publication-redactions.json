@@ -1,0 +1,8 @@
+{
+  "note": "Publication runtime-path derivative; verbatim original private. No model/source mutation.",
+  "path": ".orchestra/tasks/V-1083/pytest-full-stdout.txt",
+  "before_sha256": "10e7c9f77367858b117c7ed639963072414d4344069b3f5b95de66464196c6bc",
+  "after_sha256": "3befa65ac3b229c07f3dcab966e2a0f0ef9d14dbb66e5d1413474216f6742b92",
+  "newlines_before": 687,
+  "newlines_after": 687
+}

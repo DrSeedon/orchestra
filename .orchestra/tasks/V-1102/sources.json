@@ -1,0 +1,453 @@
+{
+  "retrievedAt": "2026-10-27T07:32:53.871Z",
+  "upstream": {
+    "repository": "anomalyco/opencode",
+    "refResolved": "dev",
+    "sha": "f993a89d13c73ff6f6537d6b97e78e138a3ea363",
+    "committedAt": "2026-10-27T07:19:23Z",
+    "subject": "fix(app): show focus ring while renaming the session title (#59148)",
+    "file": "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/AGENTS.md",
+    "raw": "https://raw.githubusercontent.com/anomalyco/opencode/f993a89d13c73ff6f6537d6b97e78e138a3ea363/AGENTS.md",
+    "sha256": "2dc2644ec6416eedaacdbb98d4e9563c122ba2bce13e3c55fc7bf0fc5936f7bb",
+    "lines": 191,
+    "license": "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/LICENSE"
+  },
+  "rule": {
+    "currentLine": 50,
+    "text": "- Before adding complexity for a speculative or vanishingly unlikely race or security edge case, explain the concrete failure mode, likelihood, and complexity cost to the user and get their buy-in. Do not silently expand scope for theoretical robustness.",
+    "blame": {
+      "start": 50,
+      "oldStart": 30,
+      "end": 50,
+      "oldEnd": 30,
+      "commitOid": "41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+      "reblamePath": "AGENTS.md"
+    },
+    "blameURL": "https://github.com/anomalyco/opencode/blame/f993a89d13c73ff6f6537d6b97e78e138a3ea363/AGENTS.md#L50",
+    "introducedIn": "41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+    "author": "Kit Langton",
+    "authoredAt": "2026-07-10T15:33:04Z",
+    "committedAt": "2026-07-10T15:33:04Z",
+    "subject": "fix(tui): hide editor context from transcript (#36264)",
+    "parent": "accaa792d870c42bf3d426656c830c24b43812d4",
+    "absentFromParent": true,
+    "presentInIntroduction": true,
+    "filesInCommit": [
+      "AGENTS.md",
+      "packages/tui/src/component/prompt/index.tsx"
+    ],
+    "instructionPatch": "@@ -27,6 +27,7 @@ Never bypass Git hooks. Do not use `--no-verify` or otherwise disable, skip, or\n \n - Keep things in one function unless composable or reusable\n - Do not extract single-use helpers preemptively. Inline the logic at the call site unless the helper is reused, hides a genuinely complex boundary, or has a clear independent name that improves the caller.\n+- Before adding complexity for a speculative or vanishingly unlikely race or security edge case, explain the concrete failure mode, likelihood, and complexity cost to the user and get their buy-in. Do not silently expand scope for theoretical robustness.\n - Avoid `try`/`catch` where possible\n - Avoid using the `any` type\n - Use Bun APIs when possible, like `Bun.file()`",
+    "implementationPatch": "@@ -1044,22 +1044,7 @@ export function Prompt(props: PromptProps) {\n     // Capture mode before it gets reset\n     const currentMode = store.mode\n     const editorSelection = editorContext()\n-    const editorParts =\n-      editorSelection && editor.labelState() === \"pending\"\n-        ? [\n-            {\n-              type: \"text\" as const,\n-              text: formatEditorContext(editorSelection),\n-              synthetic: true,\n-              metadata: {\n-                kind: \"editor_context\",\n-                source: editorSelection.source ?? \"editor\",\n-                filePath: editorSelection.filePath,\n-                ranges: editorSelection.ranges,\n-              },\n-            },\n-          ]\n-        : []\n+    const pendingEditorSelection = editorSelection && editor.labelState() === \"pending\" ? editorSelection : undefined\n \n     if (store.mode === \"shell\") {\n       move.startSubmit()\n@@ -1135,10 +1120,27 @@ export function Prompt(props: PromptProps) {\n           return false\n         }\n       }\n+      if (pendingEditorSelection) {\n+        // Keep editor context hidden while admitting it before the corresponding user prompt.\n+        const error = await sdk.api.session\n+          .synthetic({\n+            sessionID,\n+            text: formatEditorContext(pendingEditorSelection),\n+            resume: false,\n+          })\n+          .then(\n+            () => undefined,\n+            (error) => error,\n+          )\n+        if (error) {\n+          toast.show({ title: \"Failed to send editor context\", message: errorMessage(error), variant: \"error\" })\n+          return false\n+        }\n+      }\n       const error = await sdk.api.session\n         .prompt({\n           sessionID,\n-          text: [...editorParts.map((part) => part.text), inputText].filter(Boolean).join(\"\\n\\n\"),\n+          text: inputText,\n           files: store.prompt.files,\n           agents: store.prompt.agents,\n         })\n@@ -1150,7 +1152,7 @@ export function Prompt(props: PromptProps) {\n         toast.show({ title: \"Failed to send prompt\", message: errorMessage(error), variant: \"error\" })\n         return false\n       }\n-      if (editorParts.length > 0) editor.markSelectionSent()\n+      if (pendingEditorSelection) editor.markSelectionSent()\n     }\n     history.append({\n       ...store.prompt,\n@@ -1163,7 +1165,7 @@ export function Prompt(props: PromptProps) {\n \n     // temporary hack to make sure the message is sent\n     if (!props.sessionID) {\n-      if (editorParts.length > 0) editor.preserveSelectionFromNewSession()\n+      if (pendingEditorSelection) editor.preserveSelectionFromNewSession()\n       setTimeout(() => {\n         route.navigate({\n           type: \"session\","
+  },
+  "pullRequest": {
+    "url": "https://github.com/anomalyco/opencode/pull/36264",
+    "number": 36264,
+    "title": "fix(tui): hide editor context from transcript",
+    "author": "kitlangton",
+    "createdAt": "2026-07-10T15:03:02Z",
+    "mergedAt": "2026-07-10T15:33:05Z",
+    "mergeCommit": "41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+    "body": "## Summary\n\n- admit Zed editor context as a separate descriptionless synthetic message with `resume: false`\n- send the user-authored text unchanged as the following visible prompt\n- document the project rule to get user buy-in before adding complexity for speculative, vanishingly unlikely races or security edge cases\n\n## Root cause\n\nThe V2 prompt migration flattened the synthetic editor-context part and user-authored text into one user message. The V2 renderer therefore displayed the internal `<system-reminder>` verbatim.\n\nThe existing synthetic-message projection already hides descriptionless synthetic context, so preserving that boundary fixes the transcript without adding display metadata or special rendering paths.\n\n## Verification\n\n- `bun typecheck` in `packages/tui`\n- `bun run test` in `packages/tui` (223 passed, 1 skipped)\n- repository-wide push-hook typecheck (31 packages)\n",
+    "issueComments": [],
+    "reviews": [],
+    "reviewComments": []
+  },
+  "fileHistory": {
+    "endpoint": "https://api.github.com/repos/anomalyco/opencode/commits?path=AGENTS.md&sha=f993a89d13c73ff6f6537d6b97e78e138a3ea363&per_page=100",
+    "note": "Fetched by dev immediately after head resolution; line introduction is independently proven by pinned blame, commit patch and parent.",
+    "commits": [
+      {
+        "sha": "bcd713e2b71b433474d99fb1d29900c492c319a3",
+        "date": "2026-10-22T23:41:06Z",
+        "subject": "chore: merge dev into beta"
+      },
+      {
+        "sha": "84578e123ffd31e31a174457e7350961da4fabbc",
+        "date": "2026-10-22T23:23:31Z",
+        "subject": "chore: use bun check for local typechecks and TypeScript 7.1 in CI (#58253)"
+      },
+      {
+        "sha": "5a023ed6627226e84738e3776fd49ac949863827",
+        "date": "2026-10-22T20:22:40Z",
+        "subject": "feat(desktop): show who made each beta change and what it does (#57886)"
+      },
+      {
+        "sha": "28c2a86f8fa75bc99926f2ed302fb57c2b15f71a",
+        "date": "2026-10-22T06:45:25Z",
+        "subject": "chore(app): replace Storybook with a story server for component tests (#57966)"
+      },
+      {
+        "sha": "17229d24f5659ee1f7c27159ffdf08afc1a2aeb1",
+        "date": "2026-10-15T22:35:49Z",
+        "subject": "chore(ci): speed up and stabilize the test workflow (#55866)"
+      },
+      {
+        "sha": "4d3d8fd769523b4e2f6b523e3df9fa965130fb4c",
+        "date": "2026-10-12T03:32:18Z",
+        "subject": "docs: trim agent instructions (#54678)"
+      },
+      {
+        "sha": "5caf1f9f6f5f30e13fc50a788ad953d97ae3748f",
+        "date": "2026-10-10T14:58:08Z",
+        "subject": "chore: promote v2 to dev"
+      },
+      {
+        "sha": "a64bc3616e9fa036e28ebf714a2b8a00138b3a78",
+        "date": "2026-09-26T05:00:11Z",
+        "subject": "refactor(core): cleanup session compaction (#51447)"
+      },
+      {
+        "sha": "db808066512f6b1b44b57b115e39de842dbf8580",
+        "date": "2026-09-18T11:45:44Z",
+        "subject": "refactor(core): move native compaction mechanisms into a plugin (#49575)"
+      },
+      {
+        "sha": "1eeaaab7a6acbbd9143af913728df7a933206412",
+        "date": "2026-09-13T21:08:43Z",
+        "subject": "refactor: restrict reflective access (#48860)"
+      },
+      {
+        "sha": "bb564f96a30716597588183929e61525b31a6500",
+        "date": "2026-09-11T19:03:45Z",
+        "subject": "feat(cli): rename command to opencode"
+      },
+      {
+        "sha": "a5312e169b13c0f08b93c4b6e0c3076c94785aca",
+        "date": "2026-09-07T21:19:33Z",
+        "subject": "refactor(packages): migrate to the opencode npm scope (#47852)"
+      },
+      {
+        "sha": "7ca047b2b95fc2db5e1a573c3db8e7c90021f772",
+        "date": "2026-09-04T17:23:55Z",
+        "subject": "fix(core): prioritize compaction over pending steers (#47340)"
+      },
+      {
+        "sha": "e2e82f18e278f45e046d96378bd34d5f66b06870",
+        "date": "2026-09-01T18:21:13Z",
+        "subject": "docs: clarify branch targeting guidance (#46645)"
+      },
+      {
+        "sha": "6a2c3e91c780e4291d72e75a148793557201a1f3",
+        "date": "2026-08-31T01:28:19Z",
+        "subject": "feat(plugin): add typed rpc and custom events (#46105)"
+      },
+      {
+        "sha": "d82a0b28a92cd52ca77f7381b34750cc6ddb41e0",
+        "date": "2026-08-28T21:18:47Z",
+        "subject": "docs: clarify release workflow (#46025)"
+      },
+      {
+        "sha": "f28c10aa4db7c30a2eabcf6ccc9bae5254675b0c",
+        "date": "2026-08-21T21:28:34Z",
+        "subject": "feat(sdk): prepare v2 packages for publishing"
+      },
+      {
+        "sha": "1d89e911e8bcd80416461c7be6c48b9d7ce0896b",
+        "date": "2026-08-20T01:56:40Z",
+        "subject": "refactor(core): make prompt ID reuse idempotent (#43548)"
+      },
+      {
+        "sha": "9e22c40ffffe82566c00e4a4ad31e7ac3d973d44",
+        "date": "2026-08-15T22:40:23Z",
+        "subject": "feat: align V2 beta release channels"
+      },
+      {
+        "sha": "e57a1c793030363c9c484347169922a0c92bbb68",
+        "date": "2026-08-15T03:25:47Z",
+        "subject": "docs: refresh agent guidance"
+      },
+      {
+        "sha": "014a364dfdbb14b566663dfd53e6b45d45fc1507",
+        "date": "2026-08-15T00:32:06Z",
+        "subject": "docs(core): refresh session architecture"
+      },
+      {
+        "sha": "1d44d56d9cfb7e51576403a3cf7df52c335a7d9d",
+        "date": "2026-08-14T17:49:06Z",
+        "subject": "fix(tui): use semantic form tokens (#42599)"
+      },
+      {
+        "sha": "bdbccca1f33fba0f10282a508908788c0840f2b0",
+        "date": "2026-08-14T14:54:32Z",
+        "subject": "feat(tui): refine question form interactions (#42493)"
+      },
+      {
+        "sha": "b882ccc57d9938f2353143d5756ff040b123728d",
+        "date": "2026-08-13T20:20:14Z",
+        "subject": "fix(core): preserve instruction state on move (#42398)"
+      },
+      {
+        "sha": "a20d9452451ba519e47c9b59a85941a3d7b628e4",
+        "date": "2026-08-12T16:56:00Z",
+        "subject": "docs: base worktrees on v2"
+      },
+      {
+        "sha": "0e3da4b4f1951d58b166a362065f43a7ec2464ac",
+        "date": "2026-08-01T17:10:08Z",
+        "subject": "feat(tui): add vertical session tabs (#40072)"
+      },
+      {
+        "sha": "b14adcaf8398c9a834b07dd681ae1be7bf6f0c6c",
+        "date": "2026-07-28T02:30:26Z",
+        "subject": "docs: forbid type-position import references (#39234)"
+      },
+      {
+        "sha": "efb629a33ac495d6ca9b71ae45be283e10cde9ba",
+        "date": "2026-07-26T03:55:05Z",
+        "subject": "feat(core): add pluggable web search (#35558)"
+      },
+      {
+        "sha": "0cfa7b39db6eb9dd27546c6d455c6cb242ce100b",
+        "date": "2026-07-15T22:12:57Z",
+        "subject": "ignore: adjust agents md"
+      },
+      {
+        "sha": "96a973194703f56fdbbd0484a548ad7fa61e9d1b",
+        "date": "2026-07-10T17:26:25Z",
+        "subject": "feat(core): replace instruction checkpoints with value-delta sync (#36254)"
+      },
+      {
+        "sha": "41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+        "date": "2026-07-10T15:33:04Z",
+        "subject": "fix(tui): hide editor context from transcript (#36264)"
+      },
+      {
+        "sha": "d54038b9d20f8df7955ffd3ae4e99bce31b50aaf",
+        "date": "2026-07-10T02:47:37Z",
+        "subject": "docs(v2): consolidate specifications (#36186)"
+      },
+      {
+        "sha": "a72992e00f528b213ad67ad56db4a77eea7bedf1",
+        "date": "2026-07-09T21:25:40Z",
+        "subject": "feat(core): session.pending.list API with pending-only session_pending storage (#36126)"
+      },
+      {
+        "sha": "4d2b06f8cf97618369e7c3a93559d40a57c13f7e",
+        "date": "2026-07-08T14:11:46Z",
+        "subject": "docs: prohibit bypassing git hooks"
+      },
+      {
+        "sha": "91f181573224b41d2fa2daa873d0746a9a822db8",
+        "date": "2026-07-06T18:29:29Z",
+        "subject": "refactor(core): rename system context to instructions (#35583)"
+      },
+      {
+        "sha": "62af66a74fb9b01bbcea1fe5369ccd24c56085ff",
+        "date": "2026-07-04T14:58:56Z",
+        "subject": "fix(tui): distinguish variant switch notices (#35315)"
+      },
+      {
+        "sha": "ca861fdf43500ff7a59489b7aa01cb45b8780abb",
+        "date": "2026-07-03T18:49:05Z",
+        "subject": "docs: consolidate session work-unit vocabulary (#35218)"
+      },
+      {
+        "sha": "40450415541e61414ca0ded7ca31767545459dd5",
+        "date": "2026-07-02T13:32:35Z",
+        "subject": "refactor(core): simplify system context into a belief model (#34917)"
+      },
+      {
+        "sha": "23adaaaeab653b3d046cc6a7a1d3591a7fcf4b75",
+        "date": "2026-06-30T05:16:33Z",
+        "subject": "feat(core): add native skill activation"
+      },
+      {
+        "sha": "f44423609b03a47baf8a771c821a1de17046309f",
+        "date": "2026-06-25T18:23:01Z",
+        "subject": "feat(sdk): restore session runtime operations (#33777)"
+      },
+      {
+        "sha": "9bb5370205283688cc653eec5255c7c2b93cfd94",
+        "date": "2026-06-24T23:41:16Z",
+        "subject": "feat(core): add session snapshot and revert system (#33226)"
+      },
+      {
+        "sha": "dc468bdcfd92b120a2e54493c63994549fa8f11a",
+        "date": "2026-06-22T23:01:14Z",
+        "subject": "fix(core): reset steps for promoted prompts (#33452)"
+      },
+      {
+        "sha": "34b3d59a23eb979d1d66a8f2ede1dae6a33c277a",
+        "date": "2026-06-22T20:52:43Z",
+        "subject": "ignore: update agents.md (#33446)"
+      },
+      {
+        "sha": "cc226464676843a60b0d418b20e5519ecb36e165",
+        "date": "2026-06-10T23:09:56Z",
+        "subject": "docs: add branch naming guidance"
+      },
+      {
+        "sha": "12e38866ed0722953f5943c2b3e138613ff00ea3",
+        "date": "2026-06-05T16:06:40Z",
+        "subject": "feat(core): interrupt v2 session execution (#30850)"
+      },
+      {
+        "sha": "3f64b5e6219e5b6708cf2a0c81fbb5d0cffebecb",
+        "date": "2026-06-05T15:19:55Z",
+        "subject": "feat(core): admit v2 skill guidance (#30843)"
+      },
+      {
+        "sha": "76ee87ead84ab5c5583074a19ea0894c5e8e361a",
+        "date": "2026-06-04T03:02:17Z",
+        "subject": "feat(core): add embedded v2 session runtime and tool foundation (#30632)"
+      },
+      {
+        "sha": "7dd2306dad4428a702d27a3e4f447ae3026e4dac",
+        "date": "2026-06-02T19:20:25Z",
+        "subject": "refactor(opencode): improve startup time by 38% (#30453)"
+      },
+      {
+        "sha": "7f571d36ea56cc3dd7059cfe82c729fb52b121eb",
+        "date": "2026-05-31T01:08:38Z",
+        "subject": "refactor(core): move database schema ownership (#29068)"
+      },
+      {
+        "sha": "1c4196c358d354f70241fe8bc0f8bbb524f31f84",
+        "date": "2026-05-26T16:46:45Z",
+        "subject": "docs: remove ambiguous agent automation guidance (#29427)"
+      },
+      {
+        "sha": "f5a8202b41aa8f8cdc4ead902fba800882ea4e34",
+        "date": "2026-05-20T20:54:29Z",
+        "subject": "fix(tui): simplify thinking toggle styling (#28487)"
+      },
+      {
+        "sha": "8345152319b8c4e38431ec7c0cd85c2caafd9338",
+        "date": "2026-05-13T14:43:08Z",
+        "subject": "core: expose v2 model listing API (#25821)"
+      },
+      {
+        "sha": "85ce6a5f95e47fe0c683100113c495b55e6c069c",
+        "date": "2026-05-10T06:48:19Z",
+        "subject": "feat: better image handling (auto resize & max size constraints) (#26401)"
+      },
+      {
+        "sha": "326471a25c50cb83d33e6b327bc88faf38a4db11",
+        "date": "2026-04-17T01:35:26Z",
+        "subject": "refactor: split config lsp and formatter schemas (#22986)"
+      },
+      {
+        "sha": "672ee28635f471c5fcdc7e77c518d4465678d786",
+        "date": "2026-04-15T23:20:25Z",
+        "subject": "fix(opencode): avoid org lookup during config startup (#22670)"
+      },
+      {
+        "sha": "613562f5047aa0bad934da401146a04ed8adce84",
+        "date": "2026-03-10T16:53:47Z",
+        "subject": "core: make account login upgrades safe while adding multi-account workspace auth (#15487)"
+      },
+      {
+        "sha": "3ebebe0a96de5ec4757de12a21cb9f933e0fbba0",
+        "date": "2026-03-04T03:14:28Z",
+        "subject": "fix(process): prevent orphaned opencode subprocesses on shutdown (#15924)"
+      },
+      {
+        "sha": "6d95f0d14cbd83fc8b7775f77ba39ab2881008f3",
+        "date": "2026-02-14T04:19:02Z",
+        "subject": "sqlite again (#10597)"
+      },
+      {
+        "sha": "c35bd39829e3760cfc2749a91cc0de779eb677f9",
+        "date": "2026-02-06T05:36:11Z",
+        "subject": "tui: parallelize skill downloads for faster loading"
+      },
+      {
+        "sha": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+        "date": "2026-02-02T03:28:00Z",
+        "subject": "docs: Restructure AGENTS.md style guide with organized sections and code examples"
+      },
+      {
+        "sha": "83d0e48e3854a4a9f8c28ec17398a8554c988d39",
+        "date": "2026-02-02T01:52:17Z",
+        "subject": "tui: fix task status to show current tool state from message store"
+      },
+      {
+        "sha": "71d280d570ea77c9330942722b0e34383de831d9",
+        "date": "2026-01-30T04:10:50Z",
+        "subject": "ci: fix container build script"
+      },
+      {
+        "sha": "022265829eca0032d310e0f177d729290eb6f8fa",
+        "date": "2026-01-26T05:04:00Z",
+        "subject": "ignore: update AGENTS.md to state that inference should be used"
+      },
+      {
+        "sha": "f0830a74bb36d5836c4ca4e20e406ad541c262ff",
+        "date": "2026-01-25T22:54:17Z",
+        "subject": "ignore: update AGENTS.md"
+      },
+      {
+        "sha": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+        "date": "2026-01-25T16:56:21Z",
+        "subject": "ignore: rm STYLE_GUIDE, consolidate in AGENTS.md"
+      },
+      {
+        "sha": "c86c2acf4c0e0f9945b3dd83a1a32e1eb9783c86",
+        "date": "2026-01-13T14:58:08Z",
+        "subject": "add fullscreen view to permission prompt"
+      },
+      {
+        "sha": "4f1ef9391061621c7f0a844894d210ee2a289e89",
+        "date": "2026-01-02T01:42:06Z",
+        "subject": "ignore"
+      },
+      {
+        "sha": "81fef60266b3e5abdc9480e19effa8db411c5eec",
+        "date": "2025-12-30T22:37:32Z",
+        "subject": "fix: ensure variants also work for completely custom models (#6481)"
+      },
+      {
+        "sha": "85f8655dfd4557545641a93335fc23fd6d7169e0",
+        "date": "2025-12-22T22:21:56Z",
+        "subject": "ignore: agents.md"
+      },
+      {
+        "sha": "5b34636afa869dfe33cd0546128171ad76d82519",
+        "date": "2025-12-03T16:46:48Z",
+        "subject": "ignore: docs & style"
+      },
+      {
+        "sha": "1ea3a8eb9beeb7d510fd29164ea741acec1ee04d",
+        "date": "2025-11-06T18:03:12Z",
+        "subject": "big format"
+      },
+      {
+        "sha": "8b70b89fde5a6706ffe9b1a1fa1fd22ddf4b8cfb",
+        "date": "2025-11-02T15:56:40Z",
+        "subject": "fix: typos (#3757)"
+      },
+      {
+        "sha": "cc955098cd8714bcf1cc91e6a4a6625e38710b05",
+        "date": "2025-10-02T13:34:01Z",
+        "subject": "wip: desktop work"
+      },
+      {
+        "sha": "f993541e0b538388969defc94d08c3a7af5ef873",
+        "date": "2025-09-01T21:15:49Z",
+        "subject": "Refactor to support multiple instances inside single opencode process (#2360)"
+      },
+      {
+        "sha": "3db8e7c2b66bd6efea1457d9a2fcd6c9bbc782a8",
+        "date": "2025-08-05T16:01:48Z",
+        "subject": "ci: send stats to posthog"
+      },
+      {
+        "sha": "6d2ffa82de016fd1f9e7d7a8bd0a45285cdd5d00",
+        "date": "2025-07-22T19:49:36Z",
+        "subject": "ignore: lock changes"
+      },
+      {
+        "sha": "1cf1d1f63417ba447f9652db6905fa72d89d97e5",
+        "date": "2025-07-15T00:23:05Z",
+        "subject": "docs: fix agents.md"
+      }
+    ]
+  },
+  "telegram": {
+    "url": "https://t.me/vibecoding_tg/4183",
+    "retrievedVia": "https://t.me/s/vibecoding_tg/4183",
+    "date": "2026-10-27T06:46:56+00:00",
+    "text": "Очень сильное правило из AGENTS.md проекта Opencode:«Прежде чем усложнять решение ради гипотетической гонки состояний или крайне маловероятного сценария, связанного с безопасностью, сначала объясни пользователю, в чём именно может проявиться проблема, насколько она вероятна и какой ценой обойдётся это усложнение. Получи его согласие.Не расширяй объём задачи молча лишь ради теоретической надёжности».Весь файл заслуживает внимания:https://github.com/anomalyco/opencode/blob/dev/AGENTS.md",
+    "note": "Secondary source; not evidence for introduction history. The linked GitHub branch is mutable."
+  }
+}

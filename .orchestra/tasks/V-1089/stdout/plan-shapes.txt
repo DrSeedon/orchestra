@@ -1,0 +1,10 @@
+{"analyzed": false, "dates": "", "vm_steps": 68, "plan": ["SEARCH s USING INDEX sqlite_autoindex_sessions_2 (name=? AND scope=?)", "SEARCH l USING COVERING INDEX idx_logs_session (session_id=?)"]}
+{"analyzed": false, "dates": "AND date(l.ts)=date(?)", "vm_steps": 98413, "plan": ["SEARCH s USING INDEX sqlite_autoindex_sessions_2 (name=? AND scope=?)", "SEARCH l USING INDEX idx_logs_day (<expr>=?)"]}
+{"analyzed": false, "dates": "AND date(l.ts)>=date(?)", "vm_steps": 116, "plan": ["SEARCH s USING INDEX sqlite_autoindex_sessions_2 (name=? AND scope=?)", "SEARCH l USING INDEX idx_logs_session (session_id=?)"]}
+{"analyzed": false, "dates": "AND date(l.ts)<=date(?)", "vm_steps": 116, "plan": ["SEARCH s USING INDEX sqlite_autoindex_sessions_2 (name=? AND scope=?)", "SEARCH l USING INDEX idx_logs_session (session_id=?)"]}
+{"analyzed": false, "dates": "AND date(l.ts)>=date(?) AND date(l.ts)<=date(?)", "vm_steps": 158, "plan": ["SEARCH s USING INDEX sqlite_autoindex_sessions_2 (name=? AND scope=?)", "SEARCH l USING INDEX idx_logs_session (session_id=?)"]}
+{"analyzed": true, "dates": "", "vm_steps": 112, "plan": ["SCAN s", "SEARCH l USING COVERING INDEX idx_logs_session (session_id=?)", "USE TEMP B-TREE FOR ORDER BY"]}
+{"analyzed": true, "dates": "AND date(l.ts)=date(?)", "vm_steps": 159, "plan": ["SCAN s", "SEARCH l USING INDEX idx_logs_session (session_id=?)", "USE TEMP B-TREE FOR ORDER BY"]}
+{"analyzed": true, "dates": "AND date(l.ts)>=date(?)", "vm_steps": 82067, "plan": ["SCAN s", "SEARCH l USING INDEX idx_logs_day (<expr>>?)", "USE TEMP B-TREE FOR ORDER BY"]}
+{"analyzed": true, "dates": "AND date(l.ts)<=date(?)", "vm_steps": 98460, "plan": ["SCAN s", "SEARCH l USING INDEX idx_logs_day (<expr><?)", "USE TEMP B-TREE FOR ORDER BY"]}
+{"analyzed": true, "dates": "AND date(l.ts)>=date(?) AND date(l.ts)<=date(?)", "vm_steps": 98472, "plan": ["SCAN s", "SEARCH l USING INDEX idx_logs_day (<expr>>? AND <expr><?)", "USE TEMP B-TREE FOR ORDER BY"]}

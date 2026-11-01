@@ -1,0 +1,5 @@
+Mutation: removed only the Codex post-fix exclusion; noise matching unchanged.
+Selection: record_fix_then_scan_ignores_codex or codex_refusal_fix_observation
+Result: 3 failed, 45 deselected in 3.56s
+Assertions inspect structured reports and recurrence count, without CLI wording.
+Original production source restored exactly.

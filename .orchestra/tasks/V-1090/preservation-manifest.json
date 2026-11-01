@@ -1,0 +1,370 @@
+{
+  "format": 1,
+  "meaning": "SHA256 and bytes of preserved file content, or symlink target bytes; no symlink target text published",
+  "entries": [
+    {
+      "original": "report.md",
+      "preserved": "private/raw/report.md",
+      "kind": "file",
+      "bytes": 53822,
+      "sha256": "127d0cb47b66c5d2ec74bd114064f8fd6c3df78b4e7d238aecc29a322a819124"
+    },
+    {
+      "original": "evidence/audit-first.txt",
+      "preserved": "private/raw/evidence/audit-first.txt",
+      "kind": "file",
+      "bytes": 314,
+      "sha256": "0ef62fdda8ed304f0cf7fcee5c6e1f00c0e17295a59bb84d971b3bb6c73fdfd2"
+    },
+    {
+      "original": "evidence/instruction-contract.txt",
+      "preserved": "private/raw/evidence/instruction-contract.txt",
+      "kind": "file",
+      "bytes": 291,
+      "sha256": "0e122b97af031cc5275214ead7ef0c5a318fa7c0e645886168a139b935fcc9b4"
+    },
+    {
+      "original": "evidence/pytest-instruction-contract.txt",
+      "preserved": "private/raw/evidence/pytest-instruction-contract.txt",
+      "kind": "file",
+      "bytes": 11033,
+      "sha256": "04e98ca1461d9eb900b0ba2a446384db066b2c89835898c89feee6754502c948"
+    },
+    {
+      "original": "evidence/python-environment.txt",
+      "preserved": "private/raw/evidence/python-environment.txt",
+      "kind": "file",
+      "bytes": 284,
+      "sha256": "39a69cfaeaa8e718ec5f0e75facb7184202fe5913eb42309a8972993905e3a83"
+    },
+    {
+      "original": "artifact-sha256.json",
+      "preserved": "private/raw/artifact-sha256.json",
+      "kind": "file",
+      "bytes": 109234,
+      "sha256": "1de99270f40e24239443cb3573a1516a19182cc326e663f53a62f9e7be30902c"
+    },
+    {
+      "original": "pytest-tmp/test_broken_markdown_and_backtcurrent",
+      "preserved": "private/pytest-tmp/test_broken_markdown_and_backtcurrent",
+      "kind": "symlink-target",
+      "bytes": 150,
+      "sha256": "57cb513f4ab1d0fc7a4475146febfdce2e0764091d336b69c2812266e241b2d8"
+    },
+    {
+      "original": "pytest-tmp/test_copy_instead_of_symlink_icurrent",
+      "preserved": "private/pytest-tmp/test_copy_instead_of_symlink_icurrent",
+      "kind": "symlink-target",
+      "bytes": 150,
+      "sha256": "c68e1fb42334f2d4482bfaf1e46e5db3f31fea5fdb5d44747c372c09d4696587"
+    },
+    {
+      "original": "pytest-tmp/test_link_pointing_elsewhere_icurrent",
+      "preserved": "private/pytest-tmp/test_link_pointing_elsewhere_icurrent",
+      "kind": "symlink-target",
+      "bytes": 150,
+      "sha256": "54b0b5845d3450251e5934aab96dc0865ec8ccd0fe941da2f4dd6d01aba9ae94"
+    },
+    {
+      "original": "pytest-tmp/test_markdown_examples_inside_current",
+      "preserved": "private/pytest-tmp/test_markdown_examples_inside_current",
+      "kind": "symlink-target",
+      "bytes": 150,
+      "sha256": "e8ea2ab4c48db3f9a0ec83c665436f084ad23c311d600adcf1d83a41eaaf2d41"
+    },
+    {
+      "original": "pytest-tmp/test_missing_kb_index_target_icurrent",
+      "preserved": "private/pytest-tmp/test_missing_kb_index_target_icurrent",
+      "kind": "symlink-target",
+      "bytes": 150,
+      "sha256": "2580693f2ae96d2c2a6c2e5f95fd317103e374c83d568d29fdac8b0fd5838bc4"
+    },
+    {
+      "original": "pytest-tmp/test_missing_link_is_rejectedcurrent",
+      "preserved": "private/pytest-tmp/test_missing_link_is_rejectedcurrent",
+      "kind": "symlink-target",
+      "bytes": 149,
+      "sha256": "c19f4675e5a7032da05df36420908011f3cd623d8c2861450ff936d6a2b05708"
+    },
+    {
+      "original": "pytest-tmp/test_oversized_rules_are_rejeccurrent",
+      "preserved": "private/pytest-tmp/test_oversized_rules_are_rejeccurrent",
+      "kind": "symlink-target",
+      "bytes": 150,
+      "sha256": "ce13788de776cded8ac4a98311df95a42a212414a406d038a2c494a5758e1789"
+    },
+    {
+      "original": "pytest-tmp/test_symlink_beside_the_sourcecurrent",
+      "preserved": "private/pytest-tmp/test_symlink_beside_the_sourcecurrent",
+      "kind": "symlink-target",
+      "bytes": 150,
+      "sha256": "49c465ebebaf4352f86d3402ad7aa0d66bf87718a6f0123fdb36e47314c1b983"
+    },
+    {
+      "original": "pytest-tmp/test_unindexed_kb_topic_is_rejcurrent",
+      "preserved": "private/pytest-tmp/test_unindexed_kb_topic_is_rejcurrent",
+      "kind": "symlink-target",
+      "bytes": 150,
+      "sha256": "f857542c44fde87ac76c4421538f1cf8cd2357191a31ea87c79305c56b9de7eb"
+    },
+    {
+      "original": "pytest-tmp/test_unindexed_kb_topic_is_rej0/AGENTS.md",
+      "preserved": "private/pytest-tmp/test_unindexed_kb_topic_is_rej0/AGENTS.md",
+      "kind": "file",
+      "bytes": 8,
+      "sha256": "a3af2177809b3c009bfec4d1c507c6ee32757385e856bce9ae5ac3aec41a791b"
+    },
+    {
+      "original": "pytest-tmp/test_unindexed_kb_topic_is_rej0/CLAUDE.md",
+      "preserved": "private/pytest-tmp/test_unindexed_kb_topic_is_rej0/CLAUDE.md",
+      "kind": "symlink-target",
+      "bytes": 9,
+      "sha256": "a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9"
+    },
+    {
+      "original": "pytest-tmp/test_unindexed_kb_topic_is_rej0/.orchestra/kb/README.md",
+      "preserved": "private/pytest-tmp/test_unindexed_kb_topic_is_rej0/.orchestra/kb/README.md",
+      "kind": "file",
+      "bytes": 42,
+      "sha256": "b8429d434497dc6de47453128ed790d9b9f6fe89c5efbb4579b55afe6f60fefb"
+    },
+    {
+      "original": "pytest-tmp/test_unindexed_kb_topic_is_rej0/.orchestra/kb/brand-new-topic.md",
+      "preserved": "private/pytest-tmp/test_unindexed_kb_topic_is_rej0/.orchestra/kb/brand-new-topic.md",
+      "kind": "file",
+      "bytes": 10,
+      "sha256": "2c94571dde4d7450008fb7e705bd22ee8add87ec38f22e908096f37a85be810c"
+    },
+    {
+      "original": "pytest-tmp/test_unindexed_kb_topic_is_rej0/.orchestra/kb/runtime.md",
+      "preserved": "private/pytest-tmp/test_unindexed_kb_topic_is_rej0/.orchestra/kb/runtime.md",
+      "kind": "file",
+      "bytes": 10,
+      "sha256": "25d1269be75557a871e5f2177c1a034abcab6947fd10e5631acd99fe5ba57b95"
+    },
+    {
+      "original": "pytest-tmp/test_markdown_examples_inside_0/AGENTS.md",
+      "preserved": "private/pytest-tmp/test_markdown_examples_inside_0/AGENTS.md",
+      "kind": "file",
+      "bytes": 8,
+      "sha256": "a3af2177809b3c009bfec4d1c507c6ee32757385e856bce9ae5ac3aec41a791b"
+    },
+    {
+      "original": "pytest-tmp/test_markdown_examples_inside_0/CLAUDE.md",
+      "preserved": "private/pytest-tmp/test_markdown_examples_inside_0/CLAUDE.md",
+      "kind": "symlink-target",
+      "bytes": 9,
+      "sha256": "a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9"
+    },
+    {
+      "original": "pytest-tmp/test_markdown_examples_inside_0/.orchestra/kb/README.md",
+      "preserved": "private/pytest-tmp/test_markdown_examples_inside_0/.orchestra/kb/README.md",
+      "kind": "file",
+      "bytes": 42,
+      "sha256": "b8429d434497dc6de47453128ed790d9b9f6fe89c5efbb4579b55afe6f60fefb"
+    },
+    {
+      "original": "pytest-tmp/test_markdown_examples_inside_0/.orchestra/kb/runtime.md",
+      "preserved": "private/pytest-tmp/test_markdown_examples_inside_0/.orchestra/kb/runtime.md",
+      "kind": "file",
+      "bytes": 44,
+      "sha256": "4f68576189353c12d87e8069e0139802211571df3f1a27a50a8ea5ca593c081e"
+    },
+    {
+      "original": "pytest-tmp/test_missing_link_is_rejected0/AGENTS.md",
+      "preserved": "private/pytest-tmp/test_missing_link_is_rejected0/AGENTS.md",
+      "kind": "file",
+      "bytes": 8,
+      "sha256": "a3af2177809b3c009bfec4d1c507c6ee32757385e856bce9ae5ac3aec41a791b"
+    },
+    {
+      "original": "pytest-tmp/test_missing_link_is_rejected0/.orchestra/kb/README.md",
+      "preserved": "private/pytest-tmp/test_missing_link_is_rejected0/.orchestra/kb/README.md",
+      "kind": "file",
+      "bytes": 42,
+      "sha256": "b8429d434497dc6de47453128ed790d9b9f6fe89c5efbb4579b55afe6f60fefb"
+    },
+    {
+      "original": "pytest-tmp/test_missing_link_is_rejected0/.orchestra/kb/runtime.md",
+      "preserved": "private/pytest-tmp/test_missing_link_is_rejected0/.orchestra/kb/runtime.md",
+      "kind": "file",
+      "bytes": 10,
+      "sha256": "25d1269be75557a871e5f2177c1a034abcab6947fd10e5631acd99fe5ba57b95"
+    },
+    {
+      "original": "pytest-tmp/test_oversized_rules_are_rejec0/AGENTS.md",
+      "preserved": "private/pytest-tmp/test_oversized_rules_are_rejec0/AGENTS.md",
+      "kind": "file",
+      "bytes": 17008,
+      "sha256": "8d59776a510e7662114bcc0403c64d5b4ccd42645eb4adefbc6f0039c7552201"
+    },
+    {
+      "original": "pytest-tmp/test_oversized_rules_are_rejec0/CLAUDE.md",
+      "preserved": "private/pytest-tmp/test_oversized_rules_are_rejec0/CLAUDE.md",
+      "kind": "symlink-target",
+      "bytes": 9,
+      "sha256": "a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9"
+    },
+    {
+      "original": "pytest-tmp/test_oversized_rules_are_rejec0/.orchestra/kb/README.md",
+      "preserved": "private/pytest-tmp/test_oversized_rules_are_rejec0/.orchestra/kb/README.md",
+      "kind": "file",
+      "bytes": 42,
+      "sha256": "b8429d434497dc6de47453128ed790d9b9f6fe89c5efbb4579b55afe6f60fefb"
+    },
+    {
+      "original": "pytest-tmp/test_oversized_rules_are_rejec0/.orchestra/kb/runtime.md",
+      "preserved": "private/pytest-tmp/test_oversized_rules_are_rejec0/.orchestra/kb/runtime.md",
+      "kind": "file",
+      "bytes": 10,
+      "sha256": "25d1269be75557a871e5f2177c1a034abcab6947fd10e5631acd99fe5ba57b95"
+    },
+    {
+      "original": "pytest-tmp/test_link_pointing_elsewhere_i0/AGENTS.md",
+      "preserved": "private/pytest-tmp/test_link_pointing_elsewhere_i0/AGENTS.md",
+      "kind": "file",
+      "bytes": 8,
+      "sha256": "a3af2177809b3c009bfec4d1c507c6ee32757385e856bce9ae5ac3aec41a791b"
+    },
+    {
+      "original": "pytest-tmp/test_link_pointing_elsewhere_i0/CLAUDE.md",
+      "preserved": "private/pytest-tmp/test_link_pointing_elsewhere_i0/CLAUDE.md",
+      "kind": "symlink-target",
+      "bytes": 8,
+      "sha256": "b0e446f13dad8ceb001f46d2a445fedc1475c1f461d9cf3e59e88358209963c8"
+    },
+    {
+      "original": "pytest-tmp/test_link_pointing_elsewhere_i0/other.md",
+      "preserved": "private/pytest-tmp/test_link_pointing_elsewhere_i0/other.md",
+      "kind": "file",
+      "bytes": 27,
+      "sha256": "f3ee83f40767bd34cae593e0b442ad6c0e8d03a77024de79067e5a11e73a18f5"
+    },
+    {
+      "original": "pytest-tmp/test_link_pointing_elsewhere_i0/.orchestra/kb/README.md",
+      "preserved": "private/pytest-tmp/test_link_pointing_elsewhere_i0/.orchestra/kb/README.md",
+      "kind": "file",
+      "bytes": 42,
+      "sha256": "b8429d434497dc6de47453128ed790d9b9f6fe89c5efbb4579b55afe6f60fefb"
+    },
+    {
+      "original": "pytest-tmp/test_link_pointing_elsewhere_i0/.orchestra/kb/runtime.md",
+      "preserved": "private/pytest-tmp/test_link_pointing_elsewhere_i0/.orchestra/kb/runtime.md",
+      "kind": "file",
+      "bytes": 10,
+      "sha256": "25d1269be75557a871e5f2177c1a034abcab6947fd10e5631acd99fe5ba57b95"
+    },
+    {
+      "original": "pytest-tmp/test_missing_kb_index_target_i0/AGENTS.md",
+      "preserved": "private/pytest-tmp/test_missing_kb_index_target_i0/AGENTS.md",
+      "kind": "file",
+      "bytes": 8,
+      "sha256": "a3af2177809b3c009bfec4d1c507c6ee32757385e856bce9ae5ac3aec41a791b"
+    },
+    {
+      "original": "pytest-tmp/test_missing_kb_index_target_i0/CLAUDE.md",
+      "preserved": "private/pytest-tmp/test_missing_kb_index_target_i0/CLAUDE.md",
+      "kind": "symlink-target",
+      "bytes": 9,
+      "sha256": "a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9"
+    },
+    {
+      "original": "pytest-tmp/test_missing_kb_index_target_i0/.orchestra/kb/README.md",
+      "preserved": "private/pytest-tmp/test_missing_kb_index_target_i0/.orchestra/kb/README.md",
+      "kind": "file",
+      "bytes": 42,
+      "sha256": "d8d1651d498b948540075d20504be2b9b11b1c575ca4bca7b4d591e4059e8947"
+    },
+    {
+      "original": "pytest-tmp/test_missing_kb_index_target_i0/.orchestra/kb/runtime.md",
+      "preserved": "private/pytest-tmp/test_missing_kb_index_target_i0/.orchestra/kb/runtime.md",
+      "kind": "file",
+      "bytes": 10,
+      "sha256": "25d1269be75557a871e5f2177c1a034abcab6947fd10e5631acd99fe5ba57b95"
+    },
+    {
+      "original": "pytest-tmp/test_copy_instead_of_symlink_i0/AGENTS.md",
+      "preserved": "private/pytest-tmp/test_copy_instead_of_symlink_i0/AGENTS.md",
+      "kind": "file",
+      "bytes": 8,
+      "sha256": "a3af2177809b3c009bfec4d1c507c6ee32757385e856bce9ae5ac3aec41a791b"
+    },
+    {
+      "original": "pytest-tmp/test_copy_instead_of_symlink_i0/CLAUDE.md",
+      "preserved": "private/pytest-tmp/test_copy_instead_of_symlink_i0/CLAUDE.md",
+      "kind": "file",
+      "bytes": 8,
+      "sha256": "a3af2177809b3c009bfec4d1c507c6ee32757385e856bce9ae5ac3aec41a791b"
+    },
+    {
+      "original": "pytest-tmp/test_copy_instead_of_symlink_i0/.orchestra/kb/README.md",
+      "preserved": "private/pytest-tmp/test_copy_instead_of_symlink_i0/.orchestra/kb/README.md",
+      "kind": "file",
+      "bytes": 42,
+      "sha256": "b8429d434497dc6de47453128ed790d9b9f6fe89c5efbb4579b55afe6f60fefb"
+    },
+    {
+      "original": "pytest-tmp/test_copy_instead_of_symlink_i0/.orchestra/kb/runtime.md",
+      "preserved": "private/pytest-tmp/test_copy_instead_of_symlink_i0/.orchestra/kb/runtime.md",
+      "kind": "file",
+      "bytes": 10,
+      "sha256": "25d1269be75557a871e5f2177c1a034abcab6947fd10e5631acd99fe5ba57b95"
+    },
+    {
+      "original": "pytest-tmp/test_symlink_beside_the_source0/AGENTS.md",
+      "preserved": "private/pytest-tmp/test_symlink_beside_the_source0/AGENTS.md",
+      "kind": "file",
+      "bytes": 8,
+      "sha256": "a3af2177809b3c009bfec4d1c507c6ee32757385e856bce9ae5ac3aec41a791b"
+    },
+    {
+      "original": "pytest-tmp/test_symlink_beside_the_source0/CLAUDE.md",
+      "preserved": "private/pytest-tmp/test_symlink_beside_the_source0/CLAUDE.md",
+      "kind": "symlink-target",
+      "bytes": 9,
+      "sha256": "a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9"
+    },
+    {
+      "original": "pytest-tmp/test_symlink_beside_the_source0/.orchestra/kb/README.md",
+      "preserved": "private/pytest-tmp/test_symlink_beside_the_source0/.orchestra/kb/README.md",
+      "kind": "file",
+      "bytes": 42,
+      "sha256": "b8429d434497dc6de47453128ed790d9b9f6fe89c5efbb4579b55afe6f60fefb"
+    },
+    {
+      "original": "pytest-tmp/test_symlink_beside_the_source0/.orchestra/kb/runtime.md",
+      "preserved": "private/pytest-tmp/test_symlink_beside_the_source0/.orchestra/kb/runtime.md",
+      "kind": "file",
+      "bytes": 10,
+      "sha256": "25d1269be75557a871e5f2177c1a034abcab6947fd10e5631acd99fe5ba57b95"
+    },
+    {
+      "original": "pytest-tmp/test_broken_markdown_and_backt0/AGENTS.md",
+      "preserved": "private/pytest-tmp/test_broken_markdown_and_backt0/AGENTS.md",
+      "kind": "file",
+      "bytes": 8,
+      "sha256": "a3af2177809b3c009bfec4d1c507c6ee32757385e856bce9ae5ac3aec41a791b"
+    },
+    {
+      "original": "pytest-tmp/test_broken_markdown_and_backt0/CLAUDE.md",
+      "preserved": "private/pytest-tmp/test_broken_markdown_and_backt0/CLAUDE.md",
+      "kind": "symlink-target",
+      "bytes": 9,
+      "sha256": "a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9"
+    },
+    {
+      "original": "pytest-tmp/test_broken_markdown_and_backt0/.orchestra/kb/README.md",
+      "preserved": "private/pytest-tmp/test_broken_markdown_and_backt0/.orchestra/kb/README.md",
+      "kind": "file",
+      "bytes": 42,
+      "sha256": "b8429d434497dc6de47453128ed790d9b9f6fe89c5efbb4579b55afe6f60fefb"
+    },
+    {
+      "original": "pytest-tmp/test_broken_markdown_and_backt0/.orchestra/kb/runtime.md",
+      "preserved": "private/pytest-tmp/test_broken_markdown_and_backt0/.orchestra/kb/runtime.md",
+      "kind": "file",
+      "bytes": 83,
+      "sha256": "52d6b5b2879bf20b8d1b10c67c645010070df020837ddd6dc939ddcc214c1d0c"
+    }
+  ]
+}

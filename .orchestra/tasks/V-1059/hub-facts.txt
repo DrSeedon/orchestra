@@ -1,0 +1,28 @@
+Verified on 2026-10-23 in this hub Codex Sol thread, using the built-in tool once.
+Tool: image_gen__imagegen
+Arguments verbatim:
+{"prompt":"A tiny simple blue dot centered on a plain white square. One image, minimal detail.","transparent_background":false}
+Returned object keys: image_url, output_hint. Completion: the awaited tool call
+returned successfully after 11.6 seconds and displayed the image. No job polling.
+
+output_hint verbatim except that the private absolute Codex home is replaced by
+<CODEX_HOME> (the task forbids committing the hub home/login):
+Generated images are saved to <CODEX_HOME>/generated_images/01a167b4-2434-7541-80ef-861523346b43 as <CODEX_HOME>/generated_images/01a167b4-2434-7541-80ef-861523346b43/exec-6c5ac7b4-1e94-4240-a22a-307f12ed98b8.png by default.
+If you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.
+The generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.
+
+Observed pattern: <CODEX_HOME>/generated_images/<session UUID>/exec-<UUID>.png.
+Verified CODEX_THREAD_ID equals 01a167b4-2434-7541-80ef-861523346b43 in this
+thread, exactly matching the output directory name. This is the native Codex
+session ID, not the T3 thread ID. Use output_hint's exact file path.
+Pillow verified format PNG, dimensions 1254x1254, mode RGB, size 993640 bytes.
+The prompt requested a tiny drawing, not specific pixel dimensions; no size
+parameter was available. The test file and its now-empty session directory were
+deleted after verification, and file absence was checked.
+The exposed tool schema accepts prompt, transparent_background,
+referenced_image_paths, num_last_images_to_include. There is no output directory,
+size, count, model, or completion-status argument. Destination selection requires
+moving/copying the result after generation. Size/aspect are prompt instructions;
+multiple images require repeated built-in calls. The tool exposes no model identity
+in its result; gpt-image-2 is the requested built-in route, not independently attested
+by the response. No paid API fallback or DostupAI was used.

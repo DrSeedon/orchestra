@@ -1,0 +1,12 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 24ms
+...F..F.FF..........................FF....                               [100%]
+=========================== short test summary info ============================
+FAILED tests/test_checklists_v858.py::test_estimated_reminder_fires_when_current_step_is_over_estimate
+FAILED tests/test_checklists_v858.py::test_reminder_delay_flag_expiry_and_once_per_turn
+FAILED tests/test_checklists_v858.py::test_checklist_update_restarts_the_five_minute_idle_window
+FAILED tests/test_checklists_v858.py::test_worker_turn_start_arms_and_turn_end_cancels_reminder
+FAILED tests/test_quota_wait_queue.py::test_model_change_rechecks_held_delivery_with_new_route_policy[hubsol-True-initial]
+FAILED tests/test_quota_wait_queue.py::test_model_change_rechecks_held_delivery_with_new_route_policy[hubsol-True-direct]
+6 failed, 36 passed in 8.07s

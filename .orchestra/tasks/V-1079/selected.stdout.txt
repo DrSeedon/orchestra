@@ -1,0 +1,1200 @@
+APP_IMPORT=/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/__init__.py
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "interrupted", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "unsupported", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "unsupported", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "interrupted", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "unsupported", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "unsupported", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": false}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": true}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": true}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "unknown", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"foreign_turn": 1, "legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"foreign_thread": 4, "legacy_unscoped": 4}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"foreign_turn": 4, "legacy_unscoped": 4}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.061, "started": 0.0, "terminal": 0.061}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.062, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.061, "started": 0.0, "terminal": 0.062}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.062, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.062}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.001, "started": 0.0, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.0, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.001, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1300, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 99, in observe
+    raw = await original()
+          ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1300, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 99, in observe
+    raw = await original()
+          ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1300, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 99, in observe
+    raw = await original()
+          ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+Codex compact state {"compacted": true, "elapsed_seconds": 0.002, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.002, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "rejected", "remote_outcome": "rejected", "stage": "request acknowledgement", "stages_seconds": {}, "terminal_status": null, "transport_generation": 0, "turn_known": false, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+..Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": false, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.062, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.062, "started": 0.062, "terminal": 0.062}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": false, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.063, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.063, "started": 0.063, "terminal": 0.063}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 4}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "interrupted", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.001}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.001, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] hibernating
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.0, "terminal": 0.001}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] hibernating
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": true, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.061, "started": 0.0, "terminal": 0.061}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] hibernating
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.0, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] hibernating
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.001}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.001}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "interrupted", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "terminal": 0.0}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": false, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": false, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": false, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"foreign_thread": 2, "legacy_unscoped": 3}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 4}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+....Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex app-server emitted invalid JSONL
+Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"invalid_json": 1, "legacy_unscoped": 3}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": true}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": true}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": false, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "interrupted", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.001, "terminal": 0.001}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 4}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "interrupted", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": false, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+codex_connect_stage worker=compact-state stage=quota_gate duration=0.000s
+temporary rules: migration from the database table failed: compact regression tests must remain offline
+codex_connect_stage worker=compact-state stage=prompt_assembly duration=0.000s
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] pending facts unavailable: AssertionError: compact regression tests must remain offline
+[compact-state] codex turn started
+Codex compact state {"compacted": true, "elapsed_seconds": 0.064, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.064, "started": 0.064, "terminal": 0.064}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] successful-turn steer cleanup failed: AssertionError: compact regression tests must remain offline
+[compact-state] codex turn error: compact regression tests must remain offline
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] failed-turn mailbox claim failed: AssertionError: compact regression tests must remain offline
+[compact-state] telemetry write failed: compact regression tests must remain offline
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.201, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.121, "started": 0.121}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.203, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.121, "started": 0.121}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.0, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.001, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 1, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 1, "turn_known": true, "will_retry": null}
+.........................Codex hibernation unavailable: delegation unavailable
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+codex_connect_stage worker=unknown stage=cli_thread_start duration=0.000s
+..Codex app-server emitted an oversized JSONL record; aborting the poisoned transport at the 16777216 byte limit
+.Codex app-server emitted an oversized JSONL record; aborting the poisoned transport at the 16777216 byte limit
+.Codex app-server reader failed: different reader failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1300, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_backend_codex.py", line 473, in readline
+    raise ValueError("different reader failure")
+ValueError: different reader failure
+.Codex app-server emitted an oversized JSONL record; aborting the poisoned transport at the 16777216 byte limit
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+codex_connect_stage worker=unknown stage=cli_thread_resume duration=0.000s
+.....Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+codex_connect_stage worker=unknown stage=cli_thread_resume_import duration=0.000s
+codex_connect_stage worker=unknown stage=mcp_reload duration=0.000s
+Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+codex_connect_stage worker=unknown stage=cli_thread_resume duration=0.000s
+codex_connect_stage worker=unknown stage=mcp_reload duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+codex_connect_stage worker=unknown stage=cli_initialize duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+.Codex hibernation unavailable: unsupported
+codex_connect_stage worker=unknown stage=cli_spawn duration=0.000s
+.....reconnecting Codex before idle turn to load current managed config: thread=thread-1 old=unknown new=new-config
+.reconnecting Codex before idle turn to load current managed config: thread=thread-1 old=old-config new=new-config
+..FCodex compact state {"compacted": true, "elapsed_seconds": 0.051, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.051}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.03, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.031, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+......................F..................Codex turn interrupt failed: interrupt request timed out
+..Codex usage unaccounted: ValueError: No published token price for gpt-5.3-codex-spark
+.Codex usage unaccounted: ValueError: No published token price for gpt-5.3-codex-spark
+..Codex usage unaccounted: ValueError: No published token price for gpt-5.3-codex-spark
+.Codex usage unaccounted: ValueError: No published token price for gpt-5.3-codex-spark
+...[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] skill refresh failed: pipeline name is empty
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] claude persistent event loop started
+[w1] heartbeat started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+.[w1] heartbeat cancelled
+....[w1] telemetry write failed: database locked
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] skill refresh failed: pipeline name is empty
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] claude persistent event loop started
+[w1] heartbeat started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+.[w1] heartbeat cancelled
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] skill refresh failed: pipeline name is empty
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] claude persistent event loop started
+[w1] heartbeat started
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+.[w1] heartbeat cancelled
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] claude persistent event loop started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] codex turn started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] grok turn started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] harness turn started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] codex turn started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] skill refresh failed: pipeline name is empty
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] claude persistent event loop started
+[w1] heartbeat started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+.[w1] heartbeat cancelled
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] skill refresh failed: pipeline name is empty
+[w1] backend connect failed: ConnectionError: connect failed
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] failed-turn mailbox claim failed: OperationalError: no such table: mailbox
+.codex_connect_stage worker=w1 stage=agents_sync duration=0.001s
+codex_connect_stage worker=w1 stage=skills_sync duration=0.000s
+codex_connect_stage worker=w1 stage=project_doc_sync duration=0.000s
+[w1] backend connect failed: CodexOversizedRecordError: oversized thread/resume response
+codex_connect_stage worker=w1 stage=agents_sync duration=0.001s
+codex_connect_stage worker=w1 stage=skills_sync duration=0.000s
+codex_connect_stage worker=w1 stage=project_doc_sync duration=0.000s
+.codex_connect_stage worker=w1 stage=agents_sync duration=0.001s
+codex_connect_stage worker=w1 stage=skills_sync duration=0.000s
+codex_connect_stage worker=w1 stage=project_doc_sync duration=0.000s
+[w1] backend connect failed: CodexOversizedRecordError: oversized thread/resume response
+codex_connect_stage worker=w1 stage=agents_sync duration=0.001s
+codex_connect_stage worker=w1 stage=skills_sync duration=0.000s
+codex_connect_stage worker=w1 stage=project_doc_sync duration=0.000s
+[w1] backend connect failed: CodexOversizedRecordError: oversized thread/resume response
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] codex turn started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] skill refresh failed: pipeline name is empty
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] claude persistent event loop started
+[w1] heartbeat started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+[w1] heartbeat cancelled
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] failed-turn mailbox claim failed: OperationalError: no such table: mailbox
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] claude persistent event loop started
+[w1] persistent event loop died: stream dropped
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/session.py", line 2470, in _persistent_event_loop
+    async for event in self._backend.events():
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_session.py", line 894, in events
+    raise RuntimeError("stream dropped")
+RuntimeError: stream dropped
+
+[w1] listener reconnected after error
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] codex persistent event loop started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] failed-turn mailbox claim failed: OperationalError: no such table: mailbox
+.[w1] claude persistent event loop started
+[w1] persistent event loop died: stream dropped
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/session.py", line 2470, in _persistent_event_loop
+    async for event in self._backend.events():
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_session.py", line 988, in events
+    raise RuntimeError("stream dropped")
+RuntimeError: stream dropped
+
+[w1] listener reconnected after error
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] claude persistent event loop started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+....[w] log write lost (status): OperationalError: no such table: logs | auto-report skipped: successful turn without output
+.............[w] log write lost (status): OperationalError: no such table: logs | auto-report skipped: pending messages
+.......................Failed to parse user MCP servers from /home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.orchestra/tasks/V-1079/tmp/selected/test_malformed_json_warns_and_0/.claude.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+.........[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] persist failed: db locked
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] context corrected: 0% → 95%
+.[w1] context corrected: 0% → 95%
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+....................................[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+...[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.....[w1] successful-turn steer cleanup failed: OperationalError: no such table: mailbox
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+..[w1] telemetry write failed: database locked
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.......[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] claude persistent event loop started
+[w1] persistent event loop died: stream lost
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/session.py", line 2470, in _persistent_event_loop
+    async for event in self._backend.events():
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_session.py", line 3410, in events
+    raise RuntimeError("stream lost")
+RuntimeError: stream lost
+
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] persistent event loop cancelled
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.orchestra/tasks/V-1079/tmp/selected/test_personal_memory_written_m0/.orchestra/workers/w1.md (31 chars)
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.Loaded worker memory: /home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.orchestra/tasks/V-1079/tmp/selected/test_prompt_reinjection_reads_0/subrepo-worktree/.orchestra/workers/w1.md (32 chars)
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] claude persistent event loop started
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] claude persistent event loop started
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] claude persistent event loop started
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] claude persistent event loop started
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+preserved tail unavailable for test-001: no such table: logs
+[w1] claude persistent event loop started
+[w1] listener stream ended (agent idle/stopped — normal on restart)
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.effort: key 'gpt-5.6-sol' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] claude persistent event loop started
+[w-eff] heartbeat started
+[w-eff] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-eff] listener stream ended (agent idle/stopped — normal on restart)
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w-eff] heartbeat cancelled
+effort: key 'gpt-5.6-sol' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] claude persistent event loop started
+[w-eff] heartbeat started
+[w-eff] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-eff] listener stream ended (agent idle/stopped — normal on restart)
+[w-eff] heartbeat cancelled
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] claude persistent event loop started
+[w-eff] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-eff] listener stream ended (agent idle/stopped — normal on restart)
+[w-eff] heartbeat started
+.[w-eff] heartbeat cancelled
+effort: key 'gpt-5.6-sol' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] claude persistent event loop started
+[w-eff] heartbeat started
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-eff] listener stream ended (agent idle/stopped — normal on restart)
+[w-eff] heartbeat cancelled
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] claude persistent event loop started
+[w-eff] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-eff] listener stream ended (agent idle/stopped — normal on restart)
+[w-eff] heartbeat started
+.[w-eff] heartbeat cancelled
+[w-eff] manifest effort re-read failed: ValidationError: 1 validation error for PipelineConfig
+roles.hand.bogus_field
+  Extra inputs are not permitted [type=extra_forbidden, input_value=1, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-eff] skill refresh failed: 1 validation error for PipelineConfig
+roles.hand.bogus_field
+  Extra inputs are not permitted [type=extra_forbidden, input_value=1, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] claude persistent event loop started
+[w-eff] heartbeat started
+[w-eff] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-eff] listener stream ended (agent idle/stopped — normal on restart)
+.[w-eff] heartbeat cancelled
+[w-eff] manifest effort re-read failed: ValidationError: 1 validation error for PipelineConfig
+roles.hand.effort
+  Value error, effort['claude-sonnet-5-5[1m]']: unknown level 'hgih'; known=['high', 'low', 'max', 'medium', 'xhigh'] [type=value_error, input_value={'claude-sonnet-5-5[1m]':...gih', 'default': 'high'}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/value_error
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-eff] skill refresh failed: 1 validation error for PipelineConfig
+roles.hand.effort
+  Value error, effort['claude-sonnet-5-5[1m]']: unknown level 'hgih'; known=['high', 'low', 'max', 'medium', 'xhigh'] [type=value_error, input_value={'claude-sonnet-5-5[1m]':...gih', 'default': 'high'}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/value_error
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] claude persistent event loop started
+[w-eff] heartbeat started
+[w-eff] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-eff] listener stream ended (agent idle/stopped — normal on restart)
+.[w-eff] heartbeat cancelled
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] claude persistent event loop started
+[w-eff] heartbeat started
+[w-eff] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-eff] listener stream ended (agent idle/stopped — normal on restart)
+.[w-eff] heartbeat cancelled
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+effort: key 'gpt-5.6-sol' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] claude persistent event loop started
+[w-eff] heartbeat started
+[w-eff] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-eff] listener stream ended (agent idle/stopped — normal on restart)
+.[w-eff] heartbeat cancelled
+.codex_connect_stage worker=w-eff stage=quota_gate duration=0.000s
+codex_connect_stage worker=w-eff stage=prompt_assembly duration=0.000s
+effort: key 'gpt-5.6-sol' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+[w-eff] checklist clock update failed: OperationalError: no such table: session_checklists
+codex_connect_stage worker=w-eff stage=agents_sync duration=0.001s
+git ls-files failed in /tmp: fatal: not a git repository (or any of the parent directories): .git — skill injection skipped for /tmp
+codex_connect_stage worker=w-eff stage=skills_sync duration=0.084s
+codex_connect_stage worker=w-eff stage=project_doc_sync duration=0.000s
+[w-eff] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w-eff] heartbeat started
+[w-eff] codex turn started
+[w-eff] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-eff] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w-eff] heartbeat cancelled
+codex_connect_stage worker=w1 stage=agents_sync duration=0.001s
+codex_connect_stage worker=w1 stage=skills_sync duration=0.000s
+codex_connect_stage worker=w1 stage=project_doc_sync duration=0.000s
+.[w1] skill refresh failed: pipeline name is empty
+..[w1] skill refresh failed: pipeline name is empty
+[w1] backend connect failed: RuntimeError: scope still populated
+.[w1] skill refresh failed: pipeline name is empty
+[w1] backend connect failed: RuntimeError: no process
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+codex_connect_stage worker=w1 stage=agents_sync duration=0.001s
+codex_connect_stage worker=w1 stage=skills_sync duration=0.000s
+codex_connect_stage worker=w1 stage=project_doc_sync duration=0.000s
+[w1] backend connect failed: RuntimeError: app-server exited 0
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] failed-turn mailbox claim failed: OperationalError: no such table: mailbox
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] mid-turn inject failed, queueing: turn already ended
+.codex_connect_stage worker=w1 stage=quota_gate duration=0.009s
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.codex_connect_stage worker=w1 stage=quota_gate duration=0.009s
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] flush pending failed: send failed
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+.codex_connect_stage worker=w1 stage=quota_gate duration=0.009s
+[w1] waking from hibernate
+codex_connect_stage worker=w1 stage=prompt_assembly duration=0.000s
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] codex turn started
+[w1] codex turn error: 'NoneType' object has no attribute 'events'
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] codex turn started
+[w1] successful-turn steer cleanup failed: OperationalError: no such table: mailbox
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+[w1] telemetry write failed: no such table: turn_usage
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.053, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.002, "compacted": 0.002, "started": 0.002, "terminal": 0.052}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+codex_connect_stage worker=w1 stage=quota_gate duration=0.015s
+codex_connect_stage worker=w1 stage=prompt_assembly duration=0.000s
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] codex turn started
+[w1] successful-turn steer cleanup failed: OperationalError: no such table: mailbox
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+[w1] telemetry write failed: no such table: turn_usage
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] codex turn started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+...[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.........codex_connect_stage worker=w1 stage=quota_gate duration=0.000s
+codex_connect_stage worker=w1 stage=prompt_assembly duration=0.000s
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+codex_connect_stage worker=w1 stage=agents_sync duration=0.001s
+[w1] skill refresh failed: pipeline name is empty
+codex_connect_stage worker=w1 stage=skills_sync duration=0.000s
+codex_connect_stage worker=w1 stage=project_doc_sync duration=0.000s
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] heartbeat started
+[w1] codex turn started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+codex_connect_stage worker=w1 stage=quota_gate duration=0.000s
+codex_connect_stage worker=w1 stage=prompt_assembly duration=0.000s
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] codex turn started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] heartbeat cancelled
+............[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+..codex_connect_stage worker=w1 stage=quota_gate duration=0.000s
+codex_connect_stage worker=w1 stage=quota_gate duration=0.000s
+codex_connect_stage worker=w1 stage=prompt_assembly duration=0.000s
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] codex turn started
+[w1] codex turn error: 'NoneType' object has no attribute 'events'
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+..[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+....[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] codex turn started
+[w1] failed-turn steer recovery unavailable: OperationalError: no such table: message_deliveries
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] codex turn started
+[w1] failed-turn steer recovery unavailable: OperationalError: no such table: message_deliveries
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.....[worker] hibernating
+.....[worker] hibernating
+.[worker] automatic hibernate failed: TimeoutError
+.[worker] hibernating
+.[worker] hibernating
+.[worker] heartbeat started
+[worker] heartbeat: listener dead but status=RUNNING — reconnecting
+[worker] heartbeat reconnect OK
+[worker] heartbeat cancelled
+...[worker] source handoff recovery failed: RuntimeError: released handoff source did not resume its exact native id
+...[worker] log write lost (tool_result): RuntimeError: disk unavailable | effect completed
+....F......Resumed worker: worker
+Restart notice injected: worker
+Resumed worker: worker
+uResumed worker: worker
+Restart notice injected: worker
+u.Resumed worker: worker
+Restart notice injected: worker
+..Resumed worker: worker
+Resumed worker: worker
+Restart notice injected: worker
+.Resumed worker: worker
+Restart notice injected: worker
+..Failed to resume worker worker: offline load failed
+turn signals for restart-interrupted turns failed: RuntimeError: signal database unavailable
+Failed to resume worker worker: offline load failed
+.Failed to resume worker worker: offline load failed
+Resumed worker: worker
+.Resumed worker: worker
+Resumed worker: worker
+..Resumed worker: worker
+Failed to inject restart notice to worker: provider not invoked
+Resumed worker: worker
+.Resumed worker: worker
+Restart notice injected: worker
+Resumed worker: worker
+..Resumed worker: worker
+Restart notice injected: worker
+.Resumed worker: worker
+Resumed worker: worker
+Restart notice injected: worker
+Resumed worker: worker
+.Resumed worker: worker
+uResumed worker: worker
+u........[compact-pending-467] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[compact-pending-467] pending facts unavailable: OperationalError: no such table: undelivered_facts
+.[w-compact] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for compact-001: no such table: logs
+[w-compact] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w-compact] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-compact] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w-compact] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-compact] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-compact] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w-compact] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for compact-001: no such table: logs
+[w-compact] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w-compact] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-compact] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-compact] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w-compact] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-compact] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-compact] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w-compact] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-compact] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-compact] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w-compact] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-compact] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-compact] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w-compact] checklist clock update failed: OperationalError: no such table: session_checklists
+[w-compact] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w-compact] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+.[w-compact] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for compact-001: no such table: logs
+[w-compact] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+..........E..........
+==================================== ERRORS ====================================
+_ ERROR at setup of test_compact_journal_rows_render_as_one_separate_collapsible_block _
+
+fixturedef = <FixtureDef argname='dashboard_browser' scope='module' baseid=''>
+request = <SubRequest 'dashboard_browser' for <Function test_compact_journal_rows_render_as_one_separate_collapsible_block>>
+
+    @pytest.hookimpl(wrapper=True)
+    def pytest_fixture_setup(fixturedef: FixtureDef, request) -> object | None:
+        if (
+            fixturedef.argname == "event_loop_policy"
+            and fixturedef.func.__module__ != __name__
+        ):
+            warnings.warn(
+                PytestDeprecationWarning(_EVENT_LOOP_POLICY_FIXTURE_DEPRECATION_WARNING),
+            )
+        asyncio_mode = _get_asyncio_mode(request.config)
+        if not _is_asyncio_fixture_function(fixturedef.func):
+            if asyncio_mode == Mode.STRICT:
+                # Ignore async fixtures without explicit asyncio mark in strict mode
+                # This applies to pytest_trio fixtures, for example
+>               return (yield)
+                        ^^^^^
+
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:924: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_frontend.py:549: in dashboard_browser
+    proc, origin = _start_dashboard_server(db_path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+db_path = PosixPath('/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.orchestra/tasks/V-1079/tmp/selected/fe-dash0/orchestra.db')
+
+    def _start_dashboard_server(db_path: Path) -> tuple[subprocess.Popen, str]:
+        # Empty strings beat load_dotenv(): existing keys are not overwritten, so
+        # the subprocess cannot pick up the machine unit's DASHBOARD_* / tunnels.
+        env = os.environ.copy()
+        env["ORCHESTRA_DB_PATH"] = str(db_path)
+        # Сервер поднимается ОТДЕЛЬНЫМ процессом, где `pytest` в sys.modules нет, а
+        # `load_dotenv()` в lifespan читает `.env` чекаута с БОЕВЫМИ путями. Не передав
+        # хранилище задач явно, мы отдаём подпроцессу живое: 22.09.2026 так было
+        # переписано 1863 записи боевого хранилища.
+        env["ORCHESTRA_TASK_REPOSITORY"] = str(db_path.parent / "tasks")
+        env["DASHBOARD_USER"] = ""
+        env["DASHBOARD_PASSWORD"] = ""
+        env["OWNER_MODE"] = ""
+        env["SSH_TUNNELS"] = ""
+        port = _free_port()
+        root = Path(__file__).resolve().parent.parent
+        # A pipe fills across tests and blocks the server event loop on logging.
+        output = tempfile.TemporaryFile(dir=db_path.parent)
+        try:
+            proc = subprocess.Popen(
+                [
+                    sys.executable, "-m", "uvicorn", "app.main:app",
+                    "--host", "127.0.0.1", "--port", str(port),
+                    "--log-level", "warning",
+                ],
+                cwd=str(root),
+                env=env,
+                stdout=output,
+                stderr=subprocess.STDOUT,
+            )
+        except BaseException:
+            output.close()
+            raise
+        proc.stdout = output
+        origin = f"http://127.0.0.1:{port}"
+        started = time.monotonic()
+        deadline = started + _DASHBOARD_START_TIMEOUT_S
+        last = "no attempt"
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                output = _dashboard_output_tail(proc)
+                if proc.stdout is not None:
+                    proc.stdout.close()
+>               raise RuntimeError(
+                    f"dashboard fixture exited {proc.returncode}; "
+                    f"output tail:\n{output}"
+                )
+E               RuntimeError: dashboard fixture exited 3; output tail:
+E               _lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/main.py", line 517, in lifespan
+E                   with task_runtime_mode(production_runtime()) as task_owner:
+E                                          ^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/task_runtime.py", line 201, in production_runtime
+E                   TaskStore(root, origin=new_task_prefix()).initialize()
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/task_store.py", line 155, in initialize
+E                   self._commit_files({path: _bytes({'schema_version': SCHEMA_VERSION})}, 'Initialize task store')
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/task_store.py", line 296, in _commit_files
+E                   self._git('commit', '--only', '-m', message, '--', *relative)
+E                 File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/task_store.py", line 112, in _git
+E                   raise TaskConflict(result.stderr.strip() or result.stdout.strip() or 'Git operation failed')
+E               app.task_store.TaskConflict: Author identity unknown
+E               
+E               *** Please tell me who you are.
+E               
+E               Run
+E               
+E                 git config --global user.email "you@example.com"
+E                 git config --global user.name "Your Name"
+E               
+E               to set your account's default identity.
+E               Omit --global to set the identity only in this repository.
+E               
+E               fatal: unable to auto-detect email address (got '<runtime-user-redacted>@<runtime-host-redacted>.(none)')
+E               
+E               ERROR:    Application startup failed. Exiting.
+
+tests/test_frontend.py:447: RuntimeError
+=================================== FAILURES ===================================
+________ test_events_reject_stale_lifecycle_without_losing_current_turn ________
+
+caplog = <_pytest.logging.LogCaptureFixture object at 0x77841b910a70>
+
+    @pytest.mark.asyncio
+    async def test_events_reject_stale_lifecycle_without_losing_current_turn(caplog):
+        backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+        backend._proc = SimpleNamespace(returncode=None)
+        backend._thread_id = "thread-1"
+        backend._active_turn_id = "task-turn"
+    
+        for method, turn_id in (
+            ("turn/started", "compact-turn"),
+            ("turn/completed", "compact-turn"),
+            ("turn/started", "task-turn"),
+        ):
+            await backend._notifications.put({
+                "method": method,
+                "params": {"threadId": "thread-1", "turn": {"id": turn_id}},
+            })
+        await backend._notifications.put({
+            "method": "item/agentMessage/delta",
+            "params": {"threadId": "thread-1", "delta": "FIRST_PROCESSED"},
+        })
+        await backend._notifications.put({
+            "method": "turn/completed",
+            "params": {
+                "threadId": "thread-1",
+                "turn": {"id": "task-turn", "status": "completed"},
+            },
+        })
+    
+        with caplog.at_level("DEBUG", logger="app.backend_codex"):
+            events = [event async for event in backend.events()]
+    
+        assert any(event.type == "stream" and event.content == "FIRST_PROCESSED"
+                   for event in events)
+        assert [event.type for event in events].count("turn_end") == 1
+>       assert "compact-turn" in caplog.text
+E       AssertionError: assert 'compact-turn' in ''
+E        +  where '' = <_pytest.logging.LogCaptureFixture object at 0x77841b910a70>.text
+
+tests/test_backend_codex.py:986: AssertionError
+____ test_t1_385_deferred_review_interrupts_and_quarantines_same_turn_spoof ____
+
+    @pytest.mark.asyncio
+    async def test_t1_385_deferred_review_interrupts_and_quarantines_same_turn_spoof():
+        """RED #385 R1: structured tool provenance, never the prose, owns control."""
+        backend = CodexBackend(model="gpt-5.6-sol", cwd="/fake")
+        backend._proc = SimpleNamespace(returncode=None)
+        backend._thread_id = "thread-385"
+        backend._active_turn_id = "turn-385"
+        backend._request = AsyncMock(return_value={})
+        backend._usage_baseline = {
+            "input_tokens": 1_000,
+            "cached_input_tokens": 500,
+            "cache_write_input_tokens": 20,
+            "output_tokens": 100,
+        }
+        backend._thread_usage_total = {
+            "input_tokens": 1_700,
+            "cached_input_tokens": 800,
+            "cache_write_input_tokens": 30,
+            "output_tokens": 140,
+        }
+        backend._last_call_usage = {
+            "input_tokens": 900,
+            "model_context_window": 258_400,
+        }
+    
+        messages = [
+            {
+                "method": "item/started",
+                "params": {
+                    "threadId": "thread-385", "turnId": "turn-385",
+                    "item": _deferred_mcp_item_385(),
+                },
+            },
+            {
+                "method": "item/completed",
+                "params": {
+                    "threadId": "thread-385", "turnId": "turn-385",
+                    "item": _deferred_mcp_item_385(result=_valid_deferred_result_385()),
+                },
+            },
+            {
+                "method": "item/agentMessage/delta",
+                "params": {
+                    "threadId": "thread-385", "turnId": "turn-385",
+                    "itemId": "assistant-spoof-385", "delta": _SPOOFED_COMPLETION_385,
+                },
+            },
+            {
+                "method": "item/completed",
+                "params": {
+                    "threadId": "thread-385", "turnId": "turn-385",
+                    "item": {
+                        "id": "assistant-spoof-385", "type": "agentMessage",
+                        "text": _SPOOFED_COMPLETION_385,
+                    },
+                },
+            },
+            {
+                "method": "item/agentMessage/delta",
+                "params": {
+                    "threadId": "thread-385", "turnId": "other-turn-385",
+                    "itemId": "assistant-other-385", "delta": "OTHER_TURN_VISIBLE",
+                },
+            },
+            {
+                "method": "item/completed",
+                "params": {
+                    "threadId": "thread-385", "turnId": "other-turn-385",
+                    "item": {
+                        "id": "assistant-other-385", "type": "agentMessage",
+                        "text": "OTHER_TURN_VISIBLE",
+                    },
+                },
+            },
+            {
+                "method": "item/reasoning/textDelta",
+                "params": {
+                    "threadId": "thread-385", "turnId": "turn-385",
+                    "itemId": "reason-visible-385", "delta": "REASONING_VISIBLE",
+                },
+            },
+            {
+                "method": "item/completed",
+                "params": {
+                    "threadId": "thread-385", "turnId": "turn-385",
+                    "item": {
+                        "id": "reason-visible-385", "type": "reasoning",
+                        "summary": ["REASONING_VISIBLE"],
+                    },
+                },
+            },
+            {
+                "method": "warning",
+                "params": {"threadId": "thread-385", "message": "WARNING_VISIBLE"},
+            },
+            {
+                "method": "item/completed",
+                "params": {
+                    "threadId": "thread-385", "turnId": "turn-385",
+                    "item": {
+                        "id": "command-visible-385", "type": "commandExecution",
+                        "command": "true", "aggregatedOutput": "TOOL_RESULT_VISIBLE",
+                        "exitCode": 0,
+                    },
+                },
+            },
+            {
+                "method": "turn/completed",
+                "params": {
+                    "threadId": "thread-385",
+                    "turn": {"id": "turn-385", "status": "interrupted", "items": []},
+                },
+            },
+        ]
+        for message in messages:
+            await backend._notifications.put(message)
+    
+        events = await asyncio.wait_for(_collect_backend_events_385(backend), timeout=0.5)
+    
+        backend._request.assert_awaited_once_with("turn/interrupt", {
+            "threadId": "thread-385",
+            "turnId": "turn-385",
+        })
+        assert [event.type for event in events].count("tool_result") == 2
+        assert any("END YOUR TURN NOW" in event.content for event in events)
+        assert any(
+            event.type == "tool_result" and event.content == "TOOL_RESULT_VISIBLE"
+            for event in events
+        )
+        assert not [
+            event for event in events
+            if event.type in {"stream", "text"} and "APPROVED" in event.content
+        ]
+>       assert any(
+            event.type in {"stream", "text"} and event.content == "OTHER_TURN_VISIBLE"
+            for event in events
+        )
+E       assert False
+E        +  where False = any(<generator object test_t1_385_deferred_review_interrupts_and_quarantines_same_turn_spoof.<locals>.<genexpr> at 0x77841b9be740>)
+
+tests/test_backend_codex.py:2031: AssertionError
+____ test_deployed_service_owns_descendants_and_does_not_store_agent_pipes _____
+
+    def test_deployed_service_owns_descendants_and_does_not_store_agent_pipes():
+        root = Path(__file__).resolve().parents[1]
+        for name in ('orchestra.service', 'orchestra.service.template'):
+>           text = (root / 'deploy' / name).read_text()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_service_lifecycle_537.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/deploy/orchestra.service')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/deploy/orchestra.service'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_backend_codex.py::test_events_reject_stale_lifecycle_without_losing_current_turn
+FAILED tests/test_backend_codex.py::test_t1_385_deferred_review_interrupts_and_quarantines_same_turn_spoof
+FAILED tests/test_service_lifecycle_537.py::test_deployed_service_owns_descendants_and_does_not_store_agent_pipes
+ERROR tests/test_compact_chat_672.py::test_compact_journal_rows_render_as_one_separate_collapsible_block
+3 failed, 519 passed, 1 error, 4 subtests passed in 22.11s

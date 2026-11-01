@@ -1,0 +1,123 @@
+     1	"""Results that outlive the connection that was meant to carry them.
+     2	
+     3	A background job's completion goes back over the very websocket the request
+     4	arrived on. If that socket is gone by the time the work finishes -- our own
+     5	deployment, the operator's network, anything -- the send fails and the result is
+     6	simply lost. The agent did the work, built the answer, and wrote it to a
+     7	connection nobody was reading.
+     8	
+     9	Three users reported the same shape of loss in one day, and 98 job records were
+    10	sitting at "running" fleet-wide with nothing ever coming back for them.
+    11	
+    12	So: write the event down before attempting to send it, delete it once the send
+    13	succeeds, and replay whatever is still on disk the next time we connect. The hub
+    14	accepts a completion from any connection belonging to the same user, and
+    15	applying one twice yields the same record, so a replay is safe.
+    16	
+    17	Deliberately NOT a job registry. The work still runs inside the agent process
+    18	and still dies with it -- what survives here is the ANSWER, not the job. That is
+    19	the failure everyone actually hit; surviving an agent restart is a separate and
+    20	much larger change.
+    21	"""
+    22	
+    23	from __future__ import annotations
+    24	
+    25	import json
+    26	import os
+    27	import tempfile
+    28	import time
+    29	from pathlib import Path
+    30	from typing import Any, Iterator
+    31	
+    32	import logging
+    33	
+    34	logger = logging.getLogger(__name__)
+    35	
+    36	# Old enough that the hub has expired the job anyway: replaying it would land on
+    37	# an unknown id and be discarded, so there is nothing to gain by keeping it.
+    38	PENDING_TTL_SECONDS = 24 * 3600
+    39	
+    40	# A stuck or offline agent must not fill the disk with results nobody will read.
+    41	MAX_PENDING_FILES = 500
+    42	
+    43	
+    44	def pending_dir(upload_base: Path) -> Path:
+    45	    """Where unsent results live. A sibling of the upload base, not inside it:
+    46	    that directory is user-facing, and these are ours."""
+    47	    return upload_base.parent / "pending-results"
+    48	
+    49	
+    50	def _safe_name(job_id: str) -> str:
+    51	    """job_id comes from the hub, but it reaches disk, so treat it as input."""
+    52	    keep = "".join(c for c in job_id if c.isalnum() or c in "-_")
+    53	    return keep[:64] or "unnamed"
+    54	
+    55	
+    56	def record(upload_base: Path, job_id: str, event: dict[str, Any]) -> Path | None:
+    57	    """Write `event` down before it is sent. Returns the path, or None if we
+    58	    could not write -- in which case the caller still tries to send, because a
+    59	    result that might reach the hub beats one we refuse to attempt."""
+    60	    try:
+    61	        d = pending_dir(upload_base)
+    62	        d.mkdir(parents=True, exist_ok=True)
+    63	
+    64	        existing = sorted(d.glob("*.json"))
+    65	        if len(existing) >= MAX_PENDING_FILES:
+    66	            # Drop the oldest rather than refuse the newest: a recent result is
+    67	            # the one someone is still waiting on.
+    68	            for stale in existing[: len(existing) - MAX_PENDING_FILES + 1]:
+    69	                stale.unlink(missing_ok=True)
+    70	
+    71	        path = d / f"{_safe_name(job_id)}.json"
+    72	        # Write-then-rename: a crash mid-write must not leave a half file that
+    73	        # the next startup tries to parse and re-send.
+    74	        fd, tmp = tempfile.mkstemp(dir=str(d), suffix=".tmp")
+    75	        try:
+    76	            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+    77	                json.dump({"at": time.time(), "event": event}, fh)
+    78	            os.replace(tmp, path)
+    79	        except Exception:
+    80	            Path(tmp).unlink(missing_ok=True)
+    81	            raise
+    82	        return path
+    83	    except Exception as exc:  # noqa: BLE001
+    84	        logger.warning("pending_result_write_failed job=%s: %s", job_id, exc)
+    85	        return None
+    86	
+    87	
+    88	def clear(path: Path | None) -> None:
+    89	    """Forget a result once it is on its way."""
+    90	    if path is None:
+    91	        return
+    92	    try:
+    93	        path.unlink(missing_ok=True)
+    94	    except Exception as exc:  # noqa: BLE001
+    95	        logger.warning("pending_result_clear_failed %s: %s", path, exc)
+    96	
+    97	
+    98	def drain(upload_base: Path) -> Iterator[tuple[Path, dict[str, Any]]]:
+    99	    """Yield (path, event) for every result still waiting, oldest first.
+   100	
+   101	    Expired and unreadable entries are removed as they are met rather than
+   102	    yielded: a file we cannot parse will never parse, and one the hub has
+   103	    forgotten cannot be applied.
+   104	    """
+   105	    d = pending_dir(upload_base)
+   106	    if not d.is_dir():
+   107	        return
+   108	    now = time.time()
+   109	    for path in sorted(d.glob("*.json")):
+   110	        try:
+   111	            data = json.loads(path.read_text(encoding="utf-8"))
+   112	            event = data.get("event")
+   113	            if not isinstance(event, dict):
+   114	                raise ValueError("no event object")
+   115	            if now - float(data.get("at") or 0) > PENDING_TTL_SECONDS:
+   116	                logger.info("pending_result_expired %s", path.name)
+   117	                path.unlink(missing_ok=True)
+   118	                continue
+   119	        except Exception as exc:  # noqa: BLE001
+   120	            logger.warning("pending_result_unreadable %s: %s", path.name, exc)
+   121	            path.unlink(missing_ok=True)
+   122	            continue
+   123	        yield path, event

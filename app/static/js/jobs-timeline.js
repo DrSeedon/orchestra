@@ -107,6 +107,81 @@
         return `${sec} с`;
     }
 
+
+    const PROGRESS_STATES = {
+        running: 'идёт', paused: 'на паузе', waiting: 'ожидает', done: 'готово',
+        error: 'ошибка', unknown: 'статус неизвестен',
+    };
+
+    function _num(v) { return typeof v === 'number' && Number.isFinite(v) ? v : null; }
+
+    function _fmtNum(v, orchLocale = globalThis.orchLocale) {
+        if (typeof orchLocale !== 'function') orchLocale = () => 'ru-RU';
+        return new Intl.NumberFormat(orchLocale(), {maximumFractionDigits: v >= 100 ? 0 : 1}).format(v);
+    }
+
+    /** Приблизительная длительность для ETA и «давности»: «≈» ставит вызывающий. */
+    function fmtDuration(sec) {
+        sec = _num(sec);
+        if (sec === null || sec < 0) return '';
+        if (sec < 45) return 'меньше минуты';
+        if (sec < 3600) return `${Math.max(1, Math.round(sec / 60))} мин`;
+        if (sec < 86400) {
+            const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
+            return m === 60 ? `${h + 1} ч` : (m ? `${h} ч ${m} мин` : `${h} ч`);
+        }
+        const d = Math.floor(sec / 86400), h = Math.round((sec % 86400) / 3600);
+        return h === 24 ? `${d + 1} дн` : (h ? `${d} дн ${h} ч` : `${d} дн`);
+    }
+
+    /** Что показать про прогресс: только то, что реально наблюдалось; неизвестное остаётся неизвестным. */
+    function progressInfo(job, cfg, now) {
+        const rec = cfg && cfg._progress;
+        const wanted = cfg && cfg.progress;
+        const errorText = rec && typeof rec.error === 'string' && rec.error
+            ? `не удалось прочитать прогресс: ${rec.error}` : '';
+        if (!rec || typeof rec !== 'object' || !rec.sample || typeof rec.sample !== 'object') {
+            return wanted ? {waiting: true, status: 'waiting-first',
+                note: errorText || 'ждём первое измерение'} : null;
+        }
+        const live = job.status === 'active' || job.status === 'triggering';
+        const sm = rec.sample;
+        const interval = Math.max(5, _num(rec.interval) || 5);
+        const seen = _date(sm.observed_at) || _date(rec.last_ok_at) || _date(rec.updated_at);
+        const ageSec = seen ? Math.max(0, (now - seen) / 1000) : null;
+        const stale = live && (ageSec === null || ageSec > Math.max(30, interval * 3));
+        const completed = _num(sm.completed), total = _num(sm.total);
+        let percent = _num(sm.percent);
+        if (percent === null && completed !== null && total !== null && total > 0) percent = completed / total * 100;
+        if (percent !== null) percent = Math.min(100, Math.max(0, percent));
+        const status = PROGRESS_STATES[sm.status] ? sm.status : 'unknown';
+        const running = live && !stale && !errorText && status === 'running';
+        const moved = _date(rec.moved_at);
+        const idleSec = moved ? Math.max(0, (now - moved) / 1000) : null;
+        const stalled = running && idleSec !== null && idleSec > Math.max(60, interval * 4);
+        const rate = running && !stalled ? _num(sm.rate) : null;
+        const eta = running && !stalled && !sm.reset ? _num(sm.eta_seconds) : null;
+        const unit = typeof sm.unit === 'string' && sm.unit !== '%' ? sm.unit : '';
+        return {
+            waiting: false, live, stale, stalled, status, percent,
+            statusText: PROGRESS_STATES[status],
+            label: typeof sm.label === 'string' ? sm.label : '',
+            completed, total, unit,
+            countText: completed !== null ? (total !== null && total > 0
+                ? `${_fmtNum(completed)} из ${_fmtNum(total)}${unit ? ' ' + unit : ''}`
+                : `${_fmtNum(completed)}${unit ? ' ' + unit : ''}`) : '',
+            rateText: rate !== null && rate > 0 && unit ? `${_fmtNum(rate)} ${unit}/с` : '',
+            etaText: eta !== null ? (eta < 45 ? 'меньше минуты' : `≈ ${fmtDuration(eta)}`) : '',
+            etaApprox: sm.eta_source === 'reported' ? 'по данным источника' : 'оценка по скорости',
+            ageText: ageSec !== null ? `обновлено ${fmtDuration(ageSec) === 'меньше минуты' ? 'только что' : fmtDuration(ageSec) + ' назад'}` : '',
+            staleText: stale ? 'данные устарели — измерение не приходит' : '',
+            stalledText: stalled ? `без движения ${fmtDuration(idleSec)}` : '',
+            resetText: sm.reset ? 'счётчик сброшен — оценка пересчитывается' : '',
+            errorText,
+            raw: typeof rec.raw === 'string' ? rec.raw : '',
+        };
+    }
+
     /** Всё, что нужно показать про задание, одним объектом. */
     function describe(job, now) {
         const cfg = parseCfg(job);
@@ -121,9 +196,10 @@
             kind, cfg, live, sIcon, sName, sColor, ageDays,
             creator: job.created_by_name || '', target: job.target_name || '',
             nextAt: null, nextText: '', pastAt: null, pastText: '', scheduleText: '',
-            stale: 0, staleText: '',
+            stale: 0, staleText: '', progress: null,
         };
 
+        if (job.type === 'run') out.progress = progressInfo(job, cfg, now);
         if (job.type === 'timer') {
             out.nextAt = _date(job.trigger_at);
         } else if (job.type === 'cron' || job.type === 'cron_command') {
@@ -176,7 +252,7 @@
         return events;
     }
 
-    window.JobsView = {cronNext, describe, buildTimeline, rel, krsk, KINDS, STATES};
+    window.JobsView = {cronNext, describe, buildTimeline, rel, krsk, KINDS, STATES, progressInfo, fmtDuration};
     if (typeof document === 'undefined') return;
 
     const _expanded = new Set();
@@ -186,6 +262,28 @@
 
     function _viewMode() {
         try { return localStorage.getItem(_VIEW_KEY) === 'timeline' ? 'timeline' : 'agents'; } catch (_) { return 'agents'; }
+    }
+
+
+    function _progressHtml(p) {
+        if (!p) return '';
+        if (p.waiting) return `<div class="job-prog"><div class="job-prog-meta">${escHtml(p.note)}</div></div>`;
+        const tone = p.errorText || p.staleText || p.status === 'error' ? 'warn'
+            : p.status === 'done' ? 'ok' : p.status === 'paused' || p.status === 'waiting' || p.stalledText ? 'pause' : 'run';
+        const pct = p.percent;
+        const bar = pct !== null
+            ? `<div class="job-prog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><i style="width:${pct.toFixed(1)}%"></i></div>`
+            : '';
+        const head = [pct !== null ? `<b>${escHtml(_fmtNum(pct))}%</b>` : '', escHtml(p.label), `<span class="job-prog-st">${escHtml(p.statusText)}</span>`]
+            .filter(Boolean).join(' ');
+        const facts = [p.countText, p.rateText, p.etaText ? `осталось ${p.etaText}` : ''].filter(Boolean);
+        const notes = [p.staleText, p.stalledText, p.resetText, p.errorText, p.ageText].filter(Boolean);
+        const etaTitle = p.etaText ? ` title="${escHtml('Приблизительно: ' + p.etaApprox)}"` : '';
+        return `<div class="job-prog job-prog-${tone}">
+            <div class="job-prog-head">${head}</div>${bar}
+            ${facts.length ? `<div class="job-prog-meta"${etaTitle}>${facts.map(escHtml).join(' · ')}</div>` : ''}
+            ${notes.length ? `<div class="job-prog-note">${notes.map(escHtml).join(' · ')}</div>` : ''}
+        </div>`;
     }
 
     function _card(job, now, showTarget) {
@@ -212,6 +310,7 @@
                 ${row('Поставлено', job.created_at ? `${krsk(new Date(job.created_at))} (${rel(new Date(job.created_at), now)})` : '')}
                 ${row('Команда', d.cfg.command)}${row('Шаблон', d.cfg.pattern)}${row('Путь', d.cfg.path)}${row('Хост', d.cfg.host)}
                 ${row('Ошибка', job.error)}
+                ${d.progress && d.progress.raw ? row('Последнее измерение', d.progress.raw) : ''}
                 ${job.last_output ? `<pre class="job-out">${escHtml(String(job.last_output).slice(-600))}</pre>` : ''}
                 <div class="job-k">id: ${escHtml(job.id)}</div>
             </div>`;
@@ -223,7 +322,7 @@
             </div>
             <div class="job-msg${open ? '' : ' job-clamp'}" data-job-toggle="${escHtml(job.id)}">${escHtml(msg || '(без текста)')}</div>
             <div class="job-who">${showTarget ? who : (d.creator && d.creator !== d.target ? `поставил ${escHtml(d.creator)}` : 'себе')} ${staleBadge}</div>
-            ${lines.join('')}${detail}
+            ${_progressHtml(d.progress)}${lines.join('')}${detail}
         </div>`;
     }
 

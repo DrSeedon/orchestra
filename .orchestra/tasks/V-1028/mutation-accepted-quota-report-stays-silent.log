@@ -1,0 +1,20 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_explicit_report_parked_at_acceptance_is_visible_and_notified _______
+
+tree = {'add_worker': <function world.<locals>.add_worker at 0x710a237fda80>, 'manager': <tests.test_v1028_report_holds.Manag...c916a0>, 'parent_id': '97c2d3ec-45c6-4de2-9be0-4e301cf39311', 'worker_id': '45eb6551-e156-4da3-ab4d-2341363f9d86', ...}
+
+    @pytest.mark.asyncio
+    async def test_explicit_report_parked_at_acceptance_is_visible_and_notified(tree):
+        receipt, code = await _accept(tree, parked=True)
+        assert code == 202 and receipt["delivery_state"] == "WAITING_QUOTA"
+>       assert [m[0] for m in tree["manager"].sent] == ["top"]
+E       AssertionError: assert [] == ['top']
+E         
+E         Right contains one more item: 'top'
+E         Use -v to get more diff
+
+tests/test_v1028_report_holds.py:164: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v1028_report_holds.py::test_explicit_report_parked_at_acceptance_is_visible_and_notified
+1 failed, 12 deselected in 3.66s

@@ -1,0 +1,462 @@
+Diagnostic app.error_watch import: /home/<private-identifier>/orchestra-ws/vmi3407579/hub-43e35c110430406d/app/error_watch.py
+Stand-ins: app.db.DB_PATH (unused); app.secret_mask.mask_secrets (identity)
+In-memory negative control: capacity classification rule removed
+......................FFFFFFFFFF.................FFFFF.................  [100%]
+=================================== FAILURES ===================================
+_ test_standalone_provider_capacity_is_noise_without_changing_event[logs-Selected model is at capacity. Please try a different model.] _
+
+message = 'Selected model is at capacity. Please try a different model.'
+source = 'logs'
+
+    @pytest.mark.parametrize("message", [
+        _CAPACITY_REFUSAL,
+        "ERROR:app.session:" + _CAPACITY_REFUSAL,
+        "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+        " \t" + _CAPACITY_REFUSAL + "\r\n",
+        "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+    ])
+    @pytest.mark.parametrize("source", ["logs", "journalctl"])
+    def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+        event = dict(_event(message, source=source), type="error")
+        original = dict(event)
+>       assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+E       AssertionError: assert None == 'external provider capacity'
+E        +  where None = <function classify_noise at 0x726f9950e5c0>('Selected model is at capacity. Please try a different model.')
+E        +    where <function classify_noise at 0x726f9950e5c0> = watch.classify_noise
+
+tests/test_error_watch.py:175: AssertionError
+_ test_standalone_provider_capacity_is_noise_without_changing_event[logs-ERROR:app.session:Selected model is at capacity. Please try a different model.] _
+
+message = 'ERROR:app.session:Selected model is at capacity. Please try a different model.'
+source = 'logs'
+
+    @pytest.mark.parametrize("message", [
+        _CAPACITY_REFUSAL,
+        "ERROR:app.session:" + _CAPACITY_REFUSAL,
+        "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+        " \t" + _CAPACITY_REFUSAL + "\r\n",
+        "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+    ])
+    @pytest.mark.parametrize("source", ["logs", "journalctl"])
+    def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+        event = dict(_event(message, source=source), type="error")
+        original = dict(event)
+>       assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+E       AssertionError: assert None == 'external provider capacity'
+E        +  where None = <function classify_noise at 0x726f9950e5c0>('Selected model is at capacity. Please try a different model.')
+E        +    where <function classify_noise at 0x726f9950e5c0> = watch.classify_noise
+
+tests/test_error_watch.py:175: AssertionError
+_ test_standalone_provider_capacity_is_noise_without_changing_event[logs-WARNING:app.backend_hub: Selected model is at capacity. Please try a different model.] _
+
+message = 'WARNING:app.backend_hub: Selected model is at capacity. Please try a different model.'
+source = 'logs'
+
+    @pytest.mark.parametrize("message", [
+        _CAPACITY_REFUSAL,
+        "ERROR:app.session:" + _CAPACITY_REFUSAL,
+        "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+        " \t" + _CAPACITY_REFUSAL + "\r\n",
+        "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+    ])
+    @pytest.mark.parametrize("source", ["logs", "journalctl"])
+    def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+        event = dict(_event(message, source=source), type="error")
+        original = dict(event)
+>       assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+E       AssertionError: assert None == 'external provider capacity'
+E        +  where None = <function classify_noise at 0x726f9950e5c0>('Selected model is at capacity. Please try a different model.')
+E        +    where <function classify_noise at 0x726f9950e5c0> = watch.classify_noise
+
+tests/test_error_watch.py:175: AssertionError
+_ test_standalone_provider_capacity_is_noise_without_changing_event[logs- \tSelected model is at capacity. Please try a different model.\r\n] _
+
+message = ' \tSelected model is at capacity. Please try a different model.\r\n'
+source = 'logs'
+
+    @pytest.mark.parametrize("message", [
+        _CAPACITY_REFUSAL,
+        "ERROR:app.session:" + _CAPACITY_REFUSAL,
+        "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+        " \t" + _CAPACITY_REFUSAL + "\r\n",
+        "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+    ])
+    @pytest.mark.parametrize("source", ["logs", "journalctl"])
+    def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+        event = dict(_event(message, source=source), type="error")
+        original = dict(event)
+>       assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+E       AssertionError: assert None == 'external provider capacity'
+E        +  where None = <function classify_noise at 0x726f9950e5c0>('Selected model is at capacity. Please try a different model.')
+E        +    where <function classify_noise at 0x726f9950e5c0> = watch.classify_noise
+
+tests/test_error_watch.py:175: AssertionError
+_ test_standalone_provider_capacity_is_noise_without_changing_event[logs-ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n] _
+
+message = 'ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n'
+source = 'logs'
+
+    @pytest.mark.parametrize("message", [
+        _CAPACITY_REFUSAL,
+        "ERROR:app.session:" + _CAPACITY_REFUSAL,
+        "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+        " \t" + _CAPACITY_REFUSAL + "\r\n",
+        "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+    ])
+    @pytest.mark.parametrize("source", ["logs", "journalctl"])
+    def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+        event = dict(_event(message, source=source), type="error")
+        original = dict(event)
+>       assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+E       AssertionError: assert None == 'external provider capacity'
+E        +  where None = <function classify_noise at 0x726f9950e5c0>('Selected model is at capacity. Please try a different model.')
+E        +    where <function classify_noise at 0x726f9950e5c0> = watch.classify_noise
+
+tests/test_error_watch.py:175: AssertionError
+_ test_standalone_provider_capacity_is_noise_without_changing_event[journalctl-Selected model is at capacity. Please try a different model.] _
+
+message = 'Selected model is at capacity. Please try a different model.'
+source = 'journalctl'
+
+    @pytest.mark.parametrize("message", [
+        _CAPACITY_REFUSAL,
+        "ERROR:app.session:" + _CAPACITY_REFUSAL,
+        "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+        " \t" + _CAPACITY_REFUSAL + "\r\n",
+        "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+    ])
+    @pytest.mark.parametrize("source", ["logs", "journalctl"])
+    def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+        event = dict(_event(message, source=source), type="error")
+        original = dict(event)
+>       assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+E       AssertionError: assert None == 'external provider capacity'
+E        +  where None = <function classify_noise at 0x726f9950e5c0>('Selected model is at capacity. Please try a different model.')
+E        +    where <function classify_noise at 0x726f9950e5c0> = watch.classify_noise
+
+tests/test_error_watch.py:175: AssertionError
+_ test_standalone_provider_capacity_is_noise_without_changing_event[journalctl-ERROR:app.session:Selected model is at capacity. Please try a different model.] _
+
+message = 'ERROR:app.session:Selected model is at capacity. Please try a different model.'
+source = 'journalctl'
+
+    @pytest.mark.parametrize("message", [
+        _CAPACITY_REFUSAL,
+        "ERROR:app.session:" + _CAPACITY_REFUSAL,
+        "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+        " \t" + _CAPACITY_REFUSAL + "\r\n",
+        "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+    ])
+    @pytest.mark.parametrize("source", ["logs", "journalctl"])
+    def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+        event = dict(_event(message, source=source), type="error")
+        original = dict(event)
+>       assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+E       AssertionError: assert None == 'external provider capacity'
+E        +  where None = <function classify_noise at 0x726f9950e5c0>('Selected model is at capacity. Please try a different model.')
+E        +    where <function classify_noise at 0x726f9950e5c0> = watch.classify_noise
+
+tests/test_error_watch.py:175: AssertionError
+_ test_standalone_provider_capacity_is_noise_without_changing_event[journalctl-WARNING:app.backend_hub: Selected model is at capacity. Please try a different model.] _
+
+message = 'WARNING:app.backend_hub: Selected model is at capacity. Please try a different model.'
+source = 'journalctl'
+
+    @pytest.mark.parametrize("message", [
+        _CAPACITY_REFUSAL,
+        "ERROR:app.session:" + _CAPACITY_REFUSAL,
+        "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+        " \t" + _CAPACITY_REFUSAL + "\r\n",
+        "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+    ])
+    @pytest.mark.parametrize("source", ["logs", "journalctl"])
+    def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+        event = dict(_event(message, source=source), type="error")
+        original = dict(event)
+>       assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+E       AssertionError: assert None == 'external provider capacity'
+E        +  where None = <function classify_noise at 0x726f9950e5c0>('Selected model is at capacity. Please try a different model.')
+E        +    where <function classify_noise at 0x726f9950e5c0> = watch.classify_noise
+
+tests/test_error_watch.py:175: AssertionError
+_ test_standalone_provider_capacity_is_noise_without_changing_event[journalctl- \tSelected model is at capacity. Please try a different model.\r\n] _
+
+message = ' \tSelected model is at capacity. Please try a different model.\r\n'
+source = 'journalctl'
+
+    @pytest.mark.parametrize("message", [
+        _CAPACITY_REFUSAL,
+        "ERROR:app.session:" + _CAPACITY_REFUSAL,
+        "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+        " \t" + _CAPACITY_REFUSAL + "\r\n",
+        "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+    ])
+    @pytest.mark.parametrize("source", ["logs", "journalctl"])
+    def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+        event = dict(_event(message, source=source), type="error")
+        original = dict(event)
+>       assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+E       AssertionError: assert None == 'external provider capacity'
+E        +  where None = <function classify_noise at 0x726f9950e5c0>('Selected model is at capacity. Please try a different model.')
+E        +    where <function classify_noise at 0x726f9950e5c0> = watch.classify_noise
+
+tests/test_error_watch.py:175: AssertionError
+_ test_standalone_provider_capacity_is_noise_without_changing_event[journalctl-ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n] _
+
+message = 'ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n'
+source = 'journalctl'
+
+    @pytest.mark.parametrize("message", [
+        _CAPACITY_REFUSAL,
+        "ERROR:app.session:" + _CAPACITY_REFUSAL,
+        "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+        " \t" + _CAPACITY_REFUSAL + "\r\n",
+        "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+    ])
+    @pytest.mark.parametrize("source", ["logs", "journalctl"])
+    def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+        event = dict(_event(message, source=source), type="error")
+        original = dict(event)
+>       assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+E       AssertionError: assert None == 'external provider capacity'
+E        +  where None = <function classify_noise at 0x726f9950e5c0>('Selected model is at capacity. Please try a different model.')
+E        +    where <function classify_noise at 0x726f9950e5c0> = watch.classify_noise
+
+tests/test_error_watch.py:175: AssertionError
+_ test_capacity_scan_groups_expected_refusal_but_reports_real_errors[Selected model is at capacity. Please try a different model. Data loss detected.] _
+
+failure = 'Selected model is at capacity. Please try a different model. Data loss detected.'
+hub_finish_db = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-43e35c110430406d/.orchestra/tasks/V-1146/negative-tmp/test_capacity_scan_groups_expe0/orchestra.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x726f97cf0bf0>
+capsys = <_pytest.capture.CaptureFixture object at 0x726f97cf0dd0>
+scan_reports = <Mock id='125823613864992'>
+
+    @pytest.mark.parametrize("failure", [
+        _CAPACITY_REFUSAL + " Data loss detected.",
+        "ERROR:app.session:" + _CAPACITY_REFUSAL + "\nRuntimeError: delivery failed",
+        "Hub worker turn failed: " + _CAPACITY_REFUSAL,
+        "Hub worker turn failed: hub thread ended with status failed; " + _CAPACITY_REFUSAL,
+        'Parser failed while reading "' + _CAPACITY_REFUSAL + '"',
+    ])
+    def test_capacity_scan_groups_expected_refusal_but_reports_real_errors(
+        failure, hub_finish_db, monkeypatch, capsys, scan_reports,
+    ):
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        stamp = started + timedelta(seconds=1)
+        raw = "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n"
+        _insert_error_rows(hub_finish_db, [("error", _CAPACITY_REFUSAL, None, 1)] * 5 + [
+            ("error", raw, None, 1),
+        ] * 4, stamp)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+        args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=10, dry_run=True)
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+        assert output["signals"] == []
+        assert output["noise_events"] == 0
+    
+        _insert_error_rows(hub_finish_db, [("error", raw, None, 1)], stamp)
+        original_events = watch.collect_db_events(hub_finish_db, started)
+        assert [event["message"] for event in original_events] == [_CAPACITY_REFUSAL] * 5 + [raw] * 5
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+>       assert output["signals"] == []
+E       AssertionError: assert [{'count': 10...': []}}, ...}] == []
+E         
+E         Left contains one more item: {'count': 10, 'examples': ['Selected model is at capacity. Please try a different model.'], 'first': '2026-10-30T08:12:24.211102+00:00', 'known': {'known': {'tasks': []}}, ...}
+E         Use -v to get more diff
+
+tests/test_error_watch.py:247: AssertionError
+_ test_capacity_scan_groups_expected_refusal_but_reports_real_errors[ERROR:app.session:Selected model is at capacity. Please try a different model.\nRuntimeError: delivery failed] _
+
+failure = 'ERROR:app.session:Selected model is at capacity. Please try a different model.\nRuntimeError: delivery failed'
+hub_finish_db = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-43e35c110430406d/.orchestra/tasks/V-1146/negative-tmp/test_capacity_scan_groups_expe1/orchestra.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x726f97d0b8f0>
+capsys = <_pytest.capture.CaptureFixture object at 0x726f97d0bbf0>
+scan_reports = <Mock id='125823613975392'>
+
+    @pytest.mark.parametrize("failure", [
+        _CAPACITY_REFUSAL + " Data loss detected.",
+        "ERROR:app.session:" + _CAPACITY_REFUSAL + "\nRuntimeError: delivery failed",
+        "Hub worker turn failed: " + _CAPACITY_REFUSAL,
+        "Hub worker turn failed: hub thread ended with status failed; " + _CAPACITY_REFUSAL,
+        'Parser failed while reading "' + _CAPACITY_REFUSAL + '"',
+    ])
+    def test_capacity_scan_groups_expected_refusal_but_reports_real_errors(
+        failure, hub_finish_db, monkeypatch, capsys, scan_reports,
+    ):
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        stamp = started + timedelta(seconds=1)
+        raw = "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n"
+        _insert_error_rows(hub_finish_db, [("error", _CAPACITY_REFUSAL, None, 1)] * 5 + [
+            ("error", raw, None, 1),
+        ] * 4, stamp)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+        args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=10, dry_run=True)
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+        assert output["signals"] == []
+        assert output["noise_events"] == 0
+    
+        _insert_error_rows(hub_finish_db, [("error", raw, None, 1)], stamp)
+        original_events = watch.collect_db_events(hub_finish_db, started)
+        assert [event["message"] for event in original_events] == [_CAPACITY_REFUSAL] * 5 + [raw] * 5
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+>       assert output["signals"] == []
+E       AssertionError: assert [{'count': 10...': []}}, ...}] == []
+E         
+E         Left contains one more item: {'count': 10, 'examples': ['Selected model is at capacity. Please try a different model.'], 'first': '2026-10-30T08:12:24.275859+00:00', 'known': {'known': {'tasks': []}}, ...}
+E         Use -v to get more diff
+
+tests/test_error_watch.py:247: AssertionError
+_ test_capacity_scan_groups_expected_refusal_but_reports_real_errors[Hub worker turn failed: Selected model is at capacity. Please try a different model.] _
+
+failure = 'Hub worker turn failed: Selected model is at capacity. Please try a different model.'
+hub_finish_db = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-43e35c110430406d/.orchestra/tasks/V-1146/negative-tmp/test_capacity_scan_groups_expe2/orchestra.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x726f97d0a5d0>
+capsys = <_pytest.capture.CaptureFixture object at 0x726f97d0a5a0>
+scan_reports = <Mock id='125823613969728'>
+
+    @pytest.mark.parametrize("failure", [
+        _CAPACITY_REFUSAL + " Data loss detected.",
+        "ERROR:app.session:" + _CAPACITY_REFUSAL + "\nRuntimeError: delivery failed",
+        "Hub worker turn failed: " + _CAPACITY_REFUSAL,
+        "Hub worker turn failed: hub thread ended with status failed; " + _CAPACITY_REFUSAL,
+        'Parser failed while reading "' + _CAPACITY_REFUSAL + '"',
+    ])
+    def test_capacity_scan_groups_expected_refusal_but_reports_real_errors(
+        failure, hub_finish_db, monkeypatch, capsys, scan_reports,
+    ):
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        stamp = started + timedelta(seconds=1)
+        raw = "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n"
+        _insert_error_rows(hub_finish_db, [("error", _CAPACITY_REFUSAL, None, 1)] * 5 + [
+            ("error", raw, None, 1),
+        ] * 4, stamp)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+        args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=10, dry_run=True)
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+        assert output["signals"] == []
+        assert output["noise_events"] == 0
+    
+        _insert_error_rows(hub_finish_db, [("error", raw, None, 1)], stamp)
+        original_events = watch.collect_db_events(hub_finish_db, started)
+        assert [event["message"] for event in original_events] == [_CAPACITY_REFUSAL] * 5 + [raw] * 5
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+>       assert output["signals"] == []
+E       AssertionError: assert [{'count': 10...': []}}, ...}] == []
+E         
+E         Left contains one more item: {'count': 10, 'examples': ['Selected model is at capacity. Please try a different model.'], 'first': '2026-10-30T08:12:24.371058+00:00', 'known': {'known': {'tasks': []}}, ...}
+E         Use -v to get more diff
+
+tests/test_error_watch.py:247: AssertionError
+_ test_capacity_scan_groups_expected_refusal_but_reports_real_errors[Hub worker turn failed: hub thread ended with status failed; Selected model is at capacity. Please try a different model.] _
+
+failure = 'Hub worker turn failed: hub thread ended with status failed; Selected model is at capacity. Please try a different model.'
+hub_finish_db = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-43e35c110430406d/.orchestra/tasks/V-1146/negative-tmp/test_capacity_scan_groups_expe3/orchestra.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x726f97d09100>
+capsys = <_pytest.capture.CaptureFixture object at 0x726f97d094f0>
+scan_reports = <Mock id='125823613965456'>
+
+    @pytest.mark.parametrize("failure", [
+        _CAPACITY_REFUSAL + " Data loss detected.",
+        "ERROR:app.session:" + _CAPACITY_REFUSAL + "\nRuntimeError: delivery failed",
+        "Hub worker turn failed: " + _CAPACITY_REFUSAL,
+        "Hub worker turn failed: hub thread ended with status failed; " + _CAPACITY_REFUSAL,
+        'Parser failed while reading "' + _CAPACITY_REFUSAL + '"',
+    ])
+    def test_capacity_scan_groups_expected_refusal_but_reports_real_errors(
+        failure, hub_finish_db, monkeypatch, capsys, scan_reports,
+    ):
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        stamp = started + timedelta(seconds=1)
+        raw = "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n"
+        _insert_error_rows(hub_finish_db, [("error", _CAPACITY_REFUSAL, None, 1)] * 5 + [
+            ("error", raw, None, 1),
+        ] * 4, stamp)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+        args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=10, dry_run=True)
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+        assert output["signals"] == []
+        assert output["noise_events"] == 0
+    
+        _insert_error_rows(hub_finish_db, [("error", raw, None, 1)], stamp)
+        original_events = watch.collect_db_events(hub_finish_db, started)
+        assert [event["message"] for event in original_events] == [_CAPACITY_REFUSAL] * 5 + [raw] * 5
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+>       assert output["signals"] == []
+E       AssertionError: assert [{'count': 10...': []}}, ...}] == []
+E         
+E         Left contains one more item: {'count': 10, 'examples': ['Selected model is at capacity. Please try a different model.'], 'first': '2026-10-30T08:12:24.429789+00:00', 'known': {'known': {'tasks': []}}, ...}
+E         Use -v to get more diff
+
+tests/test_error_watch.py:247: AssertionError
+_ test_capacity_scan_groups_expected_refusal_but_reports_real_errors[Parser failed while reading "Selected model is at capacity. Please try a different model."] _
+
+failure = 'Parser failed while reading "Selected model is at capacity. Please try a different model."'
+hub_finish_db = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-43e35c110430406d/.orchestra/tasks/V-1146/negative-tmp/test_capacity_scan_groups_expe4/orchestra.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x726f97d08470>
+capsys = <_pytest.capture.CaptureFixture object at 0x726f97d08d10>
+scan_reports = <Mock id='125823613962144'>
+
+    @pytest.mark.parametrize("failure", [
+        _CAPACITY_REFUSAL + " Data loss detected.",
+        "ERROR:app.session:" + _CAPACITY_REFUSAL + "\nRuntimeError: delivery failed",
+        "Hub worker turn failed: " + _CAPACITY_REFUSAL,
+        "Hub worker turn failed: hub thread ended with status failed; " + _CAPACITY_REFUSAL,
+        'Parser failed while reading "' + _CAPACITY_REFUSAL + '"',
+    ])
+    def test_capacity_scan_groups_expected_refusal_but_reports_real_errors(
+        failure, hub_finish_db, monkeypatch, capsys, scan_reports,
+    ):
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        stamp = started + timedelta(seconds=1)
+        raw = "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n"
+        _insert_error_rows(hub_finish_db, [("error", _CAPACITY_REFUSAL, None, 1)] * 5 + [
+            ("error", raw, None, 1),
+        ] * 4, stamp)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+        args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=10, dry_run=True)
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+        assert output["signals"] == []
+        assert output["noise_events"] == 0
+    
+        _insert_error_rows(hub_finish_db, [("error", raw, None, 1)], stamp)
+        original_events = watch.collect_db_events(hub_finish_db, started)
+        assert [event["message"] for event in original_events] == [_CAPACITY_REFUSAL] * 5 + [raw] * 5
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+>       assert output["signals"] == []
+E       AssertionError: assert [{'count': 10...': []}}, ...}] == []
+E         
+E         Left contains one more item: {'count': 10, 'examples': ['Selected model is at capacity. Please try a different model.'], 'first': '2026-10-30T08:12:24.506251+00:00', 'known': {'known': {'tasks': []}}, ...}
+E         Use -v to get more diff
+
+tests/test_error_watch.py:247: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_error_watch.py::test_standalone_provider_capacity_is_noise_without_changing_event[logs-Selected model is at capacity. Please try a different model.]
+FAILED tests/test_error_watch.py::test_standalone_provider_capacity_is_noise_without_changing_event[logs-ERROR:app.session:Selected model is at capacity. Please try a different model.]
+FAILED tests/test_error_watch.py::test_standalone_provider_capacity_is_noise_without_changing_event[logs-WARNING:app.backend_hub: Selected model is at capacity. Please try a different model.]
+FAILED tests/test_error_watch.py::test_standalone_provider_capacity_is_noise_without_changing_event[logs- \tSelected model is at capacity. Please try a different model.\r\n]
+FAILED tests/test_error_watch.py::test_standalone_provider_capacity_is_noise_without_changing_event[logs-ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n]
+FAILED tests/test_error_watch.py::test_standalone_provider_capacity_is_noise_without_changing_event[journalctl-Selected model is at capacity. Please try a different model.]
+FAILED tests/test_error_watch.py::test_standalone_provider_capacity_is_noise_without_changing_event[journalctl-ERROR:app.session:Selected model is at capacity. Please try a different model.]
+FAILED tests/test_error_watch.py::test_standalone_provider_capacity_is_noise_without_changing_event[journalctl-WARNING:app.backend_hub: Selected model is at capacity. Please try a different model.]
+FAILED tests/test_error_watch.py::test_standalone_provider_capacity_is_noise_without_changing_event[journalctl- \tSelected model is at capacity. Please try a different model.\r\n]
+FAILED tests/test_error_watch.py::test_standalone_provider_capacity_is_noise_without_changing_event[journalctl-ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n]
+FAILED tests/test_error_watch.py::test_capacity_scan_groups_expected_refusal_but_reports_real_errors[Selected model is at capacity. Please try a different model. Data loss detected.]
+FAILED tests/test_error_watch.py::test_capacity_scan_groups_expected_refusal_but_reports_real_errors[ERROR:app.session:Selected model is at capacity. Please try a different model.\nRuntimeError: delivery failed]
+FAILED tests/test_error_watch.py::test_capacity_scan_groups_expected_refusal_but_reports_real_errors[Hub worker turn failed: Selected model is at capacity. Please try a different model.]
+FAILED tests/test_error_watch.py::test_capacity_scan_groups_expected_refusal_but_reports_real_errors[Hub worker turn failed: hub thread ended with status failed; Selected model is at capacity. Please try a different model.]
+FAILED tests/test_error_watch.py::test_capacity_scan_groups_expected_refusal_but_reports_real_errors[Parser failed while reading "Selected model is at capacity. Please try a different model."]
+15 failed, 56 passed, 132 deselected in 1.23s

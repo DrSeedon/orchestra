@@ -1,0 +1,880 @@
+bringing up nodes...
+bringing up nodes...
+
+............................................FFFF.FF...F..F.............. [ 87%]
+..........                                                               [100%]
+=================================== FAILURES ===================================
+____ test_private_artifact_ownership_updates_without_layout[worker-loaded] _____
+[gw1] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_source_owned_dirs_v1151.py:281: in test_private_artifact_ownership_updates_without_layout
+    await env.m.set_worker_owned_dirs("w", json.dumps(dirs))
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:105: in api
+    raise m._response_error(method, path, response, response.json(), "synthetic")
+E   app.mcp_stdio.ApiToolError: Internal: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi0/parent/source
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi0/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi0/parent/source
+
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra:main.py:636 Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi0/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi0/parent/source
+_____ test_private_artifact_ownership_updates_without_layout[main-loaded] ______
+[gw3] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_source_owned_dirs_v1151.py:281: in test_private_artifact_ownership_updates_without_layout
+    await env.m.set_worker_owned_dirs("w", json.dumps(dirs))
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:105: in api
+    raise m._response_error(method, path, response, response.json(), "synthetic")
+E   app.mcp_stdio.ApiToolError: Internal: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw3/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw3/test_private_artifact_ownershi0/parent/source
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw3/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw3/test_private_artifact_ownershi0/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw3/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw3/test_private_artifact_ownershi0/parent/source
+
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra:main.py:636 Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw3/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw3/test_private_artifact_ownershi0/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw3/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw3/test_private_artifact_ownershi0/parent/source
+____ test_private_artifact_ownership_updates_without_layout[base-detached] _____
+[gw1] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_source_owned_dirs_v1151.py:281: in test_private_artifact_ownership_updates_without_layout
+    await env.m.set_worker_owned_dirs("w", json.dumps(dirs))
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:105: in api
+    raise m._response_error(method, path, response, response.json(), "synthetic")
+E   app.mcp_stdio.ApiToolError: Internal: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi1/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi1/parent/source
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi1/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi1/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi1/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi1/parent/source
+
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra:main.py:636 Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi1/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi1/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi1/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi1/parent/source
+___ test_private_artifact_ownership_updates_without_layout[worker-detached] ____
+[gw0] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_source_owned_dirs_v1151.py:281: in test_private_artifact_ownership_updates_without_layout
+    await env.m.set_worker_owned_dirs("w", json.dumps(dirs))
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:105: in api
+    raise m._response_error(method, path, response, response.json(), "synthetic")
+E   app.mcp_stdio.ApiToolError: Internal: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw0/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw0/test_private_artifact_ownershi0/parent/source
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw0/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw0/test_private_artifact_ownershi0/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw0/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw0/test_private_artifact_ownershi0/parent/source
+
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra:main.py:636 Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw0/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw0/test_private_artifact_ownershi0/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw0/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw0/test_private_artifact_ownershi0/parent/source
+_____ test_private_artifact_ownership_updates_without_layout[base-loaded] ______
+[gw1] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_source_owned_dirs_v1151.py:281: in test_private_artifact_ownership_updates_without_layout
+    await env.m.set_worker_owned_dirs("w", json.dumps(dirs))
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:105: in api
+    raise m._response_error(method, path, response, response.json(), "synthetic")
+E   app.mcp_stdio.ApiToolError: Internal: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi2/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi2/parent/source
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi2/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi2/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi2/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi2/parent/source
+
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra:main.py:636 Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi2/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi2/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi2/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw1/test_private_artifact_ownershi2/parent/source
+____ test_private_artifact_ownership_updates_without_layout[both-detached] _____
+[gw2] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_source_owned_dirs_v1151.py:281: in test_private_artifact_ownership_updates_without_layout
+    await env.m.set_worker_owned_dirs("w", json.dumps(dirs))
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:105: in api
+    raise m._response_error(method, path, response, response.json(), "synthetic")
+E   app.mcp_stdio.ApiToolError: Internal: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi0/parent/source
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi0/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi0/parent/source
+
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra:main.py:636 Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi0/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi0/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi0/parent/source
+_____ test_private_artifact_ownership_updates_without_layout[both-loaded] ______
+[gw2] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_source_owned_dirs_v1151.py:281: in test_private_artifact_ownership_updates_without_layout
+    await env.m.set_worker_owned_dirs("w", json.dumps(dirs))
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:105: in api
+    raise m._response_error(method, path, response, response.json(), "synthetic")
+E   app.mcp_stdio.ApiToolError: Internal: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi1/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi1/parent/source
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi1/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi1/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi1/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi1/parent/source
+
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra:main.py:636 Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi1/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi1/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi1/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi1/parent/source
+____ test_private_artifact_ownership_updates_without_layout[main-detached] _____
+[gw2] linux -- Python 3.12.3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3
+tests/test_source_owned_dirs_v1151.py:281: in test_private_artifact_ownership_updates_without_layout
+    await env.m.set_worker_owned_dirs("w", json.dumps(dirs))
+app/mcp_stdio.py:3250: in set_worker_owned_dirs
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+tests/test_source_owned_dirs_v1151.py:105: in api
+    raise m._response_error(method, path, response, response.json(), "synthetic")
+E   app.mcp_stdio.ApiToolError: Internal: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi2/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi2/parent/source
+----------------------------- Captured stderr call -----------------------------
+Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi2/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi2/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi2/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi2/parent/source
+
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra:main.py:636 Unhandled exception on POST /api/sessions/w/owned-dirs: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi2/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi2/parent/source
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/routes/sessions.py", line 2020, in update_owned_dirs
+    applied = await manager.apply_owned_dirs(found, raw)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 1809, in apply_owned_dirs
+    new_prompt, new_overlay = self._transition_prompt(session, normalized)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/manager.py", line 613, in _transition_prompt
+    prompt = refresh_worker_memory(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 231, in refresh_worker_memory
+    mem = load_worker_memory(
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/app/prompting.py", line 190, in load_worker_memory
+    raise LayoutMigrationError(
+app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi2/parent/source; repair: /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.venv/bin/python3 /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/scripts/migrate_orchestra_layout.py --repair /home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-a68b31929bb3436f/.orchestra/tasks/V-1151/round2/tmp/pytest-of-<runtime-user-redacted>/pytest-0/popen-gw2/test_private_artifact_ownershi2/parent/source
+=========================== short test summary info ============================
+FAILED tests/test_source_owned_dirs_v1151.py::test_private_artifact_ownership_updates_without_layout[worker-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_private_artifact_ownership_updates_without_layout[main-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_private_artifact_ownership_updates_without_layout[base-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_private_artifact_ownership_updates_without_layout[worker-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_private_artifact_ownership_updates_without_layout[base-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_private_artifact_ownership_updates_without_layout[both-detached]
+FAILED tests/test_source_owned_dirs_v1151.py::test_private_artifact_ownership_updates_without_layout[both-loaded]
+FAILED tests/test_source_owned_dirs_v1151.py::test_private_artifact_ownership_updates_without_layout[main-detached]
+8 failed, 74 passed in 104.75s (0:01:44)

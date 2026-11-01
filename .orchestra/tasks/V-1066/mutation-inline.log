@@ -1,0 +1,16 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_native_attachment_survives_full_composition[resume] ___________
+/remote/workspace/tests/test_hub_message_v1066.py:102: in test_native_attachment_survives_full_composition
+    assert await backend._start(mc, state, prompt) == "run"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/remote/workspace/app/backend_hub.py:681: in _start
+    sent = await mc.tool_call("t3_thread_send", {
+/remote/workspace/tests/test_hub_message_v1066.py:94: in call
+    assert units(args["message"]) <= 120_000
+E   AssertionError: assert 126853 <= 120000
+E    +  where 126853 = units('Apply all acceptance checks.\nUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+=========================== short test summary info ============================
+FAILED tests/test_hub_message_v1066.py::test_native_attachment_survives_full_composition[resume]
+1 failed in 2.96s
+MUTATION inline: pytest_exit=1; killed=True

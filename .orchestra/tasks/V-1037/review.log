@@ -1,0 +1,3 @@
+Syntax and trailing whitespace: 6 files passed
+Publication-boundary secret-form check: all 3 reports passed
+Removed task-local scratch directory and bootstrap venv

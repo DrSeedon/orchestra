@@ -1,0 +1,24 @@
+{
+  "node_id": "TA_kwDOVDijhtoAKDc3YTdhZTIyODEzODI3ZGNmNDI1MjYzOGQ1YTY0M2FjZWQ1M2UzYzY",
+  "sha": "77a7ae22813827dcf4252638d5a643aced53e3c6",
+  "url": "https://api.github.com/repos/init-co-jp/diff-tour/git/tags/77a7ae22813827dcf4252638d5a643aced53e3c6",
+  "tagger": {
+    "name": "DaiAoki",
+    "email": "a.dai.0814ap@gmail.com",
+    "date": "2026-10-15T15:39:10Z"
+  },
+  "object": {
+    "sha": "eeaf897ce18e37018540d6b425accbed4945389c",
+    "type": "commit",
+    "url": "https://api.github.com/repos/init-co-jp/diff-tour/git/commits/eeaf897ce18e37018540d6b425accbed4945389c"
+  },
+  "tag": "v0.5.0",
+  "message": "v0.5.0\n",
+  "verification": {
+    "verified": false,
+    "reason": "unsigned",
+    "signature": null,
+    "payload": null,
+    "verified_at": null
+  }
+}

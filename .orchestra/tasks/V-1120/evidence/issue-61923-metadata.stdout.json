@@ -1,0 +1,9 @@
+{
+  "html_url": "https://github.com/anthropics/claude-code/issues/61923",
+  "title": "VS Code extension forces daily re-login due to refresh token rejection (400) when multiple windows are open",
+  "author": "wdouglascampbell",
+  "created_at": "2026-05-24T01:44:23Z",
+  "updated_at": "2026-08-27T17:55:32Z",
+  "state": "closed",
+  "state_reason": "not_planned"
+}

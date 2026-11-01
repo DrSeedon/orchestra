@@ -647,6 +647,26 @@ def test_large_subset_preserves_failed_and_inconclusive_batches(monkeypatch):
     assert "diagnostic-tests/test_00.py" in result["output"]
 
 
+@pytest.mark.parametrize("statuses", [
+    ["skipped", "skipped"], ["passed", "skipped"],
+])
+def test_batch_with_unverified_tests_never_claims_passed(tmp_path, monkeypatch, statuses):
+    from app import merge_test_gate as gate
+
+    outcomes = iter(statuses)
+
+    def fake_run(_worktree, tests, **_kwargs):
+        status = next(outcomes)
+        return {"status": status, "reason": "no_tests_after_deselect" if status == "skipped" else "",
+                "exit_code": 5 if status == "skipped" else 0, "tests": tests, "output": ""}
+
+    monkeypatch.setattr(gate, "run_pytest", fake_run)
+    result = gate._batch_result(str(tmp_path), [["test_a.py"], ["test_b.py"]])
+    assert result["status"] == gate.SKIPPED
+    assert result["reason"] == "batch_skipped"
+    assert [batch["status"] for batch in result["batches"]] == statuses
+
+
 def test_large_subset_keeps_diagnostics_from_verbose_batches(monkeypatch):
     from app import merge_test_gate as gate
 
@@ -1077,6 +1097,8 @@ def test_browser_inventory_is_explicit():
 
     root = Path(__file__).resolve().parent.parent
     expected = {
+    # V-1135: synthetic JOBS progress transitions at phone and desktop widths.
+    "tests/test_jobs_progress_browser_v1135.py": 2,
     # Collection includes the voice-input test explicitly skipped since #365;
     # V-1027 adds three model-picker request cases using dashboard_browser.
     "tests/test_frontend.py": 105,

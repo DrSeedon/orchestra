@@ -1,0 +1,92 @@
+   834	def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
+   835	                  known: list[str] | None = None,
+   836	                  inputs: dict[str, str] | None = None) -> SyncResult:
+   837	    """Import a hub workspace snapshot into the worktree, touching only regular files that
+   838	    changed relative to `manifest`, never leaving `root`, never importing credentials."""
+   839	    root = root.resolve()
+   840	    assert_file_policy(manifest, inputs or {})
+   841	    known = known_secret_values() if known is None else known
+   842	    inputs = inputs or {}
+   843	    input_parents = _parents(inputs)
+   844	    result = SyncResult(manifest=dict(manifest))
+   845	    seen: set[str] = set()
+   846	    # Name-blocked directories are omitted by the return packager. Their absence
+   847	    # is never evidence of an intentional deletion, including in legacy records.
+   848	    seen.update(rel for rel in manifest if (blocked_reason(rel) or "").startswith("directory"))
+   849	    total = 0
+   850	    pending: list[tuple[str, bytes, int]] = []
+   851	    with tarfile.open(tar_path, "r:") as archive:
+   852	        # Inspect names first: pyvenv.cfg can follow its siblings in a tar snapshot.
+   853	        # Match directory boundaries, independent of the environment's chosen name.
+   854	        venvs = {str(Path(rel).parent) for member in archive.getmembers()
+   855	                 if (rel := _member_path(member.name)) is not None
+   856	                 and Path(rel).name == "pyvenv.cfg"}
+   857	
+   858	        def in_virtualenv(rel: str) -> bool:
+   859	            path = Path(rel)
+   860	            return str(path) in venvs or any(str(parent) in venvs for parent in path.parents)
+   861	
+   862	        for directory in sorted(venvs):
+   863	            result.rejected.append((directory, "Python virtualenv (contains pyvenv.cfg)"))
+   864	        seen.update(rel for rel in manifest if in_virtualenv(rel))
+   865	        for member in archive:
+   866	            if member.isdir():
+   867	                continue
+   868	            rel = _member_path(member.name)
+   869	            if rel is None:
+   870	                result.rejected.append((member.name, "path escapes the workspace"))
+   871	                continue
+   872	            if in_virtualenv(rel):
+   873	                seen.add(rel)  # preserve previously synced files; exclusion is not a deletion
+   874	                continue
+   875	            if not member.isreg():
+   876	                result.rejected.append((rel, "not a regular file (link or special)"))
+   877	                continue
+   878	            if rel == OUTBOX_NAME:
+   879	                handle = archive.extractfile(member)
+   880	                result.outbox = handle.read(MAX_OUTBOX_BYTES + 1) if handle else b""
+   881	                continue
+   882	            reason = blocked_reason(rel)
+   883	            if reason:
+   884	                if not reason.startswith("directory"):   # caches the hub run left behind are noise
+   885	                    result.rejected.append((rel, reason))
+   886	                continue
+   887	            seen.add(rel)
+   888	            if member.size > MAX_FILE_BYTES or total + member.size > MAX_TOTAL_BYTES:
+   889	                result.rejected.append((rel, "exceeds the size limit"))
+   890	                continue
+   891	            handle = archive.extractfile(member)
+   892	            data = handle.read() if handle else b""
+   893	            digest = hashlib.sha256(data).hexdigest()
+   894	            # Upload-origin, untracked files are read-only inputs. Never import or
+   895	            # stage a hub rewrite, deletion, or output colliding with one of them.
+   896	            if _collides(str(Path(rel)), inputs, input_parents):
+   897	                if inputs.get(rel) != digest:
+   898	                    result.rejected.append((rel, "collides with a read-only hub input"))
+   899	                    # Forget the remote baseline, not the immutable provenance:
+   900	                    # the next upload must restore the local original on the hub.
+   901	                    result.manifest.pop(str(Path(rel)), None)
+   902	                continue
+   903	            if manifest.get(rel) == digest:
+   904	                continue
+   905	            total += member.size
+   906	            if b"\0" not in data[:4096] and secret_in_text(data.decode("utf-8", "ignore"), known):
+   907	                result.rejected.append((rel, "contains a credential"))
+   908	                continue
+   909	            pending.append((rel, data, member.mode))
+   910	    for rel, data, mode in pending:
+   911	        target = root / rel
+   912	        if not _contained(root, target):
+   913	            result.rejected.append((rel, "resolves outside the worktree"))
+   914	            continue
+   915	        local = sha256_file(target) if target.is_file() and not target.is_symlink() else None
+   916	        new = hashlib.sha256(data).hexdigest()
+   917	        if target.is_symlink() or (target.exists() and not target.is_file()):
+   918	            result.rejected.append((rel, "worktree path is not a regular file"))
+   919	            continue
+   920	        destination = str(Path(os.path.realpath(target)).relative_to(root))
+   921	        if _collides(destination, inputs, input_parents):
+   922	            result.rejected.append((rel, "resolves to a read-only hub input"))
+   923	            continue
+   924	        if local is not None and local != new and local != manifest.get(rel):
+   925	            result.conflicts.append(rel)

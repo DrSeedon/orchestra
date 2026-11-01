@@ -1,0 +1,24 @@
+$ uv run --frozen python .orchestra/tasks/V-1067/contract_probe.py
+hub outbox of probe: dropped send_message: this worker has no parent orchestrator
+imported_app=/remote/workspace/app/__init__.py
+path_normalization=checkout root replaced by /remote/workspace
+preamble role=worker: worker_heading=True; full_cycle_heading=False; outbox=True
+preamble role=full-cycle: worker_heading=True; full_cycle_heading=False; outbox=True
+preamble role=orchestrator: worker_heading=True; full_cycle_heading=False; outbox=True
+preamble role=sub-orchestrator: worker_heading=True; full_cycle_heading=False; outbox=True
+all_four_role_preambles_identical=True
+parse worker_wip: accepted=0; dropped=["line 1: tool 'worker_wip' is not available to hub workers"]
+parse merge_worker: accepted=0; dropped=["line 1: tool 'merge_worker' is not available to hub workers"]
+parse spawn_worker: accepted=0; dropped=["line 1: tool 'spawn_worker' is not available to hub workers"]
+parse send_message: accepted=1; dropped=[]
+send parent='parent': calls=[["POST", "/api/sessions/parent/send", ["delivery_id", "message", "scope", "sender"], "probe", "/probe"]]; done=['send_message']; dropped=[]
+send parent='': calls=[]; done=[]; dropped=['send_message: this worker has no parent orchestrator']
+manifest worker: is_orchestrator=False; can_spawn=[]; disabled_tools=[]
+validate_spawn worker->worker: role 'worker' cannot spawn 'worker'. allowed: (none — terminal)
+manifest full-cycle: is_orchestrator=False; can_spawn=['worker', 'full-cycle', 'reducer']; disabled_tools=[]
+validate_spawn full-cycle->worker: allowed
+role_catalog_mentions_full_cycle_children=True
+HubBackend.__init__ system_prompt_body_loads=0
+hub_runtime_subagents=False
+OFFLINE PROBE PASSED
+exit_status=0

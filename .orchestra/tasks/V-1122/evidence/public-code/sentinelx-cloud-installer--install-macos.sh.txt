@@ -1,0 +1,246 @@
+     1	#!/usr/bin/env bash
+     2	#
+     3	# SentinelX Core - macOS installer.
+     4	# Companion to install.sh (Linux/systemd). Two modes:
+     5	#   user   (default) - LaunchAgent in ~/Library/LaunchAgents; runs as you, NO
+     6	#                      root; starts at login, stops at logout.
+     7	#   system           - LaunchDaemon in /Library/LaunchDaemons; launchd starts it
+     8	#                      at BOOT and it survives logout. Runs AS you and reuses the
+     9	#                      same per-user install (uv's Python stays reachable); uses
+    10	#                      sudo ONLY for the daemon step, so run it as your normal
+    11	#                      user (NOT with sudo).
+    12	#
+    13	# Env:
+    14	#   SENTINELX_MODE=user|system     (default: user)
+    15	#   SENTINELX_HUB_URL              (default: https://mcp.sentinelx.app)
+    16	#   SENTINELX_HOST_ID              (default: mac-<shortname>)
+    17	#   SENTINELX_INSTALL_DIR          (default: ~/sentinelx)
+    18	#   SENTINELX_CHECK=1              Dry run: generate + plutil-lint the plist, then exit.
+    19	#
+    20	set -euo pipefail
+    21	
+    22	MODE="${SENTINELX_MODE:-user}"
+    23	CHECK="${SENTINELX_CHECK:-0}"
+    24	HUB_URL="${SENTINELX_HUB_URL:-https://mcp.sentinelx.app}"
+    25	LABEL="app.sentinelx.core"
+    26	REPO_URL="git+https://github.com/pensados/sentinelx-cloud-core.git"
+    27	ENROLL_URL="https://raw.githubusercontent.com/pensados/sentinelx-cloud-installer/main/enroll.py"
+    28	EXAMPLE_URL="https://raw.githubusercontent.com/pensados/sentinelx-cloud-core/main/config.example.macos.yaml"
+    29	
+    30	c_grn=$'\033[32m'; c_ylw=$'\033[33m'; c_red=$'\033[31m'; c_rst=$'\033[0m'; c_cyan=$'\033[36m'; c_bold=$'\033[1m'
+    31	info()  { echo "${c_grn}[*]${c_rst} $*"; }
+    32	warn()  { echo "${c_ylw}[!]${c_rst} $*"; }
+    33	fatal() { echo "${c_red}[x]${c_rst} $*" >&2; exit 1; }
+    34	
+    35	banner() {
+    36	  printf '%b' "$c_cyan"
+    37	  cat <<'ART'
+    38	  ███████╗███████╗███╗   ██╗████████╗██╗███╗   ██╗███████╗██╗     ██╗  ██╗
+    39	  ██╔════╝██╔════╝████╗  ██║╚══██╔══╝██║████╗  ██║██╔════╝██║     ╚██╗██╔╝
+    40	  ███████╗█████╗  ██╔██╗ ██║   ██║   ██║██╔██╗ ██║█████╗  ██║      ╚███╔╝
+    41	  ╚════██║██╔══╝  ██║╚██╗██║   ██║   ██║██║╚██╗██║██╔══╝  ██║      ██╔██╗
+    42	  ███████║███████╗██║ ╚████║   ██║   ██║██║ ╚████║███████╗███████╗██╔╝ ██╗
+    43	  ╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚═╝  ╚═╝
+    44	ART
+    45	  printf '%b' "$c_rst"
+    46	  echo "  ${c_bold}Cloud Installer${c_rst} - connect this Mac to mcp.sentinelx.app"
+    47	  echo "  via the Model Context Protocol."
+    48	  echo "  ${c_ylw}What you'll get:${c_rst} a SentinelX agent that lets AI assistants"
+    49	  echo "  (Claude, ChatGPT, etc.) operate this Mac through MCP."
+    50	  echo
+    51	}
+    52	
+    53	
+    54	# Scoped passwordless sudo (macOS "option 1"): the agent runs as your user
+    55	# (not an isolated account), so we grant NOPASSWD only for the allowlisted
+    56	# commands that need root - launchctl (services) + the file ops - NOT
+    57	# "NOPASSWD: ALL". python3 is deliberately excluded (arbitrary code as root).
+    58	# Real hardening (a dedicated _sentinelx user) is future work.
+    59	setup_sudoers() {
+    60	  local f="/etc/sudoers.d/sentinelx" tmp
+    61	  tmp="$(mktemp)"
+    62	  cat > "$tmp" <<EOF
+    63	# SentinelX agent - scoped passwordless sudo (managed by install-macos.sh).
+    64	# Revoke with: sudo rm ${f}
+    65	${SVC_USER} ALL=(root) NOPASSWD: /bin/launchctl, /bin/cat, /usr/bin/grep, /usr/bin/touch, /usr/bin/tee, /bin/cp, /bin/mv, /bin/mkdir, /bin/rm, /bin/ln, /bin/unlink, /bin/chmod, /usr/sbin/chown, /usr/bin/sed, ${INSTALL_DIR}/.venv/bin/sentinelx-pensa-safe-edit
+    66	EOF
+    67	  if sudo visudo -c -f "$tmp" >/dev/null 2>&1; then
+    68	    sudo install -m 440 -o root -g wheel "$tmp" "$f"
+    69	    info "Installed scoped sudoers at $f (passwordless sudo for allowlisted root cmds)."
+    70	  else
+    71	    warn "sudoers failed visudo validation; skipped (sudo will prompt for a password)."
+    72	  fi
+    73	  rm -f "$tmp"
+    74	}
+    75	
+    76	# Both modes install per-user: uv places its Python under the user's home, so a
+    77	# separate service user could not reach the venv. System mode differs ONLY in
+    78	# the service - a LaunchDaemon that launchd starts at boot, running as this user.
+    79	INSTALL_DIR="${SENTINELX_INSTALL_DIR:-$HOME/sentinelx}"
+    80	SVC_USER="$(id -un)"
+    81	if [[ "$MODE" == "system" ]]; then
+    82	  PLIST="/Library/LaunchDaemons/${LABEL}.plist"
+    83	else
+    84	  PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
+    85	fi
+    86	BIN="$INSTALL_DIR/.venv/bin/sentinelx-cloud-core"
+    87	
+    88	# ---------- plist generators (mirror the Linux systemd unit) ----------------
+    89	plist_body() {
+    90	  # $1 = extra <dict> lines (e.g. UserName) injected before ProgramArguments
+    91	  cat <<PL
+    92	<?xml version="1.0" encoding="UTF-8"?>
+    93	<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    94	<plist version="1.0">
+    95	<dict>
+    96	    <key>Label</key><string>${LABEL}</string>
+    97	$1    <key>ProgramArguments</key>
+    98	    <array>
+    99	        <string>${BIN}</string>
+   100	        <string>--hub</string><string>${HUB_URL}</string>
+   101	        <string>--identity</string><string>${INSTALL_DIR}/identity.json</string>
+   102	        <string>--config</string><string>${INSTALL_DIR}/config.yaml</string>
+   103	    </array>
+   104	    <key>EnvironmentVariables</key>
+   105	    <dict><key>SENTINELX_AUDIT_PATH</key><string>${INSTALL_DIR}/audit.jsonl</string></dict>
+   106	    <key>RunAtLoad</key><true/>
+   107	    <key>KeepAlive</key><true/>
+   108	    <key>ThrottleInterval</key><integer>5</integer>
+   109	    <key>StandardOutPath</key><string>${INSTALL_DIR}/agent.log</string>
+   110	    <key>StandardErrorPath</key><string>${INSTALL_DIR}/agent.err</string>
+   111	</dict>
+   112	</plist>
+   113	PL
+   114	}
+   115	write_plist() {
+   116	  if [[ "$MODE" == "system" ]]; then
+   117	    plist_body "    <key>UserName</key><string>${SVC_USER}</string>
+   118	" > "$1"
+   119	  else
+   120	    plist_body "" > "$1"
+   121	  fi
+   122	}
+   123	
+   124	# ---------- CHECK mode: validate the plist, touch nothing --------------------
+   125	[[ "$(uname -s)" == "Darwin" ]] || fatal "macOS only. On Linux use install.sh."
+   126	if [[ "$CHECK" == "1" ]]; then
+   127	  info "check mode ($MODE): generating + linting plist"
+   128	  tmp="$(mktemp -d)"; write_plist "$tmp/${LABEL}.plist"
+   129	  command -v plutil >/dev/null && { plutil -lint "$tmp/${LABEL}.plist" || fatal "plutil -lint failed"; } || warn "plutil not found - skipping lint"
+   130	  info "plist OK"; cat "$tmp/${LABEL}.plist"; exit 0
+   131	fi
+   132	
+   133	banner
+   134	
+   135	# System mode must run as your normal user; the install has to be user-owned so
+   136	# uv's per-user Python is reachable. We elevate only for the daemon step.
+   137	if [[ "$MODE" == "system" && "$(id -u)" == "0" ]]; then
+   138	  fatal "Run system mode as your normal user (not with sudo). The script uses sudo only for the LaunchDaemon step."
+   139	fi
+   140	
+   141	# ---------- prerequisites ----------------------------------------------------
+   142	if ! command -v git >/dev/null 2>&1; then
+   143	  info "Command Line Tools (git) not found - triggering install"
+   144	  xcode-select --install 2>/dev/null || true
+   145	  fatal "A macOS dialog should appear. Click 'Install', wait for it to finish, then re-run this script."
+   146	fi
+   147	
+   148	export PATH="$HOME/.local/bin:$PATH"
+   149	if ! command -v uv >/dev/null 2>&1; then
+   150	  info "Installing uv (brings a modern Python without sudo)"
+   151	  curl -LsSf https://astral.sh/uv/install.sh | sh
+   152	  export PATH="$HOME/.local/bin:$PATH"
+   153	fi
+   154	command -v uv >/dev/null 2>&1 || fatal "uv install failed; ensure ~/.local/bin is on PATH."
+   155	
+   156	# ---------- install the agent ------------------------------------------------
+   157	info "Installing agent into $INSTALL_DIR"
+   158	mkdir -p "$INSTALL_DIR/workspace" "$INSTALL_DIR/uploads"
+   159	[[ -d "$INSTALL_DIR/.venv" ]] || uv venv --python 3.12 "$INSTALL_DIR/.venv"
+   160	# shellcheck disable=SC1091
+   161	source "$INSTALL_DIR/.venv/bin/activate"
+   162	uv pip install --refresh "$REPO_URL"
+   163	
+   164	# ---------- enroll (skip if we already have an identity) ---------------------
+   165	HOST_ID="${SENTINELX_HOST_ID:-mac-$(hostname -s)}"
+   166	if [[ -f "$INSTALL_DIR/identity.json" ]]; then
+   167	  info "identity.json present - skipping enrollment"
+   168	else
+   169	  curl -fsSL "$ENROLL_URL" -o "$INSTALL_DIR/enroll.py"
+   170	  echo "${c_ylw}Enroll in your browser:${c_rst} ${HUB_URL}/auth/dashboard/enroll?host_id=${HOST_ID}"
+   171	  echo "  (log in, copy the token, paste it below)"
+   172	  python "$INSTALL_DIR/enroll.py" --hub "$HUB_URL" --host-id "$HOST_ID" --output "$INSTALL_DIR/identity.json" --mode paste
+   173	fi
+   174	
+   175	# ---------- config (macOS paths, realpath'd) --------------------------------
+   176	if [[ ! -f "$INSTALL_DIR/config.yaml" ]]; then
+   177	  info "Writing config"
+   178	  python - "$INSTALL_DIR" "$EXAMPLE_URL" <<'PYCFG'
+   179	import os, sys, yaml, urllib.request
+   180	inst, url = sys.argv[1], sys.argv[2]
+   181	cfg = yaml.safe_load(urllib.request.urlopen(url).read())
+   182	cfg.setdefault("file_ops", {})["paths"] = [
+   183	    {"path": os.path.realpath(inst + "/workspace"), "access": "rw"},
+   184	    {"path": os.path.realpath(inst + "/config.yaml"), "access": "rw"},  # self-managed policy (file-scoped)
+   185	]
+   186	cfg["upload_base"] = os.path.realpath(inst + "/uploads")   # macOS: /var -> /private/var
+   187	open(inst + "/config.yaml", "w").write(yaml.safe_dump(cfg, sort_keys=False))
+   188	print("  config.yaml written")
+   189	PYCFG
+   190	fi
+   191	
+   192	# ---------- service ----------------------------------------------------------
+   193	# We deliberately never `bootout` a running agent: running this installer THROUGH
+   194	# the SentinelX agent and tearing it down mid-install would sever the connection
+   195	# driving the install. RunAtLoad starts the agent at boot/login, so a fresh
+   196	# install loads the service once; a re-run refreshes the plist and leaves the
+   197	# running agent alone. Restarting to apply changes is an explicit kickstart.
+   198	info "Installing launchd service ($MODE)"
+   199	TMP_PLIST="$(mktemp)"
+   200	write_plist "$TMP_PLIST"
+   201	command -v plutil >/dev/null && plutil -lint "$TMP_PLIST" >/dev/null
+   202	
+   203	if [[ "$MODE" == "system" ]]; then
+   204	  sudo cp "$TMP_PLIST" "$PLIST"
+   205	  sudo chown root:wheel "$PLIST"; sudo chmod 644 "$PLIST"
+   206	  if sudo launchctl print "system/$LABEL" >/dev/null 2>&1; then
+   207	    info "LaunchDaemon already loaded; plist refreshed (agent left running)."
+   208	    info "  Apply changes now (restarts the agent): sudo launchctl kickstart -k system/$LABEL"
+   209	  else
+   210	    sudo launchctl bootstrap system "$PLIST" && info "LaunchDaemon loaded (starts at boot, survives logout)."
+   211	  fi
+   212	  setup_sudoers
+   213	else
+   214	  mkdir -p "$(dirname "$PLIST")"
+   215	  cp "$TMP_PLIST" "$PLIST"
+   216	  DOM="gui/$(id -u)"
+   217	  if launchctl print "$DOM/$LABEL" >/dev/null 2>&1; then
+   218	    info "LaunchAgent already loaded; plist refreshed (agent left running)."
+   219	    info "  Apply changes now (restarts the agent): launchctl kickstart -k $DOM/$LABEL"
+   220	  else
+   221	    { launchctl bootstrap "$DOM" "$PLIST" 2>/dev/null || launchctl load "$PLIST"; } && info "LaunchAgent loaded."
+   222	  fi
+   223	fi
+   224	rm -f "$TMP_PLIST"
+   225	
+   226	sleep 3
+   227	if [[ "$MODE" == "system" ]]; then
+   228	  running=$(sudo launchctl print "system/$LABEL" 2>/dev/null | grep -c "state = running" || true)
+   229	else
+   230	  running=$(launchctl print "gui/$(id -u)/$LABEL" 2>/dev/null | grep -c "state = running" || true)
+   231	fi
+   232	if [[ "${running:-0}" -ge 1 ]]; then
+   233	  info "Done. Agent running under launchd. Logs: $INSTALL_DIR/agent.log"
+   234	  echo
+   235	  info "One step left — connect SentinelX to your AI assistant:"
+   236	  echo
+   237	  echo "  Connector URL:  $HUB_URL/mcp/mcp"
+   238	  echo "  Dashboard:      $HUB_URL/dashboard   (view and manage your hosts)"
+   239	  echo
+   240	  echo "  Claude:   Settings → Connectors → Add custom connector → paste the URL"
+   241	  echo "  ChatGPT:  https://chatgpt.com/apps/sentinelx/asdk_app_69f63e01766881919640f03b5e7912a5"
+   242	  echo
+   243	  echo "  Full guide:  https://sentinelx.app/#setup"
+   244	else
+   245	  warn "Service loaded but not confirmed running yet - check $INSTALL_DIR/agent.log"
+   246	fi

@@ -1,0 +1,11 @@
+--- app/message_deliveries.py
++++ app/message_deliveries.py
+@@ -386,7 +386,7 @@
+     if resource and resource["delivery_state"] in {"WAITING_QUOTA", "QUEUED"}:
+         from app import report_holds
+ 
+-        report_holds.ensure_runner()
++        pass
+     return resource, 202
+ 
+ 

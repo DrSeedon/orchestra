@@ -1,0 +1,830 @@
+[
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "README.md",
+    "bytes": 5552
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/LICENSE.txt",
+    "bytes": 11345
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/SKILL.md",
+    "bytes": 105146
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/csharp/claude-api/README.md",
+    "bytes": 18933
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/csharp/claude-api/batches.md",
+    "bytes": 413
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/csharp/claude-api/files-api.md",
+    "bytes": 900
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/csharp/claude-api/streaming.md",
+    "bytes": 787
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/csharp/claude-api/tool-use.md",
+    "bytes": 7623
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/curl/examples.md",
+    "bytes": 9714
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/curl/managed-agents.md",
+    "bytes": 10788
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/go/claude-api/README.md",
+    "bytes": 8477
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/go/claude-api/files-api.md",
+    "bytes": 936
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/go/claude-api/streaming.md",
+    "bytes": 1026
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/go/claude-api/tool-use.md",
+    "bytes": 10018
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/go/managed-agents/README.md",
+    "bytes": 22460
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/java/claude-api/README.md",
+    "bytes": 11946
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/java/claude-api/files-api.md",
+    "bytes": 1198
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/java/claude-api/streaming.md",
+    "bytes": 655
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/java/claude-api/tool-use.md",
+    "bytes": 11134
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/java/managed-agents/README.md",
+    "bytes": 20465
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/php/claude-api/README.md",
+    "bytes": 6554
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/php/claude-api/batches.md",
+    "bytes": 447
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/php/claude-api/files-api.md",
+    "bytes": 476
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/php/claude-api/streaming.md",
+    "bytes": 682
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/php/claude-api/tool-use.md",
+    "bytes": 9722
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/php/managed-agents/README.md",
+    "bytes": 16555
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/python/claude-api/README.md",
+    "bytes": 20623
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/python/claude-api/batches.md",
+    "bytes": 5723
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/python/claude-api/files-api.md",
+    "bytes": 4499
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/python/claude-api/sdk-upgrade.md",
+    "bytes": 28760
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/python/claude-api/streaming.md",
+    "bytes": 11940
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/python/claude-api/tool-use.md",
+    "bytes": 21411
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/python/managed-agents/README.md",
+    "bytes": 14823
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/ruby/claude-api/README.md",
+    "bytes": 4843
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/ruby/claude-api/streaming.md",
+    "bytes": 235
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/ruby/claude-api/tool-use.md",
+    "bytes": 2688
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/ruby/managed-agents/README.md",
+    "bytes": 12201
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/admin-api.md",
+    "bytes": 11606
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/agent-design.md",
+    "bytes": 8736
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/anthropic-cli.md",
+    "bytes": 23999
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/claude-platform-on-aws.md",
+    "bytes": 4420
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/cost-optimization.md",
+    "bytes": 58448
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/error-codes.md",
+    "bytes": 20796
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/evals/build-eval.md",
+    "bytes": 54835
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/evals/cost-hillclimb.md",
+    "bytes": 31711
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/evals/eval-audit.md",
+    "bytes": 27892
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/evals/eval-hillclimb.md",
+    "bytes": 69153
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/evals/report/SCHEMA.md",
+    "bytes": 16121
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/evals/report/build-report-lite.mjs",
+    "bytes": 27329
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/evals/report/runner-scaffold.mjs",
+    "bytes": 33142
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/live-sources.md",
+    "bytes": 17732
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-api-reference.md",
+    "bytes": 35296
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-client-patterns.md",
+    "bytes": 12095
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-core.md",
+    "bytes": 33515
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-environments.md",
+    "bytes": 14234
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-events.md",
+    "bytes": 26015
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-memory.md",
+    "bytes": 11362
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-multiagent.md",
+    "bytes": 66616
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-onboarding-from-quickstart.md",
+    "bytes": 19798
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-onboarding-from-url.md",
+    "bytes": 32707
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-onboarding.md",
+    "bytes": 16787
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-outcomes.md",
+    "bytes": 8960
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-overview.md",
+    "bytes": 14571
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/bug-hunter.md",
+    "bytes": 8096
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/contract-tracker.md",
+    "bytes": 1806
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/data-analyst.md",
+    "bytes": 1561
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/deep-researcher.md",
+    "bytes": 2430
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/explainer-video-maker.md",
+    "bytes": 4886
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/field-monitor.md",
+    "bytes": 2105
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/incident-commander.md",
+    "bytes": 1723
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/performance-tuner.md",
+    "bytes": 11394
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/sprint-retro-facilitator.md",
+    "bytes": 2091
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/structured-extractor.md",
+    "bytes": 1541
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/support-agent.md",
+    "bytes": 1481
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/support-to-eng-escalator.md",
+    "bytes": 1842
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-quickstarts/watchlist-scanner.md",
+    "bytes": 5642
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-scheduled-deployments.md",
+    "bytes": 9561
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-self-hosted-sandboxes.md",
+    "bytes": 27926
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-tools.md",
+    "bytes": 37869
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/managed-agents-webhooks.md",
+    "bytes": 11321
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/model-migration.md",
+    "bytes": 346255
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/models.md",
+    "bytes": 17502
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/platform-availability.md",
+    "bytes": 7415
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/preserved-thinking-migration.md",
+    "bytes": 64049
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/preserved-thinking-migration/causes.md",
+    "bytes": 39705
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/preserved-thinking-migration/drop_block_probe.py",
+    "bytes": 66582
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/preserved-thinking-migration/prefix_diff.py",
+    "bytes": 94008
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/prompt-audit.md",
+    "bytes": 49344
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/prompt-caching.md",
+    "bytes": 33116
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/token-counting.md",
+    "bytes": 1603
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/shared/tool-use-concepts.md",
+    "bytes": 44359
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/typescript/claude-api/README.md",
+    "bytes": 15833
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/typescript/claude-api/batches.md",
+    "bytes": 2594
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/typescript/claude-api/files-api.md",
+    "bytes": 2384
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/typescript/claude-api/streaming.md",
+    "bytes": 9514
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/typescript/claude-api/tool-use.md",
+    "bytes": 24295
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/claude-api/typescript/managed-agents/README.md",
+    "bytes": 14013
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/LICENSE.txt",
+    "bytes": 11345
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/SKILL.md",
+    "bytes": 33168
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/agents/analyzer.md",
+    "bytes": 10376
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/agents/comparator.md",
+    "bytes": 7287
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/agents/grader.md",
+    "bytes": 9049
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/assets/eval_review.html",
+    "bytes": 7058
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/eval-viewer/generate_review.py",
+    "bytes": 16365
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/eval-viewer/viewer.html",
+    "bytes": 44998
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/references/schemas.md",
+    "bytes": 12061
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/scripts/__init__.py",
+    "bytes": 0
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/scripts/aggregate_benchmark.py",
+    "bytes": 14386
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/scripts/generate_report.py",
+    "bytes": 12847
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/scripts/improve_description.py",
+    "bytes": 11116
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/scripts/package_skill.py",
+    "bytes": 4234
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/scripts/quick_validate.py",
+    "bytes": 3972
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/scripts/run_eval.py",
+    "bytes": 11464
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/scripts/run_loop.py",
+    "bytes": 13605
+  },
+  {
+    "repository": "anthropics/skills",
+    "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "path": "skills/skill-creator/scripts/utils.py",
+    "bytes": 1661
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "LICENSE",
+    "bytes": 11358
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "README.md",
+    "bytes": 3859
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/.claude-plugin/plugin.json",
+    "bytes": 378
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/LICENSE",
+    "bytes": 11358
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/README.md",
+    "bytes": 264
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/LICENSE.txt",
+    "bytes": 11357
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/SKILL.md",
+    "bytes": 33168
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/agents/analyzer.md",
+    "bytes": 10376
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/agents/comparator.md",
+    "bytes": 7287
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/agents/grader.md",
+    "bytes": 9049
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/assets/eval_review.html",
+    "bytes": 7058
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/eval-viewer/generate_review.py",
+    "bytes": 16365
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/eval-viewer/viewer.html",
+    "bytes": 44998
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/references/schemas.md",
+    "bytes": 12061
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/scripts/__init__.py",
+    "bytes": 0
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/scripts/aggregate_benchmark.py",
+    "bytes": 14386
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/scripts/generate_report.py",
+    "bytes": 12847
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/scripts/improve_description.py",
+    "bytes": 11116
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/scripts/package_skill.py",
+    "bytes": 4234
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/scripts/quick_validate.py",
+    "bytes": 3972
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/scripts/run_eval.py",
+    "bytes": 11464
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/scripts/run_loop.py",
+    "bytes": 13605
+  },
+  {
+    "repository": "anthropics/claude-plugins-official",
+    "commit": "58267944f92187b7d6a1c822165c96c81c864806",
+    "path": "plugins/skill-creator/skills/skill-creator/scripts/utils.py",
+    "bytes": 1661
+  }
+]

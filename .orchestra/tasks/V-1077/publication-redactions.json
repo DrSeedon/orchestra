@@ -1,0 +1,163 @@
+{
+  "purpose": "Public path-only derivatives. Root retains prior-import verbatim worker logs and host execution logs privately before publication.",
+  "rules": {
+    "<WORKSPACE>": "private worker checkout root",
+    "<BROKER_HOME>": "broker provisioning user home"
+  },
+  "revisions": [
+    [
+      {
+        "file": "inventory.json",
+        "sha256_before": "cbf477a166fb9ed3b4a7ba0c115f0fd2e14295b903da6613d44793d3995fe93b",
+        "sha256_after": "981633f297f2fc213ea318f9062c3880e8b2af15b1acdfccd1404d32b15efe1b",
+        "path_replacements": 2,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/final-audit.json",
+        "sha256_before": "8cd6053a0f3bec50779b0399af2ff731fc9017644c39b76befdf6a7bb8eedf34",
+        "sha256_after": "b4a40f4d57d4b593acf00944f2d635b4ef0d2d779382eb9e56029ec740497455",
+        "path_replacements": 8,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/finalize-evidence.json",
+        "sha256_before": "50dd3f46dec454e3e81be10476d8942726bc707f72e3d0258b16dcce74413640",
+        "sha256_after": "5f1f09205bb9fa666f015b5c98e52b6c9c8abbece2d21c292a4cfb0277826737",
+        "path_replacements": 8,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/host-readback.json",
+        "sha256_before": "26395aead238ed884daacf1f6e99c6b47c5c6475131c5847ad1f5a3fd67284b0",
+        "sha256_after": "96f2b31b56a22243445b63318a66432adea755a96929ee17880bf5e4c65b8113",
+        "path_replacements": 8,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/instruction-contract.json",
+        "sha256_before": "360b071422a2d81eebb251ae8554e14ad8761b4b0af12709bfde10f3cfbc7e77",
+        "sha256_after": "195e5e1bfccc3b9dc0c89187f68b05e1d3d996275aef4c8d8669449bf16606e2",
+        "path_replacements": 8,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/inventory.json",
+        "sha256_before": "932dd9849f52a6192812c8138062b6ae48affa1106aba70e443089ba4817430c",
+        "sha256_after": "d5124997b0deba5e1e0cae1ce58f3a286d8e3afe4dc6f545a1b50205705cfbad",
+        "path_replacements": 8,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/inventory.stdout",
+        "sha256_before": "cbf477a166fb9ed3b4a7ba0c115f0fd2e14295b903da6613d44793d3995fe93b",
+        "sha256_after": "981633f297f2fc213ea318f9062c3880e8b2af15b1acdfccd1404d32b15efe1b",
+        "path_replacements": 2,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/mechanics.json",
+        "sha256_before": "74e0ee7647b62736488f2691182ebf29c08e6fc2b13a3c8492f7efdbe41132bc",
+        "sha256_after": "5a92056cec33c1d1af191aa4e53448a6f36ee863069be30481643dd92736f518",
+        "path_replacements": 8,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/repository-tests.json",
+        "sha256_before": "0fed68247247f598e28f83dc81877665cfdc96eeeb8506670cadc30a3a38b255",
+        "sha256_after": "0a4fa0fe3ca5ec33a0c43a29907897f2752d6381b4e14cd1ac3bf914a00a7ab8",
+        "path_replacements": 8,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/repository-tests.stdout",
+        "sha256_before": "76d382de2f272aadb03e6cbb55e1863216003c0750e0577d6a1c0da3b08dfcf6",
+        "sha256_after": "0abb42f38c08704390cd142e58b510b476b9a59edcee5c574bcfcecde7fc0cd0",
+        "path_replacements": 50,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/uv-setup.stdout",
+        "sha256_before": "f4ff87f9166ff9580f0fc69e9b5c420508d14d63693d7b81c6bfd6c752f4e7c3",
+        "sha256_after": "0fbe7604d388756012fb9925c4ac3cab2c2b1cf92894ad9e2c9e77e6b547f827",
+        "path_replacements": 1,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "report.md",
+        "sha256_before": "5c32883c63754252cf520440d8695f7afee480b5609764ec22072d3e39754823",
+        "sha256_after": "2719228337dcfb2f69cdc4911a6851d2a344d99386d195f0573a088a4ce16214",
+        "path_replacements": 1,
+        "newline_count_unchanged": true
+      }
+    ],
+    [
+      {
+        "file": "logs/final-audit.json",
+        "sha256_before": "b4a40f4d57d4b593acf00944f2d635b4ef0d2d779382eb9e56029ec740497455",
+        "sha256_after": "4ed4bc374ff0e3d479f393ceeea9f5eb488085ee89e867928f90007a8dbf4398",
+        "path_replacements": 2,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/finalize-evidence.json",
+        "sha256_before": "5f1f09205bb9fa666f015b5c98e52b6c9c8abbece2d21c292a4cfb0277826737",
+        "sha256_after": "d990d027824dffeeb9dad70b22c292d4c9cf6c1ced87737dbfb6013217c25edf",
+        "path_replacements": 2,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/host-readback.json",
+        "sha256_before": "96f2b31b56a22243445b63318a66432adea755a96929ee17880bf5e4c65b8113",
+        "sha256_after": "eab96ddeef956fa4eba3daf4a15750955994af881d2b849882cf8a0fa2edcd3b",
+        "path_replacements": 2,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/instruction-contract.json",
+        "sha256_before": "195e5e1bfccc3b9dc0c89187f68b05e1d3d996275aef4c8d8669449bf16606e2",
+        "sha256_after": "2ea8ef23cec62b340a6f3dfb807720bf493d2e841721def96a5555dbe8a775e0",
+        "path_replacements": 2,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/inventory.json",
+        "sha256_before": "d5124997b0deba5e1e0cae1ce58f3a286d8e3afe4dc6f545a1b50205705cfbad",
+        "sha256_after": "ab67e437fee4cab18107772998f2d60654bc9f5d3084d6941719445d5eb3ae06",
+        "path_replacements": 2,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/mechanics.json",
+        "sha256_before": "5a92056cec33c1d1af191aa4e53448a6f36ee863069be30481643dd92736f518",
+        "sha256_after": "31058c1c9ff6cd610a1ce452845fa33bdc6f0e0ce5eb52bf9d677acb80f6a1b6",
+        "path_replacements": 2,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/publication.json",
+        "sha256_before": "40d98b69d183aad2d58d8db339fe4c938857f553d7c90cec9ed751929758ee76",
+        "sha256_after": "1fa05727b05e2b53b8d43a53037391741c01c1aa679665c89c7fa77ad411c6c2",
+        "path_replacements": 10,
+        "newline_count_unchanged": true
+      },
+      {
+        "file": "logs/repository-tests.json",
+        "sha256_before": "0a4fa0fe3ca5ec33a0c43a29907897f2752d6381b4e14cd1ac3bf914a00a7ab8",
+        "sha256_after": "3b49e45383446838da0a23443e71e7455eeac3cf443fcf82067a4b672df1993a",
+        "path_replacements": 2,
+        "newline_count_unchanged": true
+      }
+    ],
+    [
+      {
+        "file": "logs/publication.json",
+        "sha256_before": "da4ac131adaf92e1fb69187ff08e31962a21abe8b50d19271688f493a54f1e70",
+        "sha256_after": "b9e43e49fc5837f17d4cdd729c742d64a7295ace301e7d748a6dd8cc4604ef5c",
+        "path_replacements": 10,
+        "newline_count_unchanged": true
+      }
+    ]
+  ],
+  "remaining_personal_runtime_path_files": []
+}

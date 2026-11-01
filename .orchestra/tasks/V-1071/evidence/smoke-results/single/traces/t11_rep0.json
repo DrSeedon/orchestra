@@ -1,0 +1,28 @@
+[
+  {
+    "role": "user",
+    "content": "Order 5002 is taking too long. If it won't get here by October 2, I want to send back the kettle from order 5001 instead of waiting around."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5002'}",
+    "name": "main.track_order"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order\": {\"order_id\": \"5002\", \"customer_id\": \"C-1001\", \"sku\": \"SKU-BLEND-9\", \"item\": \"Vortex Blender\", \"status\": \"shipped\", \"delivered_on\": null, \"tracking_id\": \"TRK-77002\", \"final_sale\": false}, \"shipment\": {\"tracking_id\": \"TRK-77002\", \"carrier\": \"Northway\", \"state\": \"in_transit\", \"eta\": \"2026-10-03\", \"last_event\": \"Departed regional hub, Albany NY\"}}"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5001', 'reason': 'other'}",
+    "name": "main.start_return"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"created\": true, \"rma_id\": \"RMA-5001\", \"label\": \"https://returns.example.com/RMA-5001.pdf\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"order\": {\"order_id\": \"5002\", \"customer_id\": \"C-1001\", \"sku\": \"SKU-BLEND-9\", \"item\": \"Vortex Blender\", \"status\": \"shipped\", \"delivered_on\": null, \"tracking_id\": \"TRK-77002\", \"final_sale\": false}, \"shipment\": {\"tracking_id\": \"TRK-77002\", \"carrier\": \"Northway\", \"state\": \"in_transit\", \"eta\": \"2026-10-03\", \"last_event\": \"Departed regional hub, Albany NY\"}}\n{\"created\": true, \"rma_id\": \"RMA-5001\", \"label\": \"https://returns.example.com/RMA-5001.pdf\"}\n---\nname: returns\ndescription: Return policy and how to start a return. Load when a customer wants to return or send back an item, or asks whether they can.\n---\n\n# Returns\n\nStart a return with `start_return`. The tool checks the policy itself and refuses when an\norder does not qualify, so there is no separate eligibility step.\n\nThe policy, so you can explain an outcome:\n\n- Items can be returned within 30 days of delivery.\n- Final sale items cannot be returned.\n- An order that has not been delivered cannot be returned yet.\n\nThere are no exceptions. If a customer asks for one, say plainly that you can't and which\nrule applies.\n\nPick the closest reason from what the customer already said: `too_small`, `too_large`,\n`changed_mind`, `defective`, `other`. Only ask when they gave no hint.\n\nWhen a return depends on something else, such as \"send it back if my other order is late\",\nsettle that question first with the right tool, then act on the answer.\n\nOnce the return exists, give the customer the RMA id and the label link."
+  }
+]

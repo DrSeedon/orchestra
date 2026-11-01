@@ -1,0 +1,63 @@
+{
+  "test_codex_quota_gate_1121.py": {
+    "passed": 96
+  },
+  "test_codex_limit_resume_v1081.py": {
+    "passed": 74
+  },
+  "test_quota_wait_queue.py": {
+    "passed": 33
+  },
+  "test_quota_gate.py": {
+    "passed": 108
+  },
+  "test_quota_headroom_447.py": {
+    "passed": 3,
+    "error": 3
+  },
+  "test_quota_admission_e2e.py": {
+    "failed": 14,
+    "passed": 2
+  },
+  "test_quota_admission_collection.py": {
+    "passed": 1
+  },
+  "test_session.py": {
+    "passed": 250
+  },
+  "test_manager.py": {
+    "failed": 115,
+    "passed": 69
+  },
+  "test_limit_wake.py": {
+    "passed": 52
+  },
+  "test_codex_writer_conflict_536.py": {
+    "passed": 7
+  },
+  "test_message_delivery_receipts_380.py": {
+    "passed": 30
+  },
+  "test_initial_delivery_review_regressions.py": {
+    "passed": 1
+  },
+  "test_delivery_head_of_line_block.py": {
+    "passed": 7
+  },
+  "test_i18n_quota_gate_reasons.py": {
+    "passed": 1,
+    "error": 1
+  },
+  "test_usage_readiness.py": {
+    "passed": 9
+  },
+  "test_agent_hub_routing.py": {
+    "passed": 86
+  },
+  "test_hub_pool.py": {
+    "passed": 38
+  },
+  "test_t344_quota_lines_browser.py": {
+    "error": 35
+  }
+}

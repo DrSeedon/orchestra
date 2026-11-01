@@ -1,0 +1,68 @@
+{
+  "sha": "a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
+  "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/trees/a2735a3eaf092eaaffb6dc17df25de33ef3bd048",
+  "tree": [
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "55e3231285b01d85b844dad07d2659b3fa101647",
+      "size": 72,
+      "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/blobs/55e3231285b01d85b844dad07d2659b3fa101647"
+    },
+    {
+      "path": "LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9ff21c8c5b2e713c357d3e15e641172a211eac21",
+      "size": 1062,
+      "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/blobs/9ff21c8c5b2e713c357d3e15e641172a211eac21"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "99387ba735fabf044220ca8799e2b7aef4b82b41",
+      "size": 3139,
+      "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/blobs/99387ba735fabf044220ca8799e2b7aef4b82b41"
+    },
+    {
+      "path": "skills",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "48218f7306db1824e1252fde9e5935db7e5c7b03",
+      "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/trees/48218f7306db1824e1252fde9e5935db7e5c7b03"
+    },
+    {
+      "path": "skills/design-to-motion",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "95a69abf40dacc838cdd262c1b416e28bc8a8eee",
+      "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/trees/95a69abf40dacc838cdd262c1b416e28bc8a8eee"
+    },
+    {
+      "path": "skills/design-to-motion/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b7326add823b585689f065a83e7b6b3aadc252fa",
+      "size": 39109,
+      "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/blobs/b7326add823b585689f065a83e7b6b3aadc252fa"
+    },
+    {
+      "path": "skills/landing-page-design",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0027117848901a6d9a9bdeac5acb93f41773c2d3",
+      "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/trees/0027117848901a6d9a9bdeac5acb93f41773c2d3"
+    },
+    {
+      "path": "skills/landing-page-design/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "39caa206ac2b179b110562db65e3e3c79a759fb5",
+      "size": 18801,
+      "url": "https://api.github.com/repos/elayadesign/ai-design-skills/git/blobs/39caa206ac2b179b110562db65e3e3c79a759fb5"
+    }
+  ],
+  "truncated": false
+}

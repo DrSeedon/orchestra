@@ -1,0 +1,10 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 55ms
+{"app_import": "/<hub-copy>/app/__init__.py", "actual_import_sha256": "61af273e271b2d96e8a6e352947701e7963d40669e3d8ba6b6cbd933e3a217fc", "belongs_to_checkout": true}
+{"variant": "logs_outer", "foreign_rows": 0, "plan": ["SCAN l", "SEARCH s USING INDEX sqlite_autoindex_sessions_1 (id=?)"], "vm_steps": 150, "seconds": 6.765266880393028e-05, "ids": [8, 7, 6, 5, 4, 3, 2, 1]}
+{"variant": "sessions_outer", "foreign_rows": 0, "plan": ["SEARCH s USING INDEX sqlite_autoindex_sessions_2 (name=? AND scope=?)", "SEARCH l USING INDEX idx_logs_session (session_id=?)"], "vm_steps": 116, "seconds": 6.150314584374428e-05, "ids": [8, 7, 6, 5, 4, 3, 2, 1]}
+{"variant": "scalar_session", "foreign_rows": 0, "plan": ["SEARCH l USING INDEX idx_logs_session (session_id=?)", "SCALAR SUBQUERY 1", "SEARCH sessions USING INDEX sqlite_autoindex_sessions_2 (name=? AND scope=?)"], "vm_steps": 117, "seconds": 5.28101809322834e-05, "ids": [8, 7, 6, 5, 4, 3, 2, 1]}
+{"variant": "logs_outer", "foreign_rows": 16384, "plan": ["SCAN l", "SEARCH s USING INDEX sqlite_autoindex_sessions_1 (id=?)"], "vm_steps": 163976, "seconds": 0.034274805802851915, "ids": [8, 7, 6, 5, 4, 3, 2, 1]}
+{"variant": "sessions_outer", "foreign_rows": 16384, "plan": ["SEARCH s USING INDEX sqlite_autoindex_sessions_2 (name=? AND scope=?)", "SEARCH l USING INDEX idx_logs_session (session_id=?)"], "vm_steps": 102, "seconds": 7.029622793197632e-05, "ids": [8, 7, 6, 5, 4, 3, 2, 1]}
+{"variant": "scalar_session", "foreign_rows": 16384, "plan": ["SEARCH l USING INDEX idx_logs_session (session_id=?)", "SCALAR SUBQUERY 1", "SEARCH sessions USING INDEX sqlite_autoindex_sessions_2 (name=? AND scope=?)"], "vm_steps": 109, "seconds": 3.1287781894207e-05, "ids": [8, 7, 6, 5, 4, 3, 2, 1]}

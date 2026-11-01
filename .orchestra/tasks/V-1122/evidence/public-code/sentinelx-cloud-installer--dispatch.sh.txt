@@ -1,0 +1,46 @@
+     1	#!/usr/bin/env bash
+     2	#
+     3	# SentinelX bootstrap - detects the OS and runs the right installer.
+     4	#
+     5	#   curl -fsSL https://get.sentinelx.app | bash
+     6	#
+     7	# Pass any SENTINELX_* env vars through, e.g. on a headless Mac server:
+     8	#   curl -fsSL https://get.sentinelx.app | SENTINELX_MODE=system bash
+     9	#
+    10	set -euo pipefail
+    11	BASE="${SENTINELX_BASE_URL:-https://get.sentinelx.app}"
+    12	
+    13	# Download-then-run: bash must read the installer from a FILE (not the curl
+    14	# pipe), otherwise the interactive enrollment prompt reads the pipe and
+    15	# truncates the rest of the script. stdin comes from the terminal so the token
+    16	# paste works even under `curl | bash`.
+    17	run() {
+    18	  local url="$1"; shift
+    19	  local tmp; tmp="$(mktemp)"
+    20	  curl -fsSL "$url" -o "$tmp" || { rm -f "$tmp"; return 1; }
+    21	  local rc=0
+    22	  if (exec </dev/tty) 2>/dev/null; then "$@" bash "$tmp" </dev/tty || rc=$?; else "$@" bash "$tmp" || rc=$?; fi
+    23	  rm -f "$tmp"
+    24	  return "$rc"
+    25	}
+    26	
+    27	case "$(uname -s)" in
+    28	  Darwin)
+    29	    # macOS installs per-user (uv's Python lives under your home; the installer
+    30	    # elevates only for a system-mode LaunchDaemon). Must NOT run as root - if
+    31	    # someone used the old `| sudo bash`, drop back to the invoking user.
+    32	    if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+    33	      echo "SentinelX: on macOS the install must be user-owned; re-running as ${SUDO_USER}." >&2
+    34	      exec sudo -u "$SUDO_USER" -E bash -c "curl -fsSL '$BASE/dispatch.sh' -o /tmp/sxd.\$\$; bash /tmp/sxd.\$\$; rm -f /tmp/sxd.\$\$"
+    35	    fi
+    36	    run "$BASE/install-macos.sh"
+    37	    ;;
+    38	  Linux)
+    39	    # Linux needs root; self-elevate if we're not already there.
+    40	    if [ "$(id -u)" -eq 0 ]; then run "$BASE/install.sh"; else run "$BASE/install.sh" sudo -E; fi
+    41	    ;;
+    42	  *)
+    43	    echo "SentinelX: unsupported OS '$(uname -s)'. See ${BASE}" >&2
+    44	    exit 1
+    45	    ;;
+    46	esac

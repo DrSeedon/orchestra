@@ -1,0 +1,141 @@
+FFF...FFFFFFFFF...FFF..FF                                                [100%]
+=================================== FAILURES ===================================
+__________ test_cap_preserves_head_tail_and_exact_omission_count[100] __________
+tests/test_harness_cap_overflow_1107.py:21: in test_cap_preserves_head_tail_and_exact_omission_count
+    assert len(result) <= cap
+E   AssertionError: assert 186 <= 100
+E    +  where 186 = len('COMMAND START\nжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжж\n... (truncated, 134 more chars; narrow it with head, tail, grep or read offset/limit)')
+__________ test_cap_preserves_head_tail_and_exact_omission_count[999] __________
+tests/test_harness_cap_overflow_1107.py:21: in test_cap_preserves_head_tail_and_exact_omission_count
+    assert len(result) <= cap
+E   AssertionError: assert 1086 <= 999
+E    +  where 1086 = len('COMMAND START\nжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжж...жжжжжжжжжжжжжжжжжжжжжжжжжжжжжж\n... (truncated, 1033 more chars; narrow it with head, tail, grep or read offset/limit)')
+_________ test_cap_preserves_head_tail_and_exact_omission_count[30000] _________
+tests/test_harness_cap_overflow_1107.py:21: in test_cap_preserves_head_tail_and_exact_omission_count
+    assert len(result) <= cap
+E   AssertionError: assert 30088 <= 30000
+E    +  where 30088 = len('COMMAND START\nжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжжж...жжжжжжжжжжжжжжжжжжжжжжжжжжжжж\n... (truncated, 30034 more chars; narrow it with head, tail, grep or read offset/limit)')
+____________________ test_tiny_caps_never_exceed_budget[0] _____________________
+tests/test_harness_cap_overflow_1107.py:40: in test_tiny_caps_never_exceed_budget
+    assert len(tools._cap("x" * 300)) <= cap
+E   AssertionError: assert 86 <= 0
+E    +  where 86 = len('\n... (truncated, 300 more chars; narrow it with head, tail, grep or read offset/limit)')
+E    +    where '\n... (truncated, 300 more chars; narrow it with head, tail, grep or read offset/limit)' = <function old_cap at 0x77383651cea0>(('x' * 300))
+E    +      where <function old_cap at 0x77383651cea0> = tools._cap
+____________________ test_tiny_caps_never_exceed_budget[1] _____________________
+tests/test_harness_cap_overflow_1107.py:40: in test_tiny_caps_never_exceed_budget
+    assert len(tools._cap("x" * 300)) <= cap
+E   AssertionError: assert 87 <= 1
+E    +  where 87 = len('x\n... (truncated, 299 more chars; narrow it with head, tail, grep or read offset/limit)')
+E    +    where 'x\n... (truncated, 299 more chars; narrow it with head, tail, grep or read offset/limit)' = <function old_cap at 0x77383651cea0>(('x' * 300))
+E    +      where <function old_cap at 0x77383651cea0> = tools._cap
+____________________ test_tiny_caps_never_exceed_budget[20] ____________________
+tests/test_harness_cap_overflow_1107.py:40: in test_tiny_caps_never_exceed_budget
+    assert len(tools._cap("x" * 300)) <= cap
+E   AssertionError: assert 106 <= 20
+E    +  where 106 = len('xxxxxxxxxxxxxxxxxxxx\n... (truncated, 280 more chars; narrow it with head, tail, grep or read offset/limit)')
+E    +    where 'xxxxxxxxxxxxxxxxxxxx\n... (truncated, 280 more chars; narrow it with head, tail, grep or read offset/limit)' = <function old_cap at 0x77383651cea0>(('x' * 300))
+E    +      where <function old_cap at 0x77383651cea0> = tools._cap
+____________________ test_tiny_caps_never_exceed_budget[50] ____________________
+tests/test_harness_cap_overflow_1107.py:40: in test_tiny_caps_never_exceed_budget
+    assert len(tools._cap("x" * 300)) <= cap
+E   AssertionError: assert 136 <= 50
+E    +  where 136 = len('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n... (truncated, 250 more chars; narrow it with head, tail, grep or read offset/limit)')
+E    +    where 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n... (truncated, 250 more chars; narrow it with head, tail, grep or read offset/limit)' = <function old_cap at 0x77383651cea0>(('x' * 300))
+E    +      where <function old_cap at 0x77383651cea0> = tools._cap
+________________________ test_default_cap_keeps_the_end ________________________
+tests/test_harness_cap_overflow_1107.py:46: in test_default_cap_keeps_the_end
+    assert len(tools._cap(text)) <= tools.OUTPUT_CAP
+E   AssertionError: assert 30085 <= 30000
+E    +  where 30085 = len('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n... (truncated, 11 more chars; narrow it with head, tail, grep or read offset/limit)')
+E    +    where 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n... (truncated, 11 more chars; narrow it with head, tail, grep or read offset/limit)' = <function old_cap at 0x77383651cea0>('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxfinal error')
+E    +      where <function old_cap at 0x77383651cea0> = tools._cap
+E    +  and   30000 = tools.OUTPUT_CAP
+_________________ test_real_http_400_recovery[failure0-2-True] _________________
+tests/test_harness_cap_overflow_1107.py:111: in test_real_http_400_recovery
+    assert len(requests) == expected_requests
+E   AssertionError: assert 1 == 2
+E    +  where 1 = len([[{'content': 'system rules', 'role': 'system'}, {'content': 'original task', 'role': 'user'}, {'content': None, 'role...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'role': 'tool', 'tool_call_id': 'call-1'}, ...]])
+------------------------------ Captured log call -------------------------------
+ERROR    app.harness.loop:loop.py:264 harness loop round failed: OpenRouter 400: {"error":{"code":"context_length_exceeded","message":"This model's maximum context length is 8192 tokens; you requested 9000 tokens."}}
+_________________ test_real_http_400_recovery[failure1-2-True] _________________
+tests/test_harness_cap_overflow_1107.py:111: in test_real_http_400_recovery
+    assert len(requests) == expected_requests
+E   AssertionError: assert 1 == 2
+E    +  where 1 = len([[{'content': 'system rules', 'role': 'system'}, {'content': 'original task', 'role': 'user'}, {'content': None, 'role...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'role': 'tool', 'tool_call_id': 'call-1'}, ...]])
+------------------------------ Captured log call -------------------------------
+ERROR    app.harness.loop:loop.py:264 harness loop round failed: OpenRouter 400: {"error":{"message":"Input exceeds the context window"}}
+_________________ test_real_http_400_recovery[failure2-2-True] _________________
+tests/test_harness_cap_overflow_1107.py:111: in test_real_http_400_recovery
+    assert len(requests) == expected_requests
+E   AssertionError: assert 1 == 2
+E    +  where 1 = len([[{'content': 'system rules', 'role': 'system'}, {'content': 'original task', 'role': 'user'}, {'content': None, 'role...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'role': 'tool', 'tool_call_id': 'call-1'}, ...]])
+------------------------------ Captured log call -------------------------------
+ERROR    app.harness.loop:loop.py:264 harness loop round failed: OpenRouter 400: {"error":{"message":"Context length exceeded"}}
+_________________ test_real_http_400_recovery[failure3-2-True] _________________
+tests/test_harness_cap_overflow_1107.py:111: in test_real_http_400_recovery
+    assert len(requests) == expected_requests
+E   AssertionError: assert 1 == 2
+E    +  where 1 = len([[{'content': 'system rules', 'role': 'system'}, {'content': 'original task', 'role': 'user'}, {'content': None, 'role...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'role': 'tool', 'tool_call_id': 'call-1'}, ...]])
+------------------------------ Captured log call -------------------------------
+ERROR    app.harness.loop:loop.py:264 harness loop round failed: OpenRouter 400: {"error":{"message":"upstream failure","metadata":{"padding":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+____________ test_second_overflow_fails_without_another_compaction _____________
+tests/test_harness_cap_overflow_1107.py:154: in test_second_overflow_fails_without_another_compaction
+    assert llm.calls == 2
+E   assert 1 == 2
+E    +  where 1 = <tests.test_harness_cap_overflow_1107._ScriptedLLM object at 0x77383407b4d0>.calls
+------------------------------ Captured log call -------------------------------
+ERROR    app.harness.loop:loop.py:264 harness loop round failed: provider rejected request
+________________ test_recovery_budget_is_per_turn_not_per_round ________________
+tests/test_harness_cap_overflow_1107.py:170: in test_recovery_budget_is_per_turn_not_per_round
+    assert llm.calls == 3
+E   assert 1 == 3
+E    +  where 1 = <tests.test_harness_cap_overflow_1107._ScriptedLLM object at 0x7738342bb170>.calls
+------------------------------ Captured log call -------------------------------
+ERROR    app.harness.loop:loop.py:264 harness loop round failed: provider rejected request
+_________ test_anchor_only_history_fails_clearly_without_useless_retry _________
+tests/test_harness_cap_overflow_1107.py:182: in test_anchor_only_history_fails_clearly_without_useless_retry
+    assert not loop.ok and loop.stop_reason == "context_limit"
+E   AssertionError: assert (not False and 'error' == 'context_limit'
+E    +  where False = <app.harness.loop.AgentLoop object at 0x773834303f50>.ok
+E     
+E     - context_limit
+E     + error)
+------------------------------ Captured log call -------------------------------
+ERROR    app.harness.loop:loop.py:264 harness loop round failed: provider rejected request
+________________ test_interrupt_after_compaction_prevents_retry ________________
+tests/test_harness_cap_overflow_1107.py:207: in test_interrupt_after_compaction_prevents_retry
+    assert not loop.ok and loop.stop_reason == "aborted"
+E   AssertionError: assert (not False and 'error' == 'aborted'
+E    +  where False = <app.harness.loop.AgentLoop object at 0x77383415a3c0>.ok
+E     
+E     - aborted
+E     + error)
+------------------------------ Captured log call -------------------------------
+ERROR    app.harness.loop:loop.py:264 harness loop round failed: provider rejected request
+_________________ test_each_new_turn_gets_its_own_single_retry _________________
+tests/test_harness_cap_overflow_1107.py:218: in test_each_new_turn_gets_its_own_single_retry
+    assert loop.ok
+E   assert False
+E    +  where False = <app.harness.loop.AgentLoop object at 0x7738341d35f0>.ok
+------------------------------ Captured log call -------------------------------
+ERROR    app.harness.loop:loop.py:264 harness loop round failed: provider rejected request
+=========================== short test summary info ============================
+FAILED tests/test_harness_cap_overflow_1107.py::test_cap_preserves_head_tail_and_exact_omission_count[100]
+FAILED tests/test_harness_cap_overflow_1107.py::test_cap_preserves_head_tail_and_exact_omission_count[999]
+FAILED tests/test_harness_cap_overflow_1107.py::test_cap_preserves_head_tail_and_exact_omission_count[30000]
+FAILED tests/test_harness_cap_overflow_1107.py::test_tiny_caps_never_exceed_budget[0]
+FAILED tests/test_harness_cap_overflow_1107.py::test_tiny_caps_never_exceed_budget[1]
+FAILED tests/test_harness_cap_overflow_1107.py::test_tiny_caps_never_exceed_budget[20]
+FAILED tests/test_harness_cap_overflow_1107.py::test_tiny_caps_never_exceed_budget[50]
+FAILED tests/test_harness_cap_overflow_1107.py::test_default_cap_keeps_the_end
+FAILED tests/test_harness_cap_overflow_1107.py::test_real_http_400_recovery[failure0-2-True]
+FAILED tests/test_harness_cap_overflow_1107.py::test_real_http_400_recovery[failure1-2-True]
+FAILED tests/test_harness_cap_overflow_1107.py::test_real_http_400_recovery[failure2-2-True]
+FAILED tests/test_harness_cap_overflow_1107.py::test_real_http_400_recovery[failure3-2-True]
+FAILED tests/test_harness_cap_overflow_1107.py::test_second_overflow_fails_without_another_compaction
+FAILED tests/test_harness_cap_overflow_1107.py::test_recovery_budget_is_per_turn_not_per_round
+FAILED tests/test_harness_cap_overflow_1107.py::test_anchor_only_history_fails_clearly_without_useless_retry
+FAILED tests/test_harness_cap_overflow_1107.py::test_interrupt_after_compaction_prevents_retry
+FAILED tests/test_harness_cap_overflow_1107.py::test_each_new_turn_gets_its_own_single_retry
+17 failed, 8 passed in 0.61s

@@ -1,0 +1,17 @@
+{
+  "runs": [
+    {
+      "started_at": "2026-10-24T15:06:37Z",
+      "ended_at": "2026-10-24T15:06:37Z",
+      "model": "fake",
+      "app": "app",
+      "reps": 1,
+      "only": null,
+      "cases": "evals/golden.jsonl",
+      "git_commit": null,
+      "skills_off": null,
+      "rows_written": 19,
+      "errors": 0
+    }
+  ]
+}

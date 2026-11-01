@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "task": "V-1086",
+  "scope": "Root-level task .txt/.md evidence derivatives; manifest is not self-hashed",
+  "raw_storage": {
+    "path": "private/raw",
+    "ignore_file": "private/.gitignore",
+    "publication": "Private; never force-add or publish",
+    "transfer": "If private storage is excluded from sync-back, originals remain in this hub copy"
+  },
+  "transforms": [
+    "Workspace prefix -> <WORKSPACE>",
+    "Home prefix -> <HOME>",
+    "Hub user identifier -> <HUB_USER>",
+    "Hub host identifier -> <HUB_HOST>",
+    "Hub copy identifier -> <HUB_COPY>",
+    "Keep commands, diagnostic content, assertions, results and test totals"
+  ],
+  "records": [
+    {
+      "published_path": "cli-help.txt",
+      "raw_path": "private/raw/cli-help.txt",
+      "raw_sha256": "8daca89dce917a69bb40cc02bd5380228a8af32437faf2bb1b3b372ac8f88c6c",
+      "raw_bytes": 650,
+      "published_sha256": "8daca89dce917a69bb40cc02bd5380228a8af32437faf2bb1b3b372ac8f88c6c",
+      "published_bytes": 650,
+      "additional_edits": null
+    },
+    {
+      "published_path": "correction-tests.txt",
+      "raw_path": "private/raw/correction-tests.txt",
+      "raw_sha256": "7eea0d4dc865c655638945201fc9bd6dd0a1c70857d526a4bd522e35a246d640",
+      "raw_bytes": 205,
+      "published_sha256": "7eea0d4dc865c655638945201fc9bd6dd0a1c70857d526a4bd522e35a246d640",
+      "published_bytes": 205,
+      "additional_edits": null
+    },
+    {
+      "published_path": "elevenlabs-tests.txt",
+      "raw_path": "private/raw/elevenlabs-tests.txt",
+      "raw_sha256": "3d00aaf6e91596afe8185e55f1a58ca2b71a8cbe8aeca25944cded0d30a3915a",
+      "raw_bytes": 110,
+      "published_sha256": "3d00aaf6e91596afe8185e55f1a58ca2b71a8cbe8aeca25944cded0d30a3915a",
+      "published_bytes": 110,
+      "additional_edits": null
+    },
+    {
+      "published_path": "final-tests.txt",
+      "raw_path": "private/raw/final-tests.txt",
+      "raw_sha256": "7df35371631c7f2369088bcd0bf0dcc2422fdad56bf755a879d3603742a30d0c",
+      "raw_bytes": 205,
+      "published_sha256": "7df35371631c7f2369088bcd0bf0dcc2422fdad56bf755a879d3603742a30d0c",
+      "published_bytes": 205,
+      "additional_edits": null
+    },
+    {
+      "published_path": "isolated-tests.txt",
+      "raw_path": "private/raw/isolated-tests.txt",
+      "raw_sha256": "4a1e9eb6500cd4d2a6499d716fbb42bd70563c8aac655319c495357725291f19",
+      "raw_bytes": 34155,
+      "published_sha256": "f1407d133d18e6d8fcede34547fb126b9c0f5f17492ae74d89f60dee92b8525d",
+      "published_bytes": 33035,
+      "additional_edits": null
+    },
+    {
+      "published_path": "publication-check.txt",
+      "raw_path": "private/raw/publication-check.txt",
+      "raw_sha256": "0b9847dbcd823410268a8201bde1f585cffd72123ecde0e6e32d9df6e6981963",
+      "raw_bytes": 383,
+      "published_sha256": "0b9847dbcd823410268a8201bde1f585cffd72123ecde0e6e32d9df6e6981963",
+      "published_bytes": 383,
+      "additional_edits": null
+    },
+    {
+      "published_path": "report.md",
+      "raw_path": "private/raw/report.md",
+      "raw_sha256": "5c893fb2a25fdb32dc66b1d943d05a99fdb65d316007805fb346415939a48b36",
+      "raw_bytes": 12647,
+      "published_sha256": "9417bc99fc026771d59876be43992c325bd7c0fac92dda71bf0cf0c49c475c21",
+      "published_bytes": 14939,
+      "additional_edits": "Review corrections and current V-1088 ownership documented"
+    },
+    {
+      "published_path": "required-tests.txt",
+      "raw_path": "private/raw/required-tests.txt",
+      "raw_sha256": "339881a82b3a8e726dac00d6582105c7e02e29fadd22e176d6c8710b6e669233",
+      "raw_bytes": 53358,
+      "published_sha256": "339881a82b3a8e726dac00d6582105c7e02e29fadd22e176d6c8710b6e669233",
+      "published_bytes": 53358,
+      "additional_edits": null
+    },
+    {
+      "published_path": "runtime-check.txt",
+      "raw_path": "private/raw/runtime-check.txt",
+      "raw_sha256": "6aaf31d3a04200d2a8392386e8b15c5a5a3857f8295b5ea78160594ab53291dc",
+      "raw_bytes": 295,
+      "published_sha256": "562c7658311d240ba1af8b68555e1fd8153c1a1a254a303af845cd8e115c4c02",
+      "published_bytes": 151,
+      "additional_edits": null
+    },
+    {
+      "published_path": "secret-shape-check.txt",
+      "raw_path": "private/raw/secret-shape-check.txt",
+      "raw_sha256": "00ce03a2b961e3449fb100271203562d1577d9afc29232ce1eb2791b20322bb3",
+      "raw_bytes": 102,
+      "published_sha256": "00ce03a2b961e3449fb100271203562d1577d9afc29232ce1eb2791b20322bb3",
+      "published_bytes": 102,
+      "additional_edits": null
+    },
+    {
+      "published_path": "skill-updates.md",
+      "raw_path": "private/raw/skill-updates.md",
+      "raw_sha256": "e93d71c225a77df644d65845364bf2259ddc3f0a0c39de9aa16aa67c4870b2f4",
+      "raw_bytes": 5477,
+      "published_sha256": "c297a16672bdd505493c129238fd44ba1d90a9ef00d8f5b81929026079f2962b",
+      "published_bytes": 5645,
+      "additional_edits": "Review corrections and current V-1088 ownership documented"
+    },
+    {
+      "published_path": "video-help.txt",
+      "raw_path": "private/raw/video-help.txt",
+      "raw_sha256": "bf8bce87fac33f9e18eaeee4c7d062236745be9392f93d7bf6e40f1ddf623ef3",
+      "raw_bytes": 6076,
+      "published_sha256": "bf8bce87fac33f9e18eaeee4c7d062236745be9392f93d7bf6e40f1ddf623ef3",
+      "published_bytes": 6076,
+      "additional_edits": null
+    }
+  ]
+}

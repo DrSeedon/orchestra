@@ -1,0 +1,4 @@
+Node syntax checks: 5 files OK
+Python AST: 4 files OK
+Imported app: <worker-copy>/app/__init__.py; absolute path resolves inside supplied working directory
+CHANGELOG V-1134 entry: credential-shape scan OK

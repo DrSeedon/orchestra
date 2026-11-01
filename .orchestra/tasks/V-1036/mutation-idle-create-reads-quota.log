@@ -1,0 +1,40 @@
+.Executing <Task finished name='Task-7' coro=<Edges.test_mcp_accepts_error_receipts_without_losing_identity() done, defined at <hub-workspace>:74> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.219 seconds
+...Executing <Task finished name='Task-22' coro=<Edges.test_receipt_text_reports_failure_and_quota_eta() done, defined at <hub-workspace>:96> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.127 seconds
+.EFFExecuting <Task finished name='Task-27' coro=<Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator() done, defined at <hub-workspace>:115> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.301 seconds
+
+======================================================================
+ERROR: test_spawn_admission_precedes_every_allocation_and_skips_orchestrator (__main__.Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator) (state='blocked', orchestrator=False, planned=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 165, in test_spawn_admission_precedes_every_allocation_and_skips_orchestrator
+    await method(manager, name="new", scope="scope", cwd=".", model="chosen-model",
+  File "app/manager.py", line 764, in _create_session_locked
+    require_worker_admission(await get_worker_admission(model))
+  File "<hub-workspace>", line 134, in require
+    raise Refused("use hubsol")
+Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator.<locals>.Refused: use hubsol
+
+======================================================================
+FAIL: test_spawn_admission_precedes_every_allocation_and_skips_orchestrator (__main__.Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator) (state='available', orchestrator=False, planned=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 175, in test_spawn_admission_precedes_every_allocation_and_skips_orchestrator
+    gate.get_worker_admission.assert_not_awaited()
+  File "/usr/lib/python3.12/unittest/mock.py", line 2400, in assert_not_awaited
+    raise AssertionError(msg)
+AssertionError: Expected mock to not have been awaited. Awaited 1 times.
+
+======================================================================
+FAIL: test_spawn_admission_precedes_every_allocation_and_skips_orchestrator (__main__.Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator) (state='unknown', orchestrator=False, planned=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 175, in test_spawn_admission_precedes_every_allocation_and_skips_orchestrator
+    gate.get_worker_admission.assert_not_awaited()
+  File "/usr/lib/python3.12/unittest/mock.py", line 2400, in assert_not_awaited
+    raise AssertionError(msg)
+AssertionError: Expected mock to not have been awaited. Awaited 1 times.
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.907s
+
+FAILED (failures=2, errors=1)

@@ -1,0 +1,20 @@
+{
+  "copies": [
+    {
+      "file": "verification.stdout.txt",
+      "original_sha256": "aabd55729d14f5f0700659f72e6e840b3f97ab1df9c49f0c06d46884c94e7c20",
+      "public_sha256": "a178a2c741fb7913b28ed9783e11c1a884a5a59748ee6e1ee70de8c58f13a294"
+    },
+    {
+      "file": "mutation-direct-without-preflight.stdout.txt",
+      "original_sha256": "d641adfb5cf0dc4f4f7b1550842b044ba61fb382048e17abfebabcdd0a4fd516",
+      "public_sha256": "840e88d296f00ccc6e82a6fe16ed427b9fb68772a3f375b1883f948220657a70"
+    },
+    {
+      "file": "report.md",
+      "original_sha256": "d6faa6a80d2de7b392bc02b6698d68f01b0121e8f7f4ff3f784098022491c01b",
+      "public_sha256": "13a2569afae8fd44f6d2518bd34466b8de6c20db48b01567938a69e75e384fd3"
+    }
+  ],
+  "method": "literal publication-boundary replacement only; raw originals private"
+}

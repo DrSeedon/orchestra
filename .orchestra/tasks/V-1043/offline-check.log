@@ -1,0 +1,7 @@
+Imported app: ['<hub-workspace>']
+Imported app.models: <hub-workspace>
+PASS: all 12 new hint test cases (stdlib fallback)
+PASS: mutation rejected: old routing text (5 cases)
+PASS: mutation rejected: ignore missing hub configuration (3 cases)
+PASS: mutation rejected: hint for other runtimes (3 cases)
+PASS: syntax compilation for all 3 changed source/test files

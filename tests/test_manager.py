@@ -2674,7 +2674,7 @@ class TestCanSpawn:
     # TestDefaultValidateSpawn.test_root_spawn_allowed.
 
     @pytest.mark.asyncio
-    async def test_unknown_parent_role_denied(self, mgr):
+    async def test_unknown_parent_role_denied(self, mgr, configured_hub):
         """#36/#280: parent session whose role is not in the manifest cannot spawn."""
         from app.db import save_session
         from tests.conftest import make_backend_mock
@@ -2689,7 +2689,7 @@ class TestCanSpawn:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             with pytest.raises(ValueError, match="unknown parent role 'phantom'"):
                 await mgr.create_session(
-                    name="child", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
+                    name="child", scope="/s", cwd="/tmp", model="hubsol",
                     role="worker", parent_name="ghost-parent",
                 )
 
@@ -2983,7 +2983,7 @@ class TestPromptIsolation:
 
 class TestValidateSpawnIntegration:
     @pytest.mark.asyncio
-    async def test_forbidden_spawn_blocked_before_side_effect(self, mgr, pipeline_dir, tmp_path):
+    async def test_forbidden_spawn_blocked_before_side_effect(self, mgr, pipeline_dir, tmp_path, configured_hub):
         """pm-glava НЕ может спавнить coder (нет в can_spawn) — ValueError ДО worktree."""
         from app.db import save_session
         from tests.conftest import make_backend_mock
@@ -3017,14 +3017,14 @@ class TestValidateSpawnIntegration:
             with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
                 with pytest.raises(ValueError, match="cannot spawn"):
                     await mgr.create_session(
-                        name="child-coder", scope="/s", cwd=str(repo), model="opus",
+                        name="child-coder", scope="/s", cwd=str(repo), model="hubsol",
                         role="coder", parent_name="glava",
                         use_worktree=True, repo_path=str(repo), pipeline="testpipe",
                     )
         assert wt_calls["n"] == 0, "worktree не должен создаваться при запрещённом спавне"
 
     @pytest.mark.asyncio
-    async def test_allowed_spawn_passes(self, mgr, pipeline_dir):
+    async def test_allowed_spawn_passes(self, mgr, pipeline_dir, configured_hub):
         """pm-glava МОЖЕТ спавнить secretary (в can_spawn)."""
         from app.db import save_session
         from tests.conftest import make_backend_mock
@@ -3038,7 +3038,7 @@ class TestValidateSpawnIntegration:
         })
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="sec-1", scope="/s", cwd="/tmp", model="opus",
+                name="sec-1", scope="/s", cwd="/tmp", model="hubsol",
                 role="secretary", parent_name="glava", pipeline="testpipe",
             )
         assert session.name == "sec-1"
@@ -3073,7 +3073,7 @@ class TestIsOrchestratorDenormalization:
         assert session.pipeline == "testpipe"
 
     @pytest.mark.asyncio
-    async def test_worker_kind_is_not_orchestrator(self, mgr, pipeline_dir):
+    async def test_worker_kind_is_not_orchestrator(self, mgr, pipeline_dir, configured_hub):
         """secretary (kind:worker) → is_orchestrator=False даже при is_orchestrator=True arg."""
         from app.db import save_session
         from tests.conftest import make_backend_mock
@@ -3087,7 +3087,7 @@ class TestIsOrchestratorDenormalization:
         })
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="sec-2", scope="/s", cwd="/tmp", model="opus",
+                name="sec-2", scope="/s", cwd="/tmp", model="hubsol",
                 role="secretary", parent_name="glava", pipeline="testpipe",
             )
         assert session.is_orchestrator is False
@@ -3106,7 +3106,7 @@ class TestIsOrchestratorDenormalization:
 
 class TestPipelineInheritance:
     @pytest.mark.asyncio
-    async def test_child_inherits_parent_pipeline(self, mgr, pipeline_dir):
+    async def test_child_inherits_parent_pipeline(self, mgr, pipeline_dir, configured_hub):
         """Воркер без явного pipeline наследует пайплайн родителя."""
         from app.db import save_session
         from tests.conftest import make_backend_mock
@@ -3122,7 +3122,7 @@ class TestPipelineInheritance:
             # coder.allow_unrouted_workers=true → generic worker (без role) допустим;
             # пайплайн наследуется от родителя coderboss (testpipe).
             session = await mgr.create_session(
-                name="w-inh", scope="/s", cwd="/tmp", model="opus",
+                name="w-inh", scope="/s", cwd="/tmp", model="hubsol",
                 parent_name="coderboss",
             )
         assert session.pipeline == "testpipe"
@@ -3181,7 +3181,7 @@ class TestProfileInheritance:
         assert row["profile"] == "work"
 
     @pytest.mark.asyncio
-    async def test_child_inherits_parent_profile(self, mgr):
+    async def test_child_inherits_parent_profile(self, mgr, configured_hub):
         """Ребёнок без явного profile наследует профиль родителя."""
         from app.db import save_session
         from tests.conftest import make_backend_mock
@@ -3195,13 +3195,13 @@ class TestProfileInheritance:
         })
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="child", scope="/s", cwd="/tmp", model="opus",
+                name="child", scope="/s", cwd="/tmp", model="hubsol",
                 parent_name="boss",
             )
         assert session.profile == "work"
 
     @pytest.mark.asyncio
-    async def test_explicit_profile_overrides_inheritance(self, mgr):
+    async def test_explicit_profile_overrides_inheritance(self, mgr, configured_hub):
         """Явный profile у ребёнка переопределяет наследование от родителя."""
         from app.db import save_session
         from tests.conftest import make_backend_mock
@@ -3215,7 +3215,7 @@ class TestProfileInheritance:
         })
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="child2", scope="/s", cwd="/tmp", model="opus",
+                name="child2", scope="/s", cwd="/tmp", model="hubsol",
                 parent_name="boss2", profile="personal",
             )
         assert session.profile == "personal"

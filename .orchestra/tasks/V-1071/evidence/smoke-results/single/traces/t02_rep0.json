@@ -1,0 +1,19 @@
+[
+  {
+    "role": "user",
+    "content": "Where is order 5007 and when will it arrive?"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5007'}",
+    "name": "main.track_order"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order\": {\"order_id\": \"5007\", \"customer_id\": \"C-1003\", \"sku\": \"SKU-BLEND-9\", \"item\": \"Vortex Blender\", \"status\": \"shipped\", \"delivered_on\": null, \"tracking_id\": \"TRK-77007\", \"final_sale\": false}, \"shipment\": {\"tracking_id\": \"TRK-77007\", \"carrier\": \"Bluebird\", \"state\": \"delayed\", \"eta\": \"2026-10-06\", \"last_event\": \"Weather delay at Minneapolis hub\"}}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"order\": {\"order_id\": \"5007\", \"customer_id\": \"C-1003\", \"sku\": \"SKU-BLEND-9\", \"item\": \"Vortex Blender\", \"status\": \"shipped\", \"delivered_on\": null, \"tracking_id\": \"TRK-77007\", \"final_sale\": false}, \"shipment\": {\"tracking_id\": \"TRK-77007\", \"carrier\": \"Bluebird\", \"state\": \"delayed\", \"eta\": \"2026-10-06\", \"last_event\": \"Weather delay at Minneapolis hub\"}}"
+  }
+]

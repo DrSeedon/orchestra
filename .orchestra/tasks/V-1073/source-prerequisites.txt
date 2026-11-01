@@ -1,0 +1,4 @@
+.orchestra/pipelines/default/pipeline.yaml: absent from supplied copy
+.orchestra/pipelines/default/prompts/hub/worker.md: absent from supplied copy
+scripts/run_tests.py: absent from supplied copy
+scripts/check_instruction_contract.py: absent from supplied copy

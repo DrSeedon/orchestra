@@ -1,0 +1,13 @@
+{
+  "sha": "58267944f92187b7d6a1c822165c96c81c864806",
+  "commit": {
+    "committer": {
+      "date": "2026-10-23T18:21:26Z"
+    },
+    "tree": {
+      "sha": "9996afaad95f288fe6728382f31bfaa482b10891",
+      "url": "https://api.github.com/repos/anthropics/claude-plugins-official/git/trees/9996afaad95f288fe6728382f31bfaa482b10891"
+    }
+  },
+  "html_url": "https://github.com/anthropics/claude-plugins-official/commit/58267944f92187b7d6a1c822165c96c81c864806"
+}

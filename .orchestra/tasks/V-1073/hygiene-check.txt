@@ -1,0 +1,3 @@
+Parsed 11 changed Python source/artifact files.
+Scanned 27 explicit source/task artifacts with existing credential shapes.
+Credential-shape findings: 0. No credential inventory or private data was read.

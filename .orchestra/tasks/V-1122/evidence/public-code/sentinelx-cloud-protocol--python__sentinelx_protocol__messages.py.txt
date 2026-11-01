@@ -1,0 +1,302 @@
+     1	"""Pydantic models for SentinelX protocol messages.
+     2	
+     3	These are the wire format. Both core and hub import from here to ensure
+     4	they're speaking the same language.
+     5	"""
+     6	
+     7	from __future__ import annotations
+     8	
+     9	from datetime import datetime
+    10	from typing import Any, Literal
+    11	
+    12	from pydantic import BaseModel, ConfigDict, Field
+    13	
+    14	
+    15	# --- Operation types -----------------------------------------------------------
+    16	
+    17	OpType = Literal[
+    18	    "ping",
+    19	    "capabilities",
+    20	    "help",
+    21	    "state",
+    22	    "exec",
+    23	    "script_run",
+    24	    "edit",
+    25	    "edit_upload_init",
+    26	    "edit_upload_file",
+    27	    "edit_upload_complete",
+    28	    "restart",
+    29	    "service",
+    30	    "upload_init",
+    31	    "upload_chunk",
+    32	    "upload_complete",
+    33	    "upload_file",
+    34	    # File primitives (Story 6) — read-only filesystem ops constrained by
+    35	    # the file_ops path model on the agent side. With the unified r/rw
+    36	    # model these resolve under any file_ops path (r or rw).
+    37	    "read",
+    38	    "list",
+    39	    "search",
+    40	    # Deterministic, read-only project orientation (git + fs aggregation).
+    41	    "project_snapshot",
+    42	    # Local audit log (Story C) — read-only. Returns recent entries from the
+    43	    # agent's own on-host audit log (/var/lib/sentinelx/audit.jsonl), which
+    44	    # records each executed op WITH its payload. Unlike the hub's metadata
+    45	    # ring buffer, this is the only place the actual command/payload lives,
+    46	    # and it never leaves the host except in response to this op. Metadata is
+    47	    # returned as-is (no redaction) — the log is the host owner's own record.
+    48	    "read_audit",
+    49	    # Mutating filesystem ops (file-ops unificadas). These resolve ONLY
+    50	    # under a file_ops path declared access: rw on the agent side. The
+    51	    # agent canonicalizes the path (symlinks included) before checking,
+    52	    # so a hostile hub/LLM cannot escape the rw allowlist. Destructive
+    53	    # ops (delete, and move/copy that overwrite a destination) take an
+    54	    # automatic timestamped backup before mutating.
+    55	    "move",
+    56	    "copy",
+    57	    "delete",
+    58	    "chmod",
+    59	    "chown",
+    60	    # Structured Git operations (sentinel_git): diff (read) + apply_patch (rw),
+    61	    # dispatched agent-side by handlers/git_ops.py. Additive, backward-compatible:
+    62	    # older agents simply do not advertise or handle it.
+    63	    "git",
+    64	    # Cross-host file transfer (binary streaming relay through the Hub).
+    65	    # INTERNAL agent ops driven by the Hub's `sentinel_transfer_file`
+    66	    # coordinator; NOT exposed as model-visible MCP tools. The Hub resolves
+    67	    # both the source and destination sessions for the authenticated user and
+    68	    # relays raw binary WebSocket frames between them, chunk by chunk with
+    69	    # backpressure (it awaits the destination's ack before pulling the next
+    70	    # source chunk). `file_export_init` stats the source (size + sha256 +
+    71	    # filename), gated by file_ops READ access; `file_export_chunk` streams one
+    72	    # raw binary frame per chunk (see sentinelx_protocol.binary framing);
+    73	    # `file_export_complete` tears down the source-side export session.
+    74	    # Backward compatible: older agents don't advertise or handle these, and
+    75	    # the Hub only drives a transfer when BOTH hosts advertise them.
+    76	    "file_export_init",
+    77	    "file_export_chunk",
+    78	    "file_export_complete",
+    79	    # Generic bridge to a host-local structured endpoint (core#45). Only
+    80	    # registered by an agent whose config declares `local_apis`, so an agent
+    81	    # that did not opt in simply has no handler for it.
+    82	    "local_api",
+    83	]
+    84	
+    85	
+    86	# --- Host info -----------------------------------------------------------------
+    87	
+    88	class ConfigSummary(BaseModel):
+    89	    """Counts summarizing a host's policy — safe to expose to admins.
+    90	
+    91	    These are aggregates only (how many, not which), so they reveal a
+    92	    host's posture (a power user with 100+ commands vs a locked-down new
+    93	    install) without leaking the actual command list, paths, or service
+    94	    names. The full lists stay on the host and are only shown to the host's
+    95	    own owner through a separate on-demand channel, never in this hello.
+    96	
+    97	    All fields optional so an older hub that somehow receives this (or a
+    98	    partial summary) degrades gracefully.
+    99	    """
+   100	
+   101	    model_config = ConfigDict(extra="forbid")
+   102	
+   103	    allowed_command_count: int | None = None
+   104	    file_ops_path_count: int | None = None
+   105	    file_ops_rw_count: int | None = None
+   106	    service_count: int | None = None
+   107	    playbook_count: int | None = None
+   108	    trusted_fetch_host_count: int | None = None
+   109	    exec_timeout_default: int | None = None
+   110	    exec_timeout_max: int | None = None
+   111	
+   112	
+   113	class HostInfo(BaseModel):
+   114	    """Information about the host where sentinelx-core is running."""
+   115	
+   116	    model_config = ConfigDict(extra="forbid")
+   117	
+   118	    id: str = Field(..., description="Unique host identifier (generated at install)")
+   119	    hostname: str
+   120	    os: str = "linux"
+   121	    kernel: str | None = None
+   122	    arch: str | None = None
+   123	    # Machine details (optional; older agents omit them). Gathered
+   124	    # best-effort at connect; any field the agent cannot determine is None.
+   125	    cpu_model: str | None = None
+   126	    cpu_cores: int | None = None
+   127	    mem_total_bytes: int | None = None
+   128	    disk_total_bytes: int | None = None
+   129	    machine_type: str | None = None  # physical | vm | container | wsl
+   130	    distro: str | None = None
+   131	    # Policy summary (counts only). Optional: older agents omit it, and the
+   132	    # hub treats a missing summary as "unknown" rather than an error.
+   133	    config_summary: ConfigSummary | None = None
+   134	
+   135	
+   136	# --- Connection lifecycle ------------------------------------------------------
+   137	
+   138	class HelloMessage(BaseModel):
+   139	    """First message after WS handshake. core → hub."""
+   140	
+   141	    model_config = ConfigDict(extra="forbid")
+   142	
+   143	    type: Literal["hello"] = "hello"
+   144	    protocol_version: str
+   145	    agent_version: str
+   146	    # Self-declared implementation name (e.g. 'sentinelx-core', 'SU24').
+   147	    # Optional: older agents omit it and the hub treats it as the default.
+   148	    agent_name: str | None = None
+   149	    host: HostInfo
+   150	    capabilities: list[str] = Field(default_factory=list)
+   151	    # Agent's preferred MCP toolset profile, advisory. The hub uses it only
+   152	    # as a default when the user has set no explicit profile, and only when
+   153	    # ALL of that user's connected agents agree (unanimity — see the hub's
+   154	    # resolve_profile). Omitted (None) by agents that don't care: stock
+   155	    # sentinelx-core leaves it None and gets the full catalog; third-party
+   156	    # agents (e.g. SU24) can set "compact".
+   157	    preferred_profile: Literal["compact", "full"] | None = None
+   158	
+   159	
+   160	class WelcomeMessage(BaseModel):
+   161	    """Hub acknowledges hello and registers the agent."""
+   162	
+   163	    model_config = ConfigDict(extra="forbid")
+   164	
+   165	    type: Literal["welcome"] = "welcome"
+   166	    session_id: str
+   167	    server_time: datetime
+   168	    heartbeat_interval_seconds: int = 30
+   169	
+   170	
+   171	# --- Request / Response --------------------------------------------------------
+   172	
+   173	class RequestMessage(BaseModel):
+   174	    """Hub → core: execute an operation."""
+   175	
+   176	    model_config = ConfigDict(extra="forbid")
+   177	
+   178	    type: Literal["request"] = "request"
+   179	    id: str
+   180	    op: OpType
+   181	    payload: dict[str, Any] = Field(default_factory=dict)
+   182	    deadline: datetime | None = None
+   183	    opaque_ref: str | None = Field(
+   184	        default=None,
+   185	        max_length=256,
+   186	        description=(
+   187	            "Caller-supplied correlation value. The hub assigns it no meaning: "
+   188	            "it never routes, indexes or searches on this, it only carries it "
+   189	            "here and records it in the audit. An agent may use it to resolve "
+   190	            "its own durable logical context. Bounded because it crosses the "
+   191	            "wire on every call that sets it and lands in the audit log."
+   192	        ),
+   193	    )
+   194	    # NOTE: this model is extra="forbid", so an agent that predates this field
+   195	    # REJECTS a message carrying it -- its read loop logs a warning and drops
+   196	    # the frame, which the hub sees as a call that never answers. The hub must
+   197	    # therefore only send this to an agent that advertises the matching
+   198	    # capability. See sentinelx_hub.hub.session.call.
+   199	
+   200	
+   201	class ResponseError(BaseModel):
+   202	    """Error details inside a response."""
+   203	
+   204	    model_config = ConfigDict(extra="forbid")
+   205	
+   206	    code: str
+   207	    message: str
+   208	    details: dict[str, Any] | None = None
+   209	
+   210	
+   211	class ResponseMessage(BaseModel):
+   212	    """Core → hub: result of a request."""
+   213	
+   214	    model_config = ConfigDict(extra="forbid")
+   215	
+   216	    type: Literal["response"] = "response"
+   217	    id: str
+   218	    ok: bool
+   219	    result: dict[str, Any] | None = None
+   220	    error: ResponseError | None = None
+   221	
+   222	
+   223	# --- Heartbeat -----------------------------------------------------------------
+   224	
+   225	class PingMessage(BaseModel):
+   226	    model_config = ConfigDict(extra="forbid")
+   227	    type: Literal["ping"] = "ping"
+   228	    timestamp: datetime
+   229	
+   230	
+   231	class PongMessage(BaseModel):
+   232	    model_config = ConfigDict(extra="forbid")
+   233	    type: Literal["pong"] = "pong"
+   234	    timestamp: datetime
+   235	
+   236	
+   237	# --- Async events --------------------------------------------------------------
+   238	
+   239	class EventMessage(BaseModel):
+   240	    """Core → hub: async notification, no response expected."""
+   241	
+   242	    model_config = ConfigDict(extra="forbid")
+   243	
+   244	    type: Literal["event"] = "event"
+   245	    kind: str
+   246	    data: dict[str, Any] = Field(default_factory=dict)
+   247	    timestamp: datetime
+   248	
+   249	
+   250	# --- Fatal errors --------------------------------------------------------------
+   251	
+   252	class ErrorMessage(BaseModel):
+   253	    """Hub → core: fatal protocol error, WS will close."""
+   254	
+   255	    model_config = ConfigDict(extra="forbid")
+   256	
+   257	    type: Literal["error"] = "error"
+   258	    code: str
+   259	    message: str
+   260	    fatal: bool = True
+   261	
+   262	
+   263	# --- Parser --------------------------------------------------------------------
+   264	
+   265	AnyMessage = (
+   266	    HelloMessage
+   267	    | WelcomeMessage
+   268	    | RequestMessage
+   269	    | ResponseMessage
+   270	    | PingMessage
+   271	    | PongMessage
+   272	    | EventMessage
+   273	    | ErrorMessage
+   274	)
+   275	
+   276	_MESSAGE_TYPES: dict[str, type[BaseModel]] = {
+   277	    "hello": HelloMessage,
+   278	    "welcome": WelcomeMessage,
+   279	    "request": RequestMessage,
+   280	    "response": ResponseMessage,
+   281	    "ping": PingMessage,
+   282	    "pong": PongMessage,
+   283	    "event": EventMessage,
+   284	    "error": ErrorMessage,
+   285	}
+   286	
+   287	
+   288	class UnknownMessageTypeError(ValueError):
+   289	    """Raised when a message has a type we don't recognize."""
+   290	
+   291	
+   292	def parse_message(data: dict[str, Any]) -> AnyMessage:
+   293	    """Parse a raw dict into the appropriate message model.
+   294	
+   295	    Raises:
+   296	        UnknownMessageTypeError: if `type` field is missing or unknown.
+   297	        pydantic.ValidationError: if the payload doesn't match the schema.
+   298	    """
+   299	    msg_type = data.get("type")
+   300	    if not msg_type or msg_type not in _MESSAGE_TYPES:
+   301	        raise UnknownMessageTypeError(f"Unknown message type: {msg_type!r}")
+   302	    return _MESSAGE_TYPES[msg_type].model_validate(data)  # type: ignore[return-value]

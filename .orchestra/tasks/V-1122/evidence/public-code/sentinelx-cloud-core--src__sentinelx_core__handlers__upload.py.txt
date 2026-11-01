@@ -1,0 +1,644 @@
+     1	"""upload handlers: receive files from the hub via WebSocket payloads.
+     2	
+     3	Big difference from the legacy core: there is no `multipart/form-data` here.
+     4	File bytes arrive in the WebSocket payload as either:
+     5	
+     6	  - `content_base64` (str): the file inlined as base64
+     7	  - `file_url` (str): an http(s) URL the agent fetches itself
+     8	
+     9	Single upload  -> `upload_file`
+    10	Chunked upload -> `upload_init` + `upload_chunk` (N times) + `upload_complete`
+    11	
+    12	Why chunked at all? WebSocket frames have a ceiling (typically 1 MiB to a few
+    13	MiB depending on infra), so anything bigger has to be split into chunks. The
+    14	hub does the splitting client-side; the agent reassembles.
+    15	
+    16	Uploads always land under the configured upload base directory. Path traversal
+    17	attempts are rejected up front via `safe_path_under()`.
+    18	"""
+    19	
+    20	from __future__ import annotations
+    21	
+    22	import asyncio
+    23	import base64
+    24	import errno
+    25	import hashlib
+    26	import os
+    27	import ipaddress
+    28	import json
+    29	import pathlib
+    30	import re
+    31	import shutil
+    32	import socket
+    33	import urllib.error
+    34	import urllib.request
+    35	import uuid
+    36	from pathlib import Path
+    37	from typing import Any
+    38	from urllib.parse import urlparse
+    39	
+    40	from sentinelx_core.executor import HandlerError
+    41	from sentinelx_core import platform_guidance as _pg
+    42	from sentinelx_core.executor_engine import safe_path_under
+    43	from sentinelx_core.policy import Policy
+    44	
+    45	# 10 GiB hard ceiling, mirrors legacy SENTINEL_MAX_UPLOAD_BYTES default
+    46	MAX_UPLOAD_BYTES = 10 * 1024 * 1024 * 1024
+    47	CHUNK_READ_SIZE = 1024 * 1024  # 1 MiB
+    48	
+    49	
+    50	# ── SSRF defense ───────────────────────────────────────────────────────────
+    51	
+    52	
+    53	class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    54	    """Reject redirects so an attacker can't bounce a vetted URL into a
+    55	    rogue one (server returns 302 Location: http://169.254.169.254/...)."""
+    56	
+    57	    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
+    58	        raise urllib.error.HTTPError(
+    59	            req.full_url, code,
+    60	            f"redirect to {newurl} blocked (file_url does not follow redirects)",
+    61	            headers, fp,
+    62	        )
+    63	
+    64	
+    65	def _is_safe_ip(ip: str) -> bool:
+    66	    """Return True iff `ip` is a public, routable address.
+    67	
+    68	    Rejects:
+    69	      - loopback (127.0.0.0/8, ::1)
+    70	      - private (RFC1918, RFC4193)
+    71	      - link-local (169.254.0.0/16, fe80::/10) — includes cloud metadata
+    72	      - multicast / reserved / unspecified
+    73	    """
+    74	    try:
+    75	        addr = ipaddress.ip_address(ip)
+    76	    except ValueError:
+    77	        return False
+    78	    return not (
+    79	        addr.is_loopback
+    80	        or addr.is_private
+    81	        or addr.is_link_local
+    82	        or addr.is_multicast
+    83	        or addr.is_reserved
+    84	        or addr.is_unspecified
+    85	    )
+    86	
+    87	
+    88	def _validate_fetch_url(url: str, trusted_hosts: tuple[str, ...]) -> None:
+    89	    """Raise HandlerError unless `url` is safe to fetch.
+    90	
+    91	    Layered checks (any one failure rejects):
+    92	      1. Scheme must be https.
+    93	      2. Hostname must be in trusted_hosts (exact match, case-insensitive).
+    94	      3. Hostname must resolve, AND every resolved IP must pass
+    95	         _is_safe_ip(). This catches DNS rebinding where the host is
+    96	         in the allowlist but resolves to a private IP.
+    97	
+    98	    Note: this is TOCTOU-safe only for non-TOCTOU attackers — a
+    99	    pathological DNS server could return different IPs on the
+   100	    validation lookup vs urllib's lookup. In practice this is rare
+   101	    and would require also being in trusted_hosts, which already
+   102	    requires operator opt-in.
+   103	    """
+   104	    parsed = urlparse(url)
+   105	    scheme = (parsed.scheme or "").lower()
+   106	    host = (parsed.hostname or "").lower()
+   107	
+   108	    if not host:
+   109	        raise HandlerError("invalid_payload", "file_url has no hostname")
+   110	
+   111	    if scheme != "https":
+   112	        raise HandlerError("invalid_payload", "file_url must be https")
+   113	
+   114	    if not trusted_hosts:
+   115	        raise HandlerError(
+   116	            "fetch_blocked",
+   117	            "file_url fetching is disabled (trusted_fetch_hosts not configured). "
+   118	            f"Add hosts to security.trusted_fetch_hosts in {_pg.CONFIG_PATH}.",
+   119	        )
+   120	
+   121	    allowed = {h.lower() for h in trusted_hosts}
+   122	    if host not in allowed:
+   123	        raise HandlerError(
+   124	            "fetch_blocked",
+   125	            f"hostname '{host}' isn't in security.trusted_fetch_hosts. Add "
+   126	            f"it there in {_pg.CONFIG_PATH} (operator approval), or "
+   127	            "send the bytes directly with content_base64 (inline) or the "
+   128	            "chunked upload path (upload_init/upload_chunk/upload_complete) "
+   129	            "instead of file_url.",
+   130	        )
+   131	
+   132	    # Resolve and validate every returned IP. getaddrinfo can return
+   133	    # multiple IPv4/IPv6 for one hostname; reject if any is unsafe.
+   134	    try:
+   135	        infos = socket.getaddrinfo(host, None)
+   136	    except socket.gaierror as exc:
+   137	        raise HandlerError("fetch_failed", f"DNS resolution failed: {exc}") from exc
+   138	
+   139	    for info in infos:
+   140	        ip = info[4][0]
+   141	        if not _is_safe_ip(ip):
+   142	            raise HandlerError(
+   143	                "fetch_blocked",
+   144	                f"hostname '{host}' resolved to a non-public IP {ip} "
+   145	                "(loopback/private/link-local). file_url only fetches public "
+   146	                "hosts (SSRF defense). To upload a local or private-network "
+   147	                "file, use content_base64 or the chunked upload path "
+   148	                "instead.",
+   149	            )
+   150	
+   151	
+   152	def _finalize(tmp: Path, dest: Path) -> None:
+   153	    """Move a finished file into place, atomically, across filesystems too.
+   154	
+   155	    A rename can't cross filesystems, and the staging area (under upload_base)
+   156	    often isn't on the destination's: a WSL host writing to /mnt/c, a second
+   157	    disk, a bind mount. Path.replace then fails with EXDEV, "Invalid
+   158	    cross-device link", and a transfer that had moved every byte reported an
+   159	    internal error at the very end (sxrep_XW9FTRHAH0H7). On EXDEV, copy into a
+   160	    temp file in the destination's own directory and rename THAT, so the final
+   161	    name never points at a half-written file. Any other error is raised as is.
+   162	    """
+   163	    try:
+   164	        tmp.replace(dest)
+   165	        return
+   166	    except OSError as exc:
+   167	        if exc.errno != errno.EXDEV:
+   168	            raise
+   169	    part = dest.parent / f".{dest.name}.sentinelx-{uuid.uuid4().hex[:8]}.part"
+   170	    try:
+   171	        shutil.copyfile(tmp, part)
+   172	        # r+b, not rb: on Windows fsync (_commit) needs a handle open for
+   173	        # writing and a read-only one fails with "[Errno 9] Bad file
+   174	        # descriptor", so every upload to another drive (staging on C:, target
+   175	        # on G:) failed at the very end (0.23.30). POSIX accepts either.
+   176	        with open(part, "r+b") as fh:
+   177	            os.fsync(fh.fileno())
+   178	        os.replace(part, dest)
+   179	    finally:
+   180	        if part.exists():
+   181	            part.unlink(missing_ok=True)
+   182	    tmp.unlink(missing_ok=True)
+   183	
+   184	
+   185	def _meta_file(upload_dir: Path) -> Path:
+   186	    return upload_dir / "meta.json"
+   187	
+   188	
+   189	def _parts_dir(upload_dir: Path) -> Path:
+   190	    d = upload_dir / "parts"
+   191	    d.mkdir(parents=True, exist_ok=True)
+   192	    return d
+   193	
+   194	
+   195	_UPLOAD_ID_RE = re.compile(r"^[0-9a-fA-F]{16,64}$")
+   196	
+   197	
+   198	def _validated_upload_id(provided: object) -> str:
+   199	    """Safe upload_id: the caller-provided one (hex, e.g. the Hub's transfer_id)
+   200	    if valid, else a fresh uuid4 hex. The id becomes a directory name under the
+   201	    staging root, so an invalid/traversal value is rejected."""
+   202	    if provided is None:
+   203	        return uuid.uuid4().hex
+   204	    if isinstance(provided, str) and _UPLOAD_ID_RE.match(provided):
+   205	        return provided.lower()
+   206	    raise HandlerError(
+   207	        "invalid_payload",
+   208	        "upload_id, when provided, must be a 16-64 char hex string",
+   209	    )
+   210	
+   211	
+   212	def write_transfer_part(upload_base: Path, upload_id: str, index: int, data: bytes) -> int:
+   213	    """Write one binary transfer chunk as a staged part (cross-host transfer).
+   214	
+   215	    The raw-bytes sibling of upload_chunk: writes directly into the same
+   216	    {index:08d}.part layout that upload_complete reassembles + hashes + finalizes
+   217	    atomically. The staging dir must already exist (created by upload_init with a
+   218	    matching upload_id == the Hub's transfer_id)."""
+   219	    if index < 0:
+   220	        raise HandlerError("invalid_payload", "index must be >= 0")
+   221	    tmp_root = upload_base / ".sentinelx_uploads"
+   222	    upload_dir = tmp_root / upload_id
+   223	    if not _meta_file(upload_dir).exists():
+   224	        raise HandlerError("not_found", f"upload_id not found: {upload_id}")
+   225	    part_path = _parts_dir(upload_dir) / f"{index:08d}.part"
+   226	    part_path.write_bytes(bytes(data))
+   227	    return len(data)
+   228	
+   229	
+   230	async def _fetch_url(
+   231	    url: str,
+   232	    dest: Path,
+   233	    *,
+   234	    trusted_hosts: tuple[str, ...],
+   235	    timeout: int = 15,
+   236	) -> tuple[int, str]:
+   237	    """Download a URL into `dest`. Returns (size, sha256_hex).
+   238	
+   239	    Validates against SSRF before the fetch (see _validate_fetch_url)
+   240	    and disables redirects so a vetted host can't bounce us elsewhere.
+   241	    """
+   242	    _validate_fetch_url(url, trusted_hosts)
+   243	
+   244	    def _do_fetch() -> tuple[int, str]:
+   245	        # Build an opener with NoRedirectHandler so urllib won't auto-
+   246	        # follow Location headers — we re-validate any redirect target.
+   247	        opener = urllib.request.build_opener(_NoRedirectHandler())
+   248	        hasher = hashlib.sha256()
+   249	        size = 0
+   250	        try:
+   251	            with opener.open(url, timeout=timeout) as r, dest.open("wb") as f:
+   252	                while True:
+   253	                    block = r.read(CHUNK_READ_SIZE)
+   254	                    if not block:
+   255	                        break
+   256	                    size += len(block)
+   257	                    if size > MAX_UPLOAD_BYTES:
+   258	                        raise HandlerError(
+   259	                            "file_too_large",
+   260	                            f"file exceeds the agent's upload cap of "
+   261	                            f"{MAX_UPLOAD_BYTES} bytes. Split it into smaller "
+   262	                            "pieces or compress it; chunked upload has the "
+   263	                            "same limit.",
+   264	                        )
+   265	                    hasher.update(block)
+   266	                    f.write(block)
+   267	        except urllib.error.URLError as exc:
+   268	            raise HandlerError("fetch_failed", f"could not fetch URL: {exc}") from exc
+   269	        return size, hasher.hexdigest()
+   270	
+   271	    return await asyncio.to_thread(_do_fetch)
+   272	
+   273	
+   274	def _decode_base64_to(content_b64: str, dest: Path) -> tuple[int, str]:
+   275	    try:
+   276	        raw = base64.b64decode(content_b64, validate=True)
+   277	    except (ValueError, base64.binascii.Error) as exc:
+   278	        raise HandlerError("invalid_payload", f"bad base64: {exc}") from exc
+   279	    if len(raw) > MAX_UPLOAD_BYTES:
+   280	        raise HandlerError(
+   281	            "file_too_large",
+   282	            f"decoded size {len(raw)} exceeds the agent's upload cap of "
+   283	            f"{MAX_UPLOAD_BYTES} bytes. Split or compress the file; chunked "
+   284	            "upload has the same limit.",
+   285	        )
+   286	    dest.write_bytes(raw)
+   287	    return len(raw), hashlib.sha256(raw).hexdigest()
+   288	
+   289	
+   290	_STAGING_DIR_NAME = ".sentinelx_uploads"
+   291	
+   292	
+   293	def _reject_staging_path(upload_base: Path, dest: Path) -> None:
+   294	    """upload_file must not write into the chunked-upload staging area: a forged
+   295	    meta.json there is the lever for writing outside upload_base at completion
+   296	    (GHSA-r2h3-76g7-m95x)."""
+   297	    staging = (upload_base / _STAGING_DIR_NAME).resolve()
+   298	    d = dest.resolve()
+   299	    if d == staging or staging in d.parents:
+   300	        raise HandlerError(
+   301	            "path_not_allowed",
+   302	            f"{_STAGING_DIR_NAME}/ is reserved for chunked uploads and can't be "
+   303	            "written to directly.",
+   304	        )
+   305	
+   306	
+   307	def _authorised_dest(meta: dict, upload_base: Path, policy: "Policy | None") -> Path:
+   308	    """Where a completed upload may land, re-derived from meta under upload_init's
+   309	    rules. Never trusts meta['target_path'] as-is (GHSA-r2h3-76g7-m95x)."""
+   310	    target = str(meta.get("target_path") or "")
+   311	    if not target:
+   312	        raise HandlerError("invalid_state", "upload has no target_path")
+   313	    if meta.get("landed_in_place"):
+   314	        if policy is None:
+   315	            raise HandlerError("path_not_allowed", "land-in-place not permitted here")
+   316	        resolved = policy.resolve_path(target, need_write=True)
+   317	        if resolved is None:
+   318	            raise HandlerError(
+   319	                "path_not_allowed",
+   320	                f"{target} is not inside a writable (rw) file_ops path.",
+   321	            )
+   322	        return resolved
+   323	    # Not landed: the meta stores an already-resolved absolute path under
+   324	    # upload_base. Verify it still resolves inside upload_base (don't re-hang it
+   325	    # under upload_base, which would both misplace a legit file and defuse the
+   326	    # check for a forged absolute target).
+   327	    dest = pathlib.Path(target).resolve()
+   328	    base = upload_base.resolve()
+   329	    if dest != base and base not in dest.parents:
+   330	        raise HandlerError(
+   331	            "path_traversal",
+   332	            f"target_path {target} is not under the agent's upload_base directory.",
+   333	        )
+   334	    return dest
+   335	
+   336	
+   337	def make_upload_file_handler(policy: Policy, upload_base: Path):
+   338	    """Single-call upload (small/medium files). Bytes inline or via URL."""
+   339	
+   340	    async def handle_upload_file(payload: dict[str, Any]) -> dict[str, Any]:
+   341	        target_path = payload.get("target_path")
+   342	        overwrite = bool(payload.get("overwrite", False))
+   343	        filename = payload.get("filename")
+   344	        content_b64 = payload.get("content_base64")
+   345	        file_url = payload.get("file_url")
+   346	
+   347	        if not target_path:
+   348	            raise HandlerError("invalid_payload", "missing 'target_path'")
+   349	        if (content_b64 is None) == (file_url is None):
+   350	            raise HandlerError(
+   351	                "invalid_payload",
+   352	                "provide exactly one of 'content_base64' or 'file_url'",
+   353	            )
+   354	
+   355	        upload_base.mkdir(parents=True, exist_ok=True)
+   356	        try:
+   357	            dest = safe_path_under(upload_base, str(target_path))
+   358	        except ValueError as exc:
+   359	            raise HandlerError(
+   360	                "path_traversal",
+   361	                f"target_path rejected: {exc}. It must resolve to a location "
+   362	                "under the agent's upload_base directory; '..' or symlinks "
+   363	                "that escape upload_base are refused.",
+   364	            ) from exc
+   365	
+   366	        _reject_staging_path(upload_base, dest)
+   367	        dest.parent.mkdir(parents=True, exist_ok=True)
+   368	        if dest.exists() and not overwrite:
+   369	            raise HandlerError(
+   370	                "conflict",
+   371	                f"a file already exists at {dest}. Pass overwrite=true to "
+   372	                "replace it.",
+   373	            )
+   374	
+   375	        tmp_root = upload_base / ".sentinelx_uploads"
+   376	        tmp_root.mkdir(parents=True, exist_ok=True)
+   377	        tmp = tmp_root / f"{uuid.uuid4().hex}.upload"
+   378	
+   379	        try:
+   380	            if content_b64 is not None:
+   381	                size, sha256 = _decode_base64_to(content_b64, tmp)
+   382	            else:
+   383	                size, sha256 = await _fetch_url(
+   384	                    file_url,
+   385	                    tmp,
+   386	                    trusted_hosts=policy.trusted_fetch_hosts,
+   387	                    timeout=policy.file_url_timeout_seconds,
+   388	                )
+   389	            _finalize(tmp, dest)
+   390	        finally:
+   391	            if tmp.exists():
+   392	                try:
+   393	                    tmp.unlink()
+   394	                except OSError:
+   395	                    pass
+   396	
+   397	        return {
+   398	            "ok": True,
+   399	            "mode": "single",
+   400	            "target_path": str(dest),
+   401	            "size": size,
+   402	            "sha256": sha256,
+   403	            "filename": filename,
+   404	        }
+   405	
+   406	    return handle_upload_file
+   407	
+   408	
+   409	def make_upload_init_handler(upload_base: Path, policy: Policy | None = None):
+   410	    async def handle_upload_init(payload: dict[str, Any]) -> dict[str, Any]:
+   411	        target_path = payload.get("target_path")
+   412	        overwrite = bool(payload.get("overwrite", False))
+   413	        total_size = int(payload.get("total_size", 0) or 0)
+   414	        filename = payload.get("filename")
+   415	        # Opt-in: land at the real path when covered by an rw file_ops entry,
+   416	        # else fall back to staging (old behaviour). Additive, breaks nothing.
+   417	        land_in_place = bool(payload.get("land_in_place", False))
+   418	
+   419	        if not target_path:
+   420	            raise HandlerError("invalid_payload", "missing 'target_path'")
+   421	        if total_size and total_size > MAX_UPLOAD_BYTES:
+   422	            raise HandlerError(
+   423	                "file_too_large",
+   424	                f"declared total_size {total_size} exceeds the agent's "
+   425	                f"upload cap of {MAX_UPLOAD_BYTES} bytes. Split or compress "
+   426	                "the file before uploading.",
+   427	            )
+   428	
+   429	        upload_base.mkdir(parents=True, exist_ok=True)
+   430	        # Land-in-place only when asked AND under an rw file_ops entry.
+   431	        # resolve_path(need_write=True) canonicalises symlinks and defeats
+   432	        # '..' before the prefix check -- identical to move/delete -- so this
+   433	        # widens nothing already not opened rw. Not rw -> fall through to
+   434	        # staging, no failure.
+   435	        dest = None
+   436	        landed = False
+   437	        if land_in_place and policy is not None:
+   438	            resolved_rw = policy.resolve_path(str(target_path), need_write=True)
+   439	            if resolved_rw is not None:
+   440	                dest = resolved_rw
+   441	                landed = True
+   442	        if dest is None:
+   443	            try:
+   444	                dest = safe_path_under(upload_base, str(target_path))
+   445	            except ValueError as exc:
+   446	                raise HandlerError(
+   447	                    "path_traversal",
+   448	                    f"target_path rejected: {exc}. It must resolve to a location "
+   449	                    "under the agent's upload_base directory; '..' or symlinks "
+   450	                    "that escape upload_base are refused.",
+   451	                ) from exc
+   452	
+   453	        if dest.exists() and not overwrite:
+   454	            raise HandlerError(
+   455	                "conflict",
+   456	                f"a file already exists at {dest}. Pass overwrite=true to "
+   457	                "replace it.",
+   458	            )
+   459	
+   460	        upload_id = _validated_upload_id(payload.get("upload_id"))
+   461	        tmp_root = upload_base / ".sentinelx_uploads"
+   462	        upload_dir = tmp_root / upload_id
+   463	        _parts_dir(upload_dir)
+   464	
+   465	        meta = {
+   466	            "upload_id": upload_id,
+   467	            "target_path": str(target_path) if landed else str(dest),
+   468	            "resolved_target": str(dest),
+   469	            "landed_in_place": landed,
+   470	            "overwrite": overwrite,
+   471	            "total_size": total_size,
+   472	            "filename": filename,
+   473	        }
+   474	        _meta_file(upload_dir).write_text(json.dumps(meta))
+   475	
+   476	        return {
+   477	            "ok": True,
+   478	            "mode": "chunked",
+   479	            "upload_id": upload_id,
+   480	            "target_path": str(dest),
+   481	            "total_size": total_size,
+   482	        }
+   483	
+   484	    return handle_upload_init
+   485	
+   486	
+   487	def make_upload_chunk_handler(upload_base: Path):
+   488	    async def handle_upload_chunk(payload: dict[str, Any]) -> dict[str, Any]:
+   489	        upload_id = payload.get("upload_id")
+   490	        index = payload.get("index")
+   491	        content_b64 = payload.get("content_base64")
+   492	
+   493	        if not upload_id:
+   494	            raise HandlerError("invalid_payload", "missing 'upload_id'")
+   495	        if index is None:
+   496	            raise HandlerError("invalid_payload", "missing 'index'")
+   497	        if content_b64 is None:
+   498	            raise HandlerError("invalid_payload", "missing 'content_base64'")
+   499	
+   500	        try:
+   501	            idx = int(index)
+   502	        except (TypeError, ValueError) as exc:
+   503	            raise HandlerError("invalid_payload", "index must be int") from exc
+   504	        if idx < 0:
+   505	            raise HandlerError("invalid_payload", "index must be >= 0")
+   506	
+   507	        upload_id = _validated_upload_id(upload_id)
+   508	        tmp_root = upload_base / ".sentinelx_uploads"
+   509	        upload_dir = tmp_root / upload_id
+   510	        if not _meta_file(upload_dir).exists():
+   511	            raise HandlerError("not_found", f"upload_id not found: {upload_id}")
+   512	
+   513	        try:
+   514	            data = base64.b64decode(content_b64, validate=True)
+   515	        except (ValueError, base64.binascii.Error) as exc:
+   516	            raise HandlerError("invalid_payload", f"bad base64: {exc}") from exc
+   517	
+   518	        part_path = _parts_dir(upload_dir) / f"{idx:08d}.part"
+   519	        part_path.write_bytes(data)
+   520	
+   521	        return {
+   522	            "ok": True,
+   523	            "upload_id": upload_id,
+   524	            "index": idx,
+   525	            "chunk_size": len(data),
+   526	        }
+   527	
+   528	    return handle_upload_chunk
+   529	
+   530	
+   531	def make_upload_complete_handler(upload_base: Path, policy: "Policy | None" = None):
+   532	    async def handle_upload_complete(payload: dict[str, Any]) -> dict[str, Any]:
+   533	        upload_id = payload.get("upload_id")
+   534	        sha256_expected = payload.get("sha256")
+   535	
+   536	        if not upload_id:
+   537	            raise HandlerError("invalid_payload", "missing 'upload_id'")
+   538	
+   539	        tmp_root = upload_base / ".sentinelx_uploads"
+   540	        upload_dir = tmp_root / upload_id
+   541	        meta_file = _meta_file(upload_dir)
+   542	        if not meta_file.exists():
+   543	            raise HandlerError("not_found", f"upload_id not found: {upload_id}")
+   544	
+   545	        upload_id = _validated_upload_id(upload_id)
+   546	        meta = json.loads(meta_file.read_text())
+   547	        # Re-authorise instead of trusting the meta (GHSA-r2h3-76g7-m95x).
+   548	        dest = _authorised_dest(meta, upload_base, policy)
+   549	        dest.parent.mkdir(parents=True, exist_ok=True)
+   550	
+   551	        parts = sorted((upload_dir / "parts").glob("*.part"))
+   552	        if not parts:
+   553	            raise HandlerError("invalid_state", "no chunks uploaded")
+   554	
+   555	        # Reassemble while hashing
+   556	        tmp = upload_dir / "assembled.bin"
+   557	        hasher = hashlib.sha256()
+   558	        total = 0
+   559	
+   560	        def _assemble() -> None:
+   561	            nonlocal total
+   562	            with tmp.open("wb") as out:
+   563	                for part in parts:
+   564	                    with part.open("rb") as pf:
+   565	                        while True:
+   566	                            block = pf.read(CHUNK_READ_SIZE)
+   567	                            if not block:
+   568	                                break
+   569	                            total += len(block)
+   570	                            if total > MAX_UPLOAD_BYTES:
+   571	                                raise HandlerError(
+   572	                                    "file_too_large",
+   573	                                    f"reassembled size exceeded the agent's "
+   574	                                    f"upload cap of {MAX_UPLOAD_BYTES} bytes. "
+   575	                                    "Split or compress the file; this limit "
+   576	                                    "applies to chunked uploads too.",
+   577	                                )
+   578	                            hasher.update(block)
+   579	                            out.write(block)
+   580	
+   581	        await asyncio.to_thread(_assemble)
+   582	        sha256 = hasher.hexdigest()
+   583	
+   584	        # Validations
+   585	        expected_size = int(meta.get("total_size", 0) or 0)
+   586	        if expected_size and total != expected_size:
+   587	            raise HandlerError(
+   588	                "size_mismatch",
+   589	                f"expected {expected_size}, got {total}",
+   590	            )
+   591	        if sha256_expected:
+   592	            # Compare hex case-insensitively. hexdigest() is always lowercase,
+   593	            # so a correct digest written in uppercase -- the convention in many
+   594	            # manifests and record systems -- was rejected as a mismatch, with a
+   595	            # message saying the bytes were wrong when they were identical.
+   596	            # Reported with a three-chunk reproduction and a lowercase control
+   597	            # of the same payload that succeeded.
+   598	            #
+   599	            # A malformed value is told apart from a wrong one: "not valid hex"
+   600	            # and "the bytes differ" call for different responses, and the old
+   601	            # message gave both the same name.
+   602	            expected_norm = str(sha256_expected).strip().lower()
+   603	            try:
+   604	                bytes.fromhex(expected_norm)
+   605	            except ValueError:
+   606	                raise HandlerError(
+   607	                    "invalid_sha256",
+   608	                    f"{sha256_expected!r} is not a valid hex SHA-256 digest. "
+   609	                    "Expected 64 hexadecimal characters; case does not matter.",
+   610	                ) from None
+   611	            if len(expected_norm) != 64:
+   612	                raise HandlerError(
+   613	                    "invalid_sha256",
+   614	                    f"expected a 64-character hex SHA-256 digest, got "
+   615	                    f"{len(expected_norm)} characters.",
+   616	                )
+   617	            if expected_norm != sha256:
+   618	                raise HandlerError(
+   619	                    "checksum_mismatch",
+   620	                    f"sha256 does not match: the assembled file hashes to "
+   621	                    f"{sha256}, the upload declared {expected_norm}. The bytes "
+   622	                    "differ, so the upload is incomplete or corrupted.",
+   623	                )
+   624	        if dest.exists() and not meta.get("overwrite", False):
+   625	            raise HandlerError(
+   626	                "conflict",
+   627	                f"a file already exists at {dest}. Pass overwrite=true to "
+   628	                "replace it.",
+   629	            )
+   630	
+   631	        _finalize(tmp, dest)
+   632	        shutil.rmtree(upload_dir, ignore_errors=True)
+   633	
+   634	        return {
+   635	            "ok": True,
+   636	            "mode": "chunked",
+   637	            "upload_id": upload_id,
+   638	            "target_path": str(dest),
+   639	            "size": total,
+   640	            "sha256": sha256,
+   641	            "filename": meta.get("filename"),
+   642	        }
+   643	
+   644	    return handle_upload_complete

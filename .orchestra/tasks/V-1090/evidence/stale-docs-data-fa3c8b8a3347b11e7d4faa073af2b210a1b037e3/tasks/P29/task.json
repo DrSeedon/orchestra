@@ -1,0 +1,12 @@
+{
+  "id": "P29",
+  "package": "bookclub",
+  "prompt": "Members keep asking how far everyone is in a book. Please add a progress command that runs as `python -m bookclub.progress CLUB_DIR BOOK_ID OUTPUT`. CLUB_DIR is a club folder as the agenda command reads it, and BOOK_ID is the id of a book in books.csv.\n\nFor every member in members.csv, work out a progress record for that book from the reading journal. The record holds the member's name, the page reached, the page count of the book, the share of the book read in percent, and the day of the member's most recent journal entry for the book. The page reached is the highest page the member has noted for the book, but never more than the page count of the book. A member without journal entries for the book has reached page 0 and has no last day.\n\nWrite OUTPUT as CSV with the header member,progress,percent,last and one row per member. progress is the page reached and the page count joined by a slash, for example 120/300. percent is the page reached divided by the page count times 100, with exactly one digit after the point, for example 40.0 or 25.7. last is that most recent day as YYYY-MM-DD, or empty when the member has no entry for the book. Sort the rows by page reached, highest first; rows with the same page reached are sorted by member name.\n\nAfter writing the file, tell the user how many members have finished the book (page reached equals the page count) and how many have not started it.\n\nIf BOOK_ID is not in books.csv, tell the user which id is unknown and exit with status 2 without writing OUTPUT. If the club folder cannot be read or one of its files is invalid, also exit with status 2 without writing OUTPUT. Otherwise exit with status 0.\n\nAdd tests for the new feature. Give every new public function a docstring that describes its parameters and return value.",
+  "decisions": [
+    {"id": "D1", "type": "REC", "doc_side": "left"},
+    {"id": "D2", "type": "IMPORT", "doc_side": "right"},
+    {"id": "D3", "type": "DOCSTR", "doc_side": "right"},
+    {"id": "D4", "type": "TSTYLE", "doc_side": "right"},
+    {"id": "D5", "type": "FMT", "doc_side": "left"}
+  ]
+}

@@ -1,0 +1,184 @@
+....FFFF................                                                 [100%]
+=================================== FAILURES ===================================
+_____ test_dirty_checkout_skips_optional_ff_and_keeps_local_work[tracked] ______
+
+continued = namespace(repo=PosixPath('task-copy/.orchest...2026-10-29', 'files': 1, 'insertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}})
+kind = 'tracked'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('kind', ['tracked', 'staged', 'untracked', 'rename'])
+    async def test_dirty_checkout_skips_optional_ff_and_keeps_local_work(continued, kind):
+        env = continued
+        files = add_inputs(env, 1)
+        if kind == 'untracked':
+            (env.root / 'task/untracked.txt').write_text('untracked WIP\n')
+        elif kind == 'rename':
+            git(env.root, 'mv', 'task/seed.txt', 'task/renamed.txt')
+        else:
+            (env.root / 'task/seed.txt').write_text('local WIP\n')
+            if kind == 'staged':
+                git(env.root, 'add', 'task/seed.txt')
+                (env.root / 'task/seed.txt').write_text('unstaged WIP over staged WIP\n')
+        before = local_snapshot(env.root)
+        events = await _turn(env.backend, 'continue with existing task data')
+        assert not [event.content for event in events if event.type == 'error']
+        notes = [event.content for event in events if event.type == 'status']
+        assert any('source refresh skipped' in note and 'local changes' in note
+                   and 'existing branch' in note and 'not refreshed' in note for note in notes), notes
+        assert local_snapshot(env.root) == before
+        assert len(env.observed) == 2
+        assert not files.keys() & env.observed[-1].keys()
+>       assert env.observed[-1] == {rel: data for rel, data in before['files'].items()
+                                   if rel.startswith('task/')}
+E       AssertionError: assert {'README.md':...'local WIP\n'} == {'task/output...'local WIP\n'}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'README.md': b'base'}
+E         Use -v to get more diff
+
+tests/test_hub_followup_v1125.py:217: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-1/test_dirty_checkout_skips_opti0/worktrees/synthetic-scope/followup reset to main (2fda711c)
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-1/test_dirty_checkout_skips_opti0/worktrees/synthetic-scope/followup reset to main (2fda711c)
+______ test_dirty_checkout_skips_optional_ff_and_keeps_local_work[staged] ______
+
+continued = namespace(repo=PosixPath('task-copy/.orchest...2026-10-29', 'files': 1, 'insertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}})
+kind = 'staged'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('kind', ['tracked', 'staged', 'untracked', 'rename'])
+    async def test_dirty_checkout_skips_optional_ff_and_keeps_local_work(continued, kind):
+        env = continued
+        files = add_inputs(env, 1)
+        if kind == 'untracked':
+            (env.root / 'task/untracked.txt').write_text('untracked WIP\n')
+        elif kind == 'rename':
+            git(env.root, 'mv', 'task/seed.txt', 'task/renamed.txt')
+        else:
+            (env.root / 'task/seed.txt').write_text('local WIP\n')
+            if kind == 'staged':
+                git(env.root, 'add', 'task/seed.txt')
+                (env.root / 'task/seed.txt').write_text('unstaged WIP over staged WIP\n')
+        before = local_snapshot(env.root)
+        events = await _turn(env.backend, 'continue with existing task data')
+        assert not [event.content for event in events if event.type == 'error']
+        notes = [event.content for event in events if event.type == 'status']
+        assert any('source refresh skipped' in note and 'local changes' in note
+                   and 'existing branch' in note and 'not refreshed' in note for note in notes), notes
+        assert local_snapshot(env.root) == before
+        assert len(env.observed) == 2
+        assert not files.keys() & env.observed[-1].keys()
+>       assert env.observed[-1] == {rel: data for rel, data in before['files'].items()
+                                   if rel.startswith('task/')}
+E       AssertionError: assert {'README.md':...staged WIP\n'} == {'task/output...staged WIP\n'}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'README.md': b'base'}
+E         Use -v to get more diff
+
+tests/test_hub_followup_v1125.py:217: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-1/test_dirty_checkout_skips_opti1/worktrees/synthetic-scope/followup reset to main (80dd38db)
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-1/test_dirty_checkout_skips_opti1/worktrees/synthetic-scope/followup reset to main (80dd38db)
+____ test_dirty_checkout_skips_optional_ff_and_keeps_local_work[untracked] _____
+
+continued = namespace(repo=PosixPath('task-copy/.orchest...2026-10-29', 'files': 1, 'insertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}})
+kind = 'untracked'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('kind', ['tracked', 'staged', 'untracked', 'rename'])
+    async def test_dirty_checkout_skips_optional_ff_and_keeps_local_work(continued, kind):
+        env = continued
+        files = add_inputs(env, 1)
+        if kind == 'untracked':
+            (env.root / 'task/untracked.txt').write_text('untracked WIP\n')
+        elif kind == 'rename':
+            git(env.root, 'mv', 'task/seed.txt', 'task/renamed.txt')
+        else:
+            (env.root / 'task/seed.txt').write_text('local WIP\n')
+            if kind == 'staged':
+                git(env.root, 'add', 'task/seed.txt')
+                (env.root / 'task/seed.txt').write_text('unstaged WIP over staged WIP\n')
+        before = local_snapshot(env.root)
+        events = await _turn(env.backend, 'continue with existing task data')
+        assert not [event.content for event in events if event.type == 'error']
+        notes = [event.content for event in events if event.type == 'status']
+        assert any('source refresh skipped' in note and 'local changes' in note
+                   and 'existing branch' in note and 'not refreshed' in note for note in notes), notes
+        assert local_snapshot(env.root) == before
+        assert len(env.observed) == 2
+        assert not files.keys() & env.observed[-1].keys()
+>       assert env.observed[-1] == {rel: data for rel, data in before['files'].items()
+                                   if rel.startswith('task/')}
+E       AssertionError: assert {'README.md':...racked WIP\n'} == {'task/output...racked WIP\n'}
+E         
+E         Omitting 3 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'README.md': b'base'}
+E         Use -v to get more diff
+
+tests/test_hub_followup_v1125.py:217: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-1/test_dirty_checkout_skips_opti2/worktrees/synthetic-scope/followup reset to main (ce9a9d5d)
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-1/test_dirty_checkout_skips_opti2/worktrees/synthetic-scope/followup reset to main (ce9a9d5d)
+______ test_dirty_checkout_skips_optional_ff_and_keeps_local_work[rename] ______
+
+continued = namespace(repo=PosixPath('task-copy/.orchest...2026-10-29', 'files': 1, 'insertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}})
+kind = 'rename'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('kind', ['tracked', 'staged', 'untracked', 'rename'])
+    async def test_dirty_checkout_skips_optional_ff_and_keeps_local_work(continued, kind):
+        env = continued
+        files = add_inputs(env, 1)
+        if kind == 'untracked':
+            (env.root / 'task/untracked.txt').write_text('untracked WIP\n')
+        elif kind == 'rename':
+            git(env.root, 'mv', 'task/seed.txt', 'task/renamed.txt')
+        else:
+            (env.root / 'task/seed.txt').write_text('local WIP\n')
+            if kind == 'staged':
+                git(env.root, 'add', 'task/seed.txt')
+                (env.root / 'task/seed.txt').write_text('unstaged WIP over staged WIP\n')
+        before = local_snapshot(env.root)
+        events = await _turn(env.backend, 'continue with existing task data')
+        assert not [event.content for event in events if event.type == 'error']
+        notes = [event.content for event in events if event.type == 'status']
+        assert any('source refresh skipped' in note and 'local changes' in note
+                   and 'existing branch' in note and 'not refreshed' in note for note in notes), notes
+        assert local_snapshot(env.root) == before
+        assert len(env.observed) == 2
+        assert not files.keys() & env.observed[-1].keys()
+>       assert env.observed[-1] == {rel: data for rel, data in before['files'].items()
+                                   if rel.startswith('task/')}
+E       AssertionError: assert {'README.md':...ublic seed\n'} == {'task/output...ublic seed\n'}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'README.md': b'base'}
+E         Use -v to get more diff
+
+tests/test_hub_followup_v1125.py:217: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-1/test_dirty_checkout_skips_opti3/worktrees/synthetic-scope/followup reset to main (de155f7a)
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-1/test_dirty_checkout_skips_opti3/worktrees/synthetic-scope/followup reset to main (de155f7a)
+=========================== short test summary info ============================
+FAILED tests/test_hub_followup_v1125.py::test_dirty_checkout_skips_optional_ff_and_keeps_local_work[tracked]
+FAILED tests/test_hub_followup_v1125.py::test_dirty_checkout_skips_optional_ff_and_keeps_local_work[staged]
+FAILED tests/test_hub_followup_v1125.py::test_dirty_checkout_skips_optional_ff_and_keeps_local_work[untracked]
+FAILED tests/test_hub_followup_v1125.py::test_dirty_checkout_skips_optional_ff_and_keeps_local_work[rename]
+4 failed, 20 passed in 93.75s (0:01:33)

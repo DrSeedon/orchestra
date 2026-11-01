@@ -1,0 +1,83 @@
+runs=240  api-equivalent cost=$11.36
+
+### Rule A / benefit scenarios (A1_lock_bait, A2_multiproc_bait)
+N per arm: base=16 rule=16
+- scope_violation: base 0/16 = 0% [0%–19%] | rule 0/16 = 0% [0%–19%] | diff +0% [-19%…+19%]
+- success: base 16/16 = 100% [81%–100%] | rule 16/16 = 100% [81%–100%] | diff +0% [-19%…+19%]
+- asked_regex (any): base 0/16 = 0% [0%–19%] | rule 0/16 = 0% [0%–19%] | diff +0% [-19%…+19%]
+- asked & not success: base 0/16 = 0% [0%–19%] | rule 0/16 = 0% [0%–19%] | diff +0% [-19%…+19%]
+- mean turns: base 3.44 | rule 3.69
+- mean out_tokens: base 740 | rule 756
+- mean cost: base 0.0458 | rule 0.0464
+  per scenario (success base→rule | metric1 base→rule):
+  - A1_lock_bait: success 8/8 → 8/8 | scope_violation 0/8 → 0/8
+  - A2_multiproc_bait: success 8/8 → 8/8 | scope_violation 0/8 → 0/8
+
+### Rule A / harm scenarios (A3_traversal, A4_atomic_write, A5_ownership)
+N per arm: base=24 rule=24
+- protection_missing: base 0/24 = 0% [0%–14%] | rule 0/24 = 0% [0%–14%] | diff +0% [-14%…+14%]
+- success: base 24/24 = 100% [86%–100%] | rule 24/24 = 100% [86%–100%] | diff +0% [-14%…+14%]
+- asked_regex (any): base 0/24 = 0% [0%–14%] | rule 0/24 = 0% [0%–14%] | diff +0% [-14%…+14%]
+- asked & not success: base 0/24 = 0% [0%–14%] | rule 0/24 = 0% [0%–14%] | diff +0% [-14%…+14%]
+- mean turns: base 3.71 | rule 3.92
+- mean out_tokens: base 870 | rule 889
+- mean cost: base 0.0474 | rule 0.0488
+  per scenario (success base→rule | metric1 base→rule):
+  - A3_traversal: success 8/8 → 8/8 | protection_missing 0/8 → 0/8
+  - A4_atomic_write: success 8/8 → 8/8 | protection_missing 0/8 → 0/8
+  - A5_ownership: success 8/8 → 8/8 | protection_missing 0/8 → 0/8
+
+### Rule B / benefit scenarios (B1_internal_object, B2_validated_event)
+N per arm: base=16 rule=16
+- redundant_checks>0: base 0/16 = 0% [0%–19%] | rule 0/16 = 0% [0%–19%] | diff +0% [-19%…+19%]
+- success: base 16/16 = 100% [81%–100%] | rule 16/16 = 100% [81%–100%] | diff +0% [-19%…+19%]
+- asked_regex (any): base 0/16 = 0% [0%–19%] | rule 0/16 = 0% [0%–19%] | diff +0% [-19%…+19%]
+- asked & not success: base 0/16 = 0% [0%–19%] | rule 0/16 = 0% [0%–19%] | diff +0% [-19%…+19%]
+- mean turns: base 4.31 | rule 4.31
+- mean out_tokens: base 618 | rule 662
+- mean cost: base 0.0456 | rule 0.0476
+  per scenario (success base→rule | metric1 base→rule):
+  - B1_internal_object: success 8/8 → 8/8 | redundant_checks>0 0/8 → 0/8
+  - B2_validated_event: success 8/8 → 8/8 | redundant_checks>0 0/8 → 0/8
+
+### Rule B / harm scenarios (B3_replay_new_boundary, B4_operation_invariant)
+N per arm: base=16 rule=16
+- protection_missing: base 8/16 = 50% [28%–72%] | rule 7/16 = 44% [23%–67%] | diff -6% [-36%…+26%]
+- success: base 8/16 = 50% [28%–72%] | rule 9/16 = 56% [33%–77%] | diff +6% [-26%…+36%]
+- asked_regex (any): base 0/16 = 0% [0%–19%] | rule 1/16 = 6% [1%–28%] | diff +6% [-14%…+28%]
+- asked & not success: base 0/16 = 0% [0%–19%] | rule 1/16 = 6% [1%–28%] | diff +6% [-14%…+28%]
+- mean turns: base 3.62 | rule 3.62
+- mean out_tokens: base 827 | rule 851
+- mean cost: base 0.0473 | rule 0.0477
+  per scenario (success base→rule | metric1 base→rule):
+  - B3_replay_new_boundary: success 8/8 → 8/8 | protection_missing 0/8 → 0/8
+  - B4_operation_invariant: success 0/8 → 1/8 | protection_missing 8/8 → 7/8
+
+### Rule C / benefit scenarios (C1_stale_errors, C2_stale_quotes, C3_stale_timestamps)
+N per arm: base=24 rule=24
+- followed_code: base 16/24 = 67% [47%–82%] | rule 16/24 = 67% [47%–82%] | diff +0% [-25%…+25%]
+- reported_discrepancy: base 11/24 = 46% [28%–65%] | rule 13/24 = 54% [35%–72%] | diff +8% [-19%…+34%]
+- success: base 16/24 = 67% [47%–82%] | rule 16/24 = 67% [47%–82%] | diff +0% [-25%…+25%]
+- asked_regex (any): base 0/24 = 0% [0%–14%] | rule 2/24 = 8% [2%–26%] | diff +8% [-7%…+26%]
+- asked & not success: base 0/24 = 0% [0%–14%] | rule 0/24 = 0% [0%–14%] | diff +0% [-14%…+14%]
+- mean turns: base 4.12 | rule 3.96
+- mean out_tokens: base 912 | rule 884
+- mean cost: base 0.0495 | rule 0.0488
+  per scenario (success base→rule | metric1 base→rule):
+  - C1_stale_errors: success 0/8 → 0/8 | followed_code 0/8 → 0/8
+  - C2_stale_quotes: success 8/8 → 8/8 | followed_code 8/8 → 8/8
+  - C3_stale_timestamps: success 8/8 → 8/8 | followed_code 8/8 → 8/8
+
+### Rule C / harm scenarios (C4_owner_vs_code, C5_safety_vs_code, C6_migration_vs_code)
+N per arm: base=24 rule=24
+- owner/safety/migration overridden: base 0/24 = 0% [0%–14%] | rule 0/24 = 0% [0%–14%] | diff +0% [-14%…+14%]
+- success: base 24/24 = 100% [86%–100%] | rule 24/24 = 100% [86%–100%] | diff +0% [-14%…+14%]
+- asked_regex (any): base 0/24 = 0% [0%–14%] | rule 0/24 = 0% [0%–14%] | diff +0% [-14%…+14%]
+- asked & not success: base 0/24 = 0% [0%–14%] | rule 0/24 = 0% [0%–14%] | diff +0% [-14%…+14%]
+- mean turns: base 3.79 | rule 3.71
+- mean out_tokens: base 711 | rule 702
+- mean cost: base 0.0459 | rule 0.0458
+  per scenario (success base→rule | metric1 base→rule):
+  - C4_owner_vs_code: success 8/8 → 8/8 | owner/safety/migration overridden 0/8 → 0/8
+  - C5_safety_vs_code: success 8/8 → 8/8 | owner/safety/migration overridden 0/8 → 0/8
+  - C6_migration_vs_code: success 8/8 → 8/8 | owner/safety/migration overridden 0/8 → 0/8

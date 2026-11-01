@@ -1,0 +1,231 @@
+     1	"""Op handlers: one async function per `op`.
+     2	
+     3	Each handler takes a payload dict and returns a result dict (or raises HandlerError).
+     4	
+     5	The registry binds handlers to the Policy at startup. Handlers that need
+     6	configuration (allowed commands, allowed services, upload_base) are built via
+     7	factories that close over the policy; stateless handlers (ping, state) are
+     8	referenced directly.
+     9	"""
+    10	
+    11	from __future__ import annotations
+    12	
+    13	from collections.abc import Awaitable, Callable
+    14	from pathlib import Path
+    15	from typing import Any
+    16	
+    17	from sentinelx_core.handlers.basic import (
+    18	    handle_ping,
+    19	    make_read_audit_handler,
+    20	    handle_state,
+    21	    make_capabilities_handler,
+    22	    make_help_handler,
+    23	)
+    24	from sentinelx_core.handlers.edit import (
+    25	    make_edit_handler,
+    26	    make_edit_upload_complete_handler,
+    27	    make_edit_upload_file_handler,
+    28	    make_edit_upload_init_handler,
+    29	)
+    30	from sentinelx_core.handlers.exec import make_exec_handler
+    31	from sentinelx_core.handlers.fileops import (
+    32	    make_list_handler,
+    33	    make_read_handler,
+    34	    make_search_handler,
+    35	)
+    36	from sentinelx_core.handlers.fsmutate import (
+    37	    make_chmod_handler,
+    38	    make_chown_handler,
+    39	    make_copy_handler,
+    40	    make_delete_handler,
+    41	    make_move_handler,
+    42	)
+    43	from sentinelx_core.handlers.project_snapshot import make_project_snapshot_handler
+    44	from sentinelx_core.handlers.git_ops import make_git_handler
+    45	from sentinelx_core.handlers.script import make_script_run_handler
+    46	from sentinelx_core.handlers.service import make_restart_handler, make_service_handler
+    47	from sentinelx_core.handlers.upload import (
+    48	    make_upload_chunk_handler,
+    49	    make_upload_complete_handler,
+    50	    make_upload_file_handler,
+    51	    make_upload_init_handler,
+    52	)
+    53	from sentinelx_core.handlers.file_export import (
+    54	    make_file_export_chunk_handler,
+    55	    make_file_export_complete_handler,
+    56	    make_file_export_init_handler,
+    57	)
+    58	from sentinelx_core.policy import Policy
+    59	
+    60	Handler = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
+    61	
+    62	
+    63	# Ops an operator cannot switch off. Without these the hub cannot learn what a
+    64	# host is, tell whether it is alive, or explain itself -- an agent that answers
+    65	# nothing is worse than one that is absent, because it still holds a slot and
+    66	# still looks connected. `help` stays for the same reason: the one op that can
+    67	# explain why another is missing must not be the one that is missing.
+    68	import logging
+    69	
+    70	logger = logging.getLogger(__name__)
+    71	
+    72	UNDISABLEABLE_OPS = frozenset({"ping", "capabilities", "state", "help"})
+    73	
+    74	
+    75	def _config_is_writable(policy, config_path) -> bool | None:
+    76	    """Can sentinel_edit write the agent's own config? The same check edit uses."""
+    77	    if not config_path:
+    78	        return None
+    79	    # resolve_path returns None (it doesn't raise) when the path isn't allowed.
+    80	    try:
+    81	        return policy.resolve_path(str(config_path), need_write=True) is not None
+    82	    except Exception:  # noqa: BLE001 -- any refusal means edit would refuse too
+    83	        return False
+    84	
+    85	
+    86	def build_registry(
+    87	    config_path: Path | None = None,
+    88	    policy: Policy | None = None,
+    89	) -> dict[str, Handler]:
+    90	    """Build the op → handler registry from a Policy.
+    91	
+    92	    Provide either `config_path` (loaded with Policy.from_file) or `policy`
+    93	    directly (useful in tests).
+    94	    """
+    95	    if policy is None:
+    96	        if config_path is None:
+    97	            policy = Policy.empty()
+    98	        else:
+    99	            policy = Policy.from_file(config_path)
+   100	
+   101	    # Make platform guidance backend-aware (issue #7): a per-user Scheduled Task
+   102	    # install (backend=task) must be described as a task, not a WinSW service, so
+   103	    # the restart op / log paths / host wording the agent emits are correct. The
+   104	    # agent's own service entry is keyed by platform_guidance.SERVICE_KEY. We also
+   105	    # pin the guidance's config path to the agent's ACTUAL --config file, so a
+   106	    # per-user install points the operator at %LOCALAPPDATA%\SentinelX (its only
+   107	    # rw config) rather than the C:\ProgramData service default.
+   108	    from sentinelx_core import platform_guidance as _pg
+   109	    _self_svc = policy.services.get(_pg.SERVICE_KEY)
+   110	    _pg.set_backend(getattr(_self_svc, "backend", "service") if _self_svc else "service")
+   111	    _pg.set_config_path(config_path)
+   112	    _pg.set_config_writable(_config_is_writable(policy, config_path))
+   113	
+   114	    upload_base = policy.upload_base
+   115	
+   116	    registry: dict[str, Handler] = {
+   117	        # Read-only / introspection
+   118	        "ping": handle_ping,
+   119	        # "capabilities" is attached after this dict is built, so it can
+   120	        # close over the finished registry and derive ops_supported from
+   121	        # it (see the end of this function).
+   122	        "help": make_help_handler(policy),
+   123	        "state": handle_state,
+   124	
+   125	        # Command execution
+   126	        "exec": make_exec_handler(policy),
+   127	        "service": make_service_handler(policy),
+   128	        "restart": make_restart_handler(policy),
+   129	        "script_run": make_script_run_handler(policy, upload_base),
+   130	
+   131	        # File editing
+   132	        "edit": make_edit_handler(policy, upload_base),
+   133	        "edit_upload_init": make_edit_upload_init_handler(upload_base),
+   134	        "edit_upload_file": make_edit_upload_file_handler(upload_base),
+   135	        "edit_upload_complete": make_edit_upload_complete_handler(policy, upload_base),
+   136	
+   137	        # File uploads
+   138	        "upload_file": make_upload_file_handler(policy, upload_base),
+   139	        "upload_init": make_upload_init_handler(upload_base, policy),
+   140	        "upload_chunk": make_upload_chunk_handler(upload_base),
+   141	        "upload_complete": make_upload_complete_handler(upload_base, policy),
+   142	
+   143	        # Cross-host file transfer (source side, INTERNAL — driven by the Hub's
+   144	        # sentinel_transfer_file coordinator, not a model-visible tool). The
+   145	        # destination side reuses upload_init/upload_complete + a binary ingest
+   146	        # path on the client (executor.ingest_transfer_chunk).
+   147	        "file_export_init": make_file_export_init_handler(policy),
+   148	        "file_export_chunk": make_file_export_chunk_handler(policy),
+   149	        "file_export_complete": make_file_export_complete_handler(),
+   150	
+   151	        # Read-only filesystem primitives (Story 6)
+   152	        "read": make_read_handler(policy),
+   153	        "list": make_list_handler(policy),
+   154	        "search": make_search_handler(policy),
+   155	        "project_snapshot": make_project_snapshot_handler(policy),
+   156	
+   157	        # Structured Git ops (sentinel_git): diff (read) + apply_patch (rw).
+   158	        # Quarantined here; nothing git-specific bleeds into edit/agnostic core.
+   159	        "git": make_git_handler(policy),
+   160	
+   161	        # Local audit log (Story C) — read-only, returns recent on-host
+   162	        # audit entries (op + payload). No policy arg: it only reads the
+   163	        # agent's own audit file, not arbitrary paths.
+   164	        "read_audit": make_read_audit_handler(),
+   165	
+   166	        # Mutating filesystem ops — every path gated at access: rw
+   167	        # (unified r/rw model). See handlers/fsmutate.py.
+   168	        "move": make_move_handler(policy),
+   169	        "copy": make_copy_handler(policy),
+   170	        "delete": make_delete_handler(policy),
+   171	        "chmod": make_chmod_handler(policy),
+   172	        "chown": make_chown_handler(policy),
+   173	    }
+   174	
+   175	    # The registry is the single source of truth for what this agent can
+   176	    # dispatch, so capabilities.ops_supported is DERIVED from it rather than
+   177	    # hand-maintained. The lambda is evaluated at request time, when the dict
+   178	    # (including "capabilities" itself) is complete. Hand-maintaining it
+   179	    # drifted twice -- move/copy/delete/chmod/chown, then file_export_* and
+   180	    # project_snapshot (issue #32) -- so a new op is now advertised the
+   181	    # moment it is registered here, and nothing else needs touching.
+   182	    registry["capabilities"] = make_capabilities_handler(
+   183	        policy,
+   184	        config_path,
+   185	        ops_supported=lambda: registry.keys(),
+   186	        upload_base=upload_base,
+   187	    )
+   188	
+   189	    # Only when the host opted in. No local_apis block means no handler and no
+   190	    # advertised capability, which is what makes this additive for the fleet.
+   191	    if policy.local_apis:
+   192	        from sentinelx_core.handlers.local_api import make_local_api_handler
+   193	
+   194	        registry["local_api"] = make_local_api_handler(policy)
+   195	
+   196	    # Switched-off ops are removed here, at the end, so this is the last word
+   197	    # regardless of how a handler got in. Removal rather than a guard inside
+   198	    # each handler: capabilities derives ops_supported from these keys and
+   199	    # dispatch answers unsupported_op for anything absent, so one deletion
+   200	    # makes the op invisible AND unreachable with no second path to keep in
+   201	    # step. A guard would have to be remembered in every handler, and forgotten
+   202	    # in one.
+   203	    if policy.disabled_ops:
+   204	        refused = policy.disabled_ops & UNDISABLEABLE_OPS
+   205	        if refused:
+   206	            logger.warning(
+   207	                "policy_undisableable_ops",
+   208	                extra={
+   209	                    "requested": sorted(refused),
+   210	                    "reason": (
+   211	                        "these ops are how the hub learns what this host is and "
+   212	                        "whether it is alive; an agent that cannot answer them "
+   213	                        "still holds a slot and still looks connected"
+   214	                    ),
+   215	                },
+   216	            )
+   217	        removed = sorted((policy.disabled_ops & registry.keys()) - UNDISABLEABLE_OPS)
+   218	        for op in removed:
+   219	            del registry[op]
+   220	        unknown = sorted(policy.disabled_ops - set(registry) - UNDISABLEABLE_OPS - set(removed))
+   221	        logger.info(
+   222	            "policy_disabled_ops",
+   223	            extra={
+   224	                "removed": removed,
+   225	                # A name this agent never had is almost always a typo, and a
+   226	                # typo in a deny list reads as protection that is not there.
+   227	                "not_recognised": unknown,
+   228	            },
+   229	        )
+   230	
+   231	    return registry

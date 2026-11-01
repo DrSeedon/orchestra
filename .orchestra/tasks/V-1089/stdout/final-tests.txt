@@ -1,0 +1,49 @@
+.....F.................................................................. [ 19%]
+........................................................................ [ 39%]
+........................................................................ [ 59%]
+........................................................................ [ 78%]
+......................................F...F............................. [ 98%]
+......                                                                   [100%]
+=================================== FAILURES ===================================
+______________ test_search_rule_module_is_delivered_to_every_role ______________
+tests/test_log_search_v1001.py:132: in test_search_rule_module_is_delivered_to_every_role
+    module = pipeline.prompt_path("default", "modules/knowledge.md").read_text().strip()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/<hub-copy>/.orchestra/pipelines/default/prompts/modules/knowledge.md'
+_________ test_rebuilding_live_session_config_keeps_running_mcp_proof __________
+tests/test_mcp_proof.py:311: in test_rebuilding_live_session_config_keeps_running_mcp_proof
+    first = _make_mcp_config("w", "/s", "worker", session_id="live-rebuild-538")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:372: in _make_mcp_config
+    role_spec = get_role(pipeline or get_active_pipeline(scope), role)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:474: in load_pipeline
+    raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E   FileNotFoundError: pipeline 'default' not found at /<hub-copy>/.orchestra/pipelines/default/pipeline.yaml
+______________ test_make_mcp_config_issues_proof_not_in_base_env _______________
+tests/test_mcp_proof.py:377: in test_make_mcp_config_issues_proof_not_in_base_env
+    cfg = _make_mcp_config("w", "/s", "orchestrator", session_id="sid-cfg")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:372: in _make_mcp_config
+    role_spec = get_role(pipeline or get_active_pipeline(scope), role)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:474: in load_pipeline
+    raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E   FileNotFoundError: pipeline 'default' not found at /<hub-copy>/.orchestra/pipelines/default/pipeline.yaml
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1001.py::test_search_rule_module_is_delivered_to_every_role
+FAILED tests/test_mcp_proof.py::test_rebuilding_live_session_config_keeps_running_mcp_proof
+FAILED tests/test_mcp_proof.py::test_make_mcp_config_issues_proof_not_in_base_env
+3 failed, 363 passed in 38.29s

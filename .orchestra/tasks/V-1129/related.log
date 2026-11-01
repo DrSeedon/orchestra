@@ -1,0 +1,129 @@
+........................................................................ [ 22%]
+............................................F........................... [ 44%]
+........................................................................ [ 66%]
+........................................................................ [ 88%]
+.......................................                                  [100%]
+=================================== FAILURES ===================================
+__________ test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools __________
+
+pipeline = 'default', role = 'worker', scope = ''
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+>           base = build_system_prompt(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/manager.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:647: in build_system_prompt
+    rr = resolve_role(load_pipeline(pipeline_name), role)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at task-copy/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+repo = PosixPath('task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-3/test_hub_model_gets_a_trimmed_0/wt')
+tmp_path = PosixPath('task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-3/test_hub_model_gets_a_trimmed_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x723025ea7170>
+
+    @pytest.mark.asyncio
+    async def test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
+        await _turn(backend, "implement the thing")
+        prompt = _first_prompt(mc)
+        assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
+        assert ob.OUTBOX_NAME in prompt and "send_message" in prompt and "update_progress" in prompt
+        assert "update_checklist" in prompt and "goes to your orchestrator boss only" in prompt
+        assert "Do not run git push/clone/commit" in prompt
+        assert prompt.rstrip().endswith("implement the thing") and "Task:\nimplement the thing" in prompt
+        from app.manager import ROLE_SYSTEM_PROMPT
+>       full = ROLE_SYSTEM_PROMPT("default", "worker")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_workspace.py:1655: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline = 'default', role = 'worker', scope = ''
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+            base = build_system_prompt(pipeline, role, scope)
+        except (FileNotFoundError, KeyError) as e:
+>           raise ValueError(
+                f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+                f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            ) from e
+E           ValueError: role 'worker' not resolvable in pipeline 'default': FileNotFoundError("pipeline 'default' not found at task-copy/.orchestra/pipelines/default/pipeline.yaml"). Define it in .orchestra/pipelines/default/pipeline.yaml + prompts/roles/worker.md
+
+app/manager.py:294: ValueError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+=========================== short test summary info ============================
+FAILED tests/test_hub_workspace.py::test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+1 failed, 326 passed in 128.76s (0:02:08)

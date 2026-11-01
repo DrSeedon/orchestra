@@ -1,0 +1,16 @@
+HTTP/2 200 
+access-control-allow-origin: https://render.githubusercontent.com
+content-disposition: attachment; filename=stale-docs-data-fa3c8b8a3347b11e7d4faa073af2b210a1b037e3.tar.gz
+content-security-policy: default-src 'none'; style-src 'unsafe-inline'; sandbox
+content-type: application/x-gzip
+cross-origin-resource-policy: cross-origin
+etag: "e809863a1c16284e55656820be25d7f26c2b1bcbb8983f6f4fe53267fcece9ec"
+strict-transport-security: max-age=31536000
+vary: Authorization,Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: deny
+x-xss-protection: 1; mode=block
+date: Mon, 26 Oct 2026 06:14:25 GMT
+x-github-request-id: 95A4:16FB19:295DD:1705AD:6ADEEFC1
+x-github-edge-region: switzerlandnorth
+

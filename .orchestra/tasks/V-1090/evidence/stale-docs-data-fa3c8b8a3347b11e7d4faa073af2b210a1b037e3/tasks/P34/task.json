@@ -1,0 +1,32 @@
+{
+  "id": "P34",
+  "package": "meterread",
+  "prompt": "Add a bill command that prices the energy of every meter with a tiered tariff. It runs as `python -m meterread.bill READINGS_CSV OUTPUT_CSV [--settings FILE]`. READINGS_CSV and the settings file are the same kind of files that the other commands read, and --settings may be left out.\n\nAdd a new setting `tiers` to the settings file. Its value is a list of steps separated by commas, for example `tiers = 100:0.20, 300:0.25, 0.32`. Every step except the last has the form LIMIT:PRICE, and the last step is only a PRICE. In the example the first 100 kWh cost 0.20 each, the kWh from 101 to 300 cost 0.25 each and every kWh above 300 costs 0.32. A LIMIT is a whole number above 0 and larger than the LIMIT before it. A PRICE is an amount with at most two digits after the point. A value with one PRICE only, like `tiers = 0.30`, gives every kWh the same price. When the settings file does not set `tiers`, use `200:0.24, 0.31`.\n\nThe bill of a meter covers the time from its first to its last reading:\n- kwh: the last reading minus the first reading\n- energy: the price of these kWh under the tiers\n- standing: the number of days from the first to the last reading times the standing_charge setting\n- total: energy plus standing\n\nFor example, with the tiers above and a standing_charge of 0.45, readings of 1000 on 2026-03-01 and 1350 on 2026-03-31 give kwh 350, energy 86.00, standing 13.50 and total 99.50.\n\nOUTPUT_CSV has the header line `meter,from,to,kwh,energy,standing,total` and then one line per meter, in the order in which the meters first appear in READINGS_CSV. The from and to columns are the dates of the first and the last reading (YYYY-MM-DD). Write energy, standing and total with two digits after the point, for example `12.30`. Create the folder of OUTPUT_CSV when it is missing.\n\nA meter with only one reading cannot be billed: the function that works out the bill of one meter must report this to its caller. A tiers value that is not valid must also be reported to the caller of the code that reads it. In these cases, and when READINGS_CSV or the settings file is missing or broken, when the readings of a meter go down or when a meter has two readings on one day, the command exits with status 2, does not write OUTPUT_CSV and tells the user what is wrong. Otherwise it exits with status 0.\n\nAdd tests for the new feature. Give every new public function a docstring that describes its parameters and return value.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "MONEY",
+      "doc_side": "left"
+    },
+    {
+      "id": "D2",
+      "type": "CONFIG",
+      "doc_side": "left"
+    },
+    {
+      "id": "D3",
+      "type": "ERR",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "DOCSTR",
+      "doc_side": "right"
+    },
+    {
+      "id": "D5",
+      "type": "OPT",
+      "doc_side": "left"
+    }
+  ]
+}

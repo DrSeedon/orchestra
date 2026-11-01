@@ -1,0 +1,28 @@
+[
+  {
+    "role": "user",
+    "content": "Stop sending me marketing emails. Customer C-1003."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'agent': 'account', 'brief': 'Stop sending me marketing emails. Customer C-1003.\\n\\nSpecialist notes so far:\\n'}",
+    "name": "router.delegate"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'customer_id': 'C-1003', 'opt_in': False}",
+    "name": "account.set_marketing_opt_in"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"ok\": true, \"marketing_opt_in\": false}"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"ok\": true, \"marketing_opt_in\": false}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"ok\": true, \"marketing_opt_in\": false}"
+  }
+]

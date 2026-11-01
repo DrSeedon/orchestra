@@ -1,0 +1,72 @@
+{
+  "passed": 471,
+  "failed": 6,
+  "executed": 477,
+  "file_count": 17,
+  "complete": true,
+  "deselected": 0,
+  "batches": [
+    {
+      "batch": "stuck-suite-core",
+      "counts": {
+        "passed": 63
+      },
+      "summary": "63 passed in 24.11s",
+      "failed_tests": []
+    },
+    {
+      "batch": "stuck-suite-guards",
+      "counts": {
+        "passed": 97
+      },
+      "summary": "97 passed in 27.14s",
+      "failed_tests": []
+    },
+    {
+      "batch": "stuck-suite-gate-a",
+      "counts": {
+        "failed": 3,
+        "passed": 24
+      },
+      "summary": "3 failed, 24 passed in 14.83s",
+      "failed_tests": [
+        "tests/test_merge_test_gate.py::test_ci_pytest_does_not_stop_at_first_failure",
+        "tests/test_merge_test_gate.py::test_run_pytest_isolates_live_state_environment",
+        "tests/test_merge_test_gate.py::test_orchestra_worktree_is_detected_by_git_common_dir"
+      ]
+    },
+    {
+      "batch": "stuck-suite-gate-b",
+      "counts": {
+        "failed": 2,
+        "passed": 26
+      },
+      "summary": "2 failed, 26 passed in 25.43s",
+      "failed_tests": [
+        "tests/test_merge_test_gate.py::test_live_probe_inventory_is_explicit",
+        "tests/test_merge_test_gate.py::test_browser_inventory_is_explicit"
+      ]
+    },
+    {
+      "batch": "stuck-suite-workspace",
+      "counts": {
+        "failed": 1,
+        "passed": 121
+      },
+      "summary": "1 failed, 121 passed in 14.47s",
+      "failed_tests": [
+        "tests/test_workspace.py::TestCreateWorktree::test_different_repos_no_collision"
+      ]
+    },
+    {
+      "batch": "stuck-suite-mcp",
+      "counts": {
+        "passed": 140
+      },
+      "summary": "140 passed in 6.90s",
+      "failed_tests": []
+    }
+  ],
+  "redaction_verified": true,
+  "production_policy_unchanged": true
+}

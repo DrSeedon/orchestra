@@ -1,0 +1,27 @@
+{
+  "id": "P07",
+  "package": "flagstore",
+  "prompt": "Flags that nobody evaluates any more pile up in the store, and we want to find them. Please add an audit command: `python -m flagstore.audit FLAGS EVALUATIONS OUTPUT [--settings FILE] [--now TIME]`.\n\nFLAGS is a flags file as the flag loader already reads it. EVALUATIONS is a JSON object that maps flag names to the time each flag was last evaluated, as ISO 8601 text with a UTC offset (e.g. \"2024-05-20T08:30:00+00:00\"). Names that are not in FLAGS are ignored. --settings is a settings file as the settings loader already reads it; it may be left out. --now is the reference time in the same form; it may be left out, and then the current time is used. The audit function itself must also accept a reference time that may be left out.\n\nAdd a new setting stale_after_days with a default of 30. Like every other setting, it can be overridden in the settings file.\n\nEach flag goes into exactly one group: \"unused\" if it has no evaluation time, \"stale\" if its last evaluation is more than stale_after_days days before the reference time, and \"active\" otherwise. The result must report each flag's group by name.\n\nWrite OUTPUT as JSON with exactly these keys: \"now\" (the reference time as ISO 8601 text in UTC, e.g. \"2024-06-01T12:00:00+00:00\"), \"stale_after_days\" (the number used), and \"flags\": a list, sorted by flag name, of objects with the keys \"name\", \"group\" and \"last_evaluated\" (ISO 8601 text in UTC, or null when the flag has no evaluation time).\n\nIf stale_after_days is not a whole number of at least 1, the audit must fail with an error that a caller can catch. The command then tells the user what is wrong, writes no output file and exits with status 2. On success it exits with status 0.\n\nGive every new public function a docstring that describes its parameters and return value. Add tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "CONFIG",
+      "doc_side": "right"
+    },
+    {
+      "id": "D2",
+      "type": "ENUM",
+      "doc_side": "left"
+    },
+    {
+      "id": "D3",
+      "type": "OPT",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "DOCSTR",
+      "doc_side": "left"
+    }
+  ]
+}

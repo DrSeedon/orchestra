@@ -132,6 +132,8 @@ async def test_running_worker_that_finishes_within_budget_is_accepted(
 
     result, status_code = await operations.accept_merge_operation(
         operation_id=str(uuid.uuid4()), name="worker", scope="/scope", target="main",
+        expected_head=_accepted()["worker_head"],
+        acceptance_note="Accepted the pinned worker result after inspecting its changes.",
     )
 
     assert status_code == 202
@@ -184,6 +186,71 @@ async def test_running_worker_past_budget_returns_busy_without_snapshot_or_opera
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("head,note", [
+    ("", "Accepted after inspecting the worker result."),
+    ("b" * 12, "Accepted after inspecting the worker result."),
+    ("b" * 40, "placeholder"),
+])
+async def test_idle_worker_rejects_invalid_acceptance_before_git(
+    merge_db, monkeypatch, head, note,
+):
+    import app.db as db
+    import app.merge_operations as operations
+
+    monkeypatch.setattr("app.deps.manager.get", lambda _session_id: None)
+    monkeypatch.setattr(
+        operations, "_session_snapshot",
+        lambda _session_id: pytest.fail("invalid acceptance must not read Git"),
+    )
+    monkeypatch.setattr(
+        operations, "_prepare_admission_snapshot",
+        lambda *_args: pytest.fail("invalid acceptance must not prepare admission"),
+    )
+    result, status = await operations.accept_merge_operation(
+        operation_id=str(uuid.uuid4()), name="worker", scope="/scope",
+        expected_head=head, acceptance_note=note,
+    )
+
+    assert status == 409
+    assert result["error"]["code"] == "WORK_ACCEPTANCE_REQUIRED"
+    with db._conn() as connection:
+        assert connection.execute("SELECT count(*) FROM merge_operations").fetchone()[0] == 0
+
+
+@pytest.mark.asyncio
+async def test_worker_finishing_within_budget_still_requires_acceptance(
+    merge_db, monkeypatch,
+):
+    import app.db as db
+    import app.merge_operations as operations
+
+    status = SimpleNamespace(value="running")
+    wait_calls = []
+
+    async def finish_turn():
+        wait_calls.append("wait")
+        status.value = "idle"
+        return True
+
+    session = SimpleNamespace(status=status, wait_for_turn_completion=finish_turn)
+    monkeypatch.setattr("app.deps.manager.get", lambda _session_id: session)
+    monkeypatch.setattr(
+        operations, "_session_snapshot",
+        lambda _session_id: pytest.fail("missing acceptance must not read Git"),
+    )
+
+    result, status_code = await operations.accept_merge_operation(
+        operation_id=str(uuid.uuid4()), name="worker", scope="/scope",
+    )
+
+    assert wait_calls == ["wait"]
+    assert status_code == 409
+    assert result["error"]["code"] == "WORK_ACCEPTANCE_REQUIRED"
+    with db._conn() as connection:
+        assert connection.execute("SELECT count(*) FROM merge_operations").fetchone()[0] == 0
+
+
+@pytest.mark.asyncio
 async def test_accepted_operation_exposes_snapshot_admission_and_total_preoperation_time(
     merge_db, monkeypatch,
 ):
@@ -207,6 +274,8 @@ async def test_accepted_operation_exposes_snapshot_admission_and_total_preoperat
     monkeypatch.setattr(operations, "ensure_operation_runner", lambda _operation_id: None)
     result, status = await operations.accept_merge_operation(
         operation_id=str(uuid.uuid4()), name="worker", scope="/scope", target="main",
+        expected_head=_accepted()["worker_head"],
+        acceptance_note="Accepted the pinned worker result after inspecting its changes.",
     )
 
     assert status == 202

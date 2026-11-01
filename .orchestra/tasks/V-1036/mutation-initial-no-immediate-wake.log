@@ -1,0 +1,100 @@
+E...E.F.F......FExecuting <Task finished name='Task-93' coro=<DeliveryVisibility.test_success_and_quota_race_never_create_failure_wake() done, defined at <hub-workspace>:197> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.157 seconds
+.
+======================================================================
+ERROR: test_cancelled_initial_runner_wakes_sender (test_delivery_visible_1036.DeliveryVisibility.test_cancelled_initial_runner_wakes_sender)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 139, in test_cancelled_initial_runner_wakes_sender
+    self.assertIn("CancelledError: turn interrupted", self.manager.send.call_args.args[1].text)
+                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'args'
+
+======================================================================
+ERROR: test_initial_ambiguous_dispatch_is_loud_without_false_non_delivery (test_delivery_visible_1036.DeliveryVisibility.test_initial_ambiguous_dispatch_is_loud_without_false_non_delivery)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 144, in test_initial_ambiguous_dispatch_is_loud_without_false_non_delivery
+    self.assertIn("UNKNOWN", self.manager.send.call_args.args[1].text)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'args'
+
+======================================================================
+FAIL: test_initial_failure_wakes_actual_sender (test_delivery_visible_1036.DeliveryVisibility.test_initial_failure_wakes_actual_sender)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 120, in test_initial_failure_wakes_actual_sender
+    self.manager.send.assert_awaited_once()
+  File "/usr/lib/python3.12/unittest/mock.py", line 2305, in assert_awaited_once
+    raise AssertionError(msg)
+AssertionError: Expected mock to have been awaited once. Awaited 0 times.
+
+======================================================================
+FAIL: test_logged_notice_with_lost_ack_does_not_wake_twice (test_delivery_visible_1036.DeliveryVisibility.test_logged_notice_with_lost_ack_does_not_wake_twice)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 190, in test_logged_notice_with_lost_ack_does_not_wake_twice
+    with self.assertLogs(initial.logger, level="ERROR"):
+  File "/usr/lib/python3.12/unittest/_log.py", line 84, in __exit__
+    self._raiseFailure(
+AssertionError: no logs of level ERROR or higher triggered on orchestra.initial_deliveries
+
+======================================================================
+FAIL: test_retry_same_id_can_fail_loudly_again (test_delivery_visible_1036.DeliveryVisibility.test_retry_same_id_can_fail_loudly_again) (first=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 175, in test_retry_same_id_can_fail_loudly_again
+    self.assertEqual(self.manager.send.await_count, 2)
+AssertionError: 0 != 2
+
+----------------------------------------------------------------------
+Ran 17 tests in 1.475s
+
+FAILED (failures=3, errors=2)

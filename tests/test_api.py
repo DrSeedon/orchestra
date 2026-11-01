@@ -3092,6 +3092,7 @@ class TestChangeScopeEndpoint:
         m.assert_not_awaited()
 
 
+@pytest.mark.usefixtures("configured_hub")
 class TestDeleteOrphanGuard:
     """kill (DELETE) a parent with live children → blocked unless force."""
 
@@ -3101,6 +3102,7 @@ class TestDeleteOrphanGuard:
         if parent_name:
             # `worker` is terminal (can_spawn: []), so the parent must be a
             # fan-out role; the orphan guard itself is role-agnostic.
+            body["model"] = "hubsol"
             body["parent_name"] = parent_name
             body["role"] = "worker"
         r = client.post("/api/sessions", json=body)

@@ -1,0 +1,8 @@
+SOURCE_HASHES_UNCHANGED=9
+TASK_PYTHON_PARSE=PASS
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-4cbfb6e327fb4c1b/.orchestra/tasks/V-1148/validate_artifacts.py", line 25, in <module>
+    assert all(len(line.split("|")) == 10 for line in table[2:9])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+VALIDATION_EXIT=1

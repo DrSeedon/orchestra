@@ -1,0 +1,2 @@
+python 3.12.3
+research collector: stdlib only; no app import

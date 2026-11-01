@@ -1,0 +1,11 @@
+initial-no-failure-record: KILLED (exit=1)
+initial-no-immediate-wake: KILLED (exit=1)
+quota-no-id: KILLED (exit=1)
+quota-no-eta: KILLED (exit=1)
+pending-hide-initial: KILLED (exit=1)
+pending-leak-other-sender: KILLED (exit=1)
+mcp-discard-error-receipts: KILLED (exit=1)
+initial-cancel-no-route-fallback: KILLED (exit=1)
+spawn-skip-admission: KILLED (exit=1)
+idle-create-reads-quota: KILLED (exit=1)
+10/10 mutations killed; production sources restored.

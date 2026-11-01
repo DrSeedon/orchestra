@@ -1,0 +1,14 @@
+/private-evidence/
+/__pycache__/
+/.pytest_cache/
+/*
+!/.gitignore
+!/CHECKS.md
+!/REPORT.md
+!/calculate.py
+!/calculations.json
+!/preservation_manifest.json
+!/source_index.json
+!/test_research.py
+!/verification.json
+!/verify_evidence.py

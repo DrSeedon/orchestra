@@ -29,7 +29,7 @@ from app.prompting import (
     inject_skills_to_worktree_report, is_orchestrator_role,
     prompt_template_hash, refresh_worker_memory,
 )
-from app.quota_gate import QuotaGateError
+from app.quota_gate import QuotaGateError, session_requires_quota
 from app.runtime_registry import (
     BackendBuildContext,
     _load_scope_mcp_servers,
@@ -57,6 +57,7 @@ from app.session_hibernate import HibernateManager
 from app.stall_signals import describe_event, watch_turn_start
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER, empty_context,
+    platform_interruption_notice,
 )
 from app.session_turns import (
     CRITICAL_AUTO_COMPACT_PCT,
@@ -495,6 +496,7 @@ class AgentSession:
     )
     _last_context: dict = field(default_factory=empty_context, repr=False)
     _did_report: bool = field(default=False, repr=False)
+    _report_calls: dict = field(default_factory=dict, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
     _last_text_output: Optional[str] = field(default=None, repr=False)
     _tool_names_by_id: dict = field(default_factory=dict, repr=False)
@@ -540,6 +542,7 @@ class AgentSession:
     # done-callback tell "superseded by a newer turn" from a genuine death (V-882).
     _ended_listener: Optional[tuple] = field(default=None, repr=False)
     _turn_start_cancel_gen: int = field(default=0, repr=False)
+    _codex_limit_wake_generation: tuple[int, int] | None = field(default=None, repr=False)
     _handoff_config_dir: str = field(default="", repr=False)
     _handoff_recovery_required: bool = field(default=False, repr=False)
     _persist_task: Optional[asyncio.Task] = field(default=None, repr=False)
@@ -554,6 +557,7 @@ class AgentSession:
     _server_error_retries: int = field(default=0, repr=False)
     _session_limit_hit: bool = field(default=False, repr=False)
     _manually_interrupted: bool = field(default=False, repr=False)
+    _restart_cut_pending: bool = field(default=False, repr=False)
     _precompact_timer_task: asyncio.Task | None = field(default=None, repr=False)
     _precompact_timer: dict | None = field(default=None, repr=False)
     # Одна строка в журнал на сессию: решение принимается каждый ход, а причина не меняется.
@@ -857,9 +861,10 @@ class AgentSession:
         )
         result = await self.compact()
         state["compact_result"] = result
+        outcome = "compacted" if result.get("ok") else "failed"
         self._log(
             "status",
-            f"precompact timer compacted: {self._precompact_payload(state)}",
+            f"precompact timer {outcome}: {self._precompact_payload(state)}",
         )
 
     def _clock_running(self) -> bool:
@@ -906,9 +911,15 @@ class AgentSession:
         """The hub runtime's only link back to Orchestra: this worker's identity and outbox executor."""
         from app.hub_outbox import HubBridge, Identity
 
+        def reported(who):
+            if who.turn_gen == self._turn_gen and who.parent_name == self.parent_name:
+                self._did_report = True
+
         return HubBridge(lambda: Identity(
             session_id=self.id, name=self.name, scope=self.scope, parent_name=self.parent_name or "",
-            role=self.role, branch=self.branch or "", pipeline=self.pipeline or ""))
+            role=self.role, branch=self.branch or "", pipeline=self.pipeline or "", turn_gen=self._turn_gen,
+            base_branch=self.base_branch or ""),
+            on_parent_report=reported)
 
     def _make_backend(
         self,
@@ -1149,7 +1160,8 @@ class AgentSession:
                 )
             # Direct delivery can be injected into an existing turn.  In that case
             # the normal send path intentionally does not consume a new-turn quota.
-            if self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator:
+            if (self._compacting or self.status == AgentStatus.RUNNING
+                    or not session_requires_quota(self.backend_type, is_orchestrator=self.is_orchestrator)):
                 self._lifecycle_lock.release()
                 return
             if decision is None:
@@ -1198,6 +1210,7 @@ class AgentSession:
         """Publish the single in-memory/DB transition into a running turn."""
         self._manually_interrupted = False
         self._did_report = False
+        self._report_calls.clear()
         self._owner_initiated_turn = owner_initiated
         self._turns.bump_turn_gen()
         if compact_ack:
@@ -1336,6 +1349,19 @@ class AgentSession:
 
         while True:
             await self._lifecycle_lock.acquire()
+            codex_limit_wake = False
+            if provenance.subtype == "limit_wake":
+                from app.limit_wake import is_codex_wake_ref
+
+                codex_limit_wake = is_codex_wake_ref(provenance.ref)
+            if codex_limit_wake:
+                from app.limit_wake import validate_codex_wake
+
+                try:
+                    validate_codex_wake(self, provenance.ref)
+                except BaseException:
+                    self._lifecycle_lock.release()
+                    raise
             # Recheck after admission too: Stop or a newer turn can win while
             # this sender is outside the lock waiting for quota data.
             if retry_generation is not None and (
@@ -1354,16 +1380,24 @@ class AgentSession:
                 raise RuntimeError(
                     "handoff_recovery_required: operator recovery is required before sends"
                 )
-            if (
-                self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator
-                or provenance.origin in QUOTA_GATE_EXEMPT_ORIGINS
+            if not codex_limit_wake and (
+                self._compacting or self.status == AgentStatus.RUNNING
+                or not session_requires_quota(self.backend_type, is_orchestrator=self.is_orchestrator)
+                or (self.backend_type != "codex" and provenance.origin in QUOTA_GATE_EXEMPT_ORIGINS)
             ):
                 break
             if decision is None:
                 admitted_model = self.model
                 admitted_stop_gen = self._turn_start_cancel_gen
                 self._lifecycle_lock.release()
-                decision = await self._worker_admission(admitted_model)
+                if codex_limit_wake:
+                    from app.limit_wake import codex_wake_admission
+
+                    decision = await codex_wake_admission(
+                        admitted_model, is_orchestrator=self.is_orchestrator,
+                    )
+                else:
+                    decision = await self._worker_admission(admitted_model)
                 continue
             if admitted_stop_gen != self._turn_start_cancel_gen:
                 self._lifecycle_lock.release()
@@ -2522,7 +2556,7 @@ class AgentSession:
                     return
                 if self.status == AgentStatus.RUNNING:
                     await self.send(
-                        "[system] Connection was restored after interruption. Continue your work.",
+                        "[system] " + platform_interruption_notice("backend disconnect", self.task_id),
                         provenance=MessageProvenance(
                             origin="system", senders=("system",), subtype="runtime_reconnect",
                         ),
@@ -2703,6 +2737,7 @@ class AgentSession:
             broker.publish(self.id, {"type": "subagent_event", "event_type": event.type,
                                      "content": event.content[:2000], "subagent_id": sub_id})
             return
+        self._turns.track_parent_report(event, tool_name_for_log)
         if event.type == "text":
             from app.live_broker import broker
             broker.clear_accum(self.id)
@@ -2763,12 +2798,6 @@ class AgentSession:
                 tool_name=tool_name_for_log or None,
                 tool_is_error=bool(event.metadata.get("is_error")),
             )
-            if (
-                not event.metadata.get("is_error")
-                and ("send_message" in tool_name_for_log
-                     or "mcp__orchestra__send_message" in tool_name_for_log)
-            ):
-                self._did_report = True
         elif event.type == "file_change":
             self._log("tool", f"file: {event.content}")
             self._turn_logs.append(f"[tool] file: {event.content[:60]}")
@@ -2783,6 +2812,20 @@ class AgentSession:
         elif event.type == "error":
             if event.metadata.get("codex_quota_exhausted"):
                 self._session_limit_hit = True
+                self._codex_limit_wake_generation = (self._turn_gen, self._turn_start_cancel_gen)
+                # Durable, provider-owned evidence: text alone cannot identify a
+                # limited turn after hibernation/restart. Cached reset hints below
+                # remain display-only and never authorize resumption.
+                self._log("provider_limit", json.dumps({
+                    "status": "rejected", "provider": "codex",
+                    "rate_limit_type": "subscription",
+                    "provider_turn_id": event.metadata.get("provider_turn_id") or "",
+                    "wake_binding": {
+                        "model": self.model, "task_id": self.task_id,
+                        "branch": self.branch, "session_id": self.session_id,
+                        "needs_switch": bool(self.needs_switch),
+                    },
+                }))
                 from app.routes import system
 
                 usage = system._codex_usage_cache.get("data") or {}
@@ -2857,6 +2900,43 @@ class AgentSession:
             if self._cost.adopt_session_id(event.metadata.get("session_id")):
                 self._persist()
 
+    async def _park_codex_pending_quota(self, decision: "QuotaDecision") -> None:
+        """Transfer the pending batch to the existing durable queue under the lifecycle lock."""
+        from app.message_deliveries import accept_message_delivery
+
+        messages = list(self._pending_messages)
+        if not messages:
+            return
+        combined = messages[0] if len(messages) == 1 else "\n".join(
+            f"--- message {i+1}/{len(messages)} ---\n{message}"
+            for i, message in enumerate(messages)
+        )
+        # Acceptance with quota_wait commits synchronously, without yielding;
+        # the lock and immediate clear make this one transfer. Equal later batches
+        # are distinct messages and must not share an id derived from their text.
+        delivery_id = str(uuid.uuid4())
+        generation = (
+            f"session={self.id}|task={self.task_id}|branch={self.branch}|"
+            f"needs_switch={int(bool(self.needs_switch))}"
+        )
+        provenance = MessageProvenance(
+            origin="user" if self._pending_owner_initiated_turn else "unknown",
+            senders=("user" if self._pending_owner_initiated_turn else "unknown",),
+            subtype="quota_pending", ref=delivery_id,
+        )
+        resource, status = await accept_message_delivery(
+            delivery_id=delivery_id, source_principal="platform:quota-pending",
+            source_scope=self.scope, target_session_id=self.id, target_name=self.name,
+            target_scope=self.scope, target_task_id=self.task_id or "",
+            target_generation=generation, message=combined, rendered_message=combined,
+            provenance=provenance, quota_wait=decision,
+        )
+        if status not in {200, 202}:
+            raise RuntimeError(f"pending quota delivery was not accepted: {resource.get('error')}")
+        # Clear only after the durable acceptance; a failed write retains the batch.
+        self._pending_messages.clear()
+        self._pending_owner_initiated_turn = False
+
     async def _flush_pending(self) -> None:
         # Brief delay: let the just-finished turn fully settle (persist, hibernate schedule)
         # before starting the next one — avoids nested lock acquisition from the same coroutine
@@ -2872,7 +2952,7 @@ class AgentSession:
             if not self._pending_messages:
                 self._lifecycle_lock.release()
                 return
-            if self.is_orchestrator:
+            if not session_requires_quota(self.backend_type, is_orchestrator=self.is_orchestrator):
                 break
             if decision is None:
                 admitted_model = self.model
@@ -2901,6 +2981,13 @@ class AgentSession:
                 require_worker_admission(decision)
             except QuotaGateError as error:
                 retained = len(self._pending_messages)
+                if self.backend_type == "codex":
+                    try:
+                        await self._park_codex_pending_quota(error.decision)
+                    finally:
+                        self._lifecycle_lock.release()
+                    self._log("status", f"{retained} pending message(s) durably waiting for quota")
+                    return
                 signature = json.dumps({
                     "provider": error.decision.provider,
                     "state": error.decision.state,
@@ -3030,10 +3117,15 @@ class AgentSession:
             was_running = self.status == AgentStatus.RUNNING
             backend = self._backend if (
                 was_running or self._compacting
+                or getattr(self._backend, "compact_pending", False) is True
             ) else None
             self._turns.cancel_auto_report()
             self._cancel_precompact_timer("interrupt")
             self._manually_interrupted = True
+            if getattr(self, "_restart_cut_pending", False):
+                from app.db import acknowledge_restart_cut_turns
+                acknowledge_restart_cut_turns([self.id])
+                self._restart_cut_pending = False
             self._log("status", "interrupt requested")
             self._persist()
 
@@ -3050,6 +3142,7 @@ class AgentSession:
                     acknowledged is False
                     and self._backend is backend
                     and (self.status == AgentStatus.RUNNING or self._compacting)
+                    and (was_running or getattr(backend, "compact_pending", False) is not True)
                 ):
                     self._log("error", "interrupt was not acknowledged; disconnecting backend")
                     await self._disconnect_backend()
@@ -3066,7 +3159,11 @@ class AgentSession:
                 await self.wait_for_turn_completion()
             elif not was_running:
                 self._turn_start = 0
-                self._log("status", "interrupted")
+                unresolved = getattr(backend, "compact_pending", False) is True
+                self._log("status", (
+                    "interrupt requested; native compact outcome is unresolved"
+                    if unresolved else "interrupted"
+                ))
                 self._persist()
                 self._turns.publish_turn_finished()
 
@@ -3106,6 +3203,24 @@ class AgentSession:
                     return await operation()
             permit = await self._compaction_permit()
 
+    def _publish_codex_compact_context(self, result: dict) -> None:
+        context_tokens = result.get("context_tokens")
+        max_tokens = result.get("max_tokens")
+        if isinstance(max_tokens, int) and not isinstance(max_tokens, bool) and max_tokens > 0:
+            self._last_context["max_tokens"] = max_tokens
+        else:
+            max_tokens = None
+        if (isinstance(context_tokens, int) and not isinstance(context_tokens, bool)
+                and context_tokens >= 0 and max_tokens is not None):
+            self._last_context.update(
+                total_tokens=context_tokens, known=True,
+                percentage=round(context_tokens * 100 / max_tokens),
+            )
+        else:
+            self._last_context.update(percentage=0, total_tokens=0, known=False)
+            self._log("status", "native Codex compact context usage unknown")
+        self._persist()
+
     async def _compact_codex_context(self) -> dict:
         try:
             permit = await self._compaction_permit(reserve=True)
@@ -3129,21 +3244,78 @@ class AgentSession:
                 if not callable(compact_context):
                     raise RuntimeError("Codex backend does not support native compact")
                 self._hibernated = False
-                return asyncio.create_task(compact_context())
+                generation = (self.session_id, self.model, self.backend_type)
+                turn_gen = self._turn_gen
+                stop_gen = self._turn_start_cancel_gen
+                transport_gen = getattr(backend, "_transport_generation", None)
+                owner = self._backend
 
-            compact_task = await self._run_compaction_start(permit, start_native_compact)
+                def backend_snapshot():
+                    return (
+                        getattr(backend, "_transport_generation", None),
+                        getattr(backend, "_context_generation", None),
+                        getattr(backend, "session_id", None),
+                        getattr(backend, "model", None),
+                    )
+
+                native_snapshot = backend_snapshot()
+
+                def require_current_snapshot():
+                    if (owner is not self._backend or turn_gen != self._turn_gen
+                            or generation != (self.session_id, self.model, self.backend_type)
+                            or native_snapshot != backend_snapshot()):
+                        error = RuntimeError(
+                            "Codex compact completed for an obsolete session snapshot; "
+                            "context publication refused"
+                        )
+                        error.compact_diagnostics = getattr(backend, "compact_diagnostics", {})
+                        raise error
+
+                def reconciled(result):
+                    # No await between freshness validation and publication. The
+                    # reader owns this observation even after the HTTP/auto caller
+                    # timed out or was cancelled; it never rewrites that response.
+                    if (backend is not self._backend
+                            or transport_gen != getattr(backend, "_transport_generation", None)
+                            or generation != (self.session_id, self.model, self.backend_type)):
+                        return
+                    diagnostics = json.dumps(result["compact_diagnostics"], sort_keys=True)
+                    fresh = result["fresh"] and turn_gen == self._turn_gen
+                    if result["ok"] and fresh:
+                        self._publish_codex_compact_context(result)
+                        self._log(
+                            "status", f"compact done (native Codex): {before_pct}% → "
+                            f"{self._last_context['percentage']}%, late reconciliation; "
+                            + diagnostics,
+                        )
+                    elif fresh:
+                        self._log("status", "native Codex compact reconciled without success; "
+                                  + diagnostics)
+                    else:
+                        self._log("status", "native Codex compact reconciled; newer context retained; "
+                                  + diagnostics)
+                    # A submission may have been refused while the remote compact
+                    # still ran. Retry the retained queue through normal admission,
+                    # without undoing a manual stop or touching a running turn.
+                    if (self._pending_messages and self.status != AgentStatus.RUNNING
+                            and stop_gen == self._turn_start_cancel_gen
+                            and not self._manually_interrupted):
+                        self._spawn_bg(self._flush_pending())
+                    elif self.status == AgentStatus.IDLE and not self._pending_messages:
+                        self._hibernate.schedule()
+                    self._wake_durable_message_deliveries()
+
+                backend._compact_reconciler = reconciled
+                return asyncio.create_task(compact_context()), require_current_snapshot
+
+            compact_task, require_current_snapshot = await self._run_compaction_start(
+                permit, start_native_compact,
+            )
             result = await compact_task
+            require_current_snapshot()
 
             context_tokens = result.get("context_tokens")
-            max_tokens = result.get("max_tokens")
-            if isinstance(max_tokens, int) and max_tokens > 0:
-                self._last_context["max_tokens"] = max_tokens
-            if isinstance(context_tokens, int) and context_tokens >= 0:
-                self._last_context["total_tokens"] = context_tokens
-                if isinstance(max_tokens, int) and max_tokens > 0:
-                    self._last_context["percentage"] = round(
-                        context_tokens * 100 / max_tokens
-                    )
+            self._publish_codex_compact_context(result)
 
             after_pct = self._last_context.get("percentage", 0)
             summary = result.get("summary")
@@ -3152,10 +3324,12 @@ class AgentSession:
                     summary = await self._build_runtime_handoff()
                 except Exception as exc:
                     logger.debug(f"[{self.name}] Codex compact handoff snapshot failed: {exc}")
+            require_current_snapshot()
             if summary:
                 self.last_summary = _bounded_summary(summary)
             self._persist()
             await self._drain_persist()
+            require_current_snapshot()
             self._log(
                 "status",
                 f"compact done (native Codex): {before_pct}% → {after_pct}%, "
@@ -3171,6 +3345,11 @@ class AgentSession:
             }
         except QuotaGateError:
             raise
+        except asyncio.CancelledError:
+            diagnostics = getattr(self._backend, "compact_diagnostics", {})
+            self._log("status", "native Codex compact caller cancelled; "
+                      + json.dumps(diagnostics, sort_keys=True))
+            raise
         except Exception as exc:
             detail = err_text(exc)
             self._log("error", f"native Codex compact failed: {detail}")
@@ -3180,6 +3359,7 @@ class AgentSession:
                 "error": detail,
                 "before_pct": before_pct,
                 "thread_id": self.session_id,
+                "compact_diagnostics": getattr(exc, "compact_diagnostics", {}),
             }
         finally:
             self._compacting = False
@@ -4062,6 +4242,16 @@ class AgentSession:
         self._runtime_error = ""
         self._session_limit_hit = False
         self._cancel_precompact_timer("text_tail_model_switch")
+        if old_runtime == "hub":
+            from app.backend_hub import release_for_worktree
+
+            try:
+                await release_for_worktree(self.worktree_path or self.cwd)
+            except Exception as error:
+                logger.warning(
+                    "[%s] previous hub workspace release incomplete (state kept for sweep): %s",
+                    self.name, err_text(error),
+                )
         self._log(
             "status",
             f"model change: {old_model} ({old_runtime}) → "

@@ -1,0 +1,85 @@
+protected checks: {'Bash': True, 'AskUserQuestion': True, 'WebSearch': True, 'Workflow': False, 'NotebookEdit': False, 'mcp__headroom__compress': True, 'mcp__acme__q': False, 'CronCreate': False}
+
+== evidence thresholds: p=10 prompts across >=2 sessions, or 5 sessions; high-risk (NotebookEdit) x3
+session  1 (prompts=6) proposal=[]
+session  2 (prompts=6) proposal=['CronCreate', 'ScheduleWakeup', 'Workflow', 'mcp__acme__q']
+session  3 (prompts=6) proposal=['CronCreate', 'ScheduleWakeup', 'Workflow', 'mcp__acme__q']
+session  4 (prompts=6) proposal=['CronCreate', 'ScheduleWakeup', 'Workflow', 'mcp__acme__q']
+session  5 (prompts=6) proposal=['CronCreate', 'NotebookEdit', 'ScheduleWakeup', 'Workflow', 'mcp__acme__q']
+session  6 (prompts=6) proposal=['CronCreate', 'NotebookEdit', 'ScheduleWakeup', 'Workflow', 'mcp__acme__q']
+session  7 (prompts=6) proposal=['CronCreate', 'NotebookEdit', 'ScheduleWakeup', 'Workflow', 'mcp__acme__q']
+session 15 (prompts=6) proposal=['CronCreate', 'NotebookEdit', 'ScheduleWakeup', 'Workflow', 'mcp__acme__q']
+session 16 (prompts=6) proposal=['CronCreate', 'NotebookEdit', 'ScheduleWakeup', 'Workflow', 'mcp__acme__q']
+
+== apply to Claude settings.local.json (a user-authored rule must survive)
+added: ['Workflow', 'CronCreate']
+{
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Workflow",
+      "CronCreate"
+    ],
+    "allow": [
+      "Bash(ls)"
+    ]
+  }
+}
+
+restore one: ['Workflow']
+{
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf:*)",
+      "CronCreate"
+    ],
+    "allow": [
+      "Bash(ls)"
+    ]
+  }
+}
+
+restore all: ['CronCreate']
+{
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf:*)"
+    ],
+    "allow": [
+      "Bash(ls)"
+    ]
+  }
+}
+
+
+== Codex lane: capability toggles into .codex/config.toml (no `codex` on PATH => codex_config_error() is None, so Codex-side validation is NOT exercised here)
+which codex: None
+CODEX_TOGGLES keys: ['collaboration', 'goals', 'image_media']
+apply: ['collaboration', 'goals', 'image_media']
+include_collaboration_mode_instructions = false  # tokeneconomizer:collaboration
+
+[agents]  # tokeneconomizer:collaboration
+enabled = false  # tokeneconomizer:collaboration
+
+[features]  # tokeneconomizer:collaboration
+view_image = false  # tokeneconomizer:image_media
+goals = false  # tokeneconomizer:goals
+multi_agent = false  # tokeneconomizer:collaboration
+
+git info/exclude: ['# added by TokenEconomizer (per-user tool deny list)', '/.codex/config.toml']
+restore goals: ['goals']
+include_collaboration_mode_instructions = false  # tokeneconomizer:collaboration
+
+[agents]  # tokeneconomizer:collaboration
+enabled = false  # tokeneconomizer:collaboration
+
+[features]  # tokeneconomizer:collaboration
+view_image = false  # tokeneconomizer:image_media
+multi_agent = false  # tokeneconomizer:collaboration
+
+restore all: ['collaboration', 'image_media'] file exists after: False
+
+== Codex: committed config.toml is refused
+RuntimeError: /tmp/p2-4uzb0bl6/repo/.codex/config.toml is committed in this repository; the plugin will not edit a shared file. Add the toggles by hand, or keep them in your own copy of it.
+
+== Codex trust check (user config in CODEX_HOME): None

@@ -1,0 +1,143 @@
+{
+  "task": "V-1034",
+  "imported_app": "app/__init__.py",
+  "import_matches_checkout": true,
+  "targeted_suite": {
+    "passed": 327,
+    "failed": 0,
+    "seconds": 59.54,
+    "phase": "initial_implementation"
+  },
+  "new_tests": {
+    "passed": 43,
+    "failed": 0
+  },
+  "mutation_checks": {
+    "detected": 8,
+    "total": 8
+  },
+  "compatibility_failures": [
+    "tests/test_workspace.py::TestCreateWorktree::test_different_repos_no_collision"
+  ],
+  "full_suite_run": false,
+  "service_restarted": false,
+  "artifacts_filtered": true,
+  "artifacts_normalized": [
+    "regression.log",
+    "mutation-block-all-target-dirt.log",
+    "compatibility.log",
+    "mutation-accept-placeholder-note.log",
+    "first-tests.log",
+    "mutation-headline-first-commit.log",
+    "mutation-count-task-evidence.log",
+    "mutation-accept-short-sha.log",
+    "mutation-headline-ignore-acceptance.log"
+  ],
+  "source_sha256": {
+    "CHANGELOG.md": "6e4c4fadea4ba5a2e37c91c56567c84de468017af2fa688056c5330b5d32487c",
+    "app/diff_budget.py": "84dc1447f75e69f0122b6561f45a05231af47ab486f1128a8427a9cdf6ed10ee",
+    "app/mcp_stdio.py": "be43b92ad216b317673af408e27f8cb70dc2c76a5782ec394832ddcca7fac906",
+    "app/merge_operations.py": "edd0a106d685b48d6b084095be430ccede4518a4b63d6b74e44200f2e03a9b65",
+    "app/routes/merge_operations.py": "49712e3ff8b37a93075e8c74a52427c05e6a8c0097eb25acba5676aa1ac54b44",
+    "app/routes/sessions.py": "34a4f0be2817c4e3d806515e8b5653eb22ffc66309770399eb1d23322ba244bf",
+    "app/workspace.py": "22851ffc6d8de69fdffbf67f025e0a471e2988ad8dbb00aacf67edcd7a852d06",
+    "tests/test_merge_branch_drift.py": "d5a0420cae8fcbca12cfea1917b622a92d10c0fe4bfa82fbf5e7f6528be467ff",
+    "tests/test_merge_operations.py": "224f258143518d5eed37c36a26cd99090a1fe70b3c4e6f8f8d3d9956d766c9c2",
+    "tests/test_merge_reason_preservation_416.py": "7c4e75725324fd4706245f940e409360546ed826cd855f7515d54954fb2e558b",
+    "tests/test_merge_recovery_wedge.py": "6369a6b40d263adb7a8fec0cc2a5f756a0f33ac093d412a0daed413dd76a88fa",
+    "tests/test_merge_ref_gate.py": "5525c893d3ac68a6b0f9f2fc20e3945c24b9a3697d2fcf00676068a80917e53f",
+    "tests/test_merge_target_oracle_386.py": "2801b5e3c7a37cb3dbb50316001eb33f4042b365b928ff4c4c7a512619f7a323",
+    "tests/test_merge_worker_v1034.py": "cb700ef4edb44c50606f02776d6d4bb5fc339986bc0d172fc7cd45186f3fbda6",
+    "tests/test_work_acceptance.py": "153a1a5f01759cc4815131bd8e8449670e05a83a6fc7e53f8868f35f1ed01de7",
+    "tests/test_workspace.py": "703ce42cbfa866aaa30405f3fc4a7e2ce599c014559368ac79af6fa0ff89d978",
+    "tests/test_merge_stuck.py": "25a8892f0d20a940a2c9dbd35fe74dddb516e8e62b2cc59db1acf9518e35a5a3",
+    ".orchestra/tasks/V-1034/run_redacted.py": "8af02f357208b44b3ae9593581e228d55bf11d677396d8c3e43ffd5756bf4c98"
+  },
+  "followup_suite": {
+    "passed": 206,
+    "failed": 0,
+    "seconds": 31.6
+  },
+  "v416_mutation_checks": {
+    "detected": 3,
+    "total": 3
+  },
+  "v416_contract": {
+    "clarified_by": "Orchestra-orchestrator",
+    "date": "2026-10-22",
+    "blocks_only_path_overlap": true,
+    "repo_path_and_action_preserved": true
+  },
+  "merge_stuck_followup": {
+    "passed": 471,
+    "failed": 6,
+    "executed": 477,
+    "file_count": 17,
+    "complete": true,
+    "deselected": 0,
+    "batches": [
+      {
+        "batch": "stuck-suite-core",
+        "counts": {
+          "passed": 63
+        },
+        "summary": "63 passed in 24.11s",
+        "failed_tests": []
+      },
+      {
+        "batch": "stuck-suite-guards",
+        "counts": {
+          "passed": 97
+        },
+        "summary": "97 passed in 27.14s",
+        "failed_tests": []
+      },
+      {
+        "batch": "stuck-suite-gate-a",
+        "counts": {
+          "failed": 3,
+          "passed": 24
+        },
+        "summary": "3 failed, 24 passed in 14.83s",
+        "failed_tests": [
+          "tests/test_merge_test_gate.py::test_ci_pytest_does_not_stop_at_first_failure",
+          "tests/test_merge_test_gate.py::test_run_pytest_isolates_live_state_environment",
+          "tests/test_merge_test_gate.py::test_orchestra_worktree_is_detected_by_git_common_dir"
+        ]
+      },
+      {
+        "batch": "stuck-suite-gate-b",
+        "counts": {
+          "failed": 2,
+          "passed": 26
+        },
+        "summary": "2 failed, 26 passed in 25.43s",
+        "failed_tests": [
+          "tests/test_merge_test_gate.py::test_live_probe_inventory_is_explicit",
+          "tests/test_merge_test_gate.py::test_browser_inventory_is_explicit"
+        ]
+      },
+      {
+        "batch": "stuck-suite-workspace",
+        "counts": {
+          "failed": 1,
+          "passed": 121
+        },
+        "summary": "1 failed, 121 passed in 14.47s",
+        "failed_tests": [
+          "tests/test_workspace.py::TestCreateWorktree::test_different_repos_no_collision"
+        ]
+      },
+      {
+        "batch": "stuck-suite-mcp",
+        "counts": {
+          "passed": 140
+        },
+        "summary": "140 passed in 6.90s",
+        "failed_tests": []
+      }
+    ],
+    "redaction_verified": true,
+    "production_policy_unchanged": true
+  }
+}

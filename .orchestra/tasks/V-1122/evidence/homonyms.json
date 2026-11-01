@@ -1,0 +1,166 @@
+{
+  "total_count": 1021,
+  "incomplete_results": false,
+  "items": [
+    {
+      "full_name": "alicankiraz1/SentinelXPrime",
+      "description": "Stage-aware security skills for Codex, Claude Code, and OpenCode, with explicit compatibility guidance for Cursor and Kilo.",
+      "html_url": "https://github.com/alicankiraz1/SentinelXPrime",
+      "created_at": "2026-04-04T16:45:35Z",
+      "pushed_at": "2026-04-05T07:42:32Z",
+      "stargazers_count": 38
+    },
+    {
+      "full_name": "InvertedX/Sentinelx",
+      "description": "[BETA] An experimental version of samourai sentinel for better performance and user experience ",
+      "html_url": "https://github.com/InvertedX/Sentinelx",
+      "created_at": "2019-08-11T17:40:47Z",
+      "pushed_at": "2021-06-14T08:09:06Z",
+      "stargazers_count": 20
+    },
+    {
+      "full_name": "MuhammadZaidSaqib/SentinelX-Real-Time-Fraud-Intelligence",
+      "description": "SentinelX is an AI-powered real-time fraud detection system that combines machine learning, deep learning autoencoders, and graph-based analysis to identify fraudulent transactions. Using Kafka streaming and SHAP explainability, it delivers fast, transparent risk scoring through an interactive web dashboard.",
+      "html_url": "https://github.com/MuhammadZaidSaqib/SentinelX-Real-Time-Fraud-Intelligence",
+      "created_at": "2026-03-22T19:20:02Z",
+      "pushed_at": "2026-03-22T20:09:55Z",
+      "stargazers_count": 17
+    },
+    {
+      "full_name": "pensados/sentinelx-cloud-core",
+      "description": "SentinelX agent: outbound-only agent that exposes your Linux, macOS, and Windows servers as MCP tools to Claude.ai and ChatGPT",
+      "html_url": "https://github.com/pensados/sentinelx-cloud-core",
+      "created_at": "2026-05-01T06:27:26Z",
+      "pushed_at": "2026-10-26T16:11:32Z",
+      "stargazers_count": 16
+    },
+    {
+      "full_name": "Nithish-Bharathwaj-N/SentinelX",
+      "description": null,
+      "html_url": "https://github.com/Nithish-Bharathwaj-N/SentinelX",
+      "created_at": "2026-07-16T17:57:24Z",
+      "pushed_at": "2026-07-16T18:36:29Z",
+      "stargazers_count": 9
+    },
+    {
+      "full_name": "MedChronicle/SentinelX",
+      "description": "SentinelX is a campus safety and risk analytics dashboard built with React, Vite, and Tailwind CSS. It tracks incidents, alerts, risk scores, and ML insights across a campus. Sign in with Google or a demo account to explore the Dashboard, Incidents, Risk Map, Analytics, Alerts, and Audit Trail.\"",
+      "html_url": "https://github.com/MedChronicle/SentinelX",
+      "created_at": "2026-09-13T15:56:18Z",
+      "pushed_at": "2026-10-03T06:19:17Z",
+      "stargazers_count": 9
+    },
+    {
+      "full_name": "Codexia-afk/SentinelX",
+      "description": null,
+      "html_url": "https://github.com/Codexia-afk/SentinelX",
+      "created_at": "2026-07-23T07:38:30Z",
+      "pushed_at": "2026-07-28T06:19:57Z",
+      "stargazers_count": 7
+    },
+    {
+      "full_name": "jaytiwari05/SentinelX",
+      "description": "SentinelX is an open-source, hybrid malware detection system built in Python, Hybrid malware detection system combining signature scanning, ML heuristics, real-time monitoring, and cloud threat intelligence for Windows. ",
+      "html_url": "https://github.com/jaytiwari05/SentinelX",
+      "created_at": "2026-02-22T21:30:34Z",
+      "pushed_at": "2026-10-18T17:49:55Z",
+      "stargazers_count": 7
+    },
+    {
+      "full_name": "Manavarya09/SENTINELX",
+      "description": null,
+      "html_url": "https://github.com/Manavarya09/SENTINELX",
+      "created_at": "2026-02-01T15:46:55Z",
+      "pushed_at": "2026-02-01T15:50:29Z",
+      "stargazers_count": 6
+    },
+    {
+      "full_name": "Project-Uzumaru/SentinelX-Kuroko",
+      "description": "Python concept code for the SentinelX malicious request detection algorithm.",
+      "html_url": "https://github.com/Project-Uzumaru/SentinelX-Kuroko",
+      "created_at": "2026-07-26T16:57:22Z",
+      "pushed_at": "2026-08-24T18:11:20Z",
+      "stargazers_count": 6
+    },
+    {
+      "full_name": "oyinlola-tech/Sentinelx",
+      "description": "SentinelX is an open-source network intrusion detection and prevention platform. It captures traffic (live or from PCAP files), decodes it, detects scans, brute force, floods, DNS abuse and custom rule matches, and scores each finding from 0 to 100 with the reasons shown. It correlates related findings into incidents and, only when you enable it, blocks or rate-limits attackers through the host firewall behind a safety guard.",
+      "html_url": "https://github.com/oyinlola-tech/Sentinelx",
+      "created_at": "2026-09-14T15:55:21Z",
+      "pushed_at": "2026-09-15T17:56:00Z",
+      "stargazers_count": 5
+    },
+    {
+      "full_name": "kruthikiran2007/SentinelX",
+      "description": "AI-Assisted Cybersecurity Detection and Security Monitoring Platform",
+      "html_url": "https://github.com/kruthikiran2007/SentinelX",
+      "created_at": "2026-08-31T11:39:27Z",
+      "pushed_at": "2026-09-29T14:45:53Z",
+      "stargazers_count": 5
+    },
+    {
+      "full_name": "hackerdmv/SentinelX-SOC",
+      "description": "Cyber Threat Analyzer | SOC Tool | Threat Intelligence Platform",
+      "html_url": "https://github.com/hackerdmv/SentinelX-SOC",
+      "created_at": "2026-05-13T09:18:32Z",
+      "pushed_at": "2026-05-13T13:03:57Z",
+      "stargazers_count": 4
+    },
+    {
+      "full_name": "Arghyadevs/SentinelX",
+      "description": "SentinelX is an advanced AI-powered surveillance and threat detection system. It leverages real-time video analytics, object detection (YOLOv5/YOLOv8), and a modern web dashboard to provide live monitoring, alerts, and statistics for enhanced security.",
+      "html_url": "https://github.com/Arghyadevs/SentinelX",
+      "created_at": "2025-06-26T14:56:55Z",
+      "pushed_at": "2025-06-26T15:04:30Z",
+      "stargazers_count": 4
+    },
+    {
+      "full_name": "thanuj0902/SentinelX",
+      "description": "SentinelX - A real-time cybersecurity threat detection dashboard built with React, TypeScript, and Vite. Features alert monitoring, risk scoring, user behavior analysis, sensitivity controls, and threat investigation workflows. Visualize security incidents with interactive charts and manage alerts through an intuitive interface.",
+      "html_url": "https://github.com/thanuj0902/SentinelX",
+      "created_at": "2026-07-25T06:13:27Z",
+      "pushed_at": "2026-07-25T07:43:35Z",
+      "stargazers_count": 4
+    },
+    {
+      "full_name": "GemachDAO/SentinelX",
+      "description": " a Python framework that can actually do work in offensive/defensive security across Web2 & Web3.  The design is plugin‑oriented so you can drop in new tooling (e.g., Burp, Slither, Mythril, Scapy, Pwntools, Z3) without rewiring the core.",
+      "html_url": "https://github.com/GemachDAO/SentinelX",
+      "created_at": "2025-06-20T14:31:49Z",
+      "pushed_at": "2025-10-23T00:03:06Z",
+      "stargazers_count": 3
+    },
+    {
+      "full_name": "dulmina-hasith/sentinelx",
+      "description": "A Linux-based authentication log monitoring and intrusion detection tool.",
+      "html_url": "https://github.com/dulmina-hasith/sentinelx",
+      "created_at": "2026-03-31T18:12:12Z",
+      "pushed_at": "2026-10-05T19:31:17Z",
+      "stargazers_count": 3
+    },
+    {
+      "full_name": "ea9x/SentinelX",
+      "description": "A security assessment workspace for authorized scanning, finding review, remediation tracking, and PDF reporting.",
+      "html_url": "https://github.com/ea9x/SentinelX",
+      "created_at": "2026-10-24T07:39:33Z",
+      "pushed_at": "2026-10-25T16:51:13Z",
+      "stargazers_count": 3
+    },
+    {
+      "full_name": "mohammedsha1020/sentinelX",
+      "description": null,
+      "html_url": "https://github.com/mohammedsha1020/sentinelX",
+      "created_at": "2025-06-28T15:22:24Z",
+      "pushed_at": "2025-07-03T14:41:55Z",
+      "stargazers_count": 3
+    },
+    {
+      "full_name": "ajinkyap9/SentinelX",
+      "description": null,
+      "html_url": "https://github.com/ajinkyap9/SentinelX",
+      "created_at": "2025-11-02T15:19:50Z",
+      "pushed_at": "2025-12-27T14:04:32Z",
+      "stargazers_count": 3
+    }
+  ]
+}

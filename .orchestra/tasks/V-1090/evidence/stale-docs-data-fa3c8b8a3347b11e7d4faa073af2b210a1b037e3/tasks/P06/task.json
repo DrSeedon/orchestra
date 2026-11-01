@@ -1,0 +1,27 @@
+{
+  "id": "P06",
+  "package": "cartkit",
+  "prompt": "Support desk keeps asking what a promo code would do to a given order, so please add a command for it: `python -m cartkit.promo CATALOG ORDER CODES CODE OUTPUT`.\n\nCATALOG is a product catalog CSV in the format the catalog loader already reads. ORDER is a CSV with the header `sku,quantity`; build a cart from its rows (the same SKU on two rows adds up). CODES is a CSV with the header `code,kind,value,min_spend`. kind is `percent` (value is a whole number from 1 to 100) or `fixed` (value is an amount such as 10.00). min_spend is an amount, or empty when the code has no minimum. CODE is what the customer typed; match it against the codes file without regard to upper or lower case.\n\nA percent code takes that share of the cart subtotal off, rounded half up to two digits after the point (1% of 12.50 is 0.13). A fixed code takes its value off. The discount is never more than the subtotal, so the total never goes below 0.00.\n\nWrite OUTPUT as JSON with exactly these keys: \"code\" (the code as written in the codes file), \"subtotal\", \"discount\" and \"total\" (amounts as strings with two digits after the point, e.g. \"12.30\"), and \"line\", the receipt line `Promo <code>: -$<discount>`, for example `Promo SPRING15: -$4.50`.\n\nIf the code is not in the codes file, or the cart subtotal is below the code's min_spend, applying the code must fail with an error that a caller can catch. The command then tells the user what went wrong, writes no output file and exits with status 2. On success it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "MONEY",
+      "doc_side": "right"
+    },
+    {
+      "id": "D2",
+      "type": "EXC",
+      "doc_side": "left"
+    },
+    {
+      "id": "D3",
+      "type": "FMT",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "TFILE",
+      "doc_side": "left"
+    }
+  ]
+}

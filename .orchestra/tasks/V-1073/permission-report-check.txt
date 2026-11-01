@@ -1,0 +1,5 @@
+Approved source/test/CHANGELOG files changed: 4; other 6 hashes unchanged.
+Prior completed stdout files retained byte-for-byte with verified line counts: 16.
+Parsed Python source/artifact files: 12. Credential-shape findings: 0.
+Compact report: 141 lines, 23039 UTF-8 bytes.
+Permission/native follow-up tested; no real provider, audit, deployment, remediation or runtime activation.

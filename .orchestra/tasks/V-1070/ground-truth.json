@@ -1,0 +1,446 @@
+[
+  {
+    "number": 1,
+    "kind": "terminal",
+    "file": "01-terminal.png",
+    "fields": [
+      {
+        "text": "Build: FAILED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-11",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q01-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 2,
+    "kind": "terminal",
+    "file": "02-terminal.png",
+    "fields": [
+      {
+        "text": "Build: PASSED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-12",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q02-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 3,
+    "kind": "terminal",
+    "file": "03-terminal.png",
+    "fields": [
+      {
+        "text": "Build: FAILED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-13",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q03-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 4,
+    "kind": "terminal",
+    "file": "04-terminal.png",
+    "fields": [
+      {
+        "text": "Build: PASSED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-14",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q04-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 5,
+    "kind": "dashboard",
+    "file": "05-dashboard.png",
+    "fields": [
+      {
+        "text": "Build: FAILED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-15",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q05-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 6,
+    "kind": "dashboard",
+    "file": "06-dashboard.png",
+    "fields": [
+      {
+        "text": "Build: PASSED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-16",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q06-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 7,
+    "kind": "dashboard",
+    "file": "07-dashboard.png",
+    "fields": [
+      {
+        "text": "Build: FAILED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-17",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q07-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 8,
+    "kind": "dashboard",
+    "file": "08-dashboard.png",
+    "fields": [
+      {
+        "text": "Build: PASSED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-18",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q08-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 9,
+    "kind": "document",
+    "file": "09-document.png",
+    "fields": [
+      {
+        "text": "Build: FAILED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-19",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q09-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 10,
+    "kind": "document",
+    "file": "10-document.png",
+    "fields": [
+      {
+        "text": "Build: PASSED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-20",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q10-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 11,
+    "kind": "document",
+    "file": "11-document.png",
+    "fields": [
+      {
+        "text": "Build: FAILED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-21",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q11-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  },
+  {
+    "number": 12,
+    "kind": "document",
+    "file": "12-document.png",
+    "fields": [
+      {
+        "text": "Build: PASSED",
+        "font_px": 16,
+        "bbox": [
+          45,
+          328,
+          500,
+          351
+        ]
+      },
+      {
+        "text": "Date: 2026-10-22",
+        "font_px": 12,
+        "bbox": [
+          45,
+          351,
+          500,
+          374
+        ]
+      },
+      {
+        "text": "ID: Q12-O0I1-B8S5",
+        "font_px": 10,
+        "bbox": [
+          45,
+          374,
+          500,
+          397
+        ]
+      }
+    ]
+  }
+]

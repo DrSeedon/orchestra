@@ -1,0 +1,63 @@
+[Publication-redacted evidence: remote installation prefixes are shown as /remote/workspace; derived installation slugs/account labels are neutralized. Source-relative paths, synthetic test suffixes and actual results are preserved.]
+
+.......................F                                                 [100%]
+=================================== FAILURES ===================================
+___________ test_hub_turn_merge_release_and_next_upload_keep_inputs ____________
+
+env = (PosixPath('/remote/workspace/.orchestra/tasks/V-106...': 'f7392ce655eab645c23cf3e8c984aebcb86240452089055534a2cd41a1375b83'}, activity_pos=0, created_at=1792768292.0681236))
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-0/test_hub_turn_merge_release_an0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71f439f35550>
+
+    @pytest.mark.asyncio
+    async def test_hub_turn_merge_release_and_next_upload_keep_inputs(env, tmp_path, monkeypatch):
+        repo, root, old = env
+        old.path().unlink()
+        def edit(remote):
+            assert (remote / INPUT).read_text() == RAW
+            (remote / 'output.txt').write_text('hub derived output\n')
+        backend, ssh, mc = _backend(root, tmp_path, monkeypatch, edit)
+        await _turn(backend, 'derive outputs')
+        state = backend._state
+        assert state.input_manifest == {INPUT: hw.sha256_file(root / INPUT)}
+        assert INPUT not in git(root, 'ls-files').splitlines()
+        result = merge(env)
+        assert result['ok'], result
+        # The same cleanup invoked after merge_worker(continue) releases only hub state.
+        from app.merge_operations import _clean_worktree_after_merge
+        import app.db as db
+        monkeypatch.setattr('app.merge_operations.get_session',
+                            lambda sid: {'worktree_path': str(root)})
+        await _clean_worktree_after_merge({'session_id': 'worker'}, {'git': {'target_branch': 'main'}})
+>       assert not state.path().exists()
+E       AssertionError: assert not True
+E        +  where True = exists()
+E        +    where exists = PosixPath('/remote/workspace/.orchestra/tasks/V-1062...test-of-remote-user/pytest-0/test_hub_turn_merge_release_an0/hub-state/hub-47fcb18848e94fab.json').exists
+E        +      where PosixPath('/remote/workspace/.orchestra/tasks/V-1062...test-of-remote-user/pytest-0/test_hub_turn_merge_release_an0/hub-state/hub-47fcb18848e94fab.json') = path()
+E        +        where path = WorkspaceState(ws_id='hub-47fcb18848e94fab', worktree='/remote/workspace/...t': 'f7392ce655eab645c23cf3e8c984aebcb86240452089055534a2cd41a1375b83'}, activity_pos=0, created_at=1792768292.2172475).path
+
+tests/test_hub_inputs_v1062.py:188: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-0/test_hub_turn_merge_release_an0/worktrees/remote-workspace/input-worker reset to main (e0c2d669)
+hub workspace release failed operation_id=
+Traceback (most recent call last):
+  File "/remote/workspace/app/merge_operations.py", line 2271, in _clean_worktree_after_merge
+    await release_for_worktree(worktree)
+  File "/remote/workspace/app/backend_hub.py", line 883, in release_for_worktree
+    raise hw.HubWorkspaceError("; ".join(errors))
+app.hub_workspace.HubWorkspaceError: hub-47fcb18848e94fab: hub cleanup incomplete: project: MultiCode MCP request failed: ConnectError
+post-merge worktree cleanup operation_id= worktree=/remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-0/test_hub_turn_merge_release_an0/worktrees/remote-workspace/input-worker state=refused files=None bytes=None reason=1 uncommitted path(s): sources/
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:288 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-0/test_hub_turn_merge_release_an0/worktrees/remote-workspace/input-worker reset to main (e0c2d669)
+WARNING  orchestra.merge_operations:merge_operations.py:2273 hub workspace release failed operation_id=
+Traceback (most recent call last):
+  File "/remote/workspace/app/merge_operations.py", line 2271, in _clean_worktree_after_merge
+    await release_for_worktree(worktree)
+  File "/remote/workspace/app/backend_hub.py", line 883, in release_for_worktree
+    raise hw.HubWorkspaceError("; ".join(errors))
+app.hub_workspace.HubWorkspaceError: hub-47fcb18848e94fab: hub cleanup incomplete: project: MultiCode MCP request failed: ConnectError
+INFO     orchestra.merge_operations:merge_operations.py:2280 post-merge worktree cleanup operation_id= worktree=/remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-0/test_hub_turn_merge_release_an0/worktrees/remote-workspace/input-worker state=refused files=None bytes=None reason=1 uncommitted path(s): sources/
+=========================== short test summary info ============================
+FAILED tests/test_hub_inputs_v1062.py::test_hub_turn_merge_release_and_next_upload_keep_inputs
+1 failed, 23 passed in 50.39s

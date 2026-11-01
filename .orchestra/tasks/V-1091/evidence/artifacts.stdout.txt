@@ -1,0 +1,9 @@
+PASS report local links=16
+PASS Markdown table rows=117
+PASS comparison.tsv: 10 data rows, 7 columns
+PASS secret-shape scan: 25 task files; 9 pattern classes; no matches
+LIMIT secret-shape scan is finite; public SSH SIGNATURE is not a private key; no private env/logs read
+PASS unchanged protected file AGENTS.md
+PASS unchanged protected file pyproject.toml
+PASS unchanged protected file uv.lock
+PASS artifact checks complete; no source scripts, product code, model APIs or Python run

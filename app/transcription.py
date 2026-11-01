@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from pathlib import Path
 
@@ -16,6 +17,11 @@ logger = logging.getLogger("orchestra.transcription")
 UPLOADS_DIR = Path(__file__).parent.parent / "data" / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 TRANSCRIPTION_CACHE_PATH = UPLOADS_DIR / ".transcription_cache.json"
+
+# Deepgram recommends ~0.65 for high-precision error detection:
+# https://developers.deepgram.com/docs/confidence
+LOW_WORD_CONFIDENCE = 0.65
+UNCERTAIN_TRANSCRIPT_HEADER = "[Расшифровка содержит неуверенно распознанные слова: [?]]"
 
 # The service environment can be replaced while this process is still alive. Load the
 # CA bundle once so later client construction does not reopen a deleted certifi path.
@@ -36,6 +42,47 @@ def _save_transcription_cache(cache: dict[str, str]) -> None:
 
 
 _transcription_cache: dict[str, str] = _load_transcription_cache()
+
+
+def _format_transcript(alternative: dict) -> str:
+    """Annotate word confidence without replacing Deepgram's best guess."""
+    text = alternative["transcript"]
+    words = alternative.get("words") or []
+    uncertain = [
+        isinstance(word.get("confidence"), (int, float))
+        and not isinstance(word["confidence"], bool)
+        and 0 <= word["confidence"] < LOW_WORD_CONFIDENCE
+        for word in words
+    ]
+    if not text or not any(uncertain):
+        return text
+
+    # Prefer the provider's formatted tokens (casing, punctuation, numerals).
+    # Keep the original whitespace when tokens align with the transcript.
+    tokens = [word.get("punctuated_word") or word["word"] for word in words]
+    marked = []
+    for token, low_confidence in zip(tokens, uncertain):
+        if low_confidence:
+            # Place the marker before closing quotes and sentence punctuation.
+            token = re.sub(r"(\W*)$", r"[?]\1", token, count=1)
+        marked.append(token)
+
+    pieces = []
+    cursor = 0
+    for token, annotated in zip(tokens, marked):
+        match = re.compile(r"(?<!\w)" + re.escape(token) + r"(?!\w)").search(text, cursor)
+        if match is None:
+            # Smart Format may combine spoken words into an entity. In that
+            # case retain every word and its marker, rather than guess a span.
+            body = " ".join(marked)
+            break
+        start = match.start()
+        pieces.extend((text[cursor:start], annotated))
+        cursor = start + len(token)
+    else:
+        pieces.append(text[cursor:])
+        body = "".join(pieces)
+    return f"{UNCERTAIN_TRANSCRIPT_HEADER}\n{body}"
 
 
 async def transcribe_audio(
@@ -95,7 +142,7 @@ async def transcribe_audio(
             return "", str(detail)
         if "error" in data:
             return "", str(data["error"])
-        text = data["results"]["channels"][0]["alternatives"][0]["transcript"]
+        text = _format_transcript(data["results"]["channels"][0]["alternatives"][0])
         duration = float(data.get("metadata", {}).get("duration") or 0)
         logger.info(
             "Deepgram: audio=%.1fs size=%dKB transcribe=%.0fms",

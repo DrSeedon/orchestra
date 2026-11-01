@@ -1384,6 +1384,14 @@ body.panel-resizing, body.panel-resizing * { user-select: none !important; -webk
 .job-full { color:var(--ink); white-space:pre-wrap; word-break:break-word; margin-bottom:4px; max-height:220px; overflow-y:auto; }
 .job-k { color:var(--ink-ghost); }
 .job-out { margin:3px 0; padding:3px 6px; background:#0d1117; border-radius:4px; white-space:pre-wrap; word-break:break-all; max-height:80px; overflow-y:auto; color:var(--ink-body); }
+.job-prog { margin:4px 0 2px; }
+.job-prog-head { font-size:11px; color:var(--ink); word-break:break-word; } .job-prog-head b { font-size:12px; }
+.job-prog-st { font-size:10px; color:var(--ink-dim); margin-left:2px; }
+.job-prog-bar { height:5px; margin:3px 0; border-radius:3px; background:rgba(148,163,184,.18); overflow:hidden; }
+.job-prog-bar i { display:block; height:100%; border-radius:3px; background:#4f46e5; transition:width .4s ease; }
+.job-prog-ok .job-prog-bar i { background:#22c55e; } .job-prog-pause .job-prog-bar i { background:#fbbf24; }
+.job-prog-warn .job-prog-bar i { background:#f87171; opacity:.6; }
+.job-prog-meta { font-size:10px; color:var(--ink-muted); } .job-prog-note { font-size:10px; color:var(--warn-ink); }
 .job-day { padding:6px 6px 0; font-size:10px; font-weight:700; color:var(--ink-dim); text-transform:uppercase; }
 .job-now { margin:6px 4px; padding:1px 6px; font-size:10px; font-weight:700; color:#fff; background:#4f46e5; border-radius:4px; }
 .job-ev { display:flex; gap:4px; }

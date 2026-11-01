@@ -16,6 +16,7 @@ import pytest
 
 from app.events import MessageProvenance
 from app.quota_gate import QuotaGateError, evaluate_worker_admission, line_limit
+from app.quota_gate import get_worker_admission as _real_worker_admission
 
 SOURCE_ID, SOURCE_NAME = "src-678", "orch-678"
 TARGET_ID, TARGET_NAME = "tgt-678", "worker-678"
@@ -365,6 +366,108 @@ async def test_initial_task_waits_for_the_gate_and_precedes_direct_messages(env)
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["initial", "direct"])
+@pytest.mark.parametrize("new_model,admitted", [
+    ("hubsol", True), ("hubsonnet", False),
+])
+async def test_model_change_rechecks_held_delivery_with_new_route_policy(
+    env, monkeypatch, configured_hub, kind, new_model, admitted,
+):
+    """V-1056: changing a model is control; delivery must use the new pool's gate.
+
+    Use the real quota/hub decision functions. Only telemetry and the provider
+    submission are fake, so switching hub providers cannot evade a closed pool.
+    """
+    from app import hub_pool, initial_deliveries, quota_gate, quota_queue
+    from app.models import resolve_model
+    from app.routes import sessions as session_routes
+    from app.session import AgentSession
+
+    worker = AgentSession(
+        id=TARGET_ID, name=TARGET_NAME, scope=SCOPE, cwd="/tmp",
+        model=resolve_model("hubluna"), backend_type="hub", task_id="678",
+        branch="task-678/w", worktree_path="/tmp",
+    )
+    env.db.save_session(worker._to_db_dict())
+
+    delivery_id = "00000000-0000-4000-8000-000000001056"
+    if kind == "initial":
+        await initial_deliveries.accept_initial_delivery(
+            delivery_id=delivery_id, session_id=TARGET_ID, worker_name=TARGET_NAME,
+            scope=SCOPE, sender=SOURCE_NAME, message="held task",
+            provenance=MessageProvenance(
+                origin="agent", senders=(SOURCE_NAME,), subtype="initial_delivery",
+                ref=delivery_id,
+            ),
+            quota_wait=env.gate.decision(),
+        )
+
+        def state():
+            return initial_deliveries._delivery_payload(delivery_id)["state"]
+
+        expected_message = "held task"
+    else:
+        await _accept(delivery_id, "held message", parked=True)
+
+        def state():
+            return _states(env.db)[delivery_id]
+
+        expected_message = "[from:x] held message"
+    assert state() == "WAITING_QUOTA"
+
+    capacity = {"claude_usable": 0, "checks": 0}
+
+    async def hub_capacity(**_kwargs):
+        capacity["checks"] += 1
+        # The model change is admitted, then telemetry changes before queue release.
+        claude_usable = 1 if capacity["checks"] == 1 else capacity["claude_usable"]
+        return {"available": True, "providers": {
+            "codex": {"usable": 1, "accounts": 1, "unknown": 0, "threshold_pct": 100.0},
+            "claude": {"usable": claude_usable, "accounts": 1,
+                       "unknown": 0, "threshold_pct": 100.0},
+        }}
+
+    checked = []
+
+    async def admission(model, observation_loader=None):
+        checked.append(model)
+        return await _real_worker_admission(model, observation_loader=observation_loader)
+
+    monkeypatch.setattr(hub_pool, "get_hub_pool", hub_capacity)
+    monkeypatch.setattr(quota_gate, "get_worker_admission", admission)
+    # FakeManager is only the provider sink here; admission is owned by the real releaser.
+    env.gate.open()
+
+    monkeypatch.setattr(
+        session_routes.manager, "ensure_loaded", AsyncMock(return_value=worker), raising=False,
+    )
+    response = await session_routes.change_model(
+        TARGET_NAME, {"scope": SCOPE, "model": new_model, "via": "mcp",
+                      "model_reason": "Creative task on the new hub route"},
+    )
+    await worker._drain_persist()
+    await _drain()
+
+    assert isinstance(response, dict), getattr(response, "body", response)
+    assert response["ok"] is True
+    assert worker.model == resolve_model(new_model)
+    assert capacity["checks"] >= 2
+    assert checked and set(checked) == {resolve_model(new_model)}
+    assert state() == ("SUBMITTED" if admitted else "WAITING_QUOTA")
+    assert env.manager.delivered == ([expected_message] if admitted else [])
+
+    if not admitted:
+        # Recovery uses the saved new model and the same durable delivery identity.
+        capacity["claude_usable"] = 1
+        assert await quota_queue.release_waiting() == 1
+        await _drain()
+        assert state() == "SUBMITTED"
+    assert await quota_queue.release_waiting() == 0
+    await _drain()
+    assert env.manager.delivered == [expected_message]
+
+
+@pytest.mark.asyncio
 async def test_initial_wait_rechecks_current_model_after_change_races_gate_sweep(
     env, monkeypatch,
 ):
@@ -449,3 +552,69 @@ async def test_model_change_immediately_releases_waiting_initial_task(env, monke
     assert checked_models == ["gpt-6-luna"]
     assert env.manager.delivered == ["first task"]
     assert initial_deliveries._delivery_payload(initial_id)["state"] == "SUBMITTED"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("used", [90, 99])
+@pytest.mark.parametrize("table", ["message_deliveries", "initial_deliveries"])
+@pytest.mark.parametrize("orchestrators_first", [False, True])
+async def test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers(env, monkeypatch, table, orchestrators_first, used):
+    """Same-model receipts must not cache a worker's hold for an orchestrator or vice versa."""
+    from app import initial_deliveries, message_deliveries, quota_queue, report_holds
+
+    monkeypatch.setattr(quota_queue, "_release_lock", asyncio.Lock())
+    monkeypatch.setattr(report_holds, "ensure_runner", lambda *_: None)
+    monkeypatch.setattr(initial_deliveries, "ensure_delivery_runner", lambda *_: None)
+    monkeypatch.setattr(message_deliveries, "ensure_target_runner", lambda *_: None)
+    now = time.time()
+    decision = evaluate_worker_admission(
+        "gpt-6.1-sol", {"codex": {"windows": [{
+            "id": "primary", "utilization": used, "window_minutes": 10080,
+            "resets_at": now + 10080 * 60 * .9,
+        }]}}, {"codex": now}, now=now,
+    )
+    assert decision.state == "blocked"
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", AsyncMock(return_value=decision))
+    order = [True, False] if orchestrators_first else [False, True]
+    expected = {}
+    for index, is_orch in enumerate(order):
+        session_id = f"recovery-{index}"
+        delivery_id = IDS[index]
+        record = _record(session_id, session_id, role="orchestrator" if is_orch else "worker")
+        record["model"] = "gpt-6.1-sol"
+        env.db.save_session(record)
+        expected[delivery_id] = "QUEUED" if is_orch else "WAITING_QUOTA"
+        if table == "initial_deliveries":
+            await initial_deliveries.accept_initial_delivery(
+                delivery_id=delivery_id, session_id=session_id, worker_name=session_id,
+                scope=SCOPE, sender=SOURCE_NAME, message="legacy waiting initial turn",
+                provenance=PROV, quota_wait=decision,
+            )
+        else:
+            await message_deliveries.accept_message_delivery(
+                delivery_id=delivery_id, source_scope=SCOPE, target_session_id=session_id, target_name=session_id,
+                target_scope=SCOPE, target_task_id="678", target_generation="legacy-generation",
+                message="legacy waiting instruction", rendered_message="legacy waiting instruction",
+                provenance=PROV, quota_wait=decision,
+            )
+    await message_deliveries.recover_message_deliveries()
+    assert sum(await asyncio.gather(quota_queue.release_waiting(), quota_queue.release_waiting())) == 1
+    with env.db._conn() as connection:
+        actual = {row["delivery_id"]: row["state"] for row in connection.execute(
+            f"SELECT delivery_id, state FROM {table}",
+        )}
+    assert actual == expected
+    assert await quota_queue.release_waiting() == 0
+
+
+@pytest.mark.parametrize("record,expected", [
+    ({"is_orchestrator": True, "role": "custom-lead"}, True),
+    ({"is_orchestrator": False, "role": "orchestrator"}, False),
+    ({"role": "orchestrator"}, True),
+    ({"is_orchestrator": None, "role": "sub-orchestrator"}, True),
+    ({"role": "worker"}, False), ({}, False),
+])
+def test_recovery_uses_explicit_kind_and_legacy_role_fallback(record, expected):
+    from app.quota_queue import _is_orchestrator
+
+    assert _is_orchestrator(record) is expected

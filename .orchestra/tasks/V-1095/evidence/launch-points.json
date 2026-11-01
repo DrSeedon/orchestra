@@ -1,0 +1,2029 @@
+[
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 0,
+    "originalRow": {
+      "model": "Claude Opus 5.5",
+      "usd": 8.82,
+      "score": 0.632,
+      "modelLabel": "Claude Opus 5.5",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 1,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.59,
+      "score": 0.402,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 2,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.84,
+      "score": 0.426,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 3,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 1.72,
+      "score": 0.466,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 4,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 2.5,
+      "score": 0.485,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 5,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 3.58,
+      "score": 0.507,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 6,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 3.55,
+      "score": 0.534,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 7,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 4.82,
+      "score": 0.576,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 8,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 5.15,
+      "score": 0.578,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 9,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 5.91,
+      "score": 0.583,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 10,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 7.24,
+      "score": 0.593,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 11,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.022,
+      "score": 0.363,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 12,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.093,
+      "score": 0.468,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 13,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.087,
+      "score": 0.436,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 14,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.093,
+      "score": 0.479,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 15,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.14,
+      "score": 0.509,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 16,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.7,
+      "score": 0.524,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 17,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 1.31,
+      "score": 0.538,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 18,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 1.45,
+      "score": 0.553,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 19,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 1.45,
+      "score": 0.565,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 20,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 2,
+      "score": 0.586,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 21,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.16,
+      "score": 0.559,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 22,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.29,
+      "score": 0.576,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 23,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.39,
+      "score": 0.572,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 24,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.66,
+      "score": 0.585,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 1,
+    "task": "Agents’ Last Exam v1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+    "originalRowIndex": 25,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 1.01,
+      "score": 0.6,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 0,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.011,
+      "score": 0.749,
+      "modelLabel": "GPT-5.6 Terra",
+      "cost": 0.011,
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 1,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.012,
+      "score": 0.764,
+      "modelLabel": "GPT-5.6 Terra",
+      "cost": 0.012,
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 2,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.014,
+      "score": 0.775,
+      "modelLabel": "GPT-5.6 Terra",
+      "cost": 0.014,
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 3,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.02,
+      "score": 0.787,
+      "modelLabel": "GPT-5.6 Terra",
+      "cost": 0.02,
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 4,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.079,
+      "score": 0.817,
+      "modelLabel": "GPT-5.6 Terra",
+      "cost": 0.079,
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 5,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 0.038,
+      "score": 0.853,
+      "modelLabel": "GPT-6 Astra",
+      "cost": 0.038,
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 6,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 0.039,
+      "score": 0.853,
+      "modelLabel": "GPT-6 Astra",
+      "cost": 0.039,
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 7,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 0.044,
+      "score": 0.864,
+      "modelLabel": "GPT-6 Astra",
+      "cost": 0.044,
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 8,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 0.051,
+      "score": 0.865,
+      "modelLabel": "GPT-6 Astra",
+      "cost": 0.051,
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 9,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 0.065,
+      "score": 0.867,
+      "modelLabel": "GPT-6 Astra",
+      "cost": 0.065,
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 10,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.00049,
+      "score": 0.735,
+      "modelLabel": "GPT-6 Luna",
+      "cost": 0.00049,
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 11,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.00061,
+      "score": 0.751,
+      "modelLabel": "GPT-6 Luna",
+      "cost": 0.00061,
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 12,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.00074,
+      "score": 0.765,
+      "modelLabel": "GPT-6 Luna",
+      "cost": 0.00074,
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 13,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.00095,
+      "score": 0.779,
+      "modelLabel": "GPT-6 Luna",
+      "cost": 0.00095,
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 14,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.0021,
+      "score": 0.799,
+      "modelLabel": "GPT-6 Luna",
+      "cost": 0.0021,
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 15,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.0076,
+      "score": 0.84,
+      "modelLabel": "GPT-6.1 Sol",
+      "cost": 0.0076,
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 16,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.0079,
+      "score": 0.847,
+      "modelLabel": "GPT-6.1 Sol",
+      "cost": 0.0079,
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 17,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.0088,
+      "score": 0.858,
+      "modelLabel": "GPT-6.1 Sol",
+      "cost": 0.0088,
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 18,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.01,
+      "score": 0.858,
+      "modelLabel": "GPT-6.1 Sol",
+      "cost": 0.01,
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 19,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.013,
+      "score": 0.863,
+      "modelLabel": "GPT-6.1 Sol",
+      "cost": 0.013,
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 20,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.0038,
+      "score": 0.837,
+      "modelLabel": "GPT-6.1 Terra",
+      "cost": 0.0038,
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 21,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.0041,
+      "score": 0.846,
+      "modelLabel": "GPT-6.1 Terra",
+      "cost": 0.0041,
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 22,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.0045,
+      "score": 0.85,
+      "modelLabel": "GPT-6.1 Terra",
+      "cost": 0.0045,
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 23,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.0055,
+      "score": 0.854,
+      "modelLabel": "GPT-6.1 Terra",
+      "cost": 0.0055,
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 2,
+    "task": "MMMU-Pro (Vision)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+    "originalRowIndex": 24,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.012,
+      "score": 0.855,
+      "modelLabel": "GPT-6.1 Terra",
+      "cost": 0.012,
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 0,
+    "originalRow": {
+      "model": "Claude Sonnet 5.5",
+      "usd": 0.68,
+      "score": 0.578,
+      "modelLabel": "Claude Sonnet 5.5",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 1,
+    "originalRow": {
+      "model": "Claude Sonnet 5.5",
+      "usd": 0.93,
+      "score": 0.659,
+      "modelLabel": "Claude Sonnet 5.5",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 2,
+    "originalRow": {
+      "model": "Claude Sonnet 5.5",
+      "usd": 1.39,
+      "score": 0.733,
+      "modelLabel": "Claude Sonnet 5.5",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 3,
+    "originalRow": {
+      "model": "Claude Sonnet 5.5",
+      "usd": 2.22,
+      "score": 0.81,
+      "modelLabel": "Claude Sonnet 5.5",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 4,
+    "originalRow": {
+      "model": "Claude Sonnet 5.5",
+      "usd": 5.74,
+      "score": 0.839,
+      "modelLabel": "Claude Sonnet 5.5",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 5,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.44,
+      "score": 0.241,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 6,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.59,
+      "score": 0.274,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 7,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 1.19,
+      "score": 0.377,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 8,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 2.25,
+      "score": 0.484,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 9,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 4.76,
+      "score": 0.571,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 10,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 2.32,
+      "score": 0.633,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 11,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 4.37,
+      "score": 0.754,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 12,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 5.76,
+      "score": 0.783,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 13,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 6.6,
+      "score": 0.79,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 14,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 8.17,
+      "score": 0.809,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 15,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.02,
+      "score": 0.075,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 16,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.079,
+      "score": 0.263,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 17,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.14,
+      "score": 0.397,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 18,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.19,
+      "score": 0.446,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 19,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.3,
+      "score": 0.555,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 20,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.38,
+      "score": 0.609,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 21,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.65,
+      "score": 0.735,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 22,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.9,
+      "score": 0.755,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 23,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.95,
+      "score": 0.759,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 24,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 1.15,
+      "score": 0.78,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 25,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.36,
+      "score": 0.538,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 26,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.5,
+      "score": 0.667,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 27,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.51,
+      "score": 0.687,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 28,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.62,
+      "score": 0.713,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 3,
+    "task": "OSWorld 2.1, offline set",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+    "originalRowIndex": 29,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 1.19,
+      "score": 0.742,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 0,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.055,
+      "score": 0.536,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 1,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.061,
+      "score": 0.515,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 2,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.078,
+      "score": 0.411,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 3,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.11,
+      "score": 0.339,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 4,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 0.25,
+      "score": 0.223,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 5,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 0.26,
+      "score": 0.133,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 6,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 0.29,
+      "score": 0.097,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 7,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 0.43,
+      "score": 0.059,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 8,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 0.55,
+      "score": 0.046,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 9,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 0.66,
+      "score": 0.042,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 10,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.0025,
+      "score": 0.443,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 11,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.0035,
+      "score": 0.312,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 12,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.0047,
+      "score": 0.276,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 13,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.0061,
+      "score": 0.245,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 14,
+    "originalRow": {
+      "model": "GPT-6 Luna",
+      "usd": 0.013,
+      "score": 0.184,
+      "modelLabel": "GPT-6 Luna",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 15,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.048,
+      "score": 0.147,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 16,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.056,
+      "score": 0.12,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 17,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.079,
+      "score": 0.066,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 18,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.099,
+      "score": 0.055,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 19,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.12,
+      "score": 0.044,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 20,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.024,
+      "score": 0.167,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 21,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.029,
+      "score": 0.101,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 22,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.036,
+      "score": 0.077,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 23,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.05,
+      "score": 0.05,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 4,
+    "task": "Factual error rate on difficult prompts (lower is better)",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+    "originalRowIndex": 24,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.12,
+      "score": 0.043,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 0,
+    "originalRow": {
+      "model": "Claude Sonnet 5.5",
+      "usd": 0.62,
+      "score": 0.2,
+      "modelLabel": "Claude Sonnet 5.5",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 1,
+    "originalRow": {
+      "model": "Claude Sonnet 5.5",
+      "usd": 0.68,
+      "score": 0.288,
+      "modelLabel": "Claude Sonnet 5.5",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 2,
+    "originalRow": {
+      "model": "Claude Sonnet 5.5",
+      "usd": 1.46,
+      "score": 0.43,
+      "modelLabel": "Claude Sonnet 5.5",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 3,
+    "originalRow": {
+      "model": "Claude Sonnet 5.5",
+      "usd": 4.34,
+      "score": 0.615,
+      "modelLabel": "Claude Sonnet 5.5",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 4,
+    "originalRow": {
+      "model": "Claude Sonnet 5.5",
+      "usd": 10.44,
+      "score": 0.706,
+      "modelLabel": "Claude Sonnet 5.5",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 5,
+    "originalRow": {
+      "model": "GPT-5.6 Terra",
+      "usd": 5.25,
+      "score": 0.215,
+      "modelLabel": "GPT-5.6 Terra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 6,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 4.93,
+      "score": 0.506,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 7,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 6.06,
+      "score": 0.544,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 8,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 7.18,
+      "score": 0.581,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 9,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 7.45,
+      "score": 0.579,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 10,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 10.34,
+      "score": 0.582,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 11,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 0.76,
+      "score": 0.471,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 12,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 1.02,
+      "score": 0.527,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 13,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 1.28,
+      "score": 0.53,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 14,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 1.28,
+      "score": 0.534,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 15,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 1.98,
+      "score": 0.559,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 16,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.24,
+      "score": 0.248,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 17,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.46,
+      "score": 0.358,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 18,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.65,
+      "score": 0.418,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 19,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.99,
+      "score": 0.464,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 5,
+    "task": "Terminal-Bench 4.0",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+    "originalRowIndex": 20,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 1.84,
+      "score": 0.503,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 0,
+    "originalRow": {
+      "model": "Claude Opus 5.5 w/ fallbacks",
+      "usd": 23.21,
+      "score": 0.633,
+      "modelLabel": "Claude Opus 5.5 w/ fallbacks",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 1,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 11.41,
+      "score": 0.554,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 2,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 12.34,
+      "score": 0.574,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 3,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 14.95,
+      "score": 0.62,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 4,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 15.76,
+      "score": 0.609,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 5,
+    "originalRow": {
+      "model": "GPT-6 Astra",
+      "usd": 23.8,
+      "score": 0.681,
+      "modelLabel": "GPT-6 Astra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 6,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 1.79,
+      "score": 0.437,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 7,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 2.34,
+      "score": 0.476,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 8,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 2.76,
+      "score": 0.511,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 9,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 2.89,
+      "score": 0.537,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 10,
+    "originalRow": {
+      "model": "GPT-6.1 Sol",
+      "usd": 5.47,
+      "score": 0.57,
+      "modelLabel": "GPT-6.1 Sol",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 11,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.47,
+      "score": 0.243,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Low",
+      "order": 0
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 12,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 0.95,
+      "score": 0.343,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Medium",
+      "order": 1
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 13,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 1.24,
+      "score": 0.397,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "High",
+      "order": 2
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 14,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 1.72,
+      "score": 0.434,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Xhigh",
+      "order": 3
+    }
+  },
+  {
+    "chart": 6,
+    "task": "Terminal-Bench-Science 0.1",
+    "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+    "originalRowIndex": 15,
+    "originalRow": {
+      "model": "GPT-6.1 Terra",
+      "usd": 4.15,
+      "score": 0.583,
+      "modelLabel": "GPT-6.1 Terra",
+      "effortLabel": "Max",
+      "order": 4
+    }
+  }
+]

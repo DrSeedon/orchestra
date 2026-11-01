@@ -1,0 +1,19 @@
+[
+  {
+    "role": "user",
+    "content": "Can I send back the filter pack from order 5008? We never opened it."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5008', 'reason': 'other'}",
+    "name": "main.start_return"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"created\": false, \"reason\": \"Final sale items cannot be returned.\", \"instruction\": \"No return was created. Tell the customer which rule applies. There are no exceptions.\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"created\": false, \"reason\": \"Final sale items cannot be returned.\", \"instruction\": \"No return was created. Tell the customer which rule applies. There are no exceptions.\"}\n---\nname: returns\ndescription: Return policy and how to start a return. Load when a customer wants to return or send back an item, or asks whether they can.\n---\n\n# Returns\n\nStart a return with `start_return`. The tool checks the policy itself and refuses when an\norder does not qualify, so there is no separate eligibility step.\n\nThe policy, so you can explain an outcome:\n\n- Items can be returned within 30 days of delivery.\n- Final sale items cannot be returned.\n- An order that has not been delivered cannot be returned yet.\n\nThere are no exceptions. If a customer asks for one, say plainly that you can't and which\nrule applies.\n\nPick the closest reason from what the customer already said: `too_small`, `too_large`,\n`changed_mind`, `defective`, `other`. Only ask when they gave no hint.\n\nWhen a return depends on something else, such as \"send it back if my other order is late\",\nsettle that question first with the right tool, then act on the answer.\n\nOnce the return exists, give the customer the RMA id and the label link."
+  }
+]

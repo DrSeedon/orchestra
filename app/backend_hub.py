@@ -10,6 +10,7 @@ all files.
 
 import asyncio
 import contextlib
+import dataclasses
 import logging
 import os
 import re
@@ -40,13 +41,17 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
 }
 TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
 WAIT_SLICE_MS = 4_000   # also the poll interval of the live activity feed
+NO_WORK_RETRIES = 2
+# Count UTF-16 units conservatively for the hub's JavaScript message schema.
+HUB_MESSAGE_MAX_UNITS = 120_000
 
 PREAMBLE_BASE = (
     "You are a worker on a remote machine. Your current directory is a private copy of a "
     "repository (no .git, no remote). Edit files in place with your normal tools; when you "
     "finish, the platform copies every changed file back and commits it, so do not run git "
     "push/clone/commit, do not look for credentials or tokens (there are none), and do not "
-    "create files outside this directory. Run tests that work offline. End with a concise "
+    "create files outside this directory except uv's own cache as described below. "
+    "Tests themselves must work offline. End with a concise "
     "report: what you changed, what you ran and its result, anything unfinished.\n\n"
 )
 
@@ -55,7 +60,7 @@ OUTBOX_SECTION = (
     "<orchestra-link>\n"
     "## Reaching Orchestra (optional)\n"
     "You have no Orchestra tools. To reach it, append one JSON object per line to "
-    f"`{OUTBOX_NAME}` in the root of this directory; the platform runs the lines when your turn "
+    f"`{OUTBOX_NAME}` in the root of this copy (not inside `.orchestra/`); the platform runs the lines when your turn "
     "ends. It is not part of your result and no answer arrives during this turn. Only these exist:\n"
     "{send_line}"
     '- `{{"tool":"update_progress","args":{{"percent":40,"status":"short phase description"}}}}`\n'
@@ -91,8 +96,8 @@ def hub_preamble(who, task_ref: str = "", *, has_link: bool = False) -> str:
     if has_link:
         send = (f'- `{{"tool":"send_message","args":{{"message":"..."}}}}` goes to your orchestrator '
                 f'{parent} only; any "to" is ignored\n') if parent else ""
-        link = OUTBOX_SECTION.replace("{send_line}", send).replace("{{", "{").replace("}}", "}")
-    return f"{role}{where}{link}Task:\n"
+        link = OUTBOX_SECTION.replace("{{", "{").replace("}}", "}").replace("{send_line}", send)
+    return f"{role}{hw.HUB_UV_INSTRUCTIONS}{where}{link}Task:\n"
 
 
 _slots: asyncio.Semaphore | None = None
@@ -126,6 +131,56 @@ class HubProviderLimit(hw.HubWorkspaceError):
     """Provider refused this turn because a usage or rate limit was reached."""
 
 
+class _RunEvidence:
+    """Run-scoped evidence; incomplete activity must never authorize replaying work."""
+
+    def __init__(self, run_id: str):
+        self.run_id = run_id
+        self.reasons: list[str] = []
+        self.limit: str | None = None
+        self.tool_activity = False
+        self.activity_complete = True
+
+    def failure(self, value: object) -> None:
+        self.limit = self.limit or _provider_limit(value)
+        if isinstance(value, dict):
+            for key in ("error", "errorMessage", "lastError", "failureReason", "reason", "message", "code"):
+                self.failure(value.get(key))
+        elif isinstance(value, list):
+            for part in value:
+                self.failure(part)
+        elif isinstance(value, str) and value.strip() and value not in self.reasons:
+            self.reasons.append(value.strip())
+
+    def page(self, page: object) -> None:
+        if not isinstance(page, dict):
+            return
+        # T3 currently returns recentRuns; also accept the runs field our client used.
+        for run in (page.get("recentRuns") or []) + (page.get("runs") or []):
+            if isinstance(run, dict) and (run.get("runId") or run.get("id")) == self.run_id:
+                self.failure(run)
+        thread = page.get("thread")
+        if (isinstance(thread, dict) and thread.get("latestRunId") == self.run_id
+                and thread.get("status") in {"failed", "cancelled", "rolled_back"}):
+            self.failure(thread)
+        for item in page.get("items") or []:
+            if not isinstance(item, dict) or item.get("runId") != self.run_id:
+                continue
+            kind = str(item.get("type", "")).lower()
+            # This broker-generated item is present before the provider starts.
+            preparation = ":native-item:workspace-preparation" in str(item.get("itemId", ""))
+            if not preparation and any(word in kind for word in (
+                    "tool", "command", "file_change", "file_edit", "web_search", "image_generation")):
+                self.tool_activity = True
+            if item.get("status") == "failed" or "error" in kind:
+                self.failure(item)
+                self.failure(item.get("text"))
+                self.failure(item.get("title"))
+
+    def description(self) -> str:
+        return "hub reason: " + "; ".join(self.reasons) if self.reasons else "no reason exposed by hub"
+
+
 def _provider_limit(value: object, *, failed: bool = True) -> str | None:
     """Extract a safe limit category, without forwarding provider account identifiers."""
     if isinstance(value, dict):
@@ -157,6 +212,8 @@ def _provider_limit(value: object, *, failed: bool = True) -> str | None:
 
 def _workspace_lost(exc: Exception) -> bool:
     """The hub says the project it was asked to start in does not exist (any more)."""
+    if isinstance(exc, MultiCodeError) and (exc.retryable or exc.invalid_params):
+        return False
     text = str(exc).lower()
     return "orchestration_error" in text or "not_found" in text or "not found" in text
 
@@ -215,6 +272,9 @@ class HubBackend:
         self._turn_started: float | None = None
         self._watch_status = ''
         self._watch_limit: str | None = None
+        self._run_evidence: _RunEvidence | None = None
+        self._sync_no_work = False
+        self._uv_ready = False
 
     @property
     def session_id(self) -> Optional[str]:
@@ -277,10 +337,15 @@ class HubBackend:
         state, run_id = self._state, self._run_id
         if state and state.thread_id and run_id:
             try:
-                await (await self._client()).tool_call("t3_thread_send", {
-                    "threadId": state.thread_id, "message": message, "mode": "steer"})
+                await hw.check_workspace_file_policy(self._ssh, state)
+                mc = await self._client()
+                wire = await self._wire_message(mc, state, message)
+                await mc.tool_call("t3_thread_send", {
+                    "threadId": state.thread_id, "message": wire, "mode": "steer"})
                 return
             except MultiCodeError as exc:
+                if exc.retryable or exc.invalid_params:
+                    raise  # Delivery may have succeeded; do not queue the same steer again.
                 logger.warning("hub steer failed, queuing instead: %s", exc)
         self._early_steer.append(message)
 
@@ -292,6 +357,8 @@ class HubBackend:
             raise ValueError(f"unknown hub model '{model}'")
         if self._turn_active:
             raise RuntimeError("cannot retarget a hub worker while a turn is active")
+        if self._state is not None:
+            await hw.check_workspace_file_policy(self._ssh, self._state)
         from app.hub_pool import require_hub_capacity
 
         await require_hub_capacity(model)
@@ -311,6 +378,8 @@ class HubBackend:
                     "threadId": state.thread_id,
                     "modelSelection": selection})
             except MultiCodeError as exc:
+                if exc.retryable or exc.invalid_params:
+                    raise
                 logger.warning("hub thread re-configure refused (%s); next turn starts a new thread", exc)
                 state.thread_id = ""
                 state.save()
@@ -388,6 +457,11 @@ class HubBackend:
         from app.hub_pool import require_hub_capacity
         from app.quota_gate import QuotaGateError
 
+        # Check retained evidence before replacing a released record or cleaning
+        # up an older workspace. A new thread must not erase the incident trail.
+        options = hw.project_options(self._scope)
+        retained = hw.states_for_worktree(self.cwd)
+        quarantined = self._quarantine(options, retained)
         try:
             warning = await require_hub_capacity(self.model)
         except QuotaGateError as exc:
@@ -398,6 +472,16 @@ class HubBackend:
         mc = await self._client()
         ssh = self._ssh
         assert ssh is not None
+        for previous in retained:
+            if previous.remote_dir and previous.ws_id not in quarantined:
+                try:
+                    await hw.check_workspace_file_policy(ssh, previous)
+                except hw.HubFilePolicyError:
+                    if not self._may_quarantine(options, previous):
+                        raise
+                    quarantined.add(previous.ws_id)
+        if self._state is not None and self._state.ws_id in quarantined:
+            self._state = None   # never resume a refused record or its thread
         known = hw.known_secret_values([getattr(mc, "_token", "")])
         root = Path(self.cwd)
         state = self._state
@@ -410,25 +494,47 @@ class HubBackend:
             state = hw.WorkspaceState(
                 ws_id=hw.WorkspaceState.new_id(), worktree=str(root.resolve()), remote_dir="")
             state.remote_dir = await ssh.dir_for(state.ws_id)
+            if quarantined or options.clean_start:
+                # Owner-requested clean start: a new generation that never reads the warm base, beside
+                # untouched records (if any). Also a brand-new worktree with only a poisoned base.
+                await ssh.assert_fresh_target(state.remote_dir)
+                state.clean_start, state.clean_start_of = True, sorted(quarantined)
+                yield AgentEvent("status", "hub: clean start - a new workspace is created; earlier "
+                                           "records and the persistent base are not reused or touched")
             self._state = state
             state.save()   # before any hub write, so a crash leaves a record the sweep can release
+            try:
+                await release_for_worktree(self.cwd, keep_ws_id=state.ws_id, ssh=ssh, mc=mc,
+                                           skip=frozenset(quarantined))
+            except hw.HubFilePolicyError:
+                raise
+            except Exception as exc:
+                logger.warning("hub previous workspace release incomplete (state kept for sweep): %s", exc)
         # A record exists from the first attempt on, but the workspace only from the first upload that
         # reached the hub: a turn that failed before it (e.g. tree too large) must retry as a first upload.
         fresh = not (state.uploaded or state.manifest)
         state.paths = self._current_paths(state)
-        options = hw.project_options(self._scope)
+        if state.clean_start:
+            # Never the warm base (it descends from the contaminated copy), and always an explicit scope.
+            options = dataclasses.replace(options, persistent=False)
         hw.require_scope(state.paths, options)
+        if self._bridge is not None:
+            identity = self._bridge.identity()
+            if identity.base_branch:
+                note = await asyncio.to_thread(hw.refresh_source, root, identity.branch, identity.base_branch)
+                if note:
+                    yield AgentEvent("status", note)
         plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
         yield AgentEvent("status", self._upload_note(fresh, plan))
         scratch = hw.local_scratch()
         try:
             for note in await self._provision(mc, ssh, root, state, plan, options, fresh, scratch):
                 yield AgentEvent("status", note)
+            steer_count = len(self._early_steer)
             prompt = self._prompt(message, first=not state.thread_id)
-            prompt = _redact_history(prompt, known)
-            hw.assert_no_secret(prompt, known, "the task prompt")
             async with _turn_slots():
                 try:
+                    await hw.check_workspace_file_policy(ssh, state)
                     run_id = await self._start(mc, state, prompt)
                 except MultiCodeError as exc:
                     if not _workspace_lost(exc):
@@ -445,38 +551,103 @@ class HubBackend:
                     plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
                     for note in await self._provision(mc, ssh, root, state, plan, options, True, scratch):
                         yield AgentEvent("status", note)
-                    run_id = await self._start(mc, state, first_prompt)
-                self._run_id = run_id
-                stream = HubActivityStream(run_id, state.activity_pos or None)
-                async for event in self._watch(mc, state.thread_id, run_id, stream):
-                    yield _relative(event, state.remote_dir)
-                status = self._watch_status
-                reply = await self._read_reply(mc, state.thread_id, run_id)
-                for event in stream.finish(reply):
-                    yield _relative(event, state.remote_dir)
-                state.activity_pos = stream.cursor or 0
-                state.save()
-            try:
-                sync = await self._sync_back(ssh, state, root, scratch)
-            except (hw.HubWorkspaceError, OSError, tarfile.TarError) as exc:
-                sync = f"[hub sync FAILED: {exc}] the hub copy {state.ws_id} is kept for a retry"
-            text = reply or f"(hub thread ended with status {status} without a reply)"
-            yield AgentEvent("text", f"{text}\n\n{sync}".strip())
-            limit = self._watch_limit or _provider_limit(reply, failed=status == "failed")
-            if limit:
-                raise HubProviderLimit(limit)
-            if status in {"failed", "cancelled", "rolled_back"}:
-                raise hw.HubWorkspaceError(f"hub thread ended with status {status}")
+                    prompt = first_prompt
+                    run_id = await self._start(mc, state, prompt)
+                # Only acknowledge the snapshot included in the accepted turn. Steers
+                # arriving during upload/start belong to the following turn.
+                del self._early_steer[:steer_count]
+                for attempt in range(NO_WORK_RETRIES + 1):
+                    self._run_id = run_id
+                    self._watch_limit = None
+                    evidence = self._run_evidence = _RunEvidence(run_id)
+                    stream = HubActivityStream(run_id, state.activity_pos or None)
+                    async for event in self._watch(mc, state.thread_id, run_id, stream):
+                        yield _relative(event, state.remote_dir)
+                    status = self._watch_status
+                    reply = await self._read_reply(mc, state.thread_id, run_id)
+                    for event in stream.finish(reply):
+                        yield _relative(event, state.remote_dir)
+                    state.activity_pos = stream.cursor or 0
+                    state.save()
+                    self._sync_no_work = False
+                    sync_error = None
+                    try:
+                        sync = await self._sync_back(ssh, state, root, scratch)
+                    except (hw.HubWorkspaceError, OSError, tarfile.TarError) as exc:
+                        sync = f"[hub sync FAILED: {exc}] the hub copy {state.ws_id} is kept for a retry"
+                        sync_error = sync
+                    failure = f"hub thread ended with status {status}; {evidence.description()}"
+                    text = reply or f"(hub thread ended with status {status} without a reply)"
+                    if not reply and status in {"failed", "cancelled", "rolled_back"}:
+                        text += f"\n{evidence.description()}"
+                    yield AgentEvent("text", f"{text}\n\n{sync}".strip())
+                    limit = self._watch_limit or evidence.limit or _provider_limit(reply, failed=status == "failed")
+                    if limit:
+                        raise HubProviderLimit(limit)
+                    if sync_error:
+                        raise hw.HubWorkspaceError(sync_error)
+                    if (status in {"failed", "cancelled"} and not reply and not self._abort
+                            and not evidence.tool_activity and evidence.activity_complete
+                            and self._sync_no_work and attempt < NO_WORK_RETRIES):
+                        delay = attempt + 1
+                        note = (f"hub: {failure}; no work detected; retry {attempt + 1}/{NO_WORK_RETRIES} "
+                                f"on the same thread in {delay}s")
+                        logger.warning("%s", note)
+                        yield AgentEvent("status", note)
+                        await asyncio.sleep(delay)
+                        if self._abort:
+                            return
+                        # Never use _start here: its refused-thread fallback can change threads.
+                        # An uncertain send is propagated, never replayed.
+                        await hw.check_workspace_file_policy(ssh, state)
+                        wire = await self._wire_message(mc, state, prompt)
+                        sent = await mc.tool_call("t3_thread_send", {
+                            "threadId": state.thread_id, "message": wire, "mode": "auto"})
+                        if not isinstance(sent, dict) or not sent.get("runId"):
+                            raise MultiCodeError("MultiCode retry send returned no runId")
+                        run_id = sent["runId"]
+                        continue
+                    if status in {"failed", "cancelled", "rolled_back"}:
+                        raise hw.HubWorkspaceError(failure)
+                    break
         finally:
             self._run_id = None
             hw.rmtree_quiet(scratch)
+
+    def _may_quarantine(self, options: hw.ProjectOptions, old: hw.WorkspaceState) -> bool:
+        """Refused records may be stepped around only for a clean start: the owner's project option, or the
+        persisted authorization of the clean generation being resumed. A clean generation is never exempt."""
+        if old.clean_start:
+            return False
+        current = self._state
+        return options.clean_start or bool(current and current.clean_start and old.ws_id in current.clean_start_of)
+
+    def _quarantine(self, options: hw.ProjectOptions, retained: list[hw.WorkspaceState]) -> set[str]:
+        """Local verdicts only (no hub call): ids of records refused by the file policy and stepped around."""
+        found: set[str] = set()
+        for old in ([self._state] if self._state is not None else []) + retained:
+            try:
+                old.assert_file_policy()
+            except hw.HubFilePolicyError:
+                if not self._may_quarantine(options, old):
+                    raise
+                found.add(old.ws_id)
+        return found
 
     async def _provision(self, mc: MultiCodeClient, ssh: hw.HubSsh, root: Path, state: hw.WorkspaceState,
                          plan: hw.UploadPlan, options: hw.ProjectOptions, fresh: bool, scratch: Path) -> list[str]:
         """Bring the hub copy up to date with the worktree and make sure the hub project exists."""
         notes: list[str] = []
+        hw.assert_file_policy(plan.manifest)
+        await hw.check_workspace_file_policy(ssh, state)
+        # Freeze old upload provenance before refreshing the mutable sync baseline.
+        hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+        self._uv_ready = False
+        if {"pyproject.toml", "uv.lock"} <= plan.manifest.keys():
+            await ssh.ensure_uv(scratch)
+            self._uv_ready = True
         tar_path = scratch / "in.tar"
-        if fresh and options.persistent:
+        if fresh and options.persistent and not state.clean_start:
             sent, dropped = await hw.provision_from_base(ssh, root, self._scope, plan, state.remote_dir)
             notes.append(f"hub: persistent project copy reused ({sent} changed files sent, {dropped} removed)")
             state.manifest = dict(plan.manifest)
@@ -490,6 +661,11 @@ class HubBackend:
             state.save()
         else:
             send, drop = hw.local_delta(root, plan, state.manifest, keep=set(state.hub_made))
+            if send or drop:
+                snapshot = scratch / "before-refresh.tar"
+                await ssh.get(state.remote_dir, snapshot)
+                await asyncio.to_thread(hw.check_refresh, snapshot, state.manifest, plan,
+                                        send, drop, state.input_manifest or {})
             if send:
                 await asyncio.to_thread(hw.write_tar, root, send, tar_path)
                 await ssh.put(state.remote_dir, tar_path)
@@ -525,10 +701,10 @@ class HubBackend:
 
     def _prompt(self, message: str, *, first: bool) -> str:
         parts = list(self._early_steer) + [message]
-        self._early_steer = []
         body = "\n\n".join(parts)
         if not first:
-            return body
+            # Also update a thread that predates uv provisioning, or resumed without PATH.
+            return (hw.HUB_UV_INSTRUCTIONS if self._uv_ready else "") + body
         return self._preamble() + body
 
     def _preamble(self) -> str:
@@ -536,23 +712,55 @@ class HubBackend:
         who = self._bridge.identity() if self._bridge is not None else None
         return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None)
 
+    async def _wire_message(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
+        known = hw.known_secret_values([getattr(mc, "_token", "")])
+        prompt = _redact_history(prompt, known)
+        hw.assert_no_secret(prompt, known, "the task prompt")
+        units = len(prompt.encode("utf-16-le", errors="surrogatepass")) // 2
+        if units <= HUB_MESSAGE_MAX_UNITS:
+            return prompt
+        if self._ssh is None:
+            raise hw.HubWorkspaceError("hub workspace transport is unavailable for the task prompt")
+        data = prompt.encode("utf-8")
+        scratch = hw.local_scratch()
+        try:
+            rel = await self._ssh.put_prompt(state.remote_dir, data, scratch)
+        finally:
+            hw.rmtree_quiet(scratch)
+        logger.info("hub message via workspace: %d UTF-16 units, %d UTF-8 bytes", units, len(data))
+        return (
+            f"Read ./{rel} in full before acting. It is the complete message for this turn "
+            f"({len(data)} UTF-8 bytes), delivered through the private workspace because it "
+            "exceeds the hub message field limit. Read in chunks if needed; follow all its "
+            "instructions and preserve their order. Do not edit this broker input file."
+        )
+
     async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
         # A reconstructed backend can resume a thread created with an older effort.
         selection = await self._model_selection(mc, self.model, self._effort)
         if state.thread_id:
             try:
+                wire = await self._wire_message(mc, state, prompt)
                 if self._effort is not None:
                     await mc.tool_call("t3_thread_configure", {
                         "threadId": state.thread_id, "modelSelection": selection})
                 sent = await mc.tool_call("t3_thread_send", {
-                    "threadId": state.thread_id, "message": prompt, "mode": "auto"})
-                return sent["runId"]
-            except (MultiCodeError, KeyError, TypeError) as exc:
+                    "threadId": state.thread_id, "message": wire, "mode": "auto"})
+            except MultiCodeError as exc:
+                # Delivery is uncertain on transport errors. Launching again can duplicate work.
+                if exc.retryable or exc.invalid_params:
+                    raise
                 logger.warning("hub thread %s unusable (%s); starting a new one", state.thread_id, exc)
-                state.thread_id = ""
-                prompt = self._preamble() + prompt
+                preamble = self._preamble()
+                if not prompt.startswith(preamble):
+                    prompt = preamble + prompt
+            else:
+                if not isinstance(sent, dict) or not sent.get("runId"):
+                    raise MultiCodeError("MultiCode send returned no runId")
+                return sent["runId"]
+        wire = await self._wire_message(mc, state, prompt)
         launched = await mc.tool_call("t3_thread_launch", {
-            "title": f"{state.ws_id}", "projectId": state.project_id, "message": prompt,
+            "title": f"{state.ws_id}", "projectId": state.project_id, "message": wire,
             "runtimeMode": "full-access",
             "modelSelection": selection,
         })
@@ -571,7 +779,7 @@ class HubBackend:
         limit = float(os.environ.get("MULTICODE_HUB_TURN_TIMEOUT_S", "14400"))
         deadline = time.monotonic() + limit
         while True:
-            waited = await mc.tool_call("t3_thread_wait", {
+            waited = await self._watch_call(mc, "t3_thread_wait", {
                 "threadId": thread_id, "runId": run_id, "timeoutMs": WAIT_SLICE_MS})
             status = waited.get("status", "") if isinstance(waited, dict) else ""
             status_limit = _provider_limit(status)
@@ -579,6 +787,8 @@ class HubBackend:
             for event in await self._poll(mc, thread_id, stream):
                 yield event
             if terminal:
+                if self._run_evidence is not None:
+                    self._run_evidence.failure(waited)
                 self._watch_limit = self._watch_limit or status_limit or _provider_limit(waited)
                 self._watch_status = status
                 return
@@ -590,6 +800,26 @@ class HubBackend:
                     await mc.tool_call("t3_thread_interrupt", {"threadId": thread_id})
                 raise MultiCodeError("hub thread exceeded the turn time limit")
 
+    async def _watch_call(self, mc: MultiCodeClient, name: str, arguments: dict):
+        """Bounded recovery for read calls only; never replay a send or launch here."""
+        last_error = None
+        try:
+            async with asyncio.timeout(60):
+                for attempt in range(5):
+                    try:
+                        return await mc.tool_call(name, arguments)
+                    except MultiCodeError as exc:
+                        if not exc.retryable or attempt == 4 or self._abort:
+                            raise
+                        last_error = exc
+                        delay = 2 ** attempt
+                        logger.warning("hub %s failed; retrying in %ss: %s", name, delay, exc)
+                        await asyncio.sleep(delay)
+        except TimeoutError:
+            if last_error is not None:
+                raise last_error from None
+            raise MultiCodeError("hub watch request exceeded 60 seconds", retryable=True) from None
+
     async def _poll(self, mc: MultiCodeClient, thread_id: str, stream: HubActivityStream) -> list[AgentEvent]:
         """New timeline items since the cursor. A failed poll only loses live detail, never the turn."""
         events: list[AgentEvent] = []
@@ -598,30 +828,52 @@ class HubBackend:
                 args = {"threadId": thread_id, "view": "activity", "limit": 100, "maxCharsPerItem": 6000}
                 if stream.cursor is not None:
                     args["afterPosition"] = stream.cursor
-                page = await mc.tool_call("t3_thread_read", args)
+                page = await self._watch_call(mc, "t3_thread_read", args)
+                if self._run_evidence is not None:
+                    self._run_evidence.page(page)
+                    if not isinstance(page, dict) or not isinstance(page.get("items"), list):
+                        self._run_evidence.activity_complete = False
                 items = page.get("items", []) if isinstance(page, dict) else []
                 events.extend(stream.feed(items))
                 if not (isinstance(page, dict) and page.get("hasMore")) or not items:
+                    if isinstance(page, dict) and page.get("hasMore") and self._run_evidence is not None:
+                        self._run_evidence.activity_complete = False
                     break
+            else:
+                if self._run_evidence is not None:
+                    self._run_evidence.activity_complete = False
         except MultiCodeError as exc:
+            if self._run_evidence is not None:
+                self._run_evidence.activity_complete = False
             logger.warning("hub activity poll failed: %s", exc)
         return events
 
     async def _read_reply(self, mc: MultiCodeClient, thread_id: str, run_id: str) -> str:
-        read = await mc.tool_call("t3_thread_read", {
+        read = await self._watch_call(mc, "t3_thread_read", {
             "threadId": thread_id, "view": "messages", "limit": 100})
         if isinstance(read, dict):
-            for run in read.get("runs") or []:
+            if self._run_evidence is not None:
+                self._run_evidence.page(read)
+            for run in (read.get("recentRuns") or []) + (read.get("runs") or []):
                 if isinstance(run, dict) and (run.get("id") or run.get("runId")) == run_id:
                     self._watch_limit = self._watch_limit or _provider_limit(run)
         return _last_assistant_text(read, run_id) or ""
 
     async def _sync_back(self, ssh: hw.HubSsh, state: hw.WorkspaceState, root: Path,
                          scratch: Path) -> str:
+        await hw.check_workspace_file_policy(ssh, state)
         out = scratch / "out.tar"
         await ssh.get(state.remote_dir, out)
         before = dict(state.manifest)
-        result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest)
+        hw.capture_inputs(root, state, state.manifest)
+        result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest,
+                                        inputs=state.input_manifest)
+        if any(hw._company_path(rel) for rel, _ in result.rejected):
+            # The snapshot is new evidence, including if someone later removes
+            # the file. Preserve it as a latch without rewriting old provenance.
+            state.file_policy_blocked = True
+        no_work = not (result.changed or result.deleted or result.conflicts
+                       or result.rejected or result.outbox or result.manifest != before)
         state.manifest = result.manifest
         state.hub_made = sorted((set(state.hub_made) | {r for r, d in result.manifest.items()
                                                          if before.get(r) != d}) & set(result.manifest))
@@ -638,6 +890,8 @@ class HubBackend:
         state.save()
         lines = [f"[hub sync] changed {len(result.changed)}, deleted {len(result.deleted)}"
                  + (f", commit {commit}" if commit else "")]
+        lines.append(f"return archive {out.stat().st_size} bytes; "
+                     f"transport limit {hw.MAX_TOTAL_BYTES * 2} bytes; workspace {state.ws_id}")
         if outbox_line:
             lines.append(outbox_line)
         if unstaged:
@@ -648,6 +902,7 @@ class HubBackend:
                          + ", ".join(result.conflicts[:20]))
         if result.rejected:
             lines.append("rejected: " + "; ".join(f"{p} ({why})" for p, why in result.rejected[:20]))
+        self._sync_no_work = no_work
         return "\n".join(lines)
 
     async def _run_outbox(self, ssh: hw.HubSsh, state: hw.WorkspaceState, data: bytes) -> str:
@@ -710,17 +965,20 @@ class HubBackend:
             project_docs=getattr(prepared, "project_docs", ()), mcp_servers={})
 
 
-async def release_for_worktree(worktree: str) -> list[str]:
-    """Remove every hub workspace that belongs to this worktree (worker killed or merged).
+async def release_for_worktree(worktree: str, *, keep_ws_id: str = "",
+                               ssh: hw.HubSsh | None = None, mc=None,
+                               skip: frozenset[str] = frozenset()) -> list[str]:
+    """Remove the worktree's hub workspaces, optionally keeping its replacement.
+    Supplied transports belong to the caller and are not closed here.
     Returns the workspace ids that were cleaned; a failure is raised after the rest ran."""
-    states = hw.states_for_worktree(worktree)
+    states = [state for state in hw.states_for_worktree(worktree) if state.ws_id != keep_ws_id and state.ws_id not in skip]
     if not states:
         return []
     cleaned: list[str] = []
     errors: list[str] = []
-    ssh = hw.HubSsh.from_env()
-    mc = None
-    if hub_configured() is None:
+    ssh = ssh or hw.HubSsh.from_env()
+    owns_client = mc is None and hub_configured() is None
+    if owns_client:
         mc = MultiCodeClient.from_env()
         await mc.__aenter__()
     try:
@@ -728,10 +986,12 @@ async def release_for_worktree(worktree: str) -> list[str]:
             try:
                 await hw.release_workspace(state, ssh, mc)
                 cleaned.append(state.ws_id)
+            except hw.HubFilePolicyError:
+                raise
             except hw.HubWorkspaceError as exc:
                 errors.append(f"{state.ws_id}: {exc}")
     finally:
-        if mc is not None:
+        if owns_client:
             await mc.__aexit__(None, None, None)
     if errors:
         raise hw.HubWorkspaceError("; ".join(errors))
@@ -748,11 +1008,12 @@ def _all_states() -> list[hw.WorkspaceState]:
             if (st := hw.WorkspaceState.load(p.stem)) is not None]
 
 
-async def sweep_orphans(live_worktrees: set[str], *, min_age: float = ORPHAN_MIN_AGE_S) -> dict:
+async def sweep_orphans(live_worktrees: set[str] | dict[str, str], *, min_age: float = ORPHAN_MIN_AGE_S) -> dict:
     """Release hub workspaces whose worker is gone, and hub leftovers that have no local record.
 
-    A workspace belongs to a live worker when its worktree is still registered for a session, so
-    an idle-but-alive worker keeps its copy. Hub-side debris (directories and projects under
+    The mapping identifies each worktree's current workspace; older copies of a live worker
+    are orphans too. Legacy set callers provide no ownership information, so keep their live
+    copies conservatively. Hub-side debris (directories and projects under
     our root with no record) is removed only when older than `min_age`, which is longer than any
     upload, because the record is written before the first hub write."""
     report: dict = {"released": [], "remote_dirs": [], "projects": [], "kept": 0, "errors": []}
@@ -762,10 +1023,14 @@ async def sweep_orphans(live_worktrees: set[str], *, min_age: float = ORPHAN_MIN
             report["errors"].append(hub_configured())
         return report
     live = {os.path.realpath(p) for p in live_worktrees if p}
+    current = ({os.path.realpath(p): ws_id for p, ws_id in live_worktrees.items() if p}
+               if isinstance(live_worktrees, dict) else None)
     ssh = hw.HubSsh.from_env()
     async with MultiCodeClient.from_env() as mc:
         for state in states:
-            if os.path.realpath(state.worktree) in live and Path(state.worktree).is_dir():
+            worktree = os.path.realpath(state.worktree)
+            if (worktree in live and Path(state.worktree).is_dir()
+                    and (current is None or current.get(worktree) == state.ws_id)):
                 report["kept"] += 1
                 continue
             try:

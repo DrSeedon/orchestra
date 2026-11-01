@@ -34,6 +34,7 @@ from mcp.types import CallToolResult, TextContent
 # Единственный владелец правила «ошибка обязана назвать себя». Модуль на голой
 # stdlib — этот процесс запускается как СКРИПТ (runtime_env: python mcp_stdio.py)
 # и ничего больше из app/ не тянет.
+from app import bg_progress
 from app.errtext import err_text
 from app.tool_scoping import parse_disabled_tools
 
@@ -89,6 +90,7 @@ def publish_mcp_identity_canary(environ: dict[str, str] | None = None) -> Path |
 READ_ONLY_MCP_TOOLS = frozenset({
     "test_lock_status",
     "list_agents",
+    "list_pending_deliveries",
     "list_orchestrators",
     "get_worker_logs",
     "search_logs",
@@ -497,6 +499,10 @@ def _response_error(
         details["server"] = _safe_detail(server_details)
     elif response.text:
         details["response_body"] = _safe_response_text(response.text)
+    delivery_id = body.get("delivery_id") or server_error.get("delivery_id")
+    if delivery_id:
+        details["delivery_id"] = delivery_id
+        message += f"; delivery_id={delivery_id}"
     return ApiToolError(
         code=code,
         message=message,
@@ -506,7 +512,7 @@ def _response_error(
         retry_after_seconds=retry_after,
         outcome_unknown=outcome_unknown,
         details=details,
-        result=body.get("result"),
+        result=body.get("result") or (body if delivery_id else None),
     )
 
 
@@ -592,7 +598,15 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
 
     if response.status_code >= 400:
         raise _response_error(method, path, response, payload, request_id)
-    if isinstance(payload, dict) and payload.get("error") is not None:
+    # Delivery receipts carry their durable state/error even after acceptance.
+    # Treating that error as an HTTP failure discards the id and quota ETA.
+    accepted_delivery = (
+        isinstance(payload, dict)
+        and payload.get("ok") is True
+        and bool(payload.get("delivery_id"))
+        and bool(payload.get("delivery_state"))
+    )
+    if isinstance(payload, dict) and payload.get("error") is not None and not accepted_delivery:
         raise _response_error(method, path, response, payload, request_id)
     return payload
 
@@ -720,9 +734,11 @@ def _delivery_receipt_text(
     # терминальный отказ до отправки. «Task accepted» на нём — молчаливая потеря:
     # воркер создан и стоит без задания, а спавнящий читает приёмку и уходит.
     if state == "FAILED_BEFORE_SUBMIT":
+        error = delivery.get("error") or {}
         headline = (
             "Task was NOT delivered — the worker has no task yet. Resend the SAME task "
             f"text with retry_initial_delivery(name='{name}', delivery_id='{delivery_id}')."
+            f" {error.get('code', 'DELIVERY_NOT_SUBMITTED')}: {error.get('message', '')}"
         )
     elif state == "WAITING_QUOTA":
         action = delivery.get("next_action") if isinstance(delivery.get("next_action"), dict) else {}
@@ -981,15 +997,18 @@ def _quota_refusal_from_readiness(model: str, readiness: object) -> ApiToolError
     utilization = readiness.get("utilization")
     if isinstance(utilization, bool) or not isinstance(utilization, (int, float)):
         return None
+    from app.quota_gate import WORKER_ADMISSION_RULE
+
     return ApiToolError(
         code="weekly_quota_blocked",
         message=(
-            f"New Codex worker turn blocked: {label} quota is {utilization:g}% — "
+            f"Rule '{WORKER_ADMISSION_RULE}': New Codex worker turn blocked: "
+            f"{label} quota is {utilization:g}% — "
             f"{readiness.get('reason') or 'above the admission line'}. "
             "Stop/model change remain available."
         ),
         retryable=False,
-        details={"model": model, **readiness},
+        details={"model": model, **readiness, "rule": WORKER_ADMISSION_RULE},
     )
 
 
@@ -1113,7 +1132,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None,
                        model_reason: str = "") -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the permanent default. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. If the quota gate is closed, the task is held durably and delivered automatically when the gate opens — no timer."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the general default; choose hubsonnet/hubopus for creative work. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -1599,8 +1618,14 @@ def _ambiguous_message_delivery_error(
 
 
 @mcp.tool()
+async def list_pending_deliveries(target: str = "") -> dict[str, Any]:
+    """List your WAITING_QUOTA and QUEUED messages and initial tasks, optionally to one target. Includes delivery_id, target, created_at, first 80 characters and ETA. Use to clean up stale held deliveries with cancel_message_delivery; do not routinely poll."""
+    return await _api("GET", "/api/pending-deliveries", params={"target": target})
+
+
+@mcp.tool()
 async def cancel_message_delivery(delivery_id: str) -> dict[str, Any]:
-    """Withdraw your direct message that has not reached the target yet (state WAITING_QUOTA or QUEUED). A message already dispatched cannot be cancelled."""
+    """Withdraw your direct message or initial task in WAITING_QUOTA or QUEUED. A message already dispatched cannot be cancelled."""
     delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
     try:
         delivery_id = str(uuid.UUID(delivery_id))
@@ -1933,11 +1958,20 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
 @mcp.tool()
 async def search_logs(query: str, date_from: str = "", date_to: str = "",
                       agent: str = "", all_projects: bool = False,
-                      limit: int = 20) -> str:
-    """Search past user messages, voice transcripts, assistant text, tools, and agent messages.
+                      limit: int = 20, kinds: str = "") -> str:
+    """Search past conversation: user messages, voice transcripts, agent messages, assistant text.
 
     Dates use YYYY-MM-DD. Searches this caller's project by default; set all_projects=true
     explicitly to search every project. Results include log ids for get_log_context.
+    By default only conversation (user_message, text) is scanned. kinds is a comma list of
+    log types to scan instead (tool, tool_result, thinking, status, ...; "all" = every type).
+    The query is a case-insensitive regex, e.g. "violet|lilac"; invalid or nested-quantifier
+    patterns are matched as plain text. Each call scans at most 10000 newest rows
+    (scan_truncated=true means older rows were not looked at: narrow date_from/date_to).
+
+    Method: guess 2-4 distinctive words the ORIGINAL text probably used, not the words of
+    your question. Too many hits: add a word or narrow the dates. No hits: another word
+    form or a synonym via "a|b". Read the hit with get_log_context, then answer.
     """
     params: dict[str, Any] = {
         "query": query,
@@ -1952,6 +1986,8 @@ async def search_logs(query: str, date_from: str = "", date_to: str = "",
         params["date_to"] = date_to
     if agent:
         params["agent"] = agent
+    if kinds:
+        params["kinds"] = kinds
     result = await _api("GET", "/api/logs/search", params=params)
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
@@ -1979,8 +2015,9 @@ async def get_log_context(log_id: int, project: str = "", all_projects: bool = F
 async def compact_worker(name: str) -> str:
     """Manually compact an idle worker's context. Codex compacts natively in the same thread;
     Claude creates a summary, reconnects fresh, and retains that handoff. This is a manual escape
-    hatch, not the auto-compact policy. Returns the runtime result; may take 30-60s."""
-    result = await _api("POST", f"/api/sessions/{name}/compact", json={"scope": SCOPE}, timeout=120)
+    hatch, not the auto-compact policy. Returns the runtime result; may take several minutes."""
+    # Native compact has one 600s backend budget; leave time to drain its response.
+    result = await _api("POST", f"/api/sessions/{name}/compact", json={"scope": SCOPE}, timeout=660)
     if isinstance(result, dict) and result.get("error"):
         return f"Compact failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):
@@ -2014,9 +2051,17 @@ async def temp_rule_list(include_inactive: bool = False) -> str:
 
 
 @mcp.tool()
-async def temp_rule_update(rule_id: str, expires_at: str = "", keep: bool = False) -> str:
-    """Orchestrators only. Extend a temporary rule to a new expires_at (ISO UTC), or keep=true to keep it with no deadline."""
-    result = await _api("PUT", f"/api/temp-rules/{rule_id}", json={"expires_at": expires_at, "keep": keep})
+async def temp_rule_update(
+    rule_id: str, expires_at: str = "", keep: bool = False,
+    text: str | None = None, reason: str | None = None,
+    targets: list[str] | None = None, mode: str | None = None,
+) -> str:
+    """Orchestrators only. Edit a rule in place, preserving its id. Omitted text, reason, targets and mode stay unchanged. Text and reason must be non-empty; targets follow temp_rule_set. Extend expires_at (ISO UTC), or use keep=true / mode=permanent to clear its deadline. Modes expires/review require a date (the existing date is reused when available); permanent forbids a supplied date. Only your project's rules may be edited; only the Orchestra project orchestrator may edit all-project rules."""
+    fields = {"expires_at": expires_at, "keep": keep}
+    fields.update({key: value for key, value in {
+        "text": text, "reason": reason, "targets": targets, "mode": mode,
+    }.items() if value is not None})
+    result = await _api("PUT", f"/api/temp-rules/{rule_id}", json=fields)
     return f"Rule {result['id']} now until {result['expires_at'] or 'no deadline'}"
 
 
@@ -2386,7 +2431,7 @@ async def change_worker_model(name: str, model: str, model_reason: str = "") -> 
     """Change an idle worker's model while preserving its dialog. Within one runtime the
     native session continues. Between Claude and Codex, recent chat history is handed off
     (chat_history_v1); a refused transfer returns an error. Refused while the worker is
-    running or compacting. Hub Claude requires model_reason naming why this task needs Claude; hubsol is the permanent default."""
+    running or compacting. Hub Claude requires model_reason naming why this task needs Claude; hubsol is the general default; choose hubsonnet/hubopus for creative work."""
     from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
 
     try:
@@ -2471,7 +2516,56 @@ def _merge_payload_result(payload: Any) -> dict[str, Any]:
     return payload["result"]
 
 
-def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
+def _compact_merge_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Project durable detail into the receipt needed for the caller's next action."""
+    git = result.get("git") or {}
+    test = result.get("test_gate") or {}
+    mutation = result.get("mutation_gate") or test.get("mutation_gate") or {}
+
+    def gate(value: dict) -> dict:
+        return {
+            "status": value.get("status", "NOT_RUN"),
+            "reason": value.get("reason", ""),
+            "failed_tests": value.get("failed_tests", []) if value.get("status") == "FAILED" else [],
+        }
+
+    compact = {key: result[key] for key in (
+        "schema_version", "operation_id", "operation_state", "retryable", "commit_point",
+        "next_action", "completion", "progress", "is_terminal", "is_failure",
+    ) if key in result}
+    compact["git"] = {key: git[key] for key in (
+        "status", "target_branch", "target_after", "worker_branch", "commits_merged",
+        "head_drift", "worker_head", "worker_head_pinned", "diff_insertions", "diff_excluded_insertions",
+    ) if key in git}
+    compact["test_gate"] = gate(test)
+    compact["mutation_gate"] = gate(mutation)
+    error = result.get("error")
+    compact["error"] = None
+    if isinstance(error, dict):
+        compact["error"] = {key: error[key] for key in (
+            "code", "status", "retryable", "request_id", "retry_after_seconds", "outcome_unknown",
+        ) if key in error}
+        compact["error"]["message"] = str(error.get("message") or "")[:600]
+        exception_type = (error.get("details") or {}).get("exception_type")
+        if exception_type:
+            compact["error"]["details"] = {"exception_type": str(exception_type)[:100]}
+        if error.get("code") in {"TEST_GATE_FAILED", "TEST_GATE_INCONCLUSIVE", "TEST_MUTATION_GATE_FAILED"}:
+            compact["error"]["message"] = f"Merge gate {test.get('status', 'NOT_RUN')} ({test.get('reason', '')})"
+    elif error:
+        compact["error"] = str(error)[:600]
+    if result.get("warnings"):
+        compact["warnings"] = [
+            {"code": warning.get("code"), "message": str(warning.get("message") or "")[:300]}
+            for warning in result["warnings"][:5] if isinstance(warning, dict)
+        ]
+    return compact
+
+
+def _merge_tool_result(result: dict[str, Any], *, verbose: bool = False) -> CallToolResult:
+    return _merge_tool_result_full(result if verbose else _compact_merge_result(result))
+
+
+def _merge_tool_result_full(result: dict[str, Any]) -> CallToolResult:
     operation_id = str(result.get("operation_id") or "unknown")
     state = str(result.get("operation_state") or "UNKNOWN").upper()
     error = result.get("error")
@@ -2673,8 +2767,12 @@ async def merge_worker(
     expected_head: str = "",
     acceptance_note: str = "",
     task_id: str = "",
+    verbose: bool = False,
 ) -> CallToolResult:
-    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff. On a taskless adhoc branch, task_id promotes committed work to the named task before merging; omitting task_id refuses a strict task-lifecycle merge."""
+    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. The default receipt is compact; verbose=true returns full gate output and durable detail. Acceptance needs a full 40-character SHA and a meaningful note of at least 15 characters. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff. On a taskless adhoc branch, task_id promotes committed work to the named task before merging; omitting task_id refuses a strict task-lifecycle merge."""
+    def render(result: dict[str, Any]) -> CallToolResult:
+        return _merge_tool_result(result, verbose=True) if verbose else _merge_tool_result(result)
+
     task_id = task_id.strip()
     task_outcome = task_outcome.strip().lower()
     if task_id and not task_outcome:
@@ -2716,7 +2814,7 @@ async def merge_worker(
                     **capability_error.details,
                 },
             )
-            return _merge_tool_result(result)
+            return render(result)
         capabilities = (
             capability.get("capabilities", [])
             if isinstance(capability, dict) else []
@@ -2739,9 +2837,9 @@ async def merge_worker(
                 target=target,
                 details={"server_capability": capability},
             )
-            return _merge_tool_result(result)
+            return render(result)
         if (expected_head or acceptance_note) and "work-review-v2" not in capabilities:
-            return _merge_tool_result(_merge_local_result(operation_id, "FAILED", code="MERGE_API_UPGRADE_REQUIRED", message="The server cannot bind work acceptance to expected_head; reconnect after the server upgrade. No merge attempted.", retryable=False, outcome_unknown=False, target=target, details={"required_capability": "work-review-v2"}))
+            return render(_merge_local_result(operation_id, "FAILED", code="MERGE_API_UPGRADE_REQUIRED", message="The server cannot bind work acceptance to expected_head; reconnect after the server upgrade. No merge attempted.", retryable=False, outcome_unknown=False, target=target, details={"required_capability": "work-review-v2"}))
         merge_schema_version = 2 if task_outcome else None
     body = {
         "operation_id": operation_id,
@@ -2824,7 +2922,7 @@ async def merge_worker(
             if job_id and result.get("operation_state") not in {"PENDING", "RUNNING"}:
                 if await _cancel_completion_job(job_id):
                     result.pop("completion", None)
-        return _merge_tool_result(result)
+        return render(result)
     except Exception as exc:
         result = _merge_local_result(
             operation_id,
@@ -2836,7 +2934,7 @@ async def merge_worker(
             target=target,
             details={"exception_type": type(exc).__name__},
         )
-        return _merge_tool_result(result)
+        return render(result)
 
 
 @mcp.tool()
@@ -3383,7 +3481,7 @@ async def dynamic_workflow(
     mode: str = "parallel",
     stages: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Each task has an optional model (defaults to luna), JSON schema, and billing route (defaults to subscription; set billing='api_credit' only for an explicitly selected Claude task). Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD and see only files committed at `base_commit`. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
+    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Select each task model through model-routing and pass it explicitly, or inherit an explicit stage model; the implementation still falls back to luna when both omit model. Each task also has an optional JSON schema and billing route (defaults to subscription; set billing='api_credit' only for an explicitly authorized Claude task). Native subscription tasks are refused; hub work requires an ordinary spawn_worker because wf_run has no hub adapter. Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD and see only files committed at `base_commit`. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
 
     MiroFish example: 50 personas read a page, then each writes a reaction for
     three rounds using all results from the previous round, then one analyst
@@ -3581,15 +3679,17 @@ def _normalize_dynamic_task(
         return {}, f"{label}.model: {error}"
     if model_id in MANUAL_ONLY_MODEL_IDS:
         return {}, f"model '{model}' is not allowed for dynamic workflows"
-    try:
-        ensure_spawn_allowed(model_id)
-    except ValueError:
-        return {}, f"model '{model}' is not enabled for agents"
     billing = task.get("billing", default_billing)
     if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
         return {}, f"{label}.billing must be 'subscription' or 'api_credit'"
     if billing == "api_credit" and backend_for_model(model_id) != "claude":
         return {}, f"{label}.billing='api_credit' requires a Claude model"
+    try:
+        ensure_spawn_allowed(model_id, billing=billing)
+    except ValueError as error:
+        return {}, str(error)
+    if backend_for_model(model_id) == "hub":
+        return {}, "Hub workflow tasks require spawn_worker; wf_run has no hub one-shot adapter"
     schema = task.get("schema", default_schema)
     if schema is not None and not isinstance(schema, dict):
         return {}, f"{label}.schema must be a JSON object"
@@ -3604,8 +3704,10 @@ async def bg_create(type: str, message: str = "", target: str = "",
                     delay_seconds: int = 0, path: str = "", pattern: str = "",
                     command: str = "", host: str = "", cron_expr: str = "",
                     interval_seconds: int = 60,
-                    timeout_seconds: int = 3600) -> str:
-    """Create a durable job and wake its target on trigger; survives hibernate. Returns a job receipt, not command completion. Types: run executes command (optional host); timer uses delay_seconds; file watches path for regex pattern; command checks command output for pattern every interval_seconds; ssh streams host command for pattern; cron uses 5-field UTC cron_expr; cron_command runs on cron_expr and wakes for matching completed output; each run is killed after 600 s without a wake (timeout shows only in bg_list last_output). cron types recur, skip missed downtime fires without backfill. target defaults to caller. timeout_seconds defaults to 3600, max 86400; 0 means no expiry only for file/command/ssh/cron/cron_command."""
+                    timeout_seconds: int = 3600,
+                    progress_command: str = "", progress_from_output: bool = False,
+                    progress_interval_seconds: int = 5) -> str:
+    """Create a durable job and wake its target on trigger; survives hibernate. Returns a job receipt, not command completion. Types: run executes command (optional host); timer uses delay_seconds; file watches path for regex pattern; command checks command output for pattern every interval_seconds; ssh streams host command for pattern; cron uses 5-field UTC cron_expr; cron_command runs on cron_expr and wakes for matching completed output; each run is killed after 600 s without a wake (timeout shows only in bg_list last_output). cron types recur, skip missed downtime fires without backfill. target defaults to caller. timeout_seconds defaults to 3600, max 86400; 0 means no expiry only for file/command/ssh/cron/cron_command. Progress (run only; the model starts it once and is not woken per sample): set progress_command (a short read-only command run every progress_interval_seconds, min 5, 10 s limit, same host/cwd/limits as the run) or progress_from_output=True (read the run's own output). Each sample is one JSON object, either the last stdout line or a line `ORCHESTRA_PROGRESS {json}`: {"status":"running|paused|waiting|done|error","label":"text","completed":N,"total":N,"unit":"MB","percent":0-100,"rate":N per second,"eta_seconds":N}; every field is optional, send only what is really known (no guessed total or ETA). The dashboard job card shows percent, rate, approximate ETA and freshness; only job completion or failure wakes the target."""
     config = {}
     if type == "timer":
         config = {"delay_seconds": delay_seconds}
@@ -3617,6 +3719,12 @@ async def bg_create(type: str, message: str = "", target: str = "",
         config = {"command": command, "host": host, "pattern": pattern}
     elif type == "run":
         config = {"command": command, "host": host} if host else {"command": command}
+        if progress_command or progress_from_output:
+            progress = {"mode": "command" if progress_command else "output",
+                        "interval_seconds": progress_interval_seconds}
+            if progress_command:
+                progress["command"] = progress_command
+            config["progress"] = progress
     elif type == "cron":
         config = {"cron_expr": cron_expr}
     elif type == "cron_command":
@@ -3712,6 +3820,9 @@ async def bg_list() -> str:
         command = str(cfg.get("command") or cfg.get("path") or "")
         if command:
             lines.append(f"   ⚙ {command[:110]}")
+        progress_line = bg_progress.summary(cfg)
+        if progress_line:
+            lines.append(f"   📈 {progress_line[:180]}")
         msg = " ".join((j.get("message") or "").split())
         if msg:
             lines.append(f"   {msg[:180]}")

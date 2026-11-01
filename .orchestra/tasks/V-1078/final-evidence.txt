@@ -1,0 +1,3 @@
+Publication secret-form scan: clean; checked source and task artifacts only.
+Captured stdout retained; hub host paths normalized; original-byte hashes recorded.
+Core implementation diff saved; temporary synthetic databases and task caches removed.

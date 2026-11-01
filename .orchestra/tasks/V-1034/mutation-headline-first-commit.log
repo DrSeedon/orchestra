@@ -1,0 +1,29 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________________ test_squash_uses_last_commit_subject _____________________
+
+git_repo = PosixPath('.orchestra/tasks/V-1034/mutation-tmp/test_squash_uses_last_commit_s0/repo')
+wt_root = PosixPath('.orchestra/tasks/V-1034/mutation-tmp/test_squash_uses_last_commit_s0/worktrees')
+
+    def test_squash_uses_last_commit_subject(git_repo, wt_root):
+        from app.workspace import merge_worktree_to_main
+        wt = worker(git_repo, wt_root)
+        (Path(wt.path) / 'feature.txt').write_text('finished\n')
+        git(wt.path, 'add', '.')
+        git(wt.path, 'commit', '-m', 'V-1034: Finished feature')
+        result = merge_worktree_to_main(wt.path, str(git_repo))
+        assert result['ok'], result
+>       assert git(git_repo, 'log', '-1', '--format=%s').strip() == 'V-1034: Finished feature'
+E       AssertionError: assert 'V-1034: WIP unfinished' == 'V-1034: Finished feature'
+E         
+E         - V-1034: Finished feature
+E         + V-1034: WIP unfinished
+
+tests/test_merge_worker_v1034.py:29: AssertionError
+----------------------------- Captured stderr call -----------------------------
+_reset_worktree_to_ref: .orchestra/tasks/V-1034/mutation-tmp/test_squash_uses_last_commit_s0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/worker reset to main (fdea0dd1)
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:1487 _reset_worktree_to_ref: .orchestra/tasks/V-1034/mutation-tmp/test_squash_uses_last_commit_s0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/worker reset to main (fdea0dd1)
+=========================== short test summary info ============================
+FAILED tests/test_merge_worker_v1034.py::test_squash_uses_last_commit_subject
+1 failed in 6.00s

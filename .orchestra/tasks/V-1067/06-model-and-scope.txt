@@ -1,0 +1,172 @@
+$ uv run --frozen python -m pytest tests/test_hub_model_reason.py tests/test_hub_effort.py tests/test_model_gates.py tests/test_message_delivery_receipts_380.py::test_t380_r6_http_auth_conflict_rollback_and_name_ambiguity_are_known -q -o cache_dir=.orchestra/tasks/V-1067/pytest-cache --basetemp=.orchestra/tasks/V-1067/pytest-tmp-3
+................................................................F....... [ 94%]
+....                                                                     [100%]
+=================================== FAILURES ===================================
+____________________ test_t3_api_models_hides_dashboard_off ____________________
+
+vendor_model = ModelSpec(id='test/vendor-x:free', name='test/vendor-x:free', runtime='harness', provider='openrouter', context_length...e_5m_multiplier=1.25, cache_write_1h_multiplier=2.0, prompt_price_threshold=None, prompt_over_threshold_multiplier=1.0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7437951dd4f0>
+
+    def test_t3_api_models_hides_dashboard_off(vendor_model, monkeypatch):
+        from fastapi.testclient import TestClient
+    
+        registry.set_model_flags("test/vendor-x:free", dashboard=False)
+        from app.main import app, manager
+    
+        manager.sessions.clear()
+>       with TestClient(app) as client:
+
+tests/test_model_gates.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/starlette/testclient.py:688: in __enter__
+    portal.call(self.wait_startup)
+.venv/lib/python3.12/site-packages/anyio/from_thread.py:334: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/concurrent/futures/_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+.venv/lib/python3.12/site-packages/anyio/from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/starlette/testclient.py:723: in wait_startup
+    await receive()
+.venv/lib/python3.12/site-packages/starlette/testclient.py:714: in receive
+    self.task.result()
+/usr/lib/python3.12/concurrent/futures/_base.py:449: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+.venv/lib/python3.12/site-packages/anyio/from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/starlette/testclient.py:704: in lifespan
+    await self.app(scope, self.stream_receive.receive, self.stream_send.send)
+.venv/lib/python3.12/site-packages/fastapi/applications.py:1159: in __call__
+    await super().__call__(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:151: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/gzip.py:19: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/base.py:103: in __call__
+    await self.app(scope, receive, send)
+app/main.py:300: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:49: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:669: in app
+    await self.lifespan(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:638: in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+app/main.py:517: in lifespan
+    with task_runtime_mode(production_runtime()) as task_owner:
+                           ^^^^^^^^^^^^^^^^^^^^
+app/task_runtime.py:201: in production_runtime
+    TaskStore(root, origin=new_task_prefix()).initialize()
+app/task_store.py:155: in initialize
+    self._commit_files({path: _bytes({'schema_version': SCHEMA_VERSION})}, 'Initialize task store')
+app/task_store.py:296: in _commit_files
+    self._git('commit', '--only', '-m', message, '--', *relative)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.task_store.TaskStore object at 0x743794de3980>, check = True
+args = ('commit', '--only', '-m', 'Initialize task store', '--', 'task-store.json')
+result = CompletedProcess(args=['git', '-C', '/remote/workspace unable to auto-detect email address (got \'[remote-user]@[remote-host].(none)\')\n')
+
+    def _git(self, *args: str, check: bool = True) -> subprocess.CompletedProcess:
+        result = subprocess.run(['git', '-C', str(self.root), *args],
+                                capture_output=True, text=True, timeout=60)
+        if check and result.returncode:
+>           raise TaskConflict(result.stderr.strip() or result.stdout.strip() or 'Git operation failed')
+E           app.task_store.TaskConflict: Author identity unknown
+E           
+E           *** Please tell me who you are.
+E           
+E           Run
+E           
+E             git config --global user.email "you@example.com"
+E             git config --global user.name "Your Name"
+E           
+E           to set your account's default identity.
+E           Omit --global to set the identity only in this repository.
+E           
+E           fatal: unable to auto-detect email address (got '[remote-user]@[remote-host].(none)')
+
+app/task_store.py:112: TaskConflict
+----------------------------- Captured stderr call -----------------------------
+load_dotenv skipped: running under pytest
+V-621: migration skipped: домашний каталог не принадлежит основному checkout: /remote/workspace/.orchestra/tasks/V-1067/pytest-tmp-3/test_t3_api_models_hides_dashb0/projects.yaml
+------------------------------ Captured log call -------------------------------
+WARNING  orchestra:main.py:455 load_dotenv skipped: running under pytest
+WARNING  app.catalog_migration_v621:catalog_migration_v621.py:148 V-621: migration skipped: домашний каталог не принадлежит основному checkout: /remote/workspace/.orchestra/tasks/V-1067/pytest-tmp-3/test_t3_api_models_hides_dashb0/projects.yaml
+=========================== short test summary info ============================
+FAILED tests/test_model_gates.py::test_t3_api_models_hides_dashboard_off - ap...
+1 failed, 75 passed in 6.34s
+exit_status=1

@@ -1,0 +1,101 @@
+{
+  "sha": "f993a89d13c73ff6f6537d6b97e78e138a3ea363",
+  "node_id": "C_kwDOOiiGL9oAKGY5OTNhODlkMTNjNzNmZjZmNjUzN2Q2Yjk3ZTc4ZTEzOGEzZWEzNjM",
+  "commit": {
+    "author": {
+      "name": "opencode-agent[bot]",
+      "email": "219766164+opencode-agent[bot]@users.noreply.github.com",
+      "date": "2026-10-27T07:19:23Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-10-27T07:19:23Z"
+    },
+    "message": "fix(app): show focus ring while renaming the session title (#59148)\n\nCo-authored-by: Brendonovich <14191578+Brendonovich@users.noreply.github.com>\nCo-authored-by: opencode-agent[bot] <219766164+opencode-agent[bot]@users.noreply.github.com>",
+    "tree": {
+      "sha": "4ff3a5278c07c2a72052ab7c5817f7f6e7b928c4",
+      "url": "https://api.github.com/repos/anomalyco/opencode/git/trees/4ff3a5278c07c2a72052ab7c5817f7f6e7b928c4"
+    },
+    "url": "https://api.github.com/repos/anomalyco/opencode/git/commits/f993a89d13c73ff6f6537d6b97e78e138a3ea363",
+    "comment_count": 0,
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJq4FB7CRC1aQ7uu5UhlAAAu5IQAKQRolKUo+XIuZ8cn+cFMI7R\nmXCzc5eSKtXgcTA6H+c3BpKxYg//qNpLEV6uJ/cCH9shz4b6r+JtYTmlTC5wTR/G\nw12XNLJfpTa6e33lTOvvioCHgtufat9lmnBdqMiPwToNUpmTjmLFatJC5pde/zIx\nljW5/4oTFU3B2sYH69Wqe4Va35ZHJAa3kWMgZkF8U4kojmfWwoLMdiSE/6wrLgXW\nfi4JnVuRP2Uy6VmFxXY41GkH9e93Ze2Msrz68B6D86FC3N31ALZVWi3WesTez/dU\nZUOXVl5ZBxNhE/CYaoVHJOmthaxZyRg5XnagFbWkPrNOvEWpIUqTx0OTg0G2u9qq\nO1+szDxPfqNULwzpHsf0PR9+slgDwF03Uy9EIi4UYVqPKz6jUYdS1r0+M3lmXI3S\nL8MbvUisDpQ6J8eWxt6Zt0/RQRB5lBL/EUI2+cs1poJKXymwqXfz/BD3jsNRJD6O\nCm16f7+OwTkQv8aG4XcfvaAtpbF0exPBdLCkfcNe6lK6NeOxEgbnUyTkJSQjmf7y\nI8sINf0z8/kX6vci2boT6uOFBTuAipSRwdzKjCnrfoUbY+mf4mW0OI4QR7DK1rId\n1shh0Pm2KhEzQqBuwPPwVV3yIUIWUhTE0vPdSwHqBLdHMANGT23hBtyirXnq9doD\nw/A2+FiAaekBq1eMokvt\n=9lUa\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 4ff3a5278c07c2a72052ab7c5817f7f6e7b928c4\nparent 6aedf36ca307f97919f39d655de13b3ad5ccd24f\nauthor opencode-agent[bot] <219766164+opencode-agent[bot]@users.noreply.github.com> 1793085563 +0000\ncommitter GitHub <noreply@github.com> 1793085563 +0000\n\nfix(app): show focus ring while renaming the session title (#59148)\n\nCo-authored-by: Brendonovich <14191578+Brendonovich@users.noreply.github.com>\nCo-authored-by: opencode-agent[bot] <219766164+opencode-agent[bot]@users.noreply.github.com>",
+      "verified_at": "2026-10-27T07:19:23Z"
+    }
+  },
+  "url": "https://api.github.com/repos/anomalyco/opencode/commits/f993a89d13c73ff6f6537d6b97e78e138a3ea363",
+  "html_url": "https://github.com/anomalyco/opencode/commit/f993a89d13c73ff6f6537d6b97e78e138a3ea363",
+  "comments_url": "https://api.github.com/repos/anomalyco/opencode/commits/f993a89d13c73ff6f6537d6b97e78e138a3ea363/comments",
+  "author": {
+    "login": "opencode-agent[bot]",
+    "id": 219766164,
+    "node_id": "BOT_kgDODRldlA",
+    "avatar_url": "https://avatars.githubusercontent.com/in/1549082?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/opencode-agent%5Bbot%5D",
+    "html_url": "https://github.com/apps/opencode-agent",
+    "followers_url": "https://api.github.com/users/opencode-agent%5Bbot%5D/followers",
+    "following_url": "https://api.github.com/users/opencode-agent%5Bbot%5D/following{/other_user}",
+    "gists_url": "https://api.github.com/users/opencode-agent%5Bbot%5D/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/opencode-agent%5Bbot%5D/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/opencode-agent%5Bbot%5D/subscriptions",
+    "organizations_url": "https://api.github.com/users/opencode-agent%5Bbot%5D/orgs",
+    "repos_url": "https://api.github.com/users/opencode-agent%5Bbot%5D/repos",
+    "events_url": "https://api.github.com/users/opencode-agent%5Bbot%5D/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/opencode-agent%5Bbot%5D/received_events",
+    "type": "Bot",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "web-flow",
+    "id": 19864447,
+    "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/web-flow",
+    "html_url": "https://github.com/web-flow",
+    "followers_url": "https://api.github.com/users/web-flow/followers",
+    "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+    "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+    "organizations_url": "https://api.github.com/users/web-flow/orgs",
+    "repos_url": "https://api.github.com/users/web-flow/repos",
+    "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/web-flow/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "6aedf36ca307f97919f39d655de13b3ad5ccd24f",
+      "url": "https://api.github.com/repos/anomalyco/opencode/commits/6aedf36ca307f97919f39d655de13b3ad5ccd24f",
+      "html_url": "https://github.com/anomalyco/opencode/commit/6aedf36ca307f97919f39d655de13b3ad5ccd24f"
+    }
+  ],
+  "stats": {
+    "total": 1,
+    "additions": 0,
+    "deletions": 1
+  },
+  "files": [
+    {
+      "sha": "1fc9dd3e969b82531537bb6ddde506c4ffe51cae",
+      "filename": "packages/app/src/session/timeline/message-timeline.tsx",
+      "status": "modified",
+      "additions": 0,
+      "deletions": 1,
+      "changes": 1,
+      "blob_url": "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/packages%2Fapp%2Fsrc%2Fsession%2Ftimeline%2Fmessage-timeline.tsx",
+      "raw_url": "https://github.com/anomalyco/opencode/raw/f993a89d13c73ff6f6537d6b97e78e138a3ea363/packages%2Fapp%2Fsrc%2Fsession%2Ftimeline%2Fmessage-timeline.tsx",
+      "contents_url": "https://api.github.com/repos/anomalyco/opencode/contents/packages%2Fapp%2Fsrc%2Fsession%2Ftimeline%2Fmessage-timeline.tsx?ref=f993a89d13c73ff6f6537d6b97e78e138a3ea363",
+      "patch": "@@ -601,7 +601,6 @@ function MessageTimelineView(\n                     class=\"block text-[13px] font-[530] leading-4 tracking-[-0.04px] text-v2-text-text-base field-sizing-content rounded-[6px] px-1 py-1.5\"\n                     classList={{ \"max-w-[45%] shrink-0\": !!parentID() }}\n                     style={{\n-                      \"--inline-input-shadow\": \"none\",\n                       \"text-align\": \"start\",\n                     }}\n                     onInput={(event) => setTitle(\"draft\", event.currentTarget.value)}"
+    }
+  ]
+}

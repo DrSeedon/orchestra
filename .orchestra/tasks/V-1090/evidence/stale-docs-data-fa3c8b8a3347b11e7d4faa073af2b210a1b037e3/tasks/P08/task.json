@@ -1,0 +1,27 @@
+{
+  "id": "P08",
+  "package": "snapback",
+  "prompt": "Our backup roots grow without limit. Please add a prune command: `python -m snapback.prune BACKUP_ROOT NAME KEEP REPORT`.\n\nThe snapshots of source NAME are the timestamped folders under BACKUP_ROOT/NAME that the catalog already lists; other folders there are not touched. Keep the KEEP newest snapshots. Delete every older snapshot completely, but only if it has a manifest.json file. An older snapshot folder without manifest.json may be unfinished or not made by us, so leave it in place. Tell the user about each snapshot that is deleted, and warn the user about each one that is left in place. Snapshots of other sources are never touched.\n\nWrite REPORT as JSON with exactly three keys, \"kept\", \"removed\" and \"skipped\". Each is a list of snapshot folder names (the stamps, e.g. \"20240301T093000\"), oldest first. \"skipped\" holds the older folders that were left in place because they have no manifest.json.\n\nKEEP must be a whole number of at least 1. If it is less than 1, or NAME has no snapshots in BACKUP_ROOT, the prune step must report the problem to its caller. The command then tells the user what is wrong, deletes nothing, writes no report and exits with status 2. A KEEP that is not a whole number also gives status 2. On success the command exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "PATH",
+      "doc_side": "left"
+    },
+    {
+      "id": "D2",
+      "type": "LOG",
+      "doc_side": "right"
+    },
+    {
+      "id": "D3",
+      "type": "ERR",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "IMPORT",
+      "doc_side": "left"
+    }
+  ]
+}

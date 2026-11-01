@@ -1,0 +1,32 @@
+{
+  "id": "P35",
+  "package": "playlistr",
+  "prompt": "Add a merge command that joins all playlists of a folder into one list of tracks without duplicates. It runs as `python -m playlistr.merge FOLDER OUTPUT_JSON`.\n\nRead every playlist file directly in FOLDER, in the same order as the list command shows them (sorted by file name). Skip a playlist file that cannot be read, and tell the user which file was skipped and why. Take the artist, title, length and location of each track as the list command reads them: a track without an #EXTINF line has an empty artist and its file name as title.\n\nGo through the tracks of the playlists in that order. Two tracks are the same track when their artists are equal and their titles are equal, ignoring upper and lower case. The first appearance of a track makes a merged track with that artist, title, length and location. A later appearance of the same track adds no merged track and counts as dropped. A merged track also keeps the names of the playlists it appears in, in playlist order and each name once. The name of a playlist is its file name without the .m3u extension.\n\nThe merging must also work without the command line: one function takes the loaded playlists and gives back the merged tracks and the number of dropped appearances. It returns each merged track as one record with the artist, the title, the length, the location and the playlist names.\n\nOUTPUT_JSON holds one JSON object with these keys:\n- tracks: the merged tracks in the order of their first appearance. Each one is an object with the keys artist, title, seconds, file and playlists. seconds is the length in whole seconds, or null when the length is unknown. file is the location as written in the playlist. playlists is the list of playlist names.\n- playlists: the names of the playlists that were read, in order.\n- skipped: the file names of the skipped playlist files, in order.\n- dropped: the number of dropped appearances.\n- seconds: the sum of the known lengths of the merged tracks.\n\nCreate the folder of OUTPUT_JSON when it is missing. At the end, tell the user how many merged tracks were written, how many appearances were dropped and how many files were skipped.\n\nWhen FOLDER is not a folder, or when FOLDER has no playlist file that can be read, the command exits with status 2, does not write OUTPUT_JSON and tells the user what is wrong. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "REC",
+      "doc_side": "left"
+    },
+    {
+      "id": "D2",
+      "type": "NAME",
+      "doc_side": "right"
+    },
+    {
+      "id": "D3",
+      "type": "PATH",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "GENERIC",
+      "doc_side": "right"
+    },
+    {
+      "id": "D5",
+      "type": "LOG",
+      "doc_side": "left"
+    }
+  ]
+}

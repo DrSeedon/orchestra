@@ -1,0 +1,32 @@
+PARTIAL-COPY HARNESS: synthetic missing imports/schema; real operation and gate source
+Imported operations: /proc/self/cwd/app/merge_operations.py
+Imported gate: /proc/self/cwd/app/merge_test_gate.py
+CASE: autoload_disabled
+{
+  "status": "inconclusive",
+  "reason": "pytest_timeout_unavailable",
+  "exit_code": 4,
+  "output": "interpreter=<COPY_ROOT>/.orchestra/tasks/V-1145/tmp/cli-probe/.venv/bin/python\nERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --timeout=120 --timeout-method=signal\n  inifile: <COPY_ROOT>/.orchestra/tasks/V-1145/tmp/orchestra-merge-gate-38wyg4ue/pytest.ini\n  rootdir: <COPY_ROOT>/.orchestra/tasks/V-1145/tmp/cli-probe\n\n\ninterpreter=<COPY_ROOT>/.orchestra/tasks/V-1145/tmp/cli-probe/.venv/bin/python",
+  "tests": [
+    "test_probe.py"
+  ]
+}
+CASE: timeout_plugin_explicitly_enabled
+{
+  "status": "failed",
+  "reason": "exit_nonzero",
+  "exit_code": 1,
+  "output": "interpreter=<COPY_ROOT>/.orchestra/tasks/V-1145/tmp/cli-probe/.venv/bin/python\n============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- <COPY_ROOT>/.orchestra/tasks/V-1145/tmp/cli-probe/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: <COPY_ROOT>/.orchestra/tasks/V-1145/tmp/cli-probe\nconfigfile: ../orchestra-merge-gate-6q2kvgvb/pytest.ini\ntimeout: 1.0s\ntimeout method: signal\ntimeout func_only: False\ncollecting ... collected 2 items\n\ntest_probe.py::test_hang FAILED                                          [ 50%]\ntest_probe.py::test_after_hang PASSED                                    [100%]\n\n=================================== FAILURES ===================================\n__________________________________ test_hang ___________________________________\n\n    def test_hang():\n>       threading.Event().wait()\n\ntest_probe.py:3: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.12/threading.py:655: in wait\n    signaled = self._cond.wait(timeout)\n               ^^^^^^^^^^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Condition(<unlocked _thread.lock object at 0x7717d865a440>, 0)>\ntimeout = None\n\n    def wait(self, timeout=None):\n        \"\"\"Wait until notified or until a timeout occurs.\n    \n        If the calling thread has not acquired the lock when this method is\n        called, a RuntimeError is raised.\n    \n        This method releases the underlying lock, and then blocks until it is\n        awakened by a notify() or notify_all() call for the same condition\n        variable in another thread, or until the optional timeout occurs. Once\n        awakened or timed out, it re-acquires the lock and returns.\n    \n        When the timeout argument is present and not None, it should be a\n        floating point number specifying a timeout for the operation in seconds\n        (or fractions thereof).\n    \n        When the underlying lock is an RLock, it is not released using its\n        release() method, since this may not actually unlock the lock when it\n        was acquired multiple times recursively. Instead, an internal interface\n        of the RLock class is used, which really unlocks it even when it has\n        been recursively acquired several times. Another internal interface is\n        then used to restore the recursion level when the lock is reacquired.\n    \n        \"\"\"\n        if not self._is_owned():\n            raise RuntimeError(\"cannot wait on un-acquired lock\")\n        waiter = _allocate_lock()\n        waiter.acquire()\n        self._waiters.append(waiter)\n        saved_state = self._release_save()\n        gotit = False\n        try:    # restore state no matter what (e.g., KeyboardInterrupt)\n            if timeout is None:\n>               waiter.acquire()\nE               Failed: Timeout (>1.0s) from pytest-timeout.\n\n/usr/lib/python3.12/threading.py:355: Failed\n=========================== short test summary info ============================\nFAILED test_probe.py::test_hang - Failed: Timeout (>1.0s) from pytest-timeout.\n========================= 1 failed, 1 passed in 1.19s ==========================\n\ninterpreter=<COPY_ROOT>/.orchestra/tasks/V-1145/tmp/cli-probe/.venv/bin/python",
+  "tests": [
+    "test_probe.py"
+  ],
+  "failed_tests": [
+    "test_probe.py::test_hang"
+  ],
+  "passed_tests": [
+    "test_probe.py::test_after_hang"
+  ],
+  "passed_count": 1,
+  "stopped_in": "",
+  "unreached": []
+}

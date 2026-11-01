@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import time
+from types import SimpleNamespace
 from datetime import datetime, timezone
 
 from app import db
@@ -42,28 +43,33 @@ def _decision_eta(decision) -> float | None:
     return None
 
 
-def wait_error(decision, *, now: float | None = None) -> dict:
+def wait_error(decision, *, delivery_id: str, now: float | None = None) -> dict:
     """Что хранится в `error_json` ждущей доставки: причина и ориентир по времени."""
     moment = time.time() if now is None else now
+    details = {
+        "delivery_id": delivery_id,
+        "provider": decision.provider,
+        "provider_label": decision.provider_label,
+        "utilization": decision.utilization,
+        "reason": decision.reason,
+        "release_status": decision.release_status,
+        "release_in_seconds": decision.release_in_seconds,
+        "reset_at": decision.reset_at,
+        "eta_at": (moment + float(decision.release_in_seconds)
+                   if isinstance(decision.release_in_seconds, (int, float)) else None),
+        "parked_at": moment,
+    }
     return {
         "code": "WAITING_QUOTA",
+        "delivery_id": delivery_id,
         "message": (
             f"{decision.provider_label} quota gate is closed ({decision.reason}); "
-            "the delivery is durably queued and goes out by itself when the gate opens."
+            f"delivery_id={delivery_id}; ETA: {_eta_text(details)}. "
+            "The delivery is durably queued and goes out by itself when the gate opens."
         ),
         "retryable": False,
         "outcome_unknown": False,
-        "details": {
-            "provider": decision.provider,
-            "provider_label": decision.provider_label,
-            "utilization": decision.utilization,
-            "reason": decision.reason,
-            "release_status": decision.release_status,
-            "release_in_seconds": decision.release_in_seconds,
-            "reset_at": decision.reset_at,
-            "eta_at": _decision_eta(decision),
-            "parked_at": moment,
-        },
+        "details": details,
     }
 
 
@@ -108,8 +114,10 @@ def quota_wait_action(row) -> dict:
     details = error.get("details") if isinstance(error.get("details"), dict) else {}
     return {
         "code": "WAITING_QUOTA",
+        "delivery_id": row["delivery_id"],
         "retryable": False,
         "eta_at": details.get("eta_at"),
+        "eta": _eta_text(details),
         "message": (
             "Delivery is deferred by the quota gate (WAITING_QUOTA); it is durably "
             f"queued and goes out automatically when the gate opens — {_eta_text(details)}. Do NOT resend "
@@ -119,9 +127,13 @@ def quota_wait_action(row) -> dict:
     }
 
 
-def _model_of(session_id: str) -> str:
-    row = db.get_session(session_id)
-    return str(row["model"]) if row and row.get("model") else ""
+def _is_orchestrator(session: dict) -> bool:
+    """Match AgentSession's explicit kind and legacy role fallback on recovery."""
+    if session.get("is_orchestrator") is not None:
+        return bool(session["is_orchestrator"])
+    from app.prompting import is_orchestrator_role
+
+    return is_orchestrator_role(session.get("role", "worker"))
 
 
 async def _admission_allows(model: str):
@@ -141,7 +153,7 @@ async def _admission_allows(model: str):
 def _waiting_rows(table: str, session_column: str) -> list[dict]:
     with db._conn() as connection:
         rows = connection.execute(
-            f"SELECT delivery_id, {session_column} AS session_id, error_json "
+            f"SELECT delivery_id, {session_column} AS session_id, error_json, origin, origin_detail "
             f"FROM {table} WHERE state='WAITING_QUOTA' ORDER BY created_at",
         ).fetchall()
     return [dict(row) for row in rows]
@@ -174,7 +186,7 @@ def _refresh_eta(table: str, delivery_id: str, error_json: str | None, decision)
     with db._conn() as connection:
         connection.execute(
             f"UPDATE {table} SET error_json=? WHERE delivery_id=? AND state='WAITING_QUOTA'",
-            (json.dumps(wait_error(decision), ensure_ascii=False), delivery_id),
+            (json.dumps(wait_error(decision, delivery_id=delivery_id), ensure_ascii=False), delivery_id),
         )
 
 
@@ -209,12 +221,24 @@ async def release_waiting() -> int:
     и безопасен при параллельном вызове: переход — условный `UPDATE ... WHERE state=`.
     """
     from app import deps, initial_deliveries, initial_delivery_events, message_deliveries
+    from app import report_holds
+
+    report_holds.ensure_runner(deps.manager)
 
     released = 0
     async with _release_lock:
+        from app import limit_wake
+
+        # Also recovers a crash between persisting the terminal refusal and
+        # accepting its continuation. This is the existing quota sweep.
+        await limit_wake.queue_codex_limit_wakes()
         verdicts: dict[str, tuple[bool, object]] = {}
 
-        async def verdict(model: str):
+        async def verdict(session_id: str):
+            session = db.get_session(session_id) or {}
+            if _is_orchestrator(session):
+                return True, None
+            model = str(session.get("model") or "")
             if model not in verdicts:
                 verdicts[model] = await _admission_allows(model)
             return verdicts[model]
@@ -222,7 +246,7 @@ async def release_waiting() -> int:
         # Первые задания — раньше прямых: у свежего воркера они идут первыми по смыслу.
         initial_ids: list[str] = []
         for row in await asyncio.to_thread(_waiting_rows, "initial_deliveries", "session_id"):
-            allowed, decision = await verdict(_model_of(row["session_id"]))
+            allowed, decision = await verdict(row["session_id"])
             if allowed:
                 initial_ids.append(row["delivery_id"])
             elif decision is not None:
@@ -239,7 +263,34 @@ async def release_waiting() -> int:
             session_id = row["session_id"]
             if _has_open_initial(session_id):
                 continue
-            allowed, decision = await verdict(_model_of(session_id))
+            try:
+                detail = json.loads(row["origin_detail"]) if row["origin_detail"] else {}
+            except (ValueError, TypeError):
+                detail = {}
+            if row["origin"] == "system" and isinstance(detail, dict) and detail.get("subtype") == "limit_wake" \
+                    and limit_wake.is_codex_wake_ref(detail.get("ref", "")):
+                session = db.get_session(session_id)
+                try:
+                    if session is None:
+                        raise message_deliveries.TargetTaskChangedError("session disappeared")
+                    limit_wake.validate_codex_wake(SimpleNamespace(**session), detail.get("ref", ""))
+                except message_deliveries.TargetTaskChangedError:
+                    message_deliveries.cancel_message_delivery(row["delivery_id"], None)
+                    continue
+                is_orch = _is_orchestrator(session)
+                key = f"limit_wake:{is_orch}:" + session["model"]
+                if key not in verdicts:
+                    decision = await limit_wake.codex_wake_admission(
+                        session["model"], is_orchestrator=is_orch,
+                    )
+                    verdicts[key] = (decision.state != "blocked", decision)
+                allowed, decision = verdicts[key]
+                if allowed:
+                    message_ids.setdefault(session_id, []).append(row["delivery_id"])
+                else:
+                    _refresh_eta("message_deliveries", row["delivery_id"], row["error_json"], decision)
+                continue
+            allowed, decision = await verdict(session_id)
             if allowed:
                 message_ids.setdefault(session_id, []).append(row["delivery_id"])
             elif decision is not None:

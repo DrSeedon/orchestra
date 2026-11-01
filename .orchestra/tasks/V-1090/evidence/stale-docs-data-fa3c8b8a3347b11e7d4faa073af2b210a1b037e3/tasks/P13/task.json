@@ -1,0 +1,27 @@
+{
+  "id": "P13",
+  "package": "metricroll",
+  "prompt": "Add threshold alerts on top of the roll-up. It runs as `python -m metricroll.alerts SAMPLES RULES OUTPUT [--width SECONDS]`. SAMPLES is a samples file like the one the report command reads, and windows are cut the same way: 300 seconds wide unless --width is given.\n\nRULES is a text file with one rule per line: metric name, statistic and threshold, separated by spaces, for example `cpu p95 90`. The statistic is one of min, max, mean, p50 or p95. Blank lines and lines starting with # are ignored. Rules for metrics that do not appear in SAMPLES are ignored.\n\nA rule fires for a window when the chosen statistic of that metric in that window is strictly greater than the threshold. Rules and fired alerts should each be their own small record type that other code can use, and the new module should offer a function that takes the parsed rules and the series and gives back the fired alerts.\n\nOUTPUT is a CSV file with the header `metric,stat,start,value,threshold,message` and one row per fired alert, ordered by metric name, then by window start, then by the order of the rules in RULES. start is the window start in unix seconds. value and threshold have exactly two digits after the point. message is a sentence exactly like `cpu p95 93.20 > 90.00 in window starting 1700000100`. If no rule fires, OUTPUT has only the header line.\n\nIf a rule line does not have three fields, names an unknown statistic or has a threshold that is not a number, or if SAMPLES cannot be read or has a bad line, the command exits with status 2 and does not write OUTPUT. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "GENERIC",
+      "doc_side": "right"
+    },
+    {
+      "id": "D2",
+      "type": "REC",
+      "doc_side": "left"
+    },
+    {
+      "id": "D3",
+      "type": "FMT",
+      "doc_side": "right"
+    },
+    {
+      "id": "D4",
+      "type": "TSTYLE",
+      "doc_side": "left"
+    }
+  ]
+}

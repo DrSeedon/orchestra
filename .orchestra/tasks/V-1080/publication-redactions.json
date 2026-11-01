@@ -1,0 +1,12 @@
+[
+  {
+    "path": "mutation.log",
+    "private_sha256": "b0d83ca0c96ab2bab0ef0a40182538523b6788ab7079c08410c5facf5f02b1a4",
+    "public_sha256": "856fbf61287f3072e89cb75f7558bf6fb51a60312ef25aff240c1491b74535d9"
+  },
+  {
+    "path": "report.md",
+    "private_sha256": "3ca37d29a8d63060818388a4a139d7e21e3f0c535508ebd91ea8ee9c006026eb",
+    "public_sha256": "cfd4835e3932d2793654b79a02e2fad9420074056dd3624d0ba23e377e7ec892"
+  }
+]

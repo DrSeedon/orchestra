@@ -1,0 +1,100 @@
+...FFF                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_real_turn_end_path_records_signal_for_final_text_or_provider_interrupt[True-claude] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x787250c58c20>, 'manager': <tests.test_turn_signals.FakeManager...1e3d70>, 'parent_id': '6be46d22-6d79-4c0b-ade7-4ae1a2025d6e', 'worker_id': '9b9aa75c-ef7c-4720-a6ee-f4187d652630', ...}
+runtime = 'claude', interrupted = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runtime", ["claude", "harness", "codex"])
+    @pytest.mark.parametrize("interrupted", [False, True])
+    async def test_real_turn_end_path_records_signal_for_final_text_or_provider_interrupt(
+        world, runtime, interrupted,
+    ):
+        session = _session(world)
+        session.backend_type = runtime
+        if runtime == "codex":
+            session.model = "gpt-6-luna"
+        session._submit_db_write = Mock()
+        session._spawn_bg = lambda coroutine: coroutine.close()
+        session._turns.schedule_context_compaction = Mock()
+        session._handle_event(AgentEvent("text", "final output"))
+        session._handle_event(AgentEvent("turn_end", metadata={
+            "ok": not interrupted, "stop_reason": "interrupted" if interrupted else "end_turn",
+            "num_turns": 1, "cost_usd": 0,
+        }))
+        await _settle(session)
+        assert session.status == AgentStatus.IDLE
+>       assert len(world["manager"].sent) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <tests.test_turn_signals.FakeManager object at 0x78724f1e3d70>.sent
+
+tests/test_v1028_auto_report.py:112: AssertionError
+_ test_real_turn_end_path_records_signal_for_final_text_or_provider_interrupt[True-harness] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x78724f342ca0>, 'manager': <tests.test_turn_signals.FakeManager...2f4e60>, 'parent_id': '1b05d318-19da-405f-b7b8-62921f676b09', 'worker_id': '3641de82-38df-41e2-908b-9086065c737e', ...}
+runtime = 'harness', interrupted = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runtime", ["claude", "harness", "codex"])
+    @pytest.mark.parametrize("interrupted", [False, True])
+    async def test_real_turn_end_path_records_signal_for_final_text_or_provider_interrupt(
+        world, runtime, interrupted,
+    ):
+        session = _session(world)
+        session.backend_type = runtime
+        if runtime == "codex":
+            session.model = "gpt-6-luna"
+        session._submit_db_write = Mock()
+        session._spawn_bg = lambda coroutine: coroutine.close()
+        session._turns.schedule_context_compaction = Mock()
+        session._handle_event(AgentEvent("text", "final output"))
+        session._handle_event(AgentEvent("turn_end", metadata={
+            "ok": not interrupted, "stop_reason": "interrupted" if interrupted else "end_turn",
+            "num_turns": 1, "cost_usd": 0,
+        }))
+        await _settle(session)
+        assert session.status == AgentStatus.IDLE
+>       assert len(world["manager"].sent) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <tests.test_turn_signals.FakeManager object at 0x7872502f4e60>.sent
+
+tests/test_v1028_auto_report.py:112: AssertionError
+_ test_real_turn_end_path_records_signal_for_final_text_or_provider_interrupt[True-codex] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x78724f400ea0>, 'manager': <tests.test_turn_signals.FakeManager...1f10a0>, 'parent_id': '520afeb4-383a-4b93-8331-a0c2effbd15f', 'worker_id': '0996f313-5cf6-425c-ab9d-08eb9c2a388e', ...}
+runtime = 'codex', interrupted = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runtime", ["claude", "harness", "codex"])
+    @pytest.mark.parametrize("interrupted", [False, True])
+    async def test_real_turn_end_path_records_signal_for_final_text_or_provider_interrupt(
+        world, runtime, interrupted,
+    ):
+        session = _session(world)
+        session.backend_type = runtime
+        if runtime == "codex":
+            session.model = "gpt-6-luna"
+        session._submit_db_write = Mock()
+        session._spawn_bg = lambda coroutine: coroutine.close()
+        session._turns.schedule_context_compaction = Mock()
+        session._handle_event(AgentEvent("text", "final output"))
+        session._handle_event(AgentEvent("turn_end", metadata={
+            "ok": not interrupted, "stop_reason": "interrupted" if interrupted else "end_turn",
+            "num_turns": 1, "cost_usd": 0,
+        }))
+        await _settle(session)
+        assert session.status == AgentStatus.IDLE
+>       assert len(world["manager"].sent) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <tests.test_turn_signals.FakeManager object at 0x78724f1f10a0>.sent
+
+tests/test_v1028_auto_report.py:112: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v1028_auto_report.py::test_real_turn_end_path_records_signal_for_final_text_or_provider_interrupt[True-claude]
+FAILED tests/test_v1028_auto_report.py::test_real_turn_end_path_records_signal_for_final_text_or_provider_interrupt[True-harness]
+FAILED tests/test_v1028_auto_report.py::test_real_turn_end_path_records_signal_for_final_text_or_provider_interrupt[True-codex]
+3 failed, 3 passed, 32 deselected in 4.31s

@@ -1,0 +1,13 @@
+Sparse import stand-in: app.hub_workspace
+Sparse import stand-in: app.hub_activity
+Sparse import stand-in: app.hub_outbox
+Sparse import stand-in: app.events
+Sparse import stand-in: app.usage_contract
+Imported app namespace: ['<hub-workspace>', '<hub-workspace>']
+Imported app.backend_hub: <hub-workspace>
+Imported app.multicode_client: <hub-workspace>
+FF..                                                                     [100%]
+=========================== short test summary info ============================
+FAILED tests/test_multicode_client.py::test_second_session_failure_surfaces_without_another_initialize[400-session still unknown]
+FAILED tests/test_multicode_client.py::test_second_session_failure_surfaces_without_another_initialize[404-still gone]
+2 failed, 2 passed, 56 deselected in 1.26s

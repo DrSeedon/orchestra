@@ -1,0 +1,111 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 42ms
+........................................................................ [ 21%]
+..................F..................................................... [ 43%]
+.....................FF................................................. [ 65%]
+........................................................................ [ 86%]
+............................................                             [100%]
+=================================== FAILURES ===================================
+__________ test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools __________
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-0/test_hub_model_gets_a_trimmed_0/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-0/test_hub_model_gets_a_trimmed_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72c03d63bda0>
+
+    @pytest.mark.asyncio
+    async def test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
+        await _turn(backend, "implement the thing")
+        prompt = _first_prompt(mc)
+>       assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
+E       AssertionError: assert ('worker wrk' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...holds everything you need, and any other line in the file is dropped.\n</orchestra-link>\n\nTask:\nimplement the thing')
+
+tests/test_hub_workspace.py:1496: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:290 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_________ test_uncertain_steer_is_not_queued_for_redelivery[ReadError] _________
+
+failure = <class 'httpx.ReadError'>
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("failure", [httpx.ReadError, 503])
+    async def test_uncertain_steer_is_not_queued_for_redelivery(failure):
+        calls = []
+    
+        async def handler(request):
+            calls.append(json.loads(request.content))
+            if isinstance(failure, int):
+                return httpx.Response(failure, text="upstream unavailable")
+            raise failure("delivery unknown", request=request)
+    
+        backend = _backend()
+        backend._ssh = object()
+        backend._state = SimpleNamespace(thread_id="existing")
+        backend._run_id = "running"
+        backend._turn_active = True
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
+            backend._mc = _ready_client(transport)
+            with pytest.raises(MultiCodeError):
+>               await backend.send("steer once")
+
+tests/test_backend_hub.py:372: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:339: in send
+    await hw.check_workspace_file_policy(self._ssh, state)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssh = <object object at 0x72c0367b0590>, state = namespace(thread_id='existing')
+
+    async def check_workspace_file_policy(ssh: HubSsh, state: WorkspaceState) -> None:
+>       state.assert_file_policy()
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'assert_file_policy'
+
+app/hub_workspace.py:1044: AttributeError
+____________ test_uncertain_steer_is_not_queued_for_redelivery[503] ____________
+
+failure = 503
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("failure", [httpx.ReadError, 503])
+    async def test_uncertain_steer_is_not_queued_for_redelivery(failure):
+        calls = []
+    
+        async def handler(request):
+            calls.append(json.loads(request.content))
+            if isinstance(failure, int):
+                return httpx.Response(failure, text="upstream unavailable")
+            raise failure("delivery unknown", request=request)
+    
+        backend = _backend()
+        backend._ssh = object()
+        backend._state = SimpleNamespace(thread_id="existing")
+        backend._run_id = "running"
+        backend._turn_active = True
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
+            backend._mc = _ready_client(transport)
+            with pytest.raises(MultiCodeError):
+>               await backend.send("steer once")
+
+tests/test_backend_hub.py:372: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:339: in send
+    await hw.check_workspace_file_policy(self._ssh, state)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssh = <object object at 0x72c03607f110>, state = namespace(thread_id='existing')
+
+    async def check_workspace_file_policy(ssh: HubSsh, state: WorkspaceState) -> None:
+>       state.assert_file_policy()
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'assert_file_policy'
+
+app/hub_workspace.py:1044: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_hub_workspace.py::test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+FAILED tests/test_backend_hub.py::test_uncertain_steer_is_not_queued_for_redelivery[ReadError]
+FAILED tests/test_backend_hub.py::test_uncertain_steer_is_not_queued_for_redelivery[503]
+3 failed, 329 passed in 115.53s (0:01:55)

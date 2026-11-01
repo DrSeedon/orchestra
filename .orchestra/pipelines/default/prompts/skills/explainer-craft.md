@@ -112,18 +112,21 @@ Target numbers (medians of 127 3B1B videos):
 
 How to get this in the current tool (the specifics are in `video-artifact`):
 - `--rate 1.0` is the default and stays (owner decision, 16.10.2026); check by ear before changing it.
-- Tera intonates commas, colons and dashes itself, because each sentence is synthesized whole;
-  the tool cuts only at sentence ends and at an explicit `[sec]`. Do not try to force a pause with
-  punctuation. A pause the meaning needs is an explicit `[0.6]` in `say`, a step boundary, or `hold`.
+- The default voice is ElevenLabs Flash (Sergey): the model intonates commas, colons and dashes
+  itself, and its own pause after a sentence is not under our control. Do not try to force a pause
+  with punctuation. A pause the meaning needs is an explicit `[0.6]` in `say` (literal silence, 0.05–10 s,
+  not scaled by `--rate`), a step boundary, or `hold`. The same holds for an explicitly chosen local Tera.
 - **One sentence, one step** when the pause after it must be longer than the default end pause.
 - **`hold` on any step**: after a question, before the answer, after a formula appears. Use
   `hold: 1.2–2.0` and have something happen on screen meanwhile (a symbol flies, a formula assembles,
   an object is recoloured). A silent beat is `say: ""` with a positive `hold`.
-- Stress: a manual `+` marks one word; the other words of the phrase are still stressed
-  automatically. Details and the check in `references/voice-checks.md`.
+- Reading: ElevenLabs needs no stress marks, but numbers, dates, units, abbreviations and Latin names
+  must be checked (and written out in `say` where the reading matters), since normalization is not
+  guaranteed. Stress marks (`+`) exist only for the local Tera/Vosk engines. Details in
+  `references/voice-checks.md`.
 
 Measure the result on the voice-only track:
-`uv run --script /home/kesha/orchestra/scripts/video_artifact/pace.py out/<name>.voice.wav --timing out/<name>.timing.json`
+`uv run --script scripts/video_artifact/pace.py out/<name>.voice.wav --timing out/<name>.timing.json`
 prints pauses per minute (all, ≥ 0.5 s, ≥ 1 s, ≥ 2 s), their share of talk time and vowels per second;
 compare it with the table above.
 
@@ -153,7 +156,9 @@ Go through `STEPS` before `--timing-only`; each item is yes/no.
 - [ ] No `FadeOut` of everything between blocks without carrying an object over.
 
 **Voice**
-- [ ] `--stress-only`: in phrases with a manual `+`, the automatic stresses of the other words are checked too.
+- [ ] Every number, date, unit, abbreviation and Latin name in `say` has a checked reading (spoken form
+      written out where it matters). With a local Tera/Vosk engine: `--stress-only` read through, and in
+      phrases with a manual `+` the automatic stresses of the other words are checked too.
 - [ ] After questions, before answers and after formulas there is a `hold` ≥ 1 s with animation in it.
 - [ ] Pauses the meaning needs are explicit (`[sec]`, a step boundary or `hold`), not punctuation hopes.
 - [ ] Rate: `--rate 1.0` or a deliberately different value.

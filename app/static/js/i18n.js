@@ -21,6 +21,7 @@
     var DEFAULT_LANG = 'ru';
 
     var RU = {
+    'Report held by quota gate → {parent}': 'Отчёт удержан квотой → {parent}',
     ' (CLI cost, includes cache)': ' (стоимость CLI, включая кеш)',
     ' (telemetry stale)': ' (телеметрия устарела)',
     ' (w/o cache)': ' (без кеша)',
@@ -474,7 +475,7 @@
     'Orchestra restarted · data updated': 'Orchestra перезапустилась · данные обновлены',
     'Orchestra unavailable': 'Orchestra недоступна',
     'Orchestrator:': 'Оркестратор:',
-    'Orchestrator: <b>always runs</b>': 'Оркестратор: <b>всегда работает</b>',
+    'All orchestrators: <b>always run</b>': 'Все оркестраторы: <b>всегда работают</b>',
     'Orchestrators': 'Оркестраторы',
     'Own agent loop · free models': 'Свой цикл агента · бесплатные модели',
     'PAID': 'ОПЛАЧЕНО',
@@ -687,6 +688,7 @@
     'killed': 'убит',
     'lift for 2 h': 'снять на 2 ч',
     'lift gate': 'снять гейт',
+    'lift gate for an hour': 'снять гейт на час',
     'lift gate until': 'снять гейт до',
     'local': 'локальный',
     'minute': 'минута',

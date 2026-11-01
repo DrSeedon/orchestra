@@ -1,0 +1,18 @@
+usage:
+  tour                      choose a branch and tour it
+  tour <branch>             tour a branch, e.g. feature/x or origin/feature/x
+                            (compared with the default branch)
+  tour <commit>             tour a single commit
+  tour <base>..<head>       tour a range
+  tour <tour.json>          play a tour file
+  tour setup                choose the language and the LLM again
+
+options:
+  --repo <path>   repository to read (default: current directory)
+  --lang <lang>   language for this run only: en, ja, zh (Simplified Chinese),
+                  zh-Hant (Traditional Chinese) or es
+  --dump          print every step to stdout instead of opening the TUI
+  --cols, --rows  screen size for --dump (default 100x30)
+  --plain         --dump without colors
+  --version       print the version
+tour: flag: help requested

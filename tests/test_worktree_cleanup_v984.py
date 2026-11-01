@@ -175,7 +175,10 @@ async def _run_merge(monkeypatch, ok: bool):
 
     monkeypatch.setattr("app.routes.sessions.execute_merge_session", fake_execute)
     await operations.accept_merge_operation(
-        operation_id=str(uuid.uuid4()), name="worker", scope="/scope/", target="main")
+        operation_id=str(uuid.uuid4()), name="worker", scope="/scope/", target="main",
+        expected_head="b" * 40,
+        acceptance_note="Accepted the pinned worker result after inspecting its changes.",
+    )
     await asyncio.wait_for(asyncio.gather(*list(operations._runner_tasks.values())), timeout=30)
     return calls
 

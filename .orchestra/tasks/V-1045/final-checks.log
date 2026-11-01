@@ -1,0 +1,2 @@
+PASS: syntax, trailing whitespace and secret-shape checks on 15 files
+Canonical app.secret_mask is absent; scan was limited to explicit shapes and synthetic outputs.

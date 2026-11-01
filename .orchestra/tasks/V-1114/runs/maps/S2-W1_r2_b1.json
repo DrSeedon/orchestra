@@ -1,0 +1,91 @@
+{
+ "key": "S2-W1_r2_b1",
+ "arm": "S2/W1",
+ "rep": 2,
+ "blk": 1,
+ "maps": {
+  "F21": {
+   "A": "A",
+   "B": "B",
+   "C": "C",
+   "UNKNOWN": "UNKNOWN"
+  },
+  "B02": {
+   "A": "B",
+   "B": "A",
+   "C": "C",
+   "UNKNOWN": "UNKNOWN"
+  },
+  "F06": {
+   "A": "A",
+   "B": "B",
+   "C": "C",
+   "UNKNOWN": "UNKNOWN"
+  },
+  "B11": {
+   "A": "B",
+   "B": "C",
+   "C": "A",
+   "UNKNOWN": "UNKNOWN"
+  },
+  "F13": {
+   "A": "A",
+   "B": "C",
+   "C": "B",
+   "UNKNOWN": "UNKNOWN"
+  },
+  "F05": {
+   "A": "C",
+   "B": "A",
+   "C": "B",
+   "UNKNOWN": "UNKNOWN"
+  },
+  "F07": {
+   "A": "C",
+   "B": "B",
+   "C": "A",
+   "UNKNOWN": "UNKNOWN"
+  },
+  "F10": {
+   "A": "B",
+   "B": "A",
+   "C": "C",
+   "UNKNOWN": "UNKNOWN"
+  },
+  "B14": {
+   "A": "B",
+   "B": "C",
+   "C": "A",
+   "UNKNOWN": "UNKNOWN"
+  },
+  "B04": {
+   "A": "C",
+   "B": "A",
+   "C": "B",
+   "UNKNOWN": "UNKNOWN"
+  }
+ },
+ "packet_ids": [
+  "M11",
+  "M12",
+  "M13",
+  "M15",
+  "M18",
+  "M19",
+  "M20",
+  "M23",
+  "M24",
+  "M26",
+  "M27",
+  "M29",
+  "M30",
+  "M37",
+  "M38",
+  "M40",
+  "M41",
+  "M46",
+  "M48",
+  "M50"
+ ],
+ "bytes": 75166
+}

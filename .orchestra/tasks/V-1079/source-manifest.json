@@ -1,0 +1,35 @@
+{
+  "historical_evidence_sha256": {
+    ".orchestra/tasks/V-1076/.gitignore": "1410caa22a9048b554bc9347fbf5a8cfb66f74823f0ebc24c5caf6065b3fecb9",
+    ".orchestra/tasks/V-1076/existing-tests.stdout.txt": "35034361ac68c0ea6e67b69a36b03db441444592e2746d1cac24ccc1cb8a0136",
+    ".orchestra/tasks/V-1076/import-baseline.stdout.txt": "2db195e00f8f77ebfe431d5e3aa875939d2b8ee980732fc777e1ccc0a508aa80",
+    ".orchestra/tasks/V-1076/probe-40.stdout.txt": "5d9976f6da7b01e6c89be73a4ac721e411b274e4271c8ede3b4ae0ea29d0e172",
+    ".orchestra/tasks/V-1076/probe-43.stdout.txt": "14c1a7d2c177bf66d73ae19d21476f650df8bb4b7dc0d7000fc102885e121f2f",
+    ".orchestra/tasks/V-1076/probe-initial-harness-error.stdout.txt": "6f4ad322b466f580ac6f44dca5c5e566822f49c9bea2146f37976c0c01ef63f3",
+    ".orchestra/tasks/V-1076/probe.stdout.txt": "fc1a84e1c01a710e3fc8f6031a905da95f164943910115d128e4ebe2f69a7730",
+    ".orchestra/tasks/V-1076/publication-redactions.json": "c83f4463bbbcd7d9e5657587081cb504897d4c31e9d2e3002331e95ab0307a27",
+    ".orchestra/tasks/V-1076/report.md": "a7c0ce4a82f820e2996777860b68e33ad347d96578044912532384c6c6c25855",
+    ".orchestra/tasks/V-1076/runner-setup.stdout.txt": "b43135310643c6ccf2db4ad0dc50bd6f57e926224f77c180b9d9e373714def83",
+    ".orchestra/tasks/V-1076/source-baseline.json": "22c9adac9db43cb475d7422ed44185cf293693ebbd51a83400fa48dc321e9c37",
+    ".orchestra/tasks/V-1076/test_compact_probe.py": "7df4013e6a21bb1460bf3ed1d1521470352094f9234af1a39728936dee7c58c9",
+    ".orchestra/tasks/V-1076/verification.stdout.txt": "1784a382219aabf40f31c51d408d72118af69f28871f5b63203227d9a59a2900",
+    ".orchestra/tasks/V-1076/verify_artifacts.py": "0551b44f3abcc6dbb49f7d93bfc65e8ba9d5ee443390bb61f2ccee8c3d436fc5"
+  },
+  "preserved_input_sha256": {
+    "TODO.md": "9840373955966f003dfd709ae1e4a6f35be02b843944442937a1163a9eb1ff65"
+  },
+  "result_sha256": {
+    "CHANGELOG.md": "a4ede45b7987f55d7cf1736ec4f5bb8d250dd816fb84973635aa0fe6c49f577c",
+    "app/backend_codex.py": "a648ba7d02638ec5960822d0cb38e36cba0f022fce3b0e6aefeb6625e0b96486",
+    "app/session.py": "fa4a256775f1436e6a1991bf48886fd10f97d6878b2fcd90dafe37033cbfedd3",
+    "app/session_hibernate.py": "6fe35201b3999bf535a84dc025670f22ef70c90718230d52f1e5d2d07443c493",
+    "tests/test_backend_codex.py": "5f063b596eedf21b90cd5acaeee0b74e519ef929afcb962dc850a6f63a3c9c9d",
+    "tests/test_codex_compact_state.py": "a2287c2b4317503ddd675040d06cb0b8625cbe04c729d8399ff75d12ae380ae2"
+  },
+  "review_base_backend_sha256": "02fb3fc410bb59628c0de157c97cd7f83f56914ce40d6cc923202cca6b645d29",
+  "supplied_source_sha256": {
+    "backend_codex": "ac44171eb07ea81e1396626c5ec02339a3c2f52dae619870bc419e65a2a9e79c",
+    "session": "bfd6b875c8f649c87157bc7f4002a6782e90c366dfaddfa5fb665b778d9f28b6",
+    "session_hibernate": "f7b522194e6af474244a463ba0a2866b24e752ccf5d5c6edbb39ddbf9aa6b087"
+  }
+}

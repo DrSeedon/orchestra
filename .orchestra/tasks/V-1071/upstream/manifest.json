@@ -1,0 +1,1083 @@
+{
+  "repository": "https://github.com/anthropics/single-agent-loop-kit",
+  "commit": "c43796287b83bec847db923f07131d1cc8de750d",
+  "commit_date": "2026-10-21T13:14:55Z",
+  "archive_sha256": "6aa5ff384e6fb805eba7022909a0cab7abad4450b29f5587601ad966ddf41f8b",
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "60c9bdd905fcf45ac485c680d32e9773962cf061b6f041dcddd033911558a672",
+      "bytes": 29
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "e9ebaf27d1de99aa1e6e678b867dd7e5753f30af3f6c929e82b3dff41ea09099",
+      "bytes": 1594
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    {
+      "path": "README.md",
+      "sha256": "eff8580025e4b857ab051e28486861a075d6fa5a938c75f2fede6d618bc8f89c",
+      "bytes": 9332
+    },
+    {
+      "path": "examples/support-desk/.gitignore",
+      "sha256": "7c249a884c33964dba347ca84155af66c5729fc8fd4035753c6a6944a70f2a95",
+      "bytes": 52
+    },
+    {
+      "path": "examples/support-desk/ANSWER-KEY.md",
+      "sha256": "e932feb9c64eff6ed5ad5f204e9cd9d5c68d1d7ee24ed90a9fa83591575de49a",
+      "bytes": 5050
+    },
+    {
+      "path": "examples/support-desk/README.md",
+      "sha256": "0e46d664e97166f36dd314db4790d888a539f0d0d38cee20f11a111ae7b53dec",
+      "bytes": 1465
+    },
+    {
+      "path": "examples/support-desk/RUNBOOK.md",
+      "sha256": "6d30ac236b0644aceb9db06b18af93e969b4f8005144963f917dabe0ad67e8c6",
+      "bytes": 6703
+    },
+    {
+      "path": "examples/support-desk/app/__init__.py",
+      "sha256": "54e5d2edd683c72daea49ec956e539dd94c792a8e398d0bd990a373c2b3b2af8",
+      "bytes": 201
+    },
+    {
+      "path": "examples/support-desk/app/backend.py",
+      "sha256": "47dd984e261737ab70feace1bc3ea198301ccbffab5e11f722c3fe28bb1586f7",
+      "bytes": 10307
+    },
+    {
+      "path": "examples/support-desk/app/fake_model.py",
+      "sha256": "1e3b99faa6f4f99ec5c8a885565ac8f05bfe5e7e71fa4409e9e671cb36f1606e",
+      "bytes": 8136
+    },
+    {
+      "path": "examples/support-desk/app/llm.py",
+      "sha256": "157047137d36167c842ea24193073c21aee788b9656ce38f1e3e64a65d183d9c",
+      "bytes": 1990
+    },
+    {
+      "path": "examples/support-desk/app/orchestrator.py",
+      "sha256": "52b91ab02091344f7e1f5fca0748756fd0167159b168dba3f3584208b99daee0",
+      "bytes": 5285
+    },
+    {
+      "path": "examples/support-desk/app/prompts/account.md",
+      "sha256": "cc82dd43cedd508fc851ca23bf3d5892ca988190f621d896424d511e220dc3ab",
+      "bytes": 172
+    },
+    {
+      "path": "examples/support-desk/app/prompts/claims.md",
+      "sha256": "d6bf3844ef6a95e34a4c22efd59c1e77f7cbeaabf220fafbd90ef18dcae8d22e",
+      "bytes": 660
+    },
+    {
+      "path": "examples/support-desk/app/prompts/diagnostics.md",
+      "sha256": "dd95d98e089b55839dffacde99ffe5acfae6de4e09a2df43980496dcfecaafd6",
+      "bytes": 315
+    },
+    {
+      "path": "examples/support-desk/app/prompts/orders.md",
+      "sha256": "edf6cf49950ab9f2be5c3d269adfd635d2a1643ff34c0f89d094f2ca67f08340",
+      "bytes": 244
+    },
+    {
+      "path": "examples/support-desk/app/prompts/returns.md",
+      "sha256": "0cd770bd2dbd7bdda82a00efa75710c5d0c0d4464f98c01a2e3a04938b154387",
+      "bytes": 820
+    },
+    {
+      "path": "examples/support-desk/app/prompts/router.md",
+      "sha256": "8a130b4304bf668bca42cb1abe37d81cd0d78120b937292f8a9a4011862dc136",
+      "bytes": 1270
+    },
+    {
+      "path": "examples/support-desk/app/prompts/shipping.md",
+      "sha256": "727d94e8263e4ea7654b1ca65788eda5afef10dc94d4a34eb2983adb9888a3d7",
+      "bytes": 314
+    },
+    {
+      "path": "examples/support-desk/app/subagents.py",
+      "sha256": "606725fd81bdbc9aa46023ec8de2710aac3ab3907d0d8e98211dcafc6d8d41bb",
+      "bytes": 4824
+    },
+    {
+      "path": "examples/support-desk/app/tools.py",
+      "sha256": "f4209181ea71f72c5d38c422493114832688a39f5e74768aa80ad9fdb22d968e",
+      "bytes": 3944
+    },
+    {
+      "path": "examples/support-desk/evals/golden.jsonl",
+      "sha256": "f5d51f98429108b7cdd509756e2bce7a5133b36f3ef9f44ee460e2f2f7c93c72",
+      "bytes": 6128
+    },
+    {
+      "path": "examples/support-desk/evals/routing_accuracy.jsonl",
+      "sha256": "b22610bbbcf2a6d6d54ae4579244da0a58476fa52294f5e4fc4e5175c3819cb4",
+      "bytes": 653
+    },
+    {
+      "path": "examples/support-desk/evals/run_eval.py",
+      "sha256": "084a69b7cd2a2152e1395eae6cee4f38568dc70f0594d168fd213af75a38f29e",
+      "bytes": 11342
+    },
+    {
+      "path": "examples/support-desk/example-run/README.md",
+      "sha256": "d5caf346cdd13f98ce66dd526010baf534f0a591e31a2d6d97a8a269155db18f",
+      "bytes": 3431
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/README.md",
+      "sha256": "56a02dc47b1c50126237956d1f90b745fd6a725f48c6b7246ea078662a6f5753",
+      "bytes": 4401
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/as-tool-diagnostics.diff",
+      "sha256": "2cb4856802169b64e7d1174c4c931e5341a1e6c0c414c6ea6a45863827ebcd8b",
+      "bytes": 16297
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/plan/PLAN.md",
+      "sha256": "595a7793410803230b8bbc0b39ae174997c79b42c543a30340fab6aeee30ce7a",
+      "bytes": 14896
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/plan/inventory.tsv",
+      "sha256": "75f2548229b5843c8e287a8156df54ee0bef7997e6929bd53a82ca2c23223d9a",
+      "bytes": 3450
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/results.jsonl",
+      "sha256": "8de02f2841169a4191c62c4dc9f5bcaea11c725940fa9465681d03725454be30",
+      "bytes": 59849
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/run.json",
+      "sha256": "426b6ef2e4f9cc0038b1c4a74343c0e54b03d0a90bf299024422b22fe9182945",
+      "bytes": 345
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t01_rep0.json",
+      "sha256": "f61904d49eb782b53925d029972fbdc04142c23798f7bd33593ed41476993674",
+      "bytes": 2868
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t01_rep1.json",
+      "sha256": "45153d49c6204737ceb49114f8fac1dd2ad0f95acb39432f69231cf818dc46c1",
+      "bytes": 2722
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t02_rep0.json",
+      "sha256": "2964031f2a788c1abc2b0cfeafec900011913c682130a94cd58a7faa67eb6c5e",
+      "bytes": 3419
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t02_rep1.json",
+      "sha256": "22266b2130c6c85307a94e11b7017d834c6f7026ccb0f85ad5b99c0d115b0ac0",
+      "bytes": 3017
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t03_rep0.json",
+      "sha256": "fd24aee5bb68c926dc5bca98b9133a58b2596c77acb67f908c8122127f56a564",
+      "bytes": 1653
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t03_rep1.json",
+      "sha256": "2b4d709e184780620a5fc8a964da860a97dd99f84cca635482abed724484bc56",
+      "bytes": 1610
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t04_rep0.json",
+      "sha256": "a3563fd1c21f405348390603ed6c954bc1d66bc83a5e7ad2f74f80ae81639a5f",
+      "bytes": 4797
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t04_rep1.json",
+      "sha256": "1b5fe19563f8249415f13082a121885abc0679544716a62d1e818714cfb5fdc8",
+      "bytes": 5226
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t05_rep0.json",
+      "sha256": "7101941a11003178d8afde9c4d895fad51021acb8c92f099afac990ebfe8cb14",
+      "bytes": 4682
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t05_rep1.json",
+      "sha256": "a485609a579b5c9ab1be97cc8ef29729eb0e49ef2faf6015934dbe9ed0e39e14",
+      "bytes": 3938
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t06_rep0.json",
+      "sha256": "391f1757193543687d0608063a8e6d82e8e2084737e96597290c76879a2ea486",
+      "bytes": 5861
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t06_rep1.json",
+      "sha256": "bd13ca6ff55fe23762822266fc450a0236329ca3482821f199071d6c8b92d25d",
+      "bytes": 5326
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t07_rep0.json",
+      "sha256": "b98a8f115811ce47d8c0dc3027217aa2c3ab83d222f3021f0bf1b8e636be27b5",
+      "bytes": 7429
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t07_rep1.json",
+      "sha256": "1b70b7ea2bcacd40014229dcb69897c21bccbc27c66d20c295bf5f9c1720ee62",
+      "bytes": 2010
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t08_rep0.json",
+      "sha256": "4861803660fe21c4773794d7197c9edb4c0069a142b7070294ed5e9c7cec8713",
+      "bytes": 2102
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t08_rep1.json",
+      "sha256": "79aa157d1b6811ac0e318affc3fe1d2abc7fcd83396d4ce40f4bdfa4246e8da3",
+      "bytes": 2078
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t09_rep0.json",
+      "sha256": "0739fe93593779474dfc5bc6a2b648f42fc3da4fc324781ca5a632aa8a3f778c",
+      "bytes": 5821
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t09_rep1.json",
+      "sha256": "e348ccfe3fa70c918f58c0e04728828c1acd23ed09a9bc85fc126cc3af9f913a",
+      "bytes": 6587
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t10_rep0.json",
+      "sha256": "6900e17550f3e09bbd5f3087d34c16fd4a8b6fcc3e44d73b77fde934189ce0d4",
+      "bytes": 3971
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t10_rep1.json",
+      "sha256": "164748a390b078cc80b8774c15d9b31c9f445a46a61ab906a52b4ec8c5a26e01",
+      "bytes": 3510
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t11_rep0.json",
+      "sha256": "46b7d54d5c17dd9d54f99aa60d650a9d5e0a5b2e4d22cbd383f927ceecb4659c",
+      "bytes": 9571
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t11_rep1.json",
+      "sha256": "3486f00df1bb9626d5105242751e7c44924ac7afc64c72ef52e9404c761be41d",
+      "bytes": 9830
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t12_rep0.json",
+      "sha256": "6b1fe5c5ce2b7ca4bbf9b8f3a0d59251eb3c88ff9830c28e1a863e50a7cc6001",
+      "bytes": 7642
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t12_rep1.json",
+      "sha256": "2c0b16c96cf98161a316e5eb12c4011ac099977b6f59a3c0e29cb89b390bca67",
+      "bytes": 8239
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t13_rep0.json",
+      "sha256": "bcc36e18a9c9cfae03dc9312df6b86368a648cf9ce99e853da326599103ff94a",
+      "bytes": 6499
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t13_rep1.json",
+      "sha256": "850f2ac6c150d35476dcb4d667edc98c87f6ecfce7be8e07f0742f96248b2a88",
+      "bytes": 6653
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t14_rep0.json",
+      "sha256": "5185d7b0aa22b9f1e822d70d66c63889460e94f34434cd1923bc822cc81899ac",
+      "bytes": 3039
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t14_rep1.json",
+      "sha256": "63fe391e36647809e4dd34bad73f166a642c8cecc35140a6d8edcc136d04672f",
+      "bytes": 3093
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t15_rep0.json",
+      "sha256": "619fcf8994b7d13b3ccef9d74aa13a763a5bcd3bddfe00d934d310fb1c3a70ad",
+      "bytes": 6756
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t15_rep1.json",
+      "sha256": "cb2a2b114df23970fad55cb48ed1125d3818d19a3b966ac619ee14ffc633b060",
+      "bytes": 6826
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t16_rep0.json",
+      "sha256": "ae048f68dea73b0133f691cd5eabb7937e0fb9b31fe023323c040513e3248f08",
+      "bytes": 6247
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t16_rep1.json",
+      "sha256": "84fa5d70340463f281b04a1c432dce229aed6ca6278635d0e379b0963b28806a",
+      "bytes": 6646
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t17_rep0.json",
+      "sha256": "94329fd02713bd21e67cfaf6db0599c742d6365c9a33387012a427fc288e073c",
+      "bytes": 8213
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline/traces/t17_rep1.json",
+      "sha256": "0ef055ceede3de983665bf11e79a0773d575ef2c8dd4e19aaac419ed2beced6a",
+      "bytes": 8680
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline-t01-t10/results.jsonl",
+      "sha256": "dfbe676deabbc756ace87e0c7af4bf33fd173609de808e99f29bc535ca278890",
+      "bytes": 12485
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline-t01-t10/run.json",
+      "sha256": "26f03d6a682aa395708a9f1c144ad1db2fd36a488d2279c61d8bbc21239f0d77",
+      "bytes": 671
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline-t01-t10/traces/t01_rep0.json",
+      "sha256": "c548ca8f905862c169c3f44785e49f132797bac21beff661839093d630d16d3f",
+      "bytes": 2797
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline-t01-t10/traces/t01_rep1.json",
+      "sha256": "fcca9de7adf8bccf191202cc3f6e453a4a3ca1847518377d472bef58acb7a0d1",
+      "bytes": 2613
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline-t01-t10/traces/t01_rep2.json",
+      "sha256": "d65ec1532e369b651fb7a8c562196cb2707d8a45222f959fbb526e86d661358c",
+      "bytes": 2801
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline-t01-t10/traces/t01_rep3.json",
+      "sha256": "084e552ad9aa04a4a704360e4706e97f4ed4b378c2f506e7c6a36ccdf4572157",
+      "bytes": 2742
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline-t01-t10/traces/t10_rep0.json",
+      "sha256": "9f8ea72f493f9ca5afdc367e1054f59ca7e7d06d1e4432ef5b009be0f3dfba38",
+      "bytes": 3581
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline-t01-t10/traces/t10_rep1.json",
+      "sha256": "7905873920e36c57050dd7b13cf9d03d6e5dceb0fda6b01f80ba5337b56b3026",
+      "bytes": 3933
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline-t01-t10/traces/t10_rep2.json",
+      "sha256": "c4d3924aa971d000b495a1cdd0584e2733fb9c20a37cde60d59adcf0c5aa566a",
+      "bytes": 4957
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/baseline-t01-t10/traces/t10_rep3.json",
+      "sha256": "263a9d44963c2c771adb4749289af9e06e26269c6b6196a9f2ab92dc641fde9e",
+      "bytes": 4013
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/probe/results.jsonl",
+      "sha256": "04ef305a146b07a277f2c4f53cdabeabbdd24b17add4355ad1f00f8dc39d5f46",
+      "bytes": 2831
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/probe/run.json",
+      "sha256": "1e7dae2f5ed8a94e72a060d4f7a25a101c5377fca6885e0dc47e7f21930d0543",
+      "bytes": 671
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/probe/traces/t08_rep0.json",
+      "sha256": "3be4d445667b9c1cef3649a002c0c80282bc69b332449fafa6d35323e826d325",
+      "bytes": 1645
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/probe/traces/t09_rep0.json",
+      "sha256": "76a0b8fbda17f8f1bf0d6dc400f1368cb120f3ed91fdcad3245f3910c3006898",
+      "bytes": 6027
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/change.md",
+      "sha256": "8c1ac840abdf0e979a8550ea6fab21ba840ca08a83417f83cfeaab2d0da30b47",
+      "bytes": 1292
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/results.jsonl",
+      "sha256": "10e7ecd487d01062635602dde699f45e856d7bb849e6fe1fd4a1ca8e86811020",
+      "bytes": 56670
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/run.json",
+      "sha256": "ff554be03fb40acd6f1703ae6146c540eed118f18fcc31adb129e681093458fd",
+      "bytes": 345
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t01_rep0.json",
+      "sha256": "29884269e9bb54588861b0c2db3173e4765b2068cff2b7f7e1ef39ef39f8dd60",
+      "bytes": 2745
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t01_rep1.json",
+      "sha256": "5d3904ebefe3d7cad4f8f74af1bcc7e5a0762a17ccc0e7693b0d7aea5ee85093",
+      "bytes": 1345
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t02_rep0.json",
+      "sha256": "08ba71d7ef0378d6aaf88ad52c394d4cba97e6db9828d68daf2d66859e59f235",
+      "bytes": 3024
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t02_rep1.json",
+      "sha256": "4b14e1ac32d8cdb50c5bee3d043ab61270eedef3f21cdda4263df6ff99aaacb6",
+      "bytes": 2850
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t03_rep0.json",
+      "sha256": "dabf191c4abf28da2f6414b5d58242d31d522cb12160d8cebe7ad4f4caf413d1",
+      "bytes": 1641
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t03_rep1.json",
+      "sha256": "0a1b4082aa56fa8563555003eb02949420c62891891e2a46980a1aa9bf649f43",
+      "bytes": 1739
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t04_rep0.json",
+      "sha256": "afb9ff15bc566e8e5e8d33253154ddaa615dd332dba38402e56463ad7f2be4fa",
+      "bytes": 5269
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t04_rep1.json",
+      "sha256": "56cfd798f274704ce6d48ce1c7b782a041108525ab7fcc17e69b57f3f50679a1",
+      "bytes": 5743
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t05_rep0.json",
+      "sha256": "1306c2bd688e895233bcd99b2448284660a518da0ff3c0c9bf6f9a0a813cfa09",
+      "bytes": 4884
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t05_rep1.json",
+      "sha256": "2d74929ebe831145aed92fb81275fb3ec440826043a85de722ecc0c20987a69a",
+      "bytes": 5229
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t06_rep0.json",
+      "sha256": "d637209974e0a808a947bebd1c506389e39869ad119b229c8ea076a5292120af",
+      "bytes": 4156
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t06_rep1.json",
+      "sha256": "d142ddf0c8260d44e4bee17339f9d98e944e7bd9c4922ee0b34e2b7cda16a94f",
+      "bytes": 5387
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t07_rep0.json",
+      "sha256": "c524711c40f66103c9a8be44ad63844aff9057c491902ef7193ce8122e704c5c",
+      "bytes": 1851
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t07_rep1.json",
+      "sha256": "c8b6dd7e454cb73644ea27d4e55b3f72dea2d4c7eaf352f70754a747b6a900ae",
+      "bytes": 1960
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t08_rep0.json",
+      "sha256": "c3fba5013ec7bcfab77ef11dd7bd989b549b901b997d22284e0eee8d51de4005",
+      "bytes": 1858
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t08_rep1.json",
+      "sha256": "c412ee26e412806d4a792260d12af7f0d564e4f9f3cd0c35d33d49d02bfac0c9",
+      "bytes": 1379
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t09_rep0.json",
+      "sha256": "f13b36d65d6a4923a665b0488ed43c7f8d8bc07b4cab8496e7fcf2e75358af9f",
+      "bytes": 6907
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t09_rep1.json",
+      "sha256": "26ebbab64f8772d08ac418baa61ca86063fe4d7e5accd27e9d35387bea7c13d8",
+      "bytes": 6474
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t10_rep0.json",
+      "sha256": "07f5d290e2ba2e62b9f1a59960680242460e21778f25a43600116eaf5a86a6d0",
+      "bytes": 4762
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t10_rep1.json",
+      "sha256": "015f6916d7f7899541787725d086833e657e853698891e603d16f27b8ec718e2",
+      "bytes": 5367
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t11_rep0.json",
+      "sha256": "1baff79d797390538d73279405c5074b3524f1d6d95e0faaab4040294299174c",
+      "bytes": 9704
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t11_rep1.json",
+      "sha256": "d11ae3be4b5c9e3322e6a77d4dd7a59f5cce54b30c3982896492fca2357daaa4",
+      "bytes": 9984
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t12_rep0.json",
+      "sha256": "138641e8d3b14b9c6794dbf78a55b5ff6dc9a8e29e63c6d041237f045a6c5f66",
+      "bytes": 8597
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t12_rep1.json",
+      "sha256": "2e37404814bb3ab2e015c9311b32d0da1003cb36f03ee8de5d30d749364582b2",
+      "bytes": 8940
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t13_rep0.json",
+      "sha256": "23b6e3b5590959253436b58823db3b10cf5e6d0230ec738248f45103392ef95f",
+      "bytes": 8503
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t13_rep1.json",
+      "sha256": "cd64e2eca8077739f3136cea4e5a87c384b081696a7543a780a71dea6b393841",
+      "bytes": 6040
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t14_rep0.json",
+      "sha256": "7a5f52f1b7d198d9fb9b0792cf0f3eba37df58da16720dbffb0edfc2ec0aeb9b",
+      "bytes": 3608
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t14_rep1.json",
+      "sha256": "acf49cce6ac6416aafe8b93bad704e524735500f85ef8bf4e23bde4373258e8b",
+      "bytes": 2075
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t15_rep0.json",
+      "sha256": "598cc46c0ec67c8c3525c8d07e51e5d3b7ae438cc69f9af4c5c7d92b3ec19133",
+      "bytes": 5090
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t15_rep1.json",
+      "sha256": "34ea609e363b89ecb995d4a09aca39c0ef31170944a1ddbf5c549df30dccd3e7",
+      "bytes": 5837
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t16_rep0.json",
+      "sha256": "733b4d978f9d014b818c84e0991a08e831dc9d9497d3638cc18c048cf02b74fd",
+      "bytes": 579
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t16_rep1.json",
+      "sha256": "99d07e86135a77224dfe5cb98ad0e6f2c4e64fdb14830ee44524f2195bd3482c",
+      "bytes": 689
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t17_rep0.json",
+      "sha256": "4a8e6cb2ff25925e3a625e6a3024a7fa95b0884592a0250a85281c8cefd31d12",
+      "bytes": 8091
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1/traces/t17_rep1.json",
+      "sha256": "f2508e6a15b3a3e2548214d5497eff920b077a1adc62a3d8c4e8079150bcb85d",
+      "bytes": 10083
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1-t01-t10/results.jsonl",
+      "sha256": "edd401c7dda65fbba89b6c6787e99c68763dceb71e5b53fa9f950a9c0f0595cc",
+      "bytes": 13511
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1-t01-t10/run.json",
+      "sha256": "959879514c06b7c6c32cd4e0dd9467a0520523404f576c1bfdf9771af9269c74",
+      "bytes": 671
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1-t01-t10/traces/t01_rep0.json",
+      "sha256": "6998ea3c72702ab6d263de2c16e819bf66a16cc0616c8f3419cbca3b2e04bc6f",
+      "bytes": 3109
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1-t01-t10/traces/t01_rep1.json",
+      "sha256": "9b97dae3b401f885f525e9353a78924ef54ea456bd4a20537792e58e4ed6655b",
+      "bytes": 3015
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1-t01-t10/traces/t01_rep2.json",
+      "sha256": "2217b58f6327d48a614d15e93c752f90654483aef6b98afed11bf68056e1510c",
+      "bytes": 2721
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1-t01-t10/traces/t01_rep3.json",
+      "sha256": "c68d850527f0dfbffba4096c4080c38a89b61569be6aac507da5ac25aacaa558",
+      "bytes": 2882
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1-t01-t10/traces/t10_rep0.json",
+      "sha256": "634fd00bf203ff9da7d537d9c8d64ae9bfea0b141af9507f4e5173f105a0caa1",
+      "bytes": 6695
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1-t01-t10/traces/t10_rep1.json",
+      "sha256": "ccff79ba598ce0208d32d2d8a9fe3d8545621c4cbe0a7f034d6df03f0770aa56",
+      "bytes": 3944
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1-t01-t10/traces/t10_rep2.json",
+      "sha256": "6bdc13af4df8e57996a2b5f7a5dfbc0bc50d97700a53a15a9d8ad5c8677e47d1",
+      "bytes": 5271
+    },
+    {
+      "path": "examples/support-desk/example-run/as-tool/results/v1-t01-t10/traces/t10_rep3.json",
+      "sha256": "397b19a04a62ae0252a42c40cd002fcb8f43e7858f22f598e201a28597a15ddc",
+      "bytes": 4856
+    },
+    {
+      "path": "examples/support-desk/example-run/fold-returns.diff",
+      "sha256": "e91127369b461cf0078ce0f8a85246c120e5f7fdeabe53c69c5aae153c297d8a",
+      "bytes": 13846
+    },
+    {
+      "path": "examples/support-desk/example-run/plan/PLAN.md",
+      "sha256": "5bd79f5e3e8aa5bfa31abf9ef1daf07c2f822e06982aabd1a38277daba96a892",
+      "bytes": 7829
+    },
+    {
+      "path": "examples/support-desk/example-run/plan/inventory.tsv",
+      "sha256": "91ae9488498c8e928a248cbe820d543cc8b17d49f908226c302b078885dfd639",
+      "bytes": 2851
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/results.jsonl",
+      "sha256": "ce05cb885e1e83d0a8e6af039cefdef62fcea98b1df46791f3596454f7b8a841",
+      "bytes": 38640
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t01_rep0.json",
+      "sha256": "235f82adefb642dbeb936458339514f1ea69e169c30f0343d7ec7b3ecf2352f0",
+      "bytes": 2857
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t01_rep1.json",
+      "sha256": "100c3e9e426e6afde53ae1a559d2822df86548663f8395e58e853f455c76acf5",
+      "bytes": 2739
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t02_rep0.json",
+      "sha256": "a6d510ddaddea0a6d88a991b059fb3967b737d1740fbeba7ccbe33264e20e153",
+      "bytes": 3120
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t02_rep1.json",
+      "sha256": "6c66a48d5271ef6181e65a2b63ebb2ce4c6258cead00e16460451b3f1847ff31",
+      "bytes": 3143
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t03_rep0.json",
+      "sha256": "2f75710233274dcf3eced065f76421961c4a1094f6f66ead5fa011f68e97f8eb",
+      "bytes": 1505
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t03_rep1.json",
+      "sha256": "1725297728b8fc2787bab9d888de6571119ff1d960764308073bdf8beb239f17",
+      "bytes": 1926
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t04_rep0.json",
+      "sha256": "c8fa6eb94ef60685505e4ca6e77090a991b1183622e3a3c43e85a6cf7c859081",
+      "bytes": 5291
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t04_rep1.json",
+      "sha256": "7521f830c5b4b8b094eed7468d7be14e4f5fa19fcdfb0d8f4d52838dc9155d40",
+      "bytes": 5520
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t05_rep0.json",
+      "sha256": "4286e19a37471e540f6988eef06b9d5d3ae12b4a2d0e2dd16ed6c84e24a8064b",
+      "bytes": 4725
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t05_rep1.json",
+      "sha256": "74f5ba132939180180993c9ce942121cbd404615fb349b7692b7089cb38990b8",
+      "bytes": 4194
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t06_rep0.json",
+      "sha256": "7ee32d5dc7695ecdd2b2472a517d78bece7e0518d0b6668c93c7456c475d0759",
+      "bytes": 5655
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t06_rep1.json",
+      "sha256": "f4ca2868cce327c05bed68d8fb4e23ee7e86a527b05226e7700d8f7f14f3d6ec",
+      "bytes": 4554
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t07_rep0.json",
+      "sha256": "1b1e8ecb40d8de077155664801083711af4870aa4cdce6ae16fe1fc21e4e8927",
+      "bytes": 2474
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t07_rep1.json",
+      "sha256": "b2319d26fe59eaf4fa747c7e47509a8b20bb42f7a1e74b1e44ac755f2f1bfc3a",
+      "bytes": 1999
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t08_rep0.json",
+      "sha256": "669b09082d13e1e4d1069981d9ec9fdca2636a75b5b344be5e11343cf70cb5c6",
+      "bytes": 1418
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t08_rep1.json",
+      "sha256": "1d92254b5fa16aeadce35155dadba32bdafbff88e6c8ccbfe00f8ee04a2e2f20",
+      "bytes": 1805
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t09_rep0.json",
+      "sha256": "0f0742aad1c1d66548a0a35bc45b9e2d371a6f77856636a5e544b1be22e55b5f",
+      "bytes": 6202
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t09_rep1.json",
+      "sha256": "d7c897665b4bf09182dee194335996b585cc219bbb26e24677fd5ec8054203e7",
+      "bytes": 5768
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t10_rep0.json",
+      "sha256": "778deb2eeedd628b645d0d711c463bcd28d350346f8dd3fef4f8f27544fa4f7f",
+      "bytes": 5638
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t10_rep1.json",
+      "sha256": "be47fb49faa6b037a5e0e81ea3d3c3ccf608295ab0c7446a244c8090aafe2ba0",
+      "bytes": 4063
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t11_rep0.json",
+      "sha256": "674226d05ac240ab9711b0215dea6526e0ef06e4d39a10cc55e4054f7c17a546",
+      "bytes": 10646
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t11_rep1.json",
+      "sha256": "21d68c25ce80a9b75d9484f80b9a871733c8f378d3d8cc40e9a9c95a250d7c9e",
+      "bytes": 9409
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t12_rep0.json",
+      "sha256": "80d6e7178bf47068806b2714b7bf3741d5c2fe98cad0831f5e913486ad20fcdc",
+      "bytes": 8293
+    },
+    {
+      "path": "examples/support-desk/example-run/results/baseline/traces/t12_rep1.json",
+      "sha256": "aed36d2e29552103aa06047613af9fd3df01024f9697715fcc2c6507e9ea55f3",
+      "bytes": 8640
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/change.md",
+      "sha256": "d917ca76d66b0594a1361f32f3c8335ab1e23b02fac13d179a23d4d0133f406e",
+      "bytes": 363
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/results.jsonl",
+      "sha256": "004c8447e4b82754e3e3c8980a84ef58fa981d3a99e48d0aa23034e71316bc32",
+      "bytes": 33006
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t01_rep0.json",
+      "sha256": "51ebc1ee42991ce133aa7ffbd63722bea7ea254ecbad1b205a045b0d69125d5e",
+      "bytes": 2032
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t01_rep1.json",
+      "sha256": "9ff401bb479453817ea274c12cdeb4f0ca0cad6440d4b72c0704e216928eda26",
+      "bytes": 813
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t02_rep0.json",
+      "sha256": "c73bbfcd5f0fbf6554393efe03d8ad29f27ac7ca3522e23c2e82c8a3470f2930",
+      "bytes": 2297
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t02_rep1.json",
+      "sha256": "891361cae7932a7e7ab1818c0cd1a11c51b56fea32bbf2a3d05cb7aebf594e4d",
+      "bytes": 3261
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t03_rep0.json",
+      "sha256": "5a77f7efcfb0142fc854000d68de357a9705e044400cdcd5ff645e2e3bf1fb43",
+      "bytes": 781
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t03_rep1.json",
+      "sha256": "6798c94296a959699b546b320fd9949a1fb4f3a4b99b6788096a9b3fbca9e728",
+      "bytes": 775
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t04_rep0.json",
+      "sha256": "a95fa71f0bda2edc83775fbba42e3a22c1a595eee1b4622cecb886a3974a2359",
+      "bytes": 2887
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t04_rep1.json",
+      "sha256": "5364169b5069fbf3a44aa3ebfece4afa759e1386916b1d68dc0e06f72be099a6",
+      "bytes": 2886
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t05_rep0.json",
+      "sha256": "d655108ad0e7b6b4f39c6f6d587f83c18534c8205badbffd5462fe7f04d3e7e0",
+      "bytes": 2802
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t05_rep1.json",
+      "sha256": "f34ce31dc5a8c00693ad6bd3f1a8f9d60de0f629c5b9bffa5ccfea4655075647",
+      "bytes": 2761
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t06_rep0.json",
+      "sha256": "7b0fea1b9bd596d30ad5b3fb1b3af89283946172137dc9d6ac7a4cfcad691cd6",
+      "bytes": 2867
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t06_rep1.json",
+      "sha256": "0c6a063dd23ec383f0dd2340ef70f138c79d395d59418afc423dab79b3753b51",
+      "bytes": 2824
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t07_rep0.json",
+      "sha256": "69c317a7ad580b36e908dcb3a2acba4be77d0402ab4027df99e57bbb1a5bf4db",
+      "bytes": 2032
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t07_rep1.json",
+      "sha256": "2c8b80c42a9f325f515c450b8bc70d3ece5db50be907db6ea5dc8bdf287dd0f2",
+      "bytes": 5346
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t08_rep0.json",
+      "sha256": "121150d8c61f58048206394b1500ad366d701d8c270b1a903bf94a6960c06c9f",
+      "bytes": 1317
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t08_rep1.json",
+      "sha256": "d840a64f84fce29c4dd5ec1f86d0f5f0e2cfdc48ec514ce9b98df81705e0d594",
+      "bytes": 1558
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t09_rep0.json",
+      "sha256": "d5699a436a71608c652dd214e837a48c230c7c0a4049ab76e6761762b68f8871",
+      "bytes": 5882
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t09_rep1.json",
+      "sha256": "9a0ec6a3c6606e41e0401f29a66d9929bca98790281e0ca596b6eca5020c0332",
+      "bytes": 6349
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t10_rep0.json",
+      "sha256": "08c0090ecde06e6767ea119775782656123b4599f83957f311662f02df14a5d0",
+      "bytes": 4131
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t10_rep1.json",
+      "sha256": "7fac84d0425d92a7003463f6a2d3bca20aef29d33153fe82970ceb401bd70801",
+      "bytes": 4409
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t11_rep0.json",
+      "sha256": "bb0e54aad654567881a9082711f2d895bf30171360668865e90efa757e931b62",
+      "bytes": 5203
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t11_rep1.json",
+      "sha256": "e229ebd016c4d5e587b071dc44b85f5f5991c72e32994678b5cdc64fc8a66ee3",
+      "bytes": 6460
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t12_rep0.json",
+      "sha256": "555552c2b768863a99b98ac7fc808b7e17ee95c343adab58125400b6e2ec828a",
+      "bytes": 7851
+    },
+    {
+      "path": "examples/support-desk/example-run/results/v1/traces/t12_rep1.json",
+      "sha256": "8905221d0257609accdc2eb073b8b523929f32600dbe133e96252cad737cd650",
+      "bytes": 7962
+    },
+    {
+      "path": "examples/support-desk/single_loop/__init__.py",
+      "sha256": "e2d4863662144eb9e1be92a60357462292c9a85600acbb698f520be57a69fa96",
+      "bytes": 210
+    },
+    {
+      "path": "examples/support-desk/single_loop/agent.py",
+      "sha256": "eae06554e7d688901ad6cdd279dd6fe1abcf85dbd6763c6a0312809af2f55e8e",
+      "bytes": 12774
+    },
+    {
+      "path": "examples/support-desk/single_loop/customer.py",
+      "sha256": "ffcc00e84b12aace891fd263c1f3c63c3d22927b4a6be1d7d51236d63c561ef9",
+      "bytes": 4413
+    },
+    {
+      "path": "examples/support-desk/single_loop/diagnostics_agent.md",
+      "sha256": "2e015a2d6cb0cb016ed9ce5265844f5488575f97fb5bdde62647862922dbe441",
+      "bytes": 564
+    },
+    {
+      "path": "examples/support-desk/single_loop/skills/returns/SKILL.md",
+      "sha256": "02e65be5761b560f4552c43aceaa5124565c99365eaf16543aea595d84efb3b3",
+      "bytes": 1030
+    },
+    {
+      "path": "examples/support-desk/single_loop/system.md",
+      "sha256": "7af506ca6cd24aec82d61c3b3f4a493f05a3e0bdfd0bdbf3cdfec85c1d0ec465",
+      "bytes": 970
+    },
+    {
+      "path": "examples/support-desk/traces/make_traces.py",
+      "sha256": "bfdf8c93128b77bdcf89a4c53daae0ea23646f5f3186daa8949e23bf409b91be",
+      "bytes": 2011
+    },
+    {
+      "path": "examples/support-desk/traces/traces.jsonl",
+      "sha256": "b39f27dd3623367b8b004eed79f74cce88602a593998c5a3d9f0879bc1e36c4f",
+      "bytes": 44577
+    },
+    {
+      "path": "reference_loop/__init__.py",
+      "sha256": "0121edc9cf69e843d460427ac8b8ebaafc1799a88edcaac94041bd0a9c99110b",
+      "bytes": 69
+    },
+    {
+      "path": "reference_loop/loop.py",
+      "sha256": "3f533287b3f72c9c2ad2af2dd721fc7dfc1f5952bef3acd5a2b5f75caac41b0c",
+      "bytes": 14276
+    },
+    {
+      "path": "skill/SKILL.md",
+      "sha256": "51626cf4f3b6b1890581634792ad5ada4315dc70fe9d5746314a0ccf3ff4f038",
+      "bytes": 14403
+    },
+    {
+      "path": "skill/scripts/chain_coverage.py",
+      "sha256": "64cae7904cc8a2088e06afeb512544d52ac288f06a3c7f8d6e6abdbb58dc2826",
+      "bytes": 7047
+    },
+    {
+      "path": "skill/scripts/compare.py",
+      "sha256": "05019a71002db4791c7448a5627d4f8cf05b22fbdd626ad56c115e3df4137af7",
+      "bytes": 18641
+    },
+    {
+      "path": "skill/scripts/coupling_map.py",
+      "sha256": "bf5c9af20ef3f3d12f547e0005987d60eb7308600ba68ad68539af28a08526bb",
+      "bytes": 9576
+    },
+    {
+      "path": "skill/scripts/estimate.py",
+      "sha256": "843152549906f72c386742197aa0a0c59f76a30e2d907213f5f5bee01a815dde",
+      "bytes": 8112
+    },
+    {
+      "path": "skill/steps/00-audit.md",
+      "sha256": "51c462eed5b135fb3323c37e661c6aeeb5777374217cff24ec4937e898cce275",
+      "bytes": 8298
+    },
+    {
+      "path": "skill/steps/01-baseline.md",
+      "sha256": "6633c4b96805a544ee78f355470e318b32b0b393a5b35a80115c8b85ed12825e",
+      "bytes": 13616
+    },
+    {
+      "path": "skill/steps/02-merge.md",
+      "sha256": "25813a6b73a353d4b7e447e266480f0692edde7dbbdff4a65bc086e4cc6452c4",
+      "bytes": 4824
+    },
+    {
+      "path": "skill/steps/03-fold.md",
+      "sha256": "e75eec5404855492acc485bea2275e0687bc05fb82d1e121ee5877245fe98a01",
+      "bytes": 9238
+    },
+    {
+      "path": "skill/steps/04-as-tool.md",
+      "sha256": "39b41ddfe7c3b966346cfa497ebb008f60e5604f464c68aadb901087a485ac55",
+      "bytes": 8255
+    },
+    {
+      "path": "skill/steps/05-upkeep.md",
+      "sha256": "56c23a5bad1b4e10e598a461ca6be30fe5a97629b9bbf01b196d2b20477a0082",
+      "bytes": 2479
+    },
+    {
+      "path": "skill/templates/CONTRIBUTING-skills.md",
+      "sha256": "3a8362c8e40b22480e8fcfb4306d0684b4dace78bb111cac309bd5c137b11b56",
+      "bytes": 2227
+    },
+    {
+      "path": "skill/templates/PLAN.md",
+      "sha256": "5189bc64e6533411c1ac04b1387f405fd57fbaf9c60bf807365bd7c9886bd68b",
+      "bytes": 2660
+    },
+    {
+      "path": "skill/templates/inventory.tsv",
+      "sha256": "2d4c2b6c6e82d29599c261baeffb630ff401281667016aefcc482929fd2a5bc0",
+      "bytes": 639
+    },
+    {
+      "path": "skill/templates/skill-template.md",
+      "sha256": "e39c2a4309748f560e382dd0033bcce20fba38f637237306388ce8d7a7cd8801",
+      "bytes": 976
+    },
+    {
+      "path": "skill/templates/skill_loader.py",
+      "sha256": "7b6faa3ef9305c612ed875e01537c41735b6c13e298723e1cb4c02883a365326",
+      "bytes": 2844
+    },
+    {
+      "path": "skill/templates/subagent_response.schema.json",
+      "sha256": "7421644ff5d411488bca364ed8a4a61273ee40e26522c48dd14783115a0a54df",
+      "bytes": 1155
+    },
+    {
+      "path": "skill/templates/tool_spec.md",
+      "sha256": "2b181bde646f7dd2ad6bf47619901d3dfec90ff5065134b7d1a2a2ade95c92f4",
+      "bytes": 909
+    },
+    {
+      "path": "tests/fixtures/flow/baseline/results.jsonl",
+      "sha256": "e5e56cc145d9391679e26d78d362b4a699f75dc1e0cf89f10a662b63d3fc542d",
+      "bytes": 766
+    },
+    {
+      "path": "tests/fixtures/flow/v1/results.jsonl",
+      "sha256": "131c170eea481f3860b3bfebaef992b230f7fd5daf773a2adca55e29c0563da7",
+      "bytes": 1148
+    },
+    {
+      "path": "tests/fixtures/flow/v2/errors.jsonl",
+      "sha256": "76085b2d08ab3af7157ce716b80b5ac0314290be127815299f5b20e2f4a15ef4",
+      "bytes": 51
+    },
+    {
+      "path": "tests/fixtures/flow/v2/results.jsonl",
+      "sha256": "c422d5d21dd763e4e934a9350bd6e4e341d168e4a7b478dd287a62ea3ce99ea4",
+      "bytes": 765
+    },
+    {
+      "path": "tests/fixtures/traces.jsonl",
+      "sha256": "6a52fae37a83a9515eb4474a541312549be219365c4cb5c1244f58ad71c9e1a0",
+      "bytes": 1303
+    },
+    {
+      "path": "tests/test_kit.py",
+      "sha256": "57d6de9ece269adfac66f09e5c43522b0b55de54ea091b1c4bbf0f07c79a5105",
+      "bytes": 50887
+    }
+  ]
+}

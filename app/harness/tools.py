@@ -116,10 +116,15 @@ def _resolve_in_workspace(path: str, cwd: str) -> Path:
 def _cap(text: str) -> str:
     # V-637: on a metered free quota one audit read a 69 KB report whole, and every later
     # round of that turn carried it. An installation can lower the cap per tool result.
-    cap = int(os.environ.get("HARNESS_OUTPUT_CAP") or OUTPUT_CAP)
+    cap = max(0, int(os.environ.get("HARNESS_OUTPUT_CAP") or OUTPUT_CAP))
     if len(text) > cap:
-        return (text[:cap] + f"\n... (truncated, {len(text) - cap} more chars; "
-                "narrow it with head, tail, grep or read offset/limit)")
+        # Reserve the marker too; using the full length bounds its digit count.
+        marker = "\n... (truncated, {} chars omitted from middle) ...\n"
+        kept = max(0, cap - len(marker.format(len(text))))
+        note = marker.format(len(text) - kept)
+        # Equal head/tail shares preserve setup and the final bash result/error.
+        head, tail = (kept + 1) // 2, kept // 2
+        return (text[:head] + note + (text[-tail:] if tail else ""))[:cap]
     return text
 
 

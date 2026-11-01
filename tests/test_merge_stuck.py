@@ -118,8 +118,12 @@ def live_merge(tmp_path, monkeypatch):
 
 
 async def _merge(operations, operation_id: str, scope: str):
+    worker = operations.get_session_by_name("worker", scope)
+    head = _git("rev-parse", "HEAD", cwd=worker["worktree_path"])
     result, status = await operations.accept_merge_operation(
         operation_id=operation_id, name="worker", scope=scope, target="main",
+        expected_head=head,
+        acceptance_note="Accepted the current worker result after inspecting its full HEAD.",
     )
     if operations._runner_tasks:
         await asyncio.gather(*list(operations._runner_tasks.values()))
@@ -149,7 +153,7 @@ async def test_missing_task_ref_does_not_freeze_the_branch_forever(live_merge):
     assert first["task_links"]["items"]["25"]["ok"] is False
     warnings = " ".join(warning["message"] for warning in first["warnings"])
     assert "25" in warnings and "24:" not in warnings
-    assert "applied link" in _git("log", "--oneline", "main", cwd=repo)
+    assert "applied link" in _git("log", "--format=%B", "main", cwd=repo)
 
     # Воркер уходит на новую задачу и делает новые коммиты.
     _git("checkout", "-b", "task-80/worker", cwd=worktree.path)
@@ -164,7 +168,7 @@ async def test_missing_task_ref_does_not_freeze_the_branch_forever(live_merge):
     assert second["operation_id"] != first["operation_id"]
     assert second["operation_state"] == "SUCCEEDED", second["error"]
     assert second["git"]["worker_branch"] == "task-80/worker"
-    # Squash кладёт первое сообщение в заголовок, остальные — в тело (%B).
+    # Полное сообщение squash сохраняет оба исходных subject.
     main_log = _git("log", "--format=%B", "main", cwd=repo)
     assert "work after the stuck merge" in main_log
     assert "more work" in main_log

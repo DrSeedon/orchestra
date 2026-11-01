@@ -1,0 +1,199 @@
+     1	"""file_export handlers: binary-safe source-side export for cross-host transfer.
+     2	
+     3	SOURCE side of the Hub's `sentinel_transfer_file` coordinator. INTERNAL ops
+     4	(driven by the Hub, NOT exposed as model-visible MCP tools). Per transfer:
+     5	
+     6	    file_export_init      -> validate source under the file_ops READ allowlist,
+     7	                             stat it, register an export session; returns
+     8	                             {transfer_id, filename, size, chunk_size, num_chunks}
+     9	    file_export_chunk xN  -> read chunk `chunk_index`; the CLIENT layer emits it
+    10	                             as a raw binary frame [transfer_id|chunk_index|bytes]
+    11	                             (returned via "__binary_payload__", never JSON'd)
+    12	    file_export_complete  -> finalize; returns {sha256, size, chunks_read}
+    13	
+    14	Security: the source path is gated exactly like read/list/search via
+    15	`policy.resolve_path(path, need_write=False)` (symlinks canonicalized), so it
+    16	never escapes the operator-approved read scope. rw is NOT required (this is a
+    17	read). The existing 64 KiB-capped `read` op is unsuitable for whole-file binary
+    18	export, hence this dedicated primitive.
+    19	
+    20	sha256 is computed incrementally as chunks are read IN ORDER (the Hub pulls
+    21	sequentially with backpressure). The destination verifies it independently at
+    22	upload_complete, so this is an integrity cross-check, not the sole guarantee.
+    23	"""
+    24	
+    25	from __future__ import annotations
+    26	
+    27	import asyncio
+    28	import hashlib
+    29	import os
+    30	import stat
+    31	import threading
+    32	import time
+    33	from dataclasses import dataclass, field
+    34	from pathlib import Path
+    35	from typing import Any
+    36	
+    37	from sentinelx_core.executor import HandlerError
+    38	from sentinelx_core.policy import Policy
+    39	from sentinelx_protocol import TRANSFER_CHUNK_BYTES
+    40	
+    41	_SESSION_TTL_SECONDS = 3600
+    42	
+    43	
+    44	@dataclass
+    45	class _ExportSession:
+    46	    transfer_id: str
+    47	    path: Path
+    48	    size: int
+    49	    chunk_size: int
+    50	    num_chunks: int
+    51	    filename: str
+    52	    created_at: float
+    53	    hasher: Any = field(default_factory=hashlib.sha256)
+    54	    next_index: int = 0
+    55	    lock: threading.Lock = field(default_factory=threading.Lock)
+    56	
+    57	
+    58	_sessions: dict[str, _ExportSession] = {}
+    59	_sessions_lock = threading.Lock()
+    60	
+    61	
+    62	def _sweep_locked(now: float) -> None:
+    63	    for tid in [t for t, s in _sessions.items() if now - s.created_at > _SESSION_TTL_SECONDS]:
+    64	        _sessions.pop(tid, None)
+    65	
+    66	
+    67	def _valid_transfer_id(tid: object) -> str:
+    68	    if not isinstance(tid, str) or len(tid) != 32:
+    69	        raise HandlerError("invalid_payload", "transfer_id must be a 32-char hex string (16 bytes)")
+    70	    try:
+    71	        bytes.fromhex(tid)
+    72	    except ValueError as exc:
+    73	        raise HandlerError("invalid_payload", f"transfer_id is not valid hex: {exc}") from exc
+    74	    return tid.lower()
+    75	
+    76	
+    77	def _stat_regular(p: Path) -> os.stat_result:
+    78	    try:
+    79	        st = p.stat()
+    80	    except FileNotFoundError as exc:
+    81	        raise HandlerError("not_found", f"source file not found: {p}") from exc
+    82	    except PermissionError as exc:
+    83	        raise HandlerError("permission_denied", f"cannot stat source (unix perms): {p}") from exc
+    84	    if stat.S_ISDIR(st.st_mode):
+    85	        raise HandlerError("is_directory", f"source is a directory, not a file: {p}")
+    86	    if not stat.S_ISREG(st.st_mode):
+    87	        raise HandlerError("not_a_file", f"source is not a regular file: {p}")
+    88	    return st
+    89	
+    90	
+    91	def make_file_export_init_handler(policy: Policy):
+    92	    async def handle(payload: dict[str, Any]) -> dict[str, Any]:
+    93	        transfer_id = _valid_transfer_id(payload.get("transfer_id"))
+    94	        src = payload.get("source_path")
+    95	        if not isinstance(src, str) or not src.strip():
+    96	            raise HandlerError("invalid_payload", "missing or non-string 'source_path'")
+    97	        try:
+    98	            chunk_size = int(payload.get("chunk_size") or TRANSFER_CHUNK_BYTES)
+    99	        except (TypeError, ValueError):
+   100	            chunk_size = TRANSFER_CHUNK_BYTES
+   101	        if not 0 < chunk_size <= TRANSFER_CHUNK_BYTES:
+   102	            chunk_size = TRANSFER_CHUNK_BYTES
+   103	
+   104	        if not policy.file_ops_paths:
+   105	            raise HandlerError(
+   106	                "path_not_allowed",
+   107	                "file_ops has no paths configured in this agent's config; "
+   108	                "cannot export. Add an entry under file_ops.paths.",
+   109	            )
+   110	        resolved = policy.resolve_path(src, need_write=False)
+   111	        if resolved is None:
+   112	            raise HandlerError(
+   113	                "path_not_allowed",
+   114	                f"source_path {src!r} (or its target after resolving symlinks) is "
+   115	                "not under any configured file_ops path. Reading requires access "
+   116	                "'r' or 'rw' on a covering entry.",
+   117	            )
+   118	        st = _stat_regular(resolved)
+   119	        size = int(st.st_size)
+   120	        num_chunks = ((size + chunk_size - 1) // chunk_size) or 1  # >=1 (empty file -> 1 empty chunk)
+   121	
+   122	        now = time.time()
+   123	        sess = _ExportSession(
+   124	            transfer_id=transfer_id, path=resolved, size=size, chunk_size=chunk_size,
+   125	            num_chunks=num_chunks, filename=resolved.name, created_at=now,
+   126	        )
+   127	        with _sessions_lock:
+   128	            _sweep_locked(now)
+   129	            _sessions[transfer_id] = sess
+   130	        return {
+   131	            "transfer_id": transfer_id,
+   132	            "filename": resolved.name,
+   133	            "source_path": str(resolved),
+   134	            "size": size,
+   135	            "chunk_size": chunk_size,
+   136	            "num_chunks": num_chunks,
+   137	        }
+   138	    return handle
+   139	
+   140	
+   141	def make_file_export_chunk_handler(policy: Policy):
+   142	    async def handle(payload: dict[str, Any]) -> dict[str, Any]:
+   143	        transfer_id = _valid_transfer_id(payload.get("transfer_id"))
+   144	        try:
+   145	            index = int(payload.get("chunk_index"))
+   146	        except (TypeError, ValueError) as exc:
+   147	            raise HandlerError("invalid_payload", "chunk_index must be an int") from exc
+   148	        with _sessions_lock:
+   149	            sess = _sessions.get(transfer_id)
+   150	        if sess is None:
+   151	            raise HandlerError(
+   152	                "not_found",
+   153	                f"no export session for transfer_id {transfer_id} "
+   154	                "(expired or file_export_init was never called)",
+   155	            )
+   156	        if not 0 <= index < sess.num_chunks:
+   157	            raise HandlerError(
+   158	                "invalid_payload",
+   159	                f"chunk_index {index} out of range (num_chunks={sess.num_chunks})",
+   160	            )
+   161	
+   162	        def _read_and_hash() -> tuple[bytes, bool]:
+   163	            with sess.lock:
+   164	                with sess.path.open("rb") as f:
+   165	                    f.seek(index * sess.chunk_size)
+   166	                    data = f.read(sess.chunk_size)
+   167	                if index == sess.next_index:
+   168	                    sess.hasher.update(data)
+   169	                    sess.next_index += 1
+   170	                return data, (index + 1 >= sess.num_chunks)
+   171	
+   172	        data, eof = await asyncio.to_thread(_read_and_hash)
+   173	        return {
+   174	            "transfer_id": transfer_id,
+   175	            "chunk_index": index,
+   176	            "__binary_payload__": data,
+   177	            "bytes": len(data),
+   178	            "eof": eof,
+   179	        }
+   180	    return handle
+   181	
+   182	
+   183	def make_file_export_complete_handler():
+   184	    async def handle(payload: dict[str, Any]) -> dict[str, Any]:
+   185	        transfer_id = _valid_transfer_id(payload.get("transfer_id"))
+   186	        with _sessions_lock:
+   187	            sess = _sessions.pop(transfer_id, None)
+   188	        if sess is None:
+   189	            raise HandlerError("not_found", f"no export session for transfer_id {transfer_id}")
+   190	        in_order = sess.next_index == sess.num_chunks
+   191	        return {
+   192	            "transfer_id": transfer_id,
+   193	            "size": sess.size,
+   194	            "chunks_read": sess.next_index,
+   195	            "num_chunks": sess.num_chunks,
+   196	            "sha256": sess.hasher.hexdigest() if in_order else None,
+   197	            "sha256_complete": in_order,
+   198	        }
+   199	    return handle

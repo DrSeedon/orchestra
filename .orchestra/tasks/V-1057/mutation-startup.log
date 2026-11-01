@@ -1,0 +1,35 @@
+test_second_crash_before_staggered_notice_keeps_cut_turn (offline_tests_1057.RestartCutRecoveryTests.test_second_crash_before_staggered_notice_keeps_cut_turn) ... FAIL
+
+======================================================================
+FAIL: test_second_crash_before_staggered_notice_keeps_cut_turn (offline_tests_1057.RestartCutRecoveryTests.test_second_crash_before_staggered_notice_keeps_cut_turn)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-copy>/tests/test_restart_cut_recovery_1057.py", line 152, in test_second_crash_before_staggered_notice_keeps_cut_turn
+    self.assertEqual(self.pending(), ["worker-id"])
+AssertionError: Lists differ: [] != ['worker-id']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'worker-id'
+
+- []
++ ['worker-id']
+
+----------------------------------------------------------------------
+Ran 1 test in 0.042s
+
+FAILED (failures=1)
+app namespace: ['<hub-copy>/app']
+Mode: extracted production methods + minimal offline schema/import stubs

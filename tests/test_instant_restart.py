@@ -37,6 +37,10 @@ async def test_t6_grok_spawns_with_parent_owned_pipes(monkeypatch):
     # Учётки Grok — живое состояние машины ВНЕ репозитория, и к предмету теста (какие
     # дескрипторы уходят в спавн) отношения не имеют. Тест, читающий их, мерит машину.
     monkeypatch.setattr(backend_grok, "ensure_grok_home", lambda: "/tmp")
+    # This oracle stops before exec and measures numeric pipe descriptors. A
+    # service's delegated cgroup requirement is unrelated host state here.
+    monkeypatch.delenv("ORCHESTRA_AGENT_CGROUP_REQUIRED", raising=False)
+    monkeypatch.delenv("ORCHESTRA_AGENT_CGROUP", raising=False)
 
     async def _capture(*cmd, **kwargs):
         seen.update(kwargs)

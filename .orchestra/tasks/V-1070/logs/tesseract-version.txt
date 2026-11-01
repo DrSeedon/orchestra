@@ -1,0 +1,6 @@
+$ bash -c tesseract --version
+
+[stderr]
+tesseract: command not found
+
+[exit 127]

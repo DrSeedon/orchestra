@@ -1,0 +1,11 @@
+{
+  "id": "P02",
+  "package": "stockroom",
+  "prompt": "We keep stock in two locations, main and shop, and want to move stock between them before purchasing places supplier orders. Add a command that proposes these transfers. It runs as `python -m stockroom.transfers LEVELS_CSV RULES_CSV OUTPUT_CSV`.\n\nLEVELS_CSV and RULES_CSV are the usual level and rule exports; read them with the existing loaders. Only the locations main and shop take part. Rows for other locations are ignored, and a location without a row for a SKU has no stock of it. Look at every SKU that has a reorder rule and a row for main or shop, in alphabetical order of SKU.\n\nA location is short when its available stock (on hand minus reserved) is at or below the reorder point of the SKU, the same test the reorder check uses. A short location needs enough units to reach one unit above the reorder point. The other location can give the units it has above that same level (reorder point plus one), and nothing if it is short itself. Propose a transfer of the smaller of the two amounts when that is more than zero. Represent each proposed transfer as a small record with the SKU, the source location, the destination location and the quantity, so other code can work with the plan before it is written out.\n\nWhen a short location cannot be covered completely, tell the user the SKU, the short location and how many units are still missing. At the end, tell the user how many transfers were proposed.\n\nWrite the proposals to OUTPUT_CSV with the header `sku,source,destination,quantity` and one row per transfer, in SKU order. When there is nothing to transfer, the file holds only the header. The command then exits with status 0.\n\nIf LEVELS_CSV or RULES_CSV does not exist, the command must exit with status 2 and must not create OUTPUT_CSV.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "LOG", "doc_side": "right"},
+    {"id": "D2", "type": "REC", "doc_side": "right"},
+    {"id": "D3", "type": "NAME", "doc_side": "right"},
+    {"id": "D4", "type": "TSTYLE", "doc_side": "right"}
+  ]
+}

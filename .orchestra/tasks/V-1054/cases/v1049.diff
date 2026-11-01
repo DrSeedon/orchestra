@@ -1,0 +1,521 @@
+commit 361a1135570d13c74bf834cca8f1377a0f74d705
+
+V-1049: V-1049 accepted. The platform-created untracked .orchestra/private symlink is now filtered out of the WIP, kill, merge, switch and delete clean checks, but only when it points at this repository's shared private dir. User files and tracked or staged changes stay visible. Host full suite with the hub env unset: 5497 passed and 1 failed. The single failure was a broken backtick path in AGENTS.md that I had introduced in main; it is fixed in cf5987e2f and unrelated to this diff. The root cause of the original incident is still unconfirmed, as the report says. I reviewed the diff myself; no model review was requested. A restart is needed, and the idle watcher will do it.
+
+Orchestra-Operation: b6e957b0-79ea-4514-a2d8-ffcf814300a4
+
+
+diff --git a/app/private_folder.py b/app/private_folder.py
+index e70346d16..0612f2a11 100644
+--- a/app/private_folder.py
++++ b/app/private_folder.py
+@@ -31,6 +31,40 @@ def shared_private_dir(path: str | Path) -> Path:
+     return main_checkout(path) / PRIVATE_REL
+ 
+ 
++def filter_worktree_status(path: str | Path, status: str, *, nul: bool = False) -> str:
++    """Remove only the platform's untracked shared-private link from porcelain v1.
++
++    Callers must request --untracked-files=all: a collapsed directory could also contain
++    user files. Ignore files are only a convenience; checkout/reset can replace the local
++    generated .gitignore with a tracked one. Tracked changes always remain visible.
++    Inspection failures leave status untouched (fail closed).
++    """
++    separator = "\0" if nul else "\n"
++    candidate = f"?? {PRIVATE_REL}"
++    if candidate not in status.split(separator):
++        return status
++    wt = Path(path)
++    link = wt / PRIVATE_REL
++    try:
++        if not link.is_symlink():
++            return status
++        shared = shared_private_dir(wt)
++        if (wt.resolve() == shared.parent.parent.resolve()
++                or not shared.is_dir() or link.resolve() != shared.resolve()):
++            return status
++    except (OSError, RuntimeError, subprocess.SubprocessError):
++        return status
++    records = iter(status.split(separator))
++    kept = []
++    for record in records:
++        if record != candidate:
++            kept.append(record)
++        # In -z format rename/copy source paths are separate tokens, not status records.
++        if nul and ("R" in record[:2] or "C" in record[:2]):
++            kept.append(next(records, ""))
++    return separator.join(kept)
++
++
+ def _ignore_private(wt: Path) -> None:
+     # info/exclude is shared by linked worktrees, but a project's .gitignore
+     # (notably !.orchestra/**) wins over it. A deeper ignore file wins in turn.
+diff --git a/app/routes/sessions.py b/app/routes/sessions.py
+index 26991d929..ab8c69f5d 100644
+--- a/app/routes/sessions.py
++++ b/app/routes/sessions.py
+@@ -2207,7 +2207,7 @@ async def delete_session(name: str, scope: str, force: bool = False):
+         wt = found.worktree_path
+         if wt and Path(wt).is_dir():
+             status_proc = await asyncio.create_subprocess_exec(
+-                "git", "status", "--porcelain", cwd=wt,
++                "git", "status", "--porcelain", "--untracked-files=all", cwd=wt,
+                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+             )
+             try:
+@@ -2217,7 +2217,8 @@ async def delete_session(name: str, scope: str, force: bool = False):
+                 return JSONResponse({"error": "git status timed out in worktree. Use force=true if certain"}, status_code=400)
+             if status_proc.returncode != 0:
+                 return JSONResponse({"error": f"git status failed: {stderr.decode().strip()}. Use force=true if certain"}, status_code=400)
+-            dirty = stdout.decode().strip()
++            from app.private_folder import filter_worktree_status
++            dirty = await asyncio.to_thread(filter_worktree_status, wt, stdout.decode())
+             if dirty:
+                 files = [l[3:] for l in dirty.splitlines()[:10]]
+                 return JSONResponse({"error": f"worker has uncommitted changes: {', '.join(files)}. Commit or discard first (or force=true)"}, status_code=400)
+diff --git a/app/workspace.py b/app/workspace.py
+index d9c1b708a..61e98e34e 100644
+--- a/app/workspace.py
++++ b/app/workspace.py
+@@ -156,6 +156,17 @@ def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
+     return subprocess.run(args, **kwargs)
+ 
+ 
++def _worktree_status(path: str | Path, *, nul: bool = False) -> subprocess.CompletedProcess:
++    """One clean-check contract for WIP, merge, branch switch and recovery."""
++    args = ["git", "status", "--porcelain", "--untracked-files=all"]
++    if nul:
++        args.append("-z")
++    result = _git_cmd(args, cwd=str(path), capture_output=True, text=True)
++    if result.returncode == 0:
++        result.stdout = private_folder.filter_worktree_status(path, result.stdout, nul=nul)
++    return result
++
++
+ def _merge_conflict_result(branch: str, conflicts: list[str]) -> dict[str, object]:
+     shown = ", ".join(conflicts[:10])
+     if len(conflicts) > 10:
+@@ -1050,10 +1061,7 @@ def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
+ def _clean_worktree_error(
+     path: Path, label: str, changed_paths: list[str] | None = None,
+ ) -> str | None:
+-    status = _git_cmd(
+-        ["git", "status", "--porcelain", "-z", "--untracked-files=all"],
+-        cwd=str(path), capture_output=True, text=True,
+-    )
++    status = _worktree_status(str(path), nul=True)
+     if status.returncode != 0:
+         detail = status.stderr.strip() or status.stdout.strip()
+         return f"cannot inspect {label} working tree: {detail}"
+@@ -1098,7 +1106,7 @@ def _isolated_merge_index(path: Path):
+     retain = False
+     try:
+         read = _git_cmd(["git", "read-tree", "HEAD"], cwd=str(path), capture_output=True, text=True)
+-        status = _git_cmd(["git", "status", "--porcelain"], cwd=str(path), capture_output=True, text=True)
++        status = _worktree_status(str(path))
+         if read.returncode or status.returncode:
+             raise RuntimeError("cannot initialize isolated merge index")
+         index["status"] = status.stdout
+@@ -1358,10 +1366,7 @@ def _rollback_merge_target(repo: str, old_head: str, error: str) -> dict:
+         ["git", "rev-parse", "HEAD"],
+         cwd=repo, capture_output=True, text=True,
+     )
+-    status = _git_cmd(
+-        ["git", "status", "--porcelain"],
+-        cwd=repo, capture_output=True, text=True,
+-    )
++    status = _worktree_status(repo)
+     if (
+         head.returncode != 0
+         or head.stdout.strip() != old_head
+@@ -2150,10 +2155,7 @@ def merge_worktree_to_main(
+         target_changed = target_after != target_before
+         rollback_verified = False
+         if mutation_started and merge_cwd and target_snapshot_known and not target_changed:
+-            final_target_status = _git_cmd(
+-                ["git", "status", "--porcelain"],
+-                cwd=merge_cwd, capture_output=True, text=True,
+-            )
++            final_target_status = _worktree_status(merge_cwd)
+             rollback_verified = (
+                 final_target_status.returncode == 0
+                 and final_target_status.stdout == (
+@@ -2474,10 +2476,7 @@ def promote_worktree_branch(
+                 "state": "invalid_target_branch",
+                 "error": f"invalid branch '{new_branch}': {name_error}",
+             }
+-        status = _git_cmd(
+-            ["git", "status", "--porcelain"], cwd=str(wt),
+-            capture_output=True, text=True,
+-        )
++        status = _worktree_status(str(wt))
+         if status.returncode != 0:
+             detail = status.stderr.strip() or status.stdout.strip()
+             return {"ok": False, "state": "git_status_failed", "error": detail}
+@@ -2674,9 +2673,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
+         if name_error:
+             return {"ok": False, "error": f"invalid branch '{new_branch}': {name_error}"}
+ 
+-        status = _git_cmd(
+-            ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
+-        )
++        status = _worktree_status(str(wt))
+         if status.returncode != 0:
+             detail = status.stderr.strip() or status.stdout.strip() or f"exit code {status.returncode}"
+             return {"ok": False, "error": f"git status failed: {detail}"}
+@@ -2930,9 +2927,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
+                 actual_head_result.stdout.strip()
+                 if actual_head_result.returncode == 0 else ""
+             )
+-            final_status = _git_cmd(
+-                ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
+-            )
++            final_status = _worktree_status(str(wt))
+             final_merge_head = _git_cmd(
+                 ["git", "rev-parse", "--quiet", "--verify", "MERGE_HEAD"],
+                 cwd=str(wt), capture_output=True, text=True,
+@@ -3045,9 +3040,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
+         actual_head_result = _git_cmd(
+             ["git", "rev-parse", "HEAD"], cwd=str(wt), capture_output=True, text=True,
+         )
+-        final_status = _git_cmd(
+-            ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
+-        )
++        final_status = _worktree_status(str(wt))
+         actual_branch = (
+             actual_branch_result.stdout.strip()
+             if actual_branch_result.returncode == 0 else "HEAD"
+@@ -3115,7 +3108,7 @@ def convert_worktree_to_sparse(
+         return {"state": "skipped", "reason": "sparse rule is off for this project"}
+     if sparse_worktree.is_orchestra_sparse(wt, _git_cmd):
+         return {"state": "skipped", "reason": "already sparse"}
+-    status = _git_cmd(["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True)
++    status = _worktree_status(str(wt))
+     if status.returncode != 0:
+         return {"state": "refused", "reason": f"git status failed: {status.stderr.strip()}"}
+     if status.stdout.strip():
+@@ -3144,7 +3137,7 @@ def convert_worktree_to_sparse(
+         if error:
+             _git_cmd(["git", "sparse-checkout", "disable"], cwd=str(wt), capture_output=True, text=True)
+             return {"state": "failed", "reason": error, **result}
+-    after = _git_cmd(["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True)
++    after = _worktree_status(str(wt))
+     left = {d.strip("/"): _dir_mb(wt / d.strip("/")) for d in rule.exclude if (wt / d.strip("/")).is_dir()}
+     return {"state": "converted", "status_clean": not after.stdout.strip(),
+             "left_on_disk_mb": left, **result}
+@@ -3265,10 +3258,7 @@ def cleanup_stale_worktrees() -> list[str]:
+             git_file = wt_dir / ".git"
+             if not (git_file.exists() and git_file.is_file()):
+                 continue
+-            dirty = _git_cmd(
+-                ["git", "status", "--porcelain"],
+-                cwd=str(wt_dir), capture_output=True, text=True,
+-            )
++            dirty = _worktree_status(str(wt_dir))
+             if dirty.returncode != 0 or dirty.stdout.strip():
+                 logger.info(f"stale worktree skipped (dirty): {wt_dir}")
+                 continue
+@@ -3499,9 +3489,7 @@ def branch_wip_status(worktree_path: str, base_ref: str = "") -> dict:
+     Returns {"error": ...} if git status or the base_ref comparison fails — never a false 'clean'."""
+     wt = Path(worktree_path).resolve()
+     base_ref = resolve_base_branch(str(wt), base_ref)
+-    dirty = _git_cmd(
+-        ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
+-    )
++    dirty = _worktree_status(str(wt))
+     if dirty.returncode != 0:
+         return {"error": f"git status failed: {dirty.stderr.strip()}"}
+     uncommitted = [line[3:] for line in dirty.stdout.splitlines() if line]
+diff --git a/tests/test_private_symlink_dirty_v1049.py b/tests/test_private_symlink_dirty_v1049.py
+new file mode 100644
+index 000000000..4926e7787
+--- /dev/null
++++ b/tests/test_private_symlink_dirty_v1049.py
+@@ -0,0 +1,274 @@
++"""V-1049: clean checks must not depend on a generated local ignore surviving.
++
++Uses real temporary repositories; also runnable with stdlib unittest on a bare hub.
++"""
++import asyncio
++import importlib.util
++import io
++import os
++import subprocess
++import tarfile
++import tempfile
++import unittest
++from pathlib import Path
++from types import SimpleNamespace
++from unittest.mock import AsyncMock, patch
++
++from app import hub_workspace as hw, private_folder as private, sparse_worktree, workspace
++
++
++def git(root, *args):
++    return subprocess.run(
++        ["git", "-C", str(root), *args], check=True, capture_output=True, text=True,
++    ).stdout
++
++
++class PrivateSymlinkDirtyTests(unittest.TestCase):
++    def setUp(self):
++        temporary = tempfile.TemporaryDirectory(prefix="private-status-")
++        self.addCleanup(temporary.cleanup)
++        self.root = Path(temporary.name)
++        env = patch.dict(os.environ, {
++            "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull,
++            "GIT_AUTHOR_NAME": "Test", "GIT_COMMITTER_NAME": "Test",
++            "GIT_AUTHOR_EMAIL": "test@example.invalid",
++            "GIT_COMMITTER_EMAIL": "test@example.invalid",
++            "ORCHESTRA_FORBIDDEN_STRINGS": str(self.root / "no-forbidden-strings"),
++        })
++        env.start()
++        self.addCleanup(env.stop)
++        self.repo = self.root / "repo"
++        self.repo.mkdir()
++        git(self.repo, "init", "-q", "-b", "main")
++        git(self.repo, "config", "user.name", "Test")
++        git(self.repo, "config", "user.email", "test@example.invalid")
++        (self.repo / ".orchestra").mkdir()
++        (self.repo / ".orchestra/README.md").write_text("Project metadata\n")
++        (self.repo / ".gitignore").write_text(
++            ".orchestra/\n!.orchestra/\n!.orchestra/**\n")
++        (self.repo / "code.txt").write_text("initial\n")
++        git(self.repo, "add", ".")
++        git(self.repo, "commit", "-qm", "initial")
++        (self.repo / ".git/info/exclude").write_text(private.EXCLUDE_PATTERN + "\n")
++        self.wt = self.root / "worker"
++        git(self.repo, "worktree", "add", "-qb", "task-V-1049/worker", str(self.wt))
++        self.shared = private.ensure_private(self.wt)
++        self.assertEqual(self.shared, self.repo / private.PRIVATE_REL)
++        self.link = self.wt / private.PRIVATE_REL
++        self.ignore = self.wt / ".orchestra/.gitignore"
++
++    def expose_link(self):
++        self.ignore.unlink()
++        self.assertIn("?? " + private.PRIVATE_REL, self.raw_status())
++
++    def raw_status(self, nul=False):
++        return git(self.wt, "status", "--porcelain", "--untracked-files=all",
++                   *(["-z"] if nul else []))
++
++    def assert_clean(self):
++        result = workspace.branch_wip_status(str(self.wt), "main")
++        self.assertNotIn("error", result)
++        self.assertEqual(result["uncommitted"], [])
++        self.assertNotIn(private.PRIVATE_REL, [p["path"] for p in result["changed_files"]])
++        self.assertIsNone(workspace._clean_worktree_error(self.wt, "worker"))
++
++    def test_reinclude_with_missing_generated_ignore(self):
++        self.expose_link()
++        self.assert_clean()
++        self.assertFalse(self.ignore.exists(), "clean checks must not mutate ignore files")
++        result = workspace.switch_worktree_branch(
++            str(self.wt), "task-V-1050/worker", from_ref="main")
++        self.assertTrue(result["ok"], result)
++
++    def test_tracked_project_ignore_cannot_be_repaired(self):
++        self.ignore.write_text("/project-cache\n")
++        git(self.wt, "add", "-f", ".orchestra/.gitignore")
++        git(self.wt, "commit", "-qm", "project owns the deeper ignore")
++        with self.assertLogs(private.logger, level="WARNING"):
++            private.ensure_private(self.wt)
++        self.assertEqual(self.ignore.read_text(), "/project-cache\n")
++        self.assertIn("?? " + private.PRIVATE_REL, self.raw_status())
++        self.assert_clean()
++
++    def test_branch_reset_replaces_generated_ignore_and_sparse_reapply(self):
++        # Git may overwrite an ignored untracked file when the new tree tracks that path.
++        (self.repo / ".orchestra/.gitignore").write_text("/project-cache\n")
++        git(self.repo, "add", "-f", ".orchestra/.gitignore")
++        git(self.repo, "commit", "-qm", "version project ignore")
++        self.assertEqual(self.ignore.read_text(), "/private\n/.gitignore\n")
++        self.assertEqual(sparse_worktree.apply_patterns(
++            self.wt, ["/*", "!/.orchestra/history/"], workspace._git_cmd), "")
++        result = workspace.switch_worktree_branch(
++            str(self.wt), "task-V-1050/worker", from_ref="main")
++        self.assertTrue(result["ok"], result)
++        self.assertEqual(self.ignore.read_text(), "/project-cache\n")
++        git(self.wt, "sparse-checkout", "reapply")
++        self.assertIn("?? " + private.PRIVATE_REL, self.raw_status())
++        self.assert_clean()
++
++    def test_hub_roundtrip_and_merge_with_exposed_link(self):
++        self.expose_link()
++        self.assertEqual(sparse_worktree.apply_patterns(
++            self.wt, ["/*", "!/.orchestra/history/"], workspace._git_cmd), "")
++        plan = hw.plan_upload(self.wt, known=[])
++        self.assertNotIn(private.PRIVATE_REL, plan.manifest)
++        snapshot = self.root / "snapshot.tar"
++        with tarfile.open(snapshot, "w") as archive:
++            for name in plan.manifest:
++                data = b"hub fix\n" if name == "code.txt" else (self.wt / name).read_bytes()
++                member = tarfile.TarInfo(name)
++                member.size = len(data)
++                archive.addfile(member, io.BytesIO(data))
++        synced = hw.apply_changes(snapshot, self.wt, plan.manifest, known=[])
++        self.assertEqual(synced.changed, ["code.txt"])
++        self.assertEqual(synced.deleted, [])
++        self.assertEqual(synced.rejected, [])
++        commit, failed = hw.commit_sync(self.wt, synced.changed, synced.deleted, "hub fix")
++        self.assertTrue(commit)
++        self.assertEqual(failed, [])
++        self.assert_clean()
++        result = workspace.merge_worktree_to_main(str(self.wt), str(self.repo), "main")
++        self.assertTrue(result["ok"], result)
++        self.assertEqual((self.repo / "code.txt").read_text(), "hub fix\n")
++        self.assertTrue(self.link.is_symlink())
++        self.assert_clean()
++
++    def test_ordinary_hub_roundtrip_does_not_remove_generated_ignore(self):
++        plan = hw.plan_upload(self.wt, known=[])
++        self.assertNotIn(".orchestra/.gitignore", plan.manifest)
++        snapshot = self.root / "snapshot.tar"
++        hw.write_tar(self.wt, sorted(plan.manifest), snapshot)
++        synced = hw.apply_changes(snapshot, self.wt, plan.manifest, known=[])
++        self.assertEqual(synced.deleted, [])
++        self.assertEqual(self.ignore.read_text(), "/private\n/.gitignore\n")
++        self.assert_clean()
++
++    def test_real_user_file_still_blocks_wip_merge_and_switch(self):
++        self.expose_link()
++        # Same parent as the planted link: status must expand untracked directories.
++        (self.wt / ".orchestra/user-note.txt").write_text("keep my work\n")
++        result = workspace.branch_wip_status(str(self.wt), "main")
++        self.assertEqual(result["uncommitted"], [".orchestra/user-note.txt"])
++        self.assertIn(".orchestra/user-note.txt",
++                      workspace._clean_worktree_error(self.wt, "worker"))
++        switched = workspace.switch_worktree_branch(
++            str(self.wt), "task-V-1050/worker", from_ref="main")
++        self.assertFalse(switched["ok"])
++        merged = workspace.merge_worktree_to_main(str(self.wt), str(self.repo), "main")
++        self.assertFalse(merged["ok"])
++        self.assertIn(".orchestra/user-note.txt", merged["error"])
++        self.assertEqual((self.wt / ".orchestra/user-note.txt").read_text(), "keep my work\n")
++
++    def test_missing_tracked_metadata_does_not_collapse_user_files(self):
++        self.expose_link()
++        git(self.wt, "rm", ".orchestra/README.md")
++        git(self.wt, "commit", "-qm", "no tracked metadata files")
++        (self.wt / ".orchestra/user.txt").write_text("keep\n")
++        self.assertEqual(workspace.branch_wip_status(str(self.wt), "main")["uncommitted"],
++                         [".orchestra/user.txt"])
++
++    def test_other_links_files_directories_and_lookalikes_are_not_hidden(self):
++        self.expose_link()
++        self.link.unlink()
++        self.link.write_text("user file\n")
++        self.assertEqual(private.filter_worktree_status(self.wt, self.raw_status()), self.raw_status())
++        self.link.unlink()
++        elsewhere = self.root / "other"
++        elsewhere.mkdir()
++        self.link.symlink_to(elsewhere, target_is_directory=True)
++        self.assertEqual(private.filter_worktree_status(self.wt, self.raw_status()), self.raw_status())
++        self.link.unlink()
++        self.link.mkdir()
++        (self.link / "user.txt").write_text("keep\n")
++        self.assertEqual(private.filter_worktree_status(self.wt, self.raw_status()), self.raw_status())
++        (self.wt / ".orchestra/private-other").symlink_to(self.shared)
++        self.assertIn(".orchestra/private-other",
++                      workspace.branch_wip_status(str(self.wt), "main")["uncommitted"])
++
++    def test_tracked_link_changes_are_preserved(self):
++        self.expose_link()
++        self.link.unlink()
++        self.link.symlink_to(self.root / "user-target")
++        git(self.wt, "add", private.PRIVATE_REL)
++        git(self.wt, "commit", "-qm", "user tracks private link")
++        self.link.unlink()
++        self.link.symlink_to(self.shared)
++        raw = self.raw_status()
++        self.assertIn(" M " + private.PRIVATE_REL, raw)
++        self.assertEqual(private.filter_worktree_status(self.wt, raw), raw)
++        self.assertEqual(workspace.branch_wip_status(str(self.wt), "main")["uncommitted"],
++                         [private.PRIVATE_REL])
++
++    def test_staged_link_addition_is_preserved(self):
++        self.expose_link()
++        git(self.wt, "add", private.PRIVATE_REL)
++        raw = self.raw_status()
++        self.assertIn("A  " + private.PRIVATE_REL, raw)
++        self.assertEqual(private.filter_worktree_status(self.wt, raw), raw)
++
++    def test_dangling_link_and_git_inspection_failure_fail_closed(self):
++        self.expose_link()
++        raw = self.raw_status()
++        for error in (RuntimeError("git unavailable"), OSError("permission denied")):
++            with self.subTest(error=type(error).__name__), patch.object(
++                    private, "shared_private_dir", side_effect=error):
++                self.assertEqual(private.filter_worktree_status(self.wt, raw), raw)
++        self.shared.rmdir()
++        self.assertEqual(private.filter_worktree_status(self.wt, raw), raw)
++
++    def test_nul_rename_source_is_never_mistaken_for_untracked_record(self):
++        self.expose_link()
++        source = "?? " + private.PRIVATE_REL
++        raw = "R  renamed\0" + source + "\0?? " + private.PRIVATE_REL + "\0"
++        self.assertEqual(private.filter_worktree_status(self.wt, raw, nul=True),
++                         "R  renamed\0" + source + "\0")
++
++    def test_git_status_failure_is_preserved(self):
++        failed = subprocess.CompletedProcess([], 128, "", "git failed")
++        original = workspace._git_cmd
++
++        def fail_status(args, **kwargs):
++            return failed if args[:2] == ["git", "status"] else original(args, **kwargs)
++
++        with patch.object(workspace, "_git_cmd", side_effect=fail_status):
++            self.assertIn("cannot inspect", workspace._clean_worktree_error(self.wt, "worker"))
++            self.assertIn("error", workspace.branch_wip_status(str(self.wt), "main"))
++
++    def test_existing_link_repair_still_recreates_generated_ignore(self):
++        self.expose_link()
++        self.assert_clean()
++        self.assertEqual(private.ensure_private(self.wt), self.shared)
++        self.assertEqual(self.ignore.read_text(), "/private\n/.gitignore\n")
++        self.assertEqual(self.raw_status(), "")
++
++    def test_real_private_directory_in_main_is_not_filtered(self):
++        (self.repo / ".orchestra/.gitignore").unlink()
++        (self.shared / "user.txt").write_text("user content\n")
++        raw = git(self.repo, "status", "--porcelain", "--untracked-files=all")
++        self.assertIn("?? .orchestra/private/user.txt", raw)
++        self.assertEqual(private.filter_worktree_status(self.repo, raw), raw)
++
++    def test_kill_guard_allows_only_the_platform_link(self):
++        # Full route import needs the normal project dependencies, absent on a bare hub.
++        if importlib.util.find_spec("fastapi") is None:
++            self.skipTest("full route dependencies unavailable: fastapi")
++        from app.routes import sessions
++        self.expose_link()
++        found = SimpleNamespace(id="worker-id", loaded=False, scope=str(self.repo),
++                                worktree_path=str(self.wt))
++        manager = SimpleNamespace(
++            get_by_name=lambda *args: found, _live_children=lambda *args: [], remove=AsyncMock())
++        with patch.object(sessions, "manager", manager), patch.object(
++                sessions, "_session_base_branch", return_value="main"):
++            self.assertEqual(asyncio.run(sessions.delete_session("worker", str(self.repo))), {"ok": True})
++            manager.remove.assert_awaited_once_with("worker-id")
++            manager.remove.reset_mock()
++            (self.wt / ".orchestra/user.txt").write_text("keep\n")
++            refused = asyncio.run(sessions.delete_session("worker", str(self.repo)))
++            self.assertEqual(refused.status_code, 400)
++            self.assertIn(b".orchestra/user.txt", refused.body)
++            manager.remove.assert_not_awaited()
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/test_workspace.py b/tests/test_workspace.py
+index 1b047a1dc..63258d520 100644
+--- a/tests/test_workspace.py
++++ b/tests/test_workspace.py
+@@ -1264,7 +1264,7 @@ class TestSwitchWorktreeBranch:
+         real_git_cmd = workspace._git_cmd
+ 
+         def fail_status(args, **kwargs):
+-            if args == ["git", "status", "--porcelain"]:
++            if args[:3] == ["git", "status", "--porcelain"]:
+                 return subprocess.CompletedProcess(args, 128, "", "status exploded")
+             return real_git_cmd(args, **kwargs)
+ 

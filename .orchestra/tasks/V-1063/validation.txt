@@ -1,0 +1,6 @@
+Redaction: workspace/HOME prefixes, encoded workspace slug and username replaced by /remote/workspace, /remote/workspaces, /remote/home, remote-workspace and remote-user.
+$ uv run --frozen python .orchestra/tasks/V-1063/validate.py
+Canonical secret-shape scan: 4 source files and 11 task artifacts clean.
+Private workspace/HOME prefixes, hostname, workspace identifier and username: absent from artifacts.
+
+exit_code=0

@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import re
 import shlex as _shlex
 import subprocess
 import tarfile
@@ -247,6 +248,9 @@ class FakeSsh(hw.HubSsh):
         shutil.copytree(source, dest, dirs_exist_ok=True)
 
     async def run(self, remote, **kw):
+        if remote.startswith("if test -L "):
+            # Run the production name-only guard against synthetic local copies.
+            return subprocess.run(["bash", "-c", remote], check=True, capture_output=True).stdout
         if remote.startswith("mkdir -p --"):
             Path(shlex_split(remote)[3]).mkdir(parents=True, exist_ok=True)
             return b""
@@ -347,6 +351,239 @@ async def _turn(backend, text):
         await backend.connect()
     await backend.send(text)
     return [event async for event in backend.events()]
+
+
+def _failed_hub_runs(mc, monkeypatch, *, failures=1, status="failed", reason=None,
+                     reason_source="recentRuns", activity=None):
+    """Deterministic terminal runs, retaining the normal upload and sync/commit paths."""
+    from unittest.mock import AsyncMock
+
+    original = mc.tool_call
+    attempts = []
+    sleep = AsyncMock()
+    monkeypatch.setattr(backend_hub.asyncio, "sleep", sleep)
+
+    async def call(name, args):
+        if name in {"t3_thread_launch", "t3_thread_send"}:
+            result = await original(name, args)
+            attempts.append((name, dict(args)))
+            return {**result, "runId": f"run-{len(attempts)}"}
+        run_id = f"run-{len(attempts)}"
+        failed = len(attempts) <= failures
+        if name == "t3_thread_wait":
+            result = {"status": status if failed else "completed", "timedOut": False}
+            if failed and reason_source == "wait" and reason:
+                result["error"] = {"message": reason}
+            return result
+        if name == "t3_thread_read":
+            if args.get("view") == "activity":
+                result = {"items": [], "hasMore": False}
+                if activity and failed:
+                    result["items"] = [{**activity, "runId": run_id, "position": len(attempts) * 10}]
+                if reason and failed and reason_source == "activity":
+                    result["items"].append({"type": "error", "status": "failed", "runId": run_id,
+                                            "position": len(attempts) * 10 + 1, "text": reason})
+            else:
+                result = {"items": [] if failed else [
+                    {"type": "assistant_message", "runId": run_id, "text": "recovered"}]}
+            if failed and reason_source in {"recentRuns", "runs"}:
+                result[reason_source] = [{"runId": "old-run", "error": "old unrelated error"},
+                                        {"runId": run_id, "error": reason}]
+            return result
+        return await original(name, args)
+
+    mc.tool_call = call
+    return attempts, sleep
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["failed", "cancelled"])
+@pytest.mark.parametrize("reason_source", ["recentRuns", "runs", "wait", "activity"])
+async def test_failed_without_reply_and_without_work_retries_same_thread_then_succeeds(
+    repo, tmp_path, monkeypatch, status, reason_source,
+):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    backend.model = "hub-gpt-6.1-sol"
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch, status=status, reason="transient provider failure",
+                                     reason_source=reason_source)
+    events = await _turn(backend, "fix the task")
+    assert events[-1].metadata["ok"] is True
+    assert any(e.type == "text" and "recovered" in e.content for e in events)
+    assert [name for name, _ in attempts] == ["t3_thread_launch", "t3_thread_send"]
+    assert attempts[1][1] == {"threadId": "thr-1", "message": attempts[0][1]["message"], "mode": "auto"}
+    assert attempts[0][1]["modelSelection"] == {"instanceId": "codex", "model": "gpt-6.1-sol"}
+    assert backend.model == "hub-gpt-6.1-sol"
+    assert not any(name == "t3_thread_configure" for name, _ in mc.calls)
+    sleep.assert_awaited_once_with(1)
+    assert any(e.type == "status" and "retry 1/2" in e.content
+               and "transient provider failure" in e.content for e in events)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reason", [None, "provider disconnected before replying"])
+async def test_no_work_retries_exhausted_preserve_error_and_hub_reason(repo, tmp_path, monkeypatch, reason):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch, failures=10, reason=reason)
+    events = await _turn(backend, "go")
+    assert len(attempts) == 3
+    assert [c.args for c in sleep.await_args_list] == [(1,), (2,)]
+    error = next(e for e in events if e.type == "error")
+    expected = reason or "no reason exposed by hub"
+    assert "hub thread ended with status failed" in error.content and expected in error.content
+    assert "old unrelated error" not in error.content
+    assert any(e.type == "text" and expected in e.content for e in events)
+    assert events[-1].metadata["stop_reason"] == "hub_error"
+
+
+@pytest.mark.asyncio
+async def test_platform_workspace_preparation_allows_retry(repo, tmp_path, monkeypatch):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch, activity={
+        "type": "command_execution", "status": "completed", "title": "Workspace ready",
+        "text": "$ Preparing workspace\nWorkspace preparation completed.",
+        "itemId": "turn-item:provider:codex:native-item:workspace-preparation%3Arun"})
+    events = await _turn(backend, "go")
+    assert len(attempts) == 2
+    assert events[-1].metadata["ok"] is True
+
+
+@pytest.mark.asyncio
+async def test_interrupt_during_retry_backoff_does_not_resend(repo, tmp_path, monkeypatch):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch)
+
+    async def interrupt(delay):
+        backend._abort = True
+    sleep.side_effect = interrupt
+    events = await _turn(backend, "go")
+    assert len(attempts) == 1
+    assert events[-1].metadata["stop_reason"] == "interrupted"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("uncertain", [False, True])
+async def test_retry_send_failure_never_launches_a_replacement(repo, tmp_path, monkeypatch, uncertain):
+    from app.multicode_client import MultiCodeError
+
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch)
+    original = mc.tool_call
+    send_calls = []
+
+    async def call(name, args):
+        if name == "t3_thread_send":
+            send_calls.append(args)
+            raise MultiCodeError("thread send refused or delivery uncertain", retryable=uncertain)
+        return await original(name, args)
+    mc.tool_call = call
+    events = await _turn(backend, "go")
+    assert len(attempts) == 1 and len(send_calls) == 1
+    assert events[-1].metadata["stop_reason"] == "hub_error"
+    assert backend._state.thread_id == "thr-1"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("work", ["edit", "delete", "tool", "rejected", "outbox", "sync_failure", "activity_failure"])
+async def test_failed_run_with_work_or_uncertain_sync_is_not_retried(repo, tmp_path, monkeypatch, work):
+    from app.multicode_client import MultiCodeError
+
+    def edit(directory):
+        if work == "edit":
+            (directory / "calc.py").write_text("fixed\n")
+        elif work == "delete":
+            (directory / "calc.py").unlink()
+        elif work == "rejected":
+            (directory / ".env").write_text("LOCAL_FLAG=1\n")
+        elif work == "outbox":
+            (directory / ".orchestra-outbox.jsonl").write_text('{}\n')
+
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
+    attempts, sleep = _failed_hub_runs(
+        mc, monkeypatch, activity={"type": "command_execution", "status": "completed", "text": "$ true"}
+        if work == "tool" else None)
+    if work == "sync_failure":
+        async def get(*args):
+            raise hw.HubWorkspaceError("snapshot unavailable")
+        monkeypatch.setattr(ssh, "get", get)
+    if work == "activity_failure":
+        original = mc.tool_call
+
+        async def call(name, args):
+            if name == "t3_thread_read" and args.get("view") == "activity":
+                raise MultiCodeError("activity unavailable")
+            return await original(name, args)
+        mc.tool_call = call
+    events = await _turn(backend, "go")
+    assert len(attempts) == 1
+    sleep.assert_not_awaited()
+    assert events[-1].metadata["stop_reason"] == "hub_error"
+    if work == "edit":
+        assert (repo / "calc.py").read_text() == "fixed\n"
+        assert _git(repo, "log", "-1", "--format=%s").startswith("#V-1: hub worker turn 1")
+    if work == "delete":
+        assert not (repo / "calc.py").exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reason_source", ["recentRuns", "wait", "activity"])
+async def test_failed_without_reply_provider_limit_is_not_retried(repo, tmp_path, monkeypatch, reason_source):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch, reason="usage_limit_reached",
+                                     reason_source=reason_source)
+    events = await _turn(backend, "go")
+    assert len(attempts) == 1
+    sleep.assert_not_awaited()
+    assert events[-1].metadata["stop_reason"] == "hub_provider_limit"
+
+
+@pytest.mark.asyncio
+async def test_hub_created_virtualenv_is_rejected_and_sibling_is_synced(repo, tmp_path, monkeypatch):
+    def edit(directory):
+        env = directory / ".venv-v281"
+        (env / "lib").mkdir(parents=True)
+        (env / "lib/package.py").write_text("generated = True\n")
+        (env / "pyvenv.cfg").write_text("home = /usr/bin\n")
+        (directory / "sibling.py").write_text("keep = True\n")
+
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
+    events = await _turn(backend, "go")
+    assert events[-1].metadata["ok"] is True
+    assert not (repo / ".venv-v281").exists()
+    assert (repo / "sibling.py").read_text() == "keep = True\n"
+    assert "sibling.py" in _git(repo, "show", "--format=", "--name-only", "HEAD")
+    assert ".venv-v281" not in _git(repo, "ls-files")
+    assert any("rejected: .venv-v281 (Python virtualenv" in e.content for e in events)
+
+
+@pytest.mark.parametrize("marker_first", [True, False])
+@pytest.mark.parametrize("prefix", ["", "././"])
+def test_virtualenv_detection_is_order_independent_and_matches_directory_boundaries(
+    repo, tmp_path, marker_first, prefix,
+):
+    files = {"tools/custom-env/pyvenv.cfg": b"home = /usr/bin\n",
+             "tools/custom-env/lib/pkg.py": b"ignored\n"}
+    if not marker_first:
+        files = dict(reversed(list(files.items())))
+    files["tools/custom-env-sibling/keep.py"] = b"keep\n"
+    files = {prefix + name: data for name, data in files.items()}
+    result = hw.apply_changes(_tar_of(files, tmp_path), repo, {}, known=[])
+    assert len(result.changed) == 1 and result.changed[0].endswith("tools/custom-env-sibling/keep.py")
+    assert result.rejected == [("tools/custom-env", "Python virtualenv (contains pyvenv.cfg)")]
+    assert not (repo / "tools/custom-env").exists()
+
+
+def test_virtualenv_exclusion_preserves_old_manifest_files(repo, tmp_path):
+    env = repo / "custom-env"
+    env.mkdir()
+    (env / "old.py").write_text("already local\n")
+    manifest = {"custom-env/old.py": hw.sha256_file(env / "old.py")}
+    snapshot = _tar_of({"custom-env/pyvenv.cfg": b"home = /usr/bin\n",
+                        "custom-env/new.py": b"do not import\n"}, tmp_path)
+    result = hw.apply_changes(snapshot, repo, manifest, known=[])
+    assert result.changed == result.deleted == []
+    assert result.manifest == manifest
+    assert (env / "old.py").read_text() == "already local\n"
+    assert not (env / "new.py").exists()
 
 
 @pytest.mark.asyncio
@@ -764,6 +1001,100 @@ def test_one_unstageable_path_does_not_cost_the_rest_of_the_turn(repo):
     sha, failed = hw.commit_sync(repo, ["secret.log", "calc.py"], [], "#V-1: hub worker turn 1")
     assert sha and [p for p, _ in failed] == ["secret.log"]
     assert _git(repo, "show", "--name-only", "--format=", "HEAD").split() == ["calc.py"]
+
+
+@pytest.mark.parametrize("mixed", [False, True])
+@pytest.mark.parametrize("refused", [None, "private/new.txt", "missing.txt"])
+@pytest.mark.parametrize("deletion_staged", [False, True])
+def test_commit_returned_deletions_preserves_unrelated_index(repo, mixed, refused, deletion_staged):
+    for name in ("native-modified.txt", "native-deleted.txt"):
+        (repo / name).write_text("original\n")
+    (repo / ".gitignore").write_text("/private/\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "baseline")
+    before = _git(repo, "rev-parse", "HEAD").strip()
+
+    # Preserve additions, deletions and different staged/unstaged native content.
+    (repo / "native-modified.txt").write_text("native staged\n")
+    (repo / "native-added.txt").write_text("native staged addition\n")
+    (repo / "native-deleted.txt").unlink()
+    _git(repo, "add", "-A")
+    (repo / "native-modified.txt").write_text("native unstaged\n")
+    (repo / "native-added.txt").write_text("native unstaged addition\n")
+    staged = _git(repo, "diff", "--cached", "--binary")
+    unstaged = _git(repo, "diff", "--binary")
+
+    (repo / "src/keep.txt").unlink()
+    if deletion_staged:
+        _git(repo, "add", "-A", "--", "src/keep.txt")
+    changed = []
+    expected = {"src/keep.txt"}
+    if mixed:
+        (repo / "calc.py").write_text("# hub modification\n")
+        # Identical content makes Git's default diff classify the delete/add as
+        # a rename; the deletion must still be included in the commit.
+        (repo / "hub-new.txt").write_text("keep\n")
+        changed += ["calc.py", "hub-new.txt"]
+        expected.update(changed)
+    if refused:
+        changed.append(refused)
+        if refused.startswith("private/"):
+            (repo / "private").mkdir()
+            (repo / refused).write_text("local only\n")
+
+    sha, failed = hw.commit_sync(repo, changed, ["src/keep.txt"], "hub return")
+
+    assert sha
+    assert [path for path, _ in failed] == ([refused] if refused else [])
+    assert all(reason for _, reason in failed)
+    assert set(_git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines()) == expected
+    assert _git(repo, "rev-list", "--count", f"{before}..HEAD").strip() == "1"
+    assert not _git(repo, "ls-tree", "HEAD", "src/keep.txt")
+    assert _git(repo, "status", "--porcelain", "--", *sorted(expected)) == ""
+    assert _git(repo, "diff", "--cached", "--binary") == staged
+    assert _git(repo, "diff", "--binary") == unstaged
+    if mixed:
+        assert _git(repo, "show", "HEAD:calc.py") == "# hub modification\n"
+        assert _git(repo, "show", "HEAD:hub-new.txt") == "keep\n"
+    if refused == "private/new.txt":
+        assert (repo / refused).read_text() == "local only\n"
+        assert _git(repo, "ls-files", "--", refused) == ""
+        assert _git(repo, "check-ignore", "--", refused).strip() == refused
+    if refused:
+        retry_sha, retry_failed = hw.commit_sync(repo, [refused], [], "refused only")
+        assert retry_sha == "" and [path for path, _ in retry_failed] == [refused]
+        assert _git(repo, "rev-parse", "--short", "HEAD").strip() == sha
+        assert _git(repo, "diff", "--cached", "--binary") == staged
+        assert _git(repo, "diff", "--binary") == unstaged
+
+
+def test_sync_commits_deletion_with_new_ignore_and_does_not_replay(repo, tmp_path):
+    plan = hw.plan_upload(repo, known=[])
+    before = _git(repo, "rev-parse", "HEAD").strip()
+    snap = _tar_of({
+        "calc.py": b"# hub modification\n",
+        ".gitignore": b"/private/\n",
+        "private/new.txt": b"local only\n",
+    }, tmp_path)
+    result = hw.apply_changes(snap, repo, plan.manifest, known=[])
+    assert set(result.changed) == {"calc.py", ".gitignore", "private/new.txt"}
+    assert result.deleted == ["src/keep.txt"]
+    assert not result.conflicts and not result.rejected
+
+    sha, failed = hw.commit_sync(repo, result.changed, result.deleted, "hub return")
+
+    assert sha and [path for path, _ in failed] == ["private/new.txt"]
+    assert set(_git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines()) == {
+        "calc.py", ".gitignore", "src/keep.txt"}
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _git(repo, "ls-files", "--", "private/new.txt") == ""
+    assert (repo / "private/new.txt").read_bytes() == b"local only\n"
+    again = hw.apply_changes(snap, repo, result.manifest, known=[])
+    assert again.changed == [] and again.deleted == []
+    assert not again.conflicts and not again.rejected
+    assert hw.commit_sync(repo, again.changed, again.deleted, "same snapshot") == ("", [])
+    assert _git(repo, "rev-parse", "--short", "HEAD").strip() == sha
+    assert _git(repo, "rev-list", "--count", f"{before}..HEAD").strip() == "1"
 
 
 @pytest.mark.asyncio
@@ -1239,10 +1570,69 @@ async def test_hub_outbox_without_a_link_to_orchestra_is_dropped_and_logged(repo
     assert not (repo / ob.OUTBOX_NAME).exists()
 
 
-def test_a_local_file_named_like_the_outbox_is_never_uploaded(repo):
-    (repo / ob.OUTBOX_NAME).write_text('{"tool":"send_message","args":{"message":"x"}}\n')
-    plan = hw.plan_upload(repo, ["calc.py"], [])
-    assert ob.OUTBOX_NAME not in plan.manifest
+@pytest.mark.parametrize("parent", ["", ".orchestra", "src/deep", "src/node_modules"])
+def test_a_local_file_named_like_the_outbox_is_never_uploaded(repo, parent):
+    rel = f"{parent}/{ob.OUTBOX_NAME}" if parent else ob.OUTBOX_NAME
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('{"tool":"send_message","args":{"message":"x"}}\n')
+    plan = hw.plan_upload(repo, known=[])
+    assert rel not in plan.manifest
+    assert dict(plan.skipped)[rel] == "broker outbox file"
+
+
+@pytest.mark.parametrize("parent", [".orchestra", "src/deep", "src/node_modules"])
+@pytest.mark.parametrize("suffix", ["", "/", "/."])
+def test_nested_outbox_is_rejected_visibly_while_root_outbox_is_read(repo, tmp_path, parent, suffix):
+    rel = f"{parent}/{ob.OUTBOX_NAME}{suffix}"
+    plan = hw.plan_upload(repo, known=[])
+    files = {name: (repo / name).read_bytes() for name in plan.manifest}
+    root_data = b'{"tool":"update_progress","args":{"percent":60}}\n'
+    files.update({ob.OUTBOX_NAME: root_data,
+                  rel: b'{"tool":"update_progress","args":{"percent":10}}\n',
+                  f"src/{ob.OUTBOX_NAME}.notes": b"ordinary file\n"})
+    snapshot = _tar_of(files, tmp_path)
+    result = hw.apply_changes(snapshot, repo, plan.manifest, known=[])
+    assert result.outbox == root_data
+    assert result.rejected == [(rel, "broker outbox file")]
+    assert result.changed == [f"src/{ob.OUTBOX_NAME}.notes"]
+    assert result.deleted == result.conflicts == []
+    assert rel not in result.manifest and ob.OUTBOX_NAME not in result.manifest
+    assert not (repo / rel).exists() and not (repo / ob.OUTBOX_NAME).exists()
+    again = hw.apply_changes(snapshot, repo, result.manifest, known=[])
+    assert again.changed == again.deleted == again.conflicts == []
+    assert again.rejected == result.rejected and again.outbox == root_data
+
+
+@pytest.mark.asyncio
+async def test_nested_outbox_is_reported_and_never_executed_or_committed(repo, tmp_path, monkeypatch):
+    rel = f".orchestra/{ob.OUTBOX_NAME}"
+    # Reproduce seedon's ignore policy: every .orchestra artifact can be staged.
+    (repo / ".gitignore").write_text("!.orchestra/**\n")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-qm", "test ignore policy")
+
+    def edit(workdir):
+        path = workdir / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('{"tool":"update_progress","args":{"percent":10}}\n')
+        (workdir / ob.OUTBOX_NAME).write_text(
+            '{"tool":"update_progress","args":{"percent":60}}\n')
+        (workdir / "calc.py").write_text("fixed\n")
+
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
+    call = _Calls()
+    backend._bridge = ob.HubBridge(lambda: _who("boss"), call)
+    events = await _turn(backend, "go")
+    assert f"rejected: {rel} (broker outbox file)" in events[-2].content
+    assert "[hub outbox] 1 delivered" in events[-2].content
+    assert len(call.calls) == 1 and call.calls[0][2]["percent"] == 60
+    assert not (repo / rel).exists() and rel not in _git(repo, "ls-files")
+    assert rel not in backend._state.manifest
+    assert "calc.py" in _git(repo, "show", "--stat", "--format=", "HEAD")
+    assert (Path(backend._state.remote_dir) / rel).exists()
+    assert not (Path(backend._state.remote_dir) / ob.OUTBOX_NAME).exists()
 
 
 # ── the trimmed hub prompt ────────────────────────────────────────────────────────────
@@ -1252,21 +1642,64 @@ def _first_prompt(mc):
     return next(args["message"] for name, args in mc.calls if name == "t3_thread_launch")
 
 
+def _prompt_outbox_examples(prompt):
+    section = prompt.partition("<orchestra-link>")[2].partition("</orchestra-link>")[0]
+    spans = re.findall(r"`(\{[^`\n]*)`", section)
+    examples = [json.loads(span) for span in spans]
+    entries, dropped = ob.parse_outbox("\n".join(spans).encode())
+    assert not dropped
+    assert entries == examples
+    return entries
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("has_link", [False, True])
+@pytest.mark.parametrize("parent", ["synthetic-parent", "", None])
+async def test_hub_preamble_examples_are_valid_outbox_requests(parent, has_link):
+    who = _who(parent)
+    prompt = backend_hub.hub_preamble(who, "V-1147", has_link=has_link)
+    entries = _prompt_outbox_examples(prompt)
+    expected = ((["send_message"] if parent else []) + ["update_progress", "update_checklist"]
+                if has_link else [])
+    assert [entry["tool"] for entry in entries] == expected
+    assert (ob.OUTBOX_NAME in prompt) == has_link
+    for tool in ob.ALLOWED_TOOLS:
+        assert (tool in prompt) == (tool in expected)
+
+    call = _Calls()
+    report = await ob.execute(entries, who, call)
+    assert report.done == expected and not report.dropped
+    assert len(call.calls) == len(entries)
+    for entry, (method, path, body) in zip(entries, call.calls):
+        assert method == "POST"
+        if entry["tool"] == "send_message":
+            assert path == f"/api/sessions/{parent}/send"
+            assert body["message"] == entry["args"]["message"]
+            assert body["sender"] == who.name and body["scope"] == who.scope
+        elif entry["tool"] == "update_progress":
+            assert path == f"/api/sessions/{who.name}/progress"
+            assert body == {**entry["args"], "scope": who.scope}
+        else:
+            assert path == f"/api/sessions/{who.name}/checklist"
+            assert body == entry["args"]
+
+
 @pytest.mark.asyncio
 async def test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools(repo, tmp_path, monkeypatch):
     backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
     await _turn(backend, "implement the thing")
     prompt = _first_prompt(mc)
-    assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
-    assert ob.OUTBOX_NAME in prompt and "send_message" in prompt and "update_progress" in prompt
-    assert "update_checklist" in prompt and "goes to your orchestrator boss only" in prompt
-    assert "Do not run git push/clone/commit" in prompt
-    assert prompt.rstrip().endswith("implement the thing") and "Task:\nimplement the thing" in prompt
+    who = backend._bridge.identity()
+    assert all(value in prompt for value in (who.name, who.parent_name, who.branch))
+    assert ob.OUTBOX_NAME in prompt
+    assert {entry["tool"] for entry in _prompt_outbox_examples(prompt)} == set(ob.ALLOWED_TOOLS)
+    preamble = backend._preamble()
+    assert prompt == preamble + "implement the thing"
     from app.manager import ROLE_SYSTEM_PROMPT
     full = ROLE_SYSTEM_PROMPT("default", "worker")
-    assert len(prompt.split("Task:\n")[0]) < len(full) / 2              # materially lighter than the native prompt
+    assert len(preamble) < len(full) / 2              # materially lighter than the native prompt
     for native_only in ("spawn_worker", "task_get", "bg_create", "mcp__", "get_worker_logs", "search_logs"):
-        assert native_only not in prompt.split("Task:\n")[0], native_only
+        assert native_only not in preamble, native_only
 
 
 @pytest.mark.asyncio
@@ -1275,7 +1708,7 @@ async def test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it(repo, tm
     backend._bridge = None
     await _turn(backend, "plain task")
     prompt = _first_prompt(mc)
-    assert ob.OUTBOX_NAME not in prompt and "plain task" in prompt and "Do not run git push/clone/commit" in prompt
+    assert ob.OUTBOX_NAME not in prompt and "plain task" in prompt
 
 
 def test_hub_prompt_without_a_parent_offers_no_send_message():

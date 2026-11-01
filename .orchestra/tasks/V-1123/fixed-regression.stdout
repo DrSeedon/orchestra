@@ -1,0 +1,13 @@
+E                                                                        [100%]
+==================================== ERRORS ====================================
+____ ERROR at setup of test_quota_admission_collection_does_not_open_sqlite ____
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+tests/conftest.py:665: in _bind_real_manager_into_route_modules
+    import app.routes.sessions  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'app.routes'
+=========================== short test summary info ============================
+ERROR tests/test_quota_admission_collection.py::test_quota_admission_collection_does_not_open_sqlite
+1 error in 0.09s

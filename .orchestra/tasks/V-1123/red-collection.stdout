@@ -1,0 +1,5 @@
+
+=========================== short test summary info ============================
+ERROR tests/test_quota_admission_e2e.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+no tests collected, 1 error in 0.21s

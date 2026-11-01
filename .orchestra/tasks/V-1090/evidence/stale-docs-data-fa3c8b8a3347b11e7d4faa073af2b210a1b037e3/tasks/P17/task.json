@@ -1,0 +1,12 @@
+{
+  "id": "P17",
+  "package": "ticketdesk",
+  "prompt": "Add an escalation report for tickets that stay open too long. It runs as `python -m ticketdesk.escalate TICKETS NOW OUTPUT [--settings FILE]`, with the same ticket export, the same time format for NOW and the same settings file as the report command.\n\nAdd a new setting escalation_hours, a whole number of hours with the default 24, to the settings the project already reads, so that a settings file can change it. A value that is not a whole number greater than 0 makes the settings invalid.\n\nOnly tickets with the status open are looked at. The age of a ticket is the number of whole hours from its opened time to NOW, rounded down. With H = escalation_hours, a ticket gets one of three escalation levels: \"lead\" when H <= age < 2*H, \"manager\" when 2*H <= age < 4*H, and \"director\" when age >= 4*H. A ticket younger than H hours is not escalated.\n\nWrite OUTPUT as JSON with two keys. \"escalations\" is a list with one object per escalated ticket, with the keys \"id\", \"priority\" (the priority name from the export, in lower case), \"age\" (a number) and \"level\", sorted by age with the oldest ticket first and then by id. \"counts\" is an object with the keys \"lead\", \"manager\" and \"director\" and the number of escalated tickets at each level (0 when there are none).\n\nAn open ticket whose opened time is later than NOW is invalid ticket data: the function that works out the escalations must report this to its caller, and the command then exits with status 3 and does not write OUTPUT. If NOW cannot be read, the export cannot be read or the settings are invalid, the command exits with status 2 and does not write OUTPUT. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "ENUM", "doc_side": "right"},
+    {"id": "D2", "type": "CONFIG", "doc_side": "right"},
+    {"id": "D3", "type": "ERR", "doc_side": "left"},
+    {"id": "D4", "type": "TSTYLE", "doc_side": "left"},
+    {"id": "D5", "type": "GENERIC", "doc_side": "left"}
+  ]
+}

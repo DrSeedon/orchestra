@@ -1,0 +1,42 @@
+{
+  "tools": [
+    {
+      "name": "hub_generate_image",
+      "description": "Draw images using hub Codex's built-in generator; return local PNG paths.\n\n    Size is a prompt hint (auto, WIDTHxHEIGHT or aspect such as 16:9), not an\n    enforced pixel size. Uses the hub subscription, with no paid API fallback.\n    Total bound is timeout_seconds plus at most 60 seconds for cleanup.\n    ",
+      "inputSchema": {
+        "properties": {
+          "prompt": {
+            "maxLength": 16000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "count": {
+            "default": 1,
+            "maximum": 4,
+            "minimum": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "size": {
+            "default": "",
+            "title": "Size",
+            "type": "string"
+          },
+          "timeout_seconds": {
+            "default": 300,
+            "maximum": 1800,
+            "minimum": 1,
+            "title": "Timeout Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "hub_generate_imageArguments",
+        "type": "object"
+      }
+    }
+  ]
+}

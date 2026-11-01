@@ -1,0 +1,10 @@
+image-code-search.txt exit 0 chars 25732
+tool-availability.txt exit 0 chars 134
+tesseract-version.txt exit 127 chars 81
+{"file": "openai-vision.html", "url": "https://developers.openai.com/api/docs/guides/images-vision", "bytes": 811699, "sha256": "0046dcdbb5e369e8be857d0ea0aabac4d8efcebbb83e409b0041a930210d1c68"}
+{"file": "claude-vision.html", "url": "https://platform.claude.com/docs/en/build-with-claude/vision", "error": "HTTP Error 403: Forbidden"}
+{"file": "paddle-orientation.md", "url": "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/docs/version3.x/module_usage/doc_img_orientation_classification.en.md", "bytes": 21219, "sha256": "1714a7995cff466fc760e9b5386894e7ef42c6c18b649a146e4b43080a7822db"}
+{"file": "rapid-readme.md", "url": "https://raw.githubusercontent.com/RapidAI/RapidOrientation/main/README.md", "bytes": 2709, "sha256": "e2519673ae5854c5e9857ec75639197c3cebc6773b99deb46b0e0c938023c5c6"}
+{"file": "rapid-main.py", "url": "https://raw.githubusercontent.com/RapidAI/RapidOrientation/main/rapid_orientation/main.py", "bytes": 2030, "sha256": "0f0892d01eb6705563ee8de5557cb45741bedcdd3d0fd98830a3bece61e45d28"}
+{"file": "rapid-pypi.json", "url": "https://pypi.org/pypi/rapid-orientation/json", "bytes": 12689, "sha256": "76022d4ea18a62c524ad2196cbd3abd38282e5a0a1fce8a4636b7d09c235dae1"}
+{"file": "openrouter-images.html", "url": "https://openrouter.ai/docs/features/multimodal/images", "error": "HTTP Error 403: Forbidden"}

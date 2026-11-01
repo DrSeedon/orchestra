@@ -1,0 +1,26 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________________ test_acceptance_failure_rolls_back_fire_marker ________________
+
+cron = namespace(bg=<app.bg_jobs.BgJobManager object at 0x7d519f2461b0>, manager=<app.manager.SessionManager object at 0x7d51...mmunicate=<AsyncMock id='137789528374448'>, slot=datetime.datetime(2026, 10, 24, 21, 36, tzinfo=datetime.timezone.utc))
+
+    @pytest.mark.asyncio
+    async def test_acceptance_failure_rolls_back_fire_marker(cron):
+        with db._conn() as connection:
+            connection.execute("""CREATE TRIGGER fixture_refuse_acceptance BEFORE INSERT ON message_deliveries
+                                  BEGIN SELECT RAISE(ABORT, 'fixture transaction failure'); END""")
+        delivery_id = await fire(cron)
+        assert receipt(delivery_id) is None
+>       assert "fire_count" not in json.loads(db.bg_get_job("fixture-cron")["config"])
+E       assert 'fire_count' not in {'command': 'fixture command', 'cron_expr': '* * * * *', 'fire_count': 1, 'last_delivery_id': 'f7a129b3-24aa-5192-a7aa-f0bcd1c1b691', ...}
+E        +  where {'command': 'fixture command', 'cron_expr': '* * * * *', 'fire_count': 1, 'last_delivery_id': 'f7a129b3-24aa-5192-a7aa-f0bcd1c1b691', ...} = <function loads at 0x7d51a4351120>('{"cron_expr": "* * * * *", "command": "fixture command", "pattern": "MATCH", "last_fired_at": "2026-10-24T21:36:55.637636+00:00", "fire_count": 1, "last_delivery_id": "f7a129b3-24aa-5192-a7aa-f0bcd1c1b691"}')
+E        +    where <function loads at 0x7d51a4351120> = json.loads
+
+tests/test_cron_drain_delivery_v1074.py:347: AssertionError
+----------------------------- Captured stderr call -----------------------------
+cron_command fixture-cron: fire failed (continuing schedule): fixture transaction failure
+------------------------------ Captured log call -------------------------------
+ERROR    app.bg_jobs:bg_jobs.py:1211 cron_command fixture-cron: fire failed (continuing schedule): fixture transaction failure
+=========================== short test summary info ============================
+FAILED tests/test_cron_drain_delivery_v1074.py::test_acceptance_failure_rolls_back_fire_marker
+1 failed in 2.46s

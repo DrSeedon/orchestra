@@ -1,0 +1,256 @@
+     1	"""Executor: receives a RequestMessage, runs the right handler, returns a response dict.
+     2	
+     3	This is the integration seam with the legacy core code. Each handler in
+     4	`handlers/` is a thin wrapper that calls into the proven execution logic.
+     5	
+     6	Right now the handlers are stubs. The plan is to copy the implementations from
+     7	[omitted: upstream personal/example home path]
+     8	as the new core gets validated end-to-end.
+     9	"""
+    10	
+    11	from __future__ import annotations
+    12	
+    13	import asyncio
+    14	import logging
+    15	import time
+    16	from pathlib import Path
+    17	from typing import Any, Awaitable, Callable
+    18	
+    19	from sentinelx_protocol import RequestMessage
+    20	
+    21	from sentinelx_core import local_audit
+    22	
+    23	logger = logging.getLogger(__name__)
+    24	
+    25	Handler = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
+    26	
+    27	
+    28	def _nested_outcome(result: Any) -> tuple[bool | None, int | None]:
+    29	    """Lift a handler result's OWN outcome, when it reports one.
+    30	
+    31	    Dispatch-level success ("the handler returned") is not the same thing as
+    32	    the outcome of what the handler ran. `script_run` reports a failed child
+    33	    as a perfectly normal result — {"ok": false, "returncode": 7} — so an
+    34	    audit that recorded only dispatch success showed a failed script as
+    35	    ok=true with nothing to contradict it (issue #30).
+    36	
+    37	    Exactly two scalars are lifted, and only when present and of the right
+    38	    type: nothing here reaches into stdout, stderr or any other body. A bool
+    39	    is not accepted as a returncode (in Python it would pass an int check).
+    40	    """
+    41	    if not isinstance(result, dict):
+    42	        return None, None
+    43	
+    44	    nested_ok = result.get("ok")
+    45	    if not isinstance(nested_ok, bool):
+    46	        nested_ok = None
+    47	
+    48	    returncode = result.get("returncode")
+    49	    if isinstance(returncode, bool) or not isinstance(returncode, int):
+    50	        returncode = None
+    51	
+    52	    return nested_ok, returncode
+    53	
+    54	
+    55	class Executor:
+    56	    def __init__(self, config_path: Path) -> None:
+    57	        self._config_path = config_path
+    58	        # Lazy-loaded
+    59	        self._handlers: dict[str, Handler] | None = None
+    60	        self._upload_base: Path | None = None
+    61	
+    62	    # Protocol features this agent understands that are NOT ops. The hub gates
+    63	    # on these the same way it gates on op names, which is what lets it add an
+    64	    # optional wire field without breaking a mixed fleet: RequestMessage is
+    65	    # extra="forbid", so an agent that has never heard of a field rejects the
+    66	    # whole message rather than ignoring it.
+    67	    #
+    68	    # Capability rather than protocol version on purpose: an agent built against
+    69	    # a different numbering -- a fork, a vendor build -- still gets the field as
+    70	    # long as it says it can take it.
+    71	    PROTOCOL_FEATURES = ("opaque_ref",)
+    72	    # What an op's payload accepts, keyed by op, advertised only while that op
+    73	    # is enabled. Not RequestMessage fields (those are PROTOCOL_FEATURES).
+    74	    #   edit_secret: edit takes secret=true (no backup, no diff, the text kept
+    75	    #   out of the local audit). The hub's secret link tools require it.
+    76	    PAYLOAD_FEATURES = {"edit": ("edit_secret",)}
+    77	
+    78	    def capability_names(self) -> list[str]:
+    79	        """Names of supported ops plus protocol and payload features, for `hello`."""
+    80	        ops = list(self._get_handlers().keys())
+    81	        extra = [f for op in ops for f in self.PAYLOAD_FEATURES.get(op, ())]
+    82	        return ops + list(self.PROTOCOL_FEATURES) + extra
+    83	
+    84	    def config_summary(self) -> dict[str, int]:
+    85	        """Policy counts for the hello's ConfigSummary — aggregates only.
+    86	
+    87	        Loads the policy and returns how many commands/paths/services/etc.
+    88	        are configured, never the actual values. Best-effort: if the policy
+    89	        can't be loaded, returns an empty dict and the hello omits the
+    90	        summary rather than failing the connection.
+    91	        """
+    92	        try:
+    93	            from sentinelx_core.policy import Policy
+    94	
+    95	            p = Policy.from_file(self._config_path)
+    96	        except Exception:
+    97	            logger.warning("config_summary: policy load failed", exc_info=True)
+    98	            return {}
+    99	
+   100	        rw = sum(
+   101	            1
+   102	            for entry in getattr(p, "file_ops_paths", ())
+   103	            if getattr(entry, "access", "r") == "rw"
+   104	        )
+   105	        return {
+   106	            "allowed_command_count": len(p.allowed_commands),
+   107	            "file_ops_path_count": len(p.file_ops_paths),
+   108	            "file_ops_rw_count": rw,
+   109	            "service_count": len(p.services),
+   110	            "playbook_count": len(p.playbooks),
+   111	            "trusted_fetch_host_count": len(p.trusted_fetch_hosts),
+   112	            "exec_timeout_default": p.exec_timeout_default,
+   113	            "exec_timeout_max": p.exec_timeout_max,
+   114	        }
+   115	
+   116	    def preferred_profile(self) -> str | None:
+   117	        """The host's advertised MCP toolset-profile preference for the hello.
+   118	
+   119	        Loads the policy and returns its (already-sanitized) preferred_profile
+   120	        ('compact' | 'full' | None). Best-effort: on any load failure returns
+   121	        None, so a bad policy makes the host advertise no preference rather
+   122	        than failing the connection.
+   123	        """
+   124	        try:
+   125	            from sentinelx_core.policy import Policy
+   126	
+   127	            return Policy.from_file(self._config_path).preferred_profile
+   128	        except Exception:
+   129	            logger.warning("preferred_profile: policy load failed", exc_info=True)
+   130	            return None
+   131	
+   132	    @property
+   133	    def upload_base(self) -> Path:
+   134	        """Public read of the resolved upload base.
+   135	
+   136	        The client needs a directory it can write to for results that outlive
+   137	        their connection; this is the one place that already knows which
+   138	        directory that is on this host.
+   139	        """
+   140	        return self._get_upload_base()
+   141	
+   142	    def _get_upload_base(self) -> Path:
+   143	        if self._upload_base is None:
+   144	            from sentinelx_core.policy import Policy
+   145	
+   146	            self._upload_base = Policy.from_file(self._config_path).upload_base
+   147	        return self._upload_base
+   148	
+   149	    async def ingest_transfer_chunk(self, upload_id: str, index: int, data: bytes) -> int:
+   150	        """Write one inbound binary transfer chunk into the upload staging dir.
+   151	
+   152	        Called by the client's binary-frame read path on the DESTINATION side.
+   153	        Reuses the staging layout that `upload_complete` reassembles/verifies.
+   154	        """
+   155	        from sentinelx_core.handlers.upload import write_transfer_part
+   156	
+   157	        return await asyncio.to_thread(
+   158	            write_transfer_part, self._get_upload_base(), upload_id, index, data
+   159	        )
+   160	
+   161	    def _get_handlers(self) -> dict[str, Handler]:
+   162	        if self._handlers is None:
+   163	            from sentinelx_core.handlers import build_registry
+   164	
+   165	            self._handlers = build_registry(config_path=self._config_path)
+   166	        return self._handlers
+   167	
+   168	    async def dispatch(self, request: RequestMessage) -> dict[str, Any]:
+   169	        """Run the handler for `request.op` and build a response dict ready to send."""
+   170	        handlers = self._get_handlers()
+   171	        handler = handlers.get(request.op)
+   172	
+   173	        if handler is None:
+   174	            return {
+   175	                "type": "response",
+   176	                "id": request.id,
+   177	                "ok": False,
+   178	                "error": {
+   179	                    "code": "unsupported_op",
+   180	                    "message": f"agent does not support op: {request.op}",
+   181	                },
+   182	            }
+   183	
+   184	        try:
+   185	            start = time.perf_counter()
+   186	            result = await handler(request.payload)
+   187	            duration_ms = int((time.perf_counter() - start) * 1000)
+   188	            nested_ok, nested_returncode = _nested_outcome(result)
+   189	            local_audit.record(
+   190	                request.op, request.payload, ok=True, duration_ms=duration_ms,
+   191	                result_ok=nested_ok, result_returncode=nested_returncode,
+   192	            )
+   193	            return {
+   194	                "type": "response",
+   195	                "id": request.id,
+   196	                "ok": True,
+   197	                "result": result,
+   198	            }
+   199	        except HandlerError as exc:
+   200	            duration_ms = int((time.perf_counter() - start) * 1000)
+   201	            local_audit.record(
+   202	                request.op, request.payload, ok=False,
+   203	                error=str(exc), duration_ms=duration_ms,
+   204	            )
+   205	            return {
+   206	                "type": "response",
+   207	                "id": request.id,
+   208	                "ok": False,
+   209	                "error": {
+   210	                    "code": exc.code,
+   211	                    "message": str(exc),
+   212	                    "details": exc.details,
+   213	                },
+   214	            }
+   215	        except PermissionError as exc:
+   216	            # The policy allowed the path, but the OS user the agent runs as
+   217	            # can't reach it (a parent without +x, a file without +r). That is a
+   218	            # refusal like any other, not a crash: sxrep_TQ2C9Y22MWJP, a delete
+   219	            # under an untraversable parent logged "executor crashed on delete".
+   220	            # Caught here, once, for every handler.
+   221	            duration_ms = int((time.perf_counter() - start) * 1000)
+   222	            path = exc.filename or ""
+   223	            if path:
+   224	                message = (
+   225	                    f"permission denied: {path!r}: the agent's OS user can't access "
+   226	                    "this path, even though the policy allows it. Check the Unix "
+   227	                    "permissions of the path and of its parent directories."
+   228	                )
+   229	            else:
+   230	                message = (
+   231	                    "permission denied: the agent's OS user can't access a path this "
+   232	                    "operation needs, even though the policy allows it."
+   233	                )
+   234	            local_audit.record(
+   235	                request.op, request.payload, ok=False,
+   236	                error=message, duration_ms=duration_ms,
+   237	            )
+   238	            return {
+   239	                "type": "response",
+   240	                "id": request.id,
+   241	                "ok": False,
+   242	                "error": {
+   243	                    "code": "permission_denied",
+   244	                    "message": message,
+   245	                    "details": {"path": path} if path else {},
+   246	                },
+   247	            }
+   248	
+   249	
+   250	class HandlerError(Exception):
+   251	    """A handler explicitly rejected a request (e.g. policy violation)."""
+   252	
+   253	    def __init__(self, code: str, message: str, details: dict[str, Any] | None = None) -> None:
+   254	        super().__init__(message)
+   255	        self.code = code
+   256	        self.details = details or {}

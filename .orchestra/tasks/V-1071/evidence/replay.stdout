@@ -1,0 +1,14 @@
+network-guard: exit=1, expected=1
+manual-sample: exit=0, expected=0
+smoke-original: exit=0, expected=0
+smoke-single: exit=0, expected=0
+coupling-demo: exit=0, expected=0
+coverage-recorded-12: exit=1, expected=1
+coverage-smoke-19: exit=0, expected=0
+recorded-fold: exit=0, expected=0
+recorded-as-tool: exit=0, expected=0
+recorded-as-tool-rerun: exit=0, expected=0
+estimate-full: exit=0, expected=0
+estimate-probe: exit=0, expected=0
+PINNED KIT UNCHANGED: 215 source/fixture files
+OFFLINE REPLAY OK; no real provider CLI, SDK calls or evaluators were run

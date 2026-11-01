@@ -1,0 +1,99 @@
+CASE parallel starts can look coupled; exit=0
+{
+  "traces": 2,
+  "calls": 4,
+  "first_ts": "0",
+  "last_ts": "0.1",
+  "volume": [
+    {
+      "agent": "reader_a",
+      "calls": 2,
+      "trace_share": 1.0,
+      "median_ms": 1000.0,
+      "time_share": 0.5,
+      "median_input_tokens": null
+    },
+    {
+      "agent": "reader_b",
+      "calls": 2,
+      "trace_share": 1.0,
+      "median_ms": 1000.0,
+      "time_share": 0.5,
+      "median_input_tokens": null
+    }
+  ],
+  "sequences": [
+    [
+      "reader_a -> reader_b",
+      2
+    ]
+  ],
+  "pairs": [
+    {
+      "first": "reader_a",
+      "then": "reader_b",
+      "traces": 2,
+      "rarer": "reader_a",
+      "rarer_traces": 2,
+      "coupling": 1.0,
+      "share": 1.0
+    }
+  ],
+  "candidates": [
+    {
+      "first": "reader_a",
+      "then": "reader_b",
+      "traces": 2,
+      "rarer": "reader_a",
+      "rarer_traces": 2,
+      "coupling": 1.0,
+      "share": 1.0
+    }
+  ]
+}
+CASE coverage unions agents across different reps; exit=0
+# Chain coverage: production traces against `baseline`
+
+2 traces, 1 eval tasks.
+
+| chain | agents | traces | % of traces | tasks that run it | passing today |
+| --- | ---: | ---: | ---: | --- | --- |
+| a -> b | 2 | 2 | 100% | split-repetitions | split-repetitions 2/2 |
+
+Every chain listed has at least one task.
+
+For each chain of two or more agents, open its tasks and check what they grade: what changed in the systems at the end of the chain, and each fact that had to survive the handoff. A task that only checks wording, or only the first agent's part, does not cover the chain.
+
+{"agents_per_rep": [["a"], ["b"]], "case": "split-repetition coverage", "core_agents_union": ["a", "b"], "core_passes": 2, "core_reps": 2, "exit": 0, "required_agents": ["a", "b"]}
+CASE aggregate gate is not a no-flips gate; exit=0
+# baseline vs changed
+
+2 tasks in both runs. Metric: task_complete.
+
+| | baseline | changed | change |
+| --- | ---: | ---: | ---: |
+| tasks complete | 1.0/2 (50%) | 1.0/2 (50%) | +0.0 |
+| latency per task (s) | not measured | not measured |  |
+| model calls per task | not measured | not measured |  |
+| input tokens per task | not measured | not measured |  |
+| output tokens per task | not measured | not measured |  |
+
+## Tasks that changed
+
+| task | baseline | changed | tags |
+| --- | ---: | ---: | --- |
+| safety_case | 1/1 | 0/1 |  |
+| ordinary_case | 0/1 | 1/1 |  |
+
+## Verdict
+
+**changed scores the same or better overall, but got worse on safety_case.** Read those traces before keeping the change.
+
+Notes:
+
+- Routes were not compared for ordinary_case, safety_case: their rows do not record which agents ran (`by_agent`).
+- Model for both runs: synthetic-no-model.
+- One run per task. A difference of a task or two can be noise, so rerun with more reps before deciding a close call.
+
+{"aggregate_after": 0.5, "aggregate_before": 0.5, "case": "compensated safety regression", "exit": 0, "per_case_after": {"ordinary_case": 1.0, "safety_case": 0.0}, "per_case_before": {"ordinary_case": 0.0, "safety_case": 1.0}}
+EDGE CASES CONFIRMED; all data synthetic; no production or model performance claim

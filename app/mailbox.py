@@ -64,12 +64,14 @@ def pending_owner_scopes() -> set[str]:
 
 
 def cancel(message_id: int, recipient: str, scope: str) -> bool:
-    """Cancel an unclaimed message; a turn-end delivery already in flight wins."""
+    """Cancel unclaimed after-turn input, never a current-turn recovery copy."""
     with db._conn() as connection:
         cursor = connection.execute(
             """UPDATE mailbox SET delivered_at = ?
                WHERE id = ? AND recipient = ? AND scope = ?
                  AND delivered_at IS NULL AND claimed_at IS NULL
+                 AND COALESCE(json_extract(origin_detail, '$.subtype'), '')
+                     NOT IN ('codex_steer_backup', 'codex_steer_backup_pending')
                  AND (origin = 'user' OR origin_detail LIKE '%\"subtype\":\"dashboard\"%')""",
             (time.time(), int(message_id), recipient, scope),
         )

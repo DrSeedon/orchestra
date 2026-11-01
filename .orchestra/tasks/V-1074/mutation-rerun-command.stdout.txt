@@ -1,0 +1,29 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_double_observer_reuses_fire_but_next_occurrence_is_new __________
+
+cron = namespace(bg=<app.bg_jobs.BgJobManager object at 0x7f42ffef2c60>, manager=<app.manager.SessionManager object at 0x7f42...mmunicate=<AsyncMock id='139925738437712'>, slot=datetime.datetime(2026, 10, 24, 21, 36, tzinfo=datetime.timezone.utc))
+
+    @pytest.mark.asyncio
+    async def test_double_observer_reuses_fire_but_next_occurrence_is_new(cron):
+        first, second = await asyncio.gather(fire(cron), fire(cron))
+        assert first == second
+        await asyncio.gather(dispatch(cron), dispatch(cron))
+        await fire(cron)  # The completed command is not rerun on re-observation.
+>       assert cron.spawn.await_count == 1
+E       AssertionError: assert 3 == 1
+E        +  where 3 = <AsyncMock id='139925738433776'>.await_count
+E        +    where <AsyncMock id='139925738433776'> = namespace(bg=<app.bg_jobs.BgJobManager object at 0x7f42ffef2c60>, manager=<app.manager.SessionManager object at 0x7f42...mmunicate=<AsyncMock id='139925738437712'>, slot=datetime.datetime(2026, 10, 24, 21, 36, tzinfo=datetime.timezone.utc)).spawn
+
+tests/test_cron_drain_delivery_v1074.py:177: AssertionError
+----------------------------- Captured stderr call -----------------------------
+cron_command fixture-cron: match accepted → fixture-worker
+cron_command fixture-cron: match accepted → fixture-worker
+cron_command fixture-cron: match accepted → fixture-worker
+------------------------------ Captured log call -------------------------------
+INFO     app.bg_jobs:bg_jobs.py:1207 cron_command fixture-cron: match accepted → fixture-worker
+INFO     app.bg_jobs:bg_jobs.py:1207 cron_command fixture-cron: match accepted → fixture-worker
+INFO     app.bg_jobs:bg_jobs.py:1207 cron_command fixture-cron: match accepted → fixture-worker
+=========================== short test summary info ============================
+FAILED tests/test_cron_drain_delivery_v1074.py::test_double_observer_reuses_fire_but_next_occurrence_is_new
+1 failed in 2.43s

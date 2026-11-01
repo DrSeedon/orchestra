@@ -1,0 +1,32 @@
+{
+  "id": "P15",
+  "package": "stationlog",
+  "prompt": "Add a gap report for station exports. It runs as `python -m stationlog.gaps INPUT_CSV [--max-minutes N]`. INPUT_CSV is a station export like the ones the package already reads, and rows that cannot be parsed are skipped the same way.\n\nFor each station, look at its readings in time order. A gap is a pair of consecutive readings of the same station that are more than a limit apart. With --max-minutes N, the limit is N minutes for every station. Without it, the limit for a station is 3 times the median interval between its consecutive readings (for an even number of intervals, the median is the mean of the two middle ones). A station with fewer than 2 readings has no gaps. Other code should be able to run the gap search on a list of readings, either with a fixed limit or with the limit left out.\n\nThe result goes to a CSV file named `<name>.gaps.csv` in the same folder as INPUT_CSV, where <name> is the input file name without its extension (north.csv gives north.gaps.csv). It has the header `station,start,end,minutes` and one row per gap, ordered by station and then by start. start and end are the times of the two readings as YYYY-MM-DDTHH:MM, and minutes is the length of the gap as a whole number. The file is written even if no gap is found.\n\nTell the user about each station that has more than 5 gaps, and at the end tell the user how many gaps were found in how many stations.\n\nIf INPUT_CSV does not exist, if it lacks one of the usual columns, or if N is not a positive whole number, the command exits with status 2 and writes no file. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "LOG",
+      "doc_side": "right"
+    },
+    {
+      "id": "D2",
+      "type": "PATH",
+      "doc_side": "left"
+    },
+    {
+      "id": "D3",
+      "type": "OPT",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "TFILE",
+      "doc_side": "left"
+    },
+    {
+      "id": "D5",
+      "type": "IMPORT",
+      "doc_side": "left"
+    }
+  ]
+}

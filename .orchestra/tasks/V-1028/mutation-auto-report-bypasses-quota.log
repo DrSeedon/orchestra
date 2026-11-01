@@ -1,0 +1,28 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_signal_hold_visible_once_and_original_report_stays_gated _________
+
+tree = {'add_worker': <function world.<locals>.add_worker at 0x76a85dc15940>, 'manager': <tests.test_v1028_report_holds.Manag...017200>, 'parent_id': 'bdd23265-4db5-4433-bd63-504c77f58390', 'worker_id': '95480122-e8a1-4097-9c4b-5c4ab4e884e9', ...}
+
+    @pytest.mark.asyncio
+    async def test_signal_hold_visible_once_and_original_report_stays_gated(tree):
+        await _signal(tree)
+        manager = tree["manager"]
+        with db._conn() as connection:
+            row = connection.execute("SELECT * FROM turn_signals").fetchone()
+>       assert row["state"] == "pending" and row["attempts"] == 1
+E       AssertionError: assert ('delivered' == 'pending'
+E         
+E         - pending
+E         + delivered)
+
+tests/test_v1028_report_holds.py:99: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Auto-report: w1 recorded as turn signal 1
+turn signal [1] delivered to boss
+------------------------------ Captured log call -------------------------------
+INFO     app.manager:manager.py:2225 Auto-report: w1 recorded as turn signal 1
+INFO     orchestra.turn_signals:turn_signals.py:232 turn signal [1] delivered to boss
+=========================== short test summary info ============================
+FAILED tests/test_v1028_report_holds.py::test_signal_hold_visible_once_and_original_report_stays_gated
+1 failed, 12 deselected in 3.92s

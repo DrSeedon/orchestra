@@ -1,0 +1,19 @@
+.....F.................................................................. [ 25%]
+........................................................................ [ 50%]
+........................................................................ [ 76%]
+...................................................................      [100%]
+=================================== FAILURES ===================================
+______________ test_search_rule_module_is_delivered_to_every_role ______________
+tests/test_log_search_v1001.py:132: in test_search_rule_module_is_delivered_to_every_role
+    module = pipeline.prompt_path("default", "modules/knowledge.md").read_text().strip()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/<hub-copy>/.orchestra/pipelines/default/prompts/modules/knowledge.md'
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1001.py::test_search_rule_module_is_delivered_to_every_role
+1 failed, 282 passed in 30.15s

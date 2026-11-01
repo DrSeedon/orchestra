@@ -1,0 +1,56 @@
+..............FF......                                                   [100%]
+=================================== FAILURES ===================================
+_________ test_t3_repository_move_has_content_receipt_and_no_old_roots _________
+
+    def test_t3_repository_move_has_content_receipt_and_no_old_roots():
+        for path in (
+            ".orchestra/kb/README.md",
+            ".orchestra/pipelines/default/pipeline.yaml",
+        ):
+>           assert (ROOT / path).exists(), f"T3 missing moved path: {path}"
+E           AssertionError: T3 missing moved path: .orchestra/kb/README.md
+E           assert False
+E            +  where False = exists()
+E            +    where exists = (PosixPath('/remote/workspace') / '.orchestra/kb/README.md').exists
+
+tests/test_orchestra_layout_430.py:399: AssertionError
+___ test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves ____
+
+    def test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves():
+        checker = ROOT / "scripts" / "check_orchestra_paths.py"
+        assert checker.is_file(), "T5 missing classified live/historical/negative path checker"
+        result = subprocess.run(
+            [sys.executable, str(checker), "--root", str(ROOT), "--json"],
+            text=True,
+            capture_output=True,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: fatal: not a git repository (or any of the parent directories): .git
+E         Traceback (most recent call last):
+E           File "/remote/workspace/scripts/check_orchestra_paths.py", line 166, in <module>
+E             raise SystemExit(main())
+E                              ^^^^^^
+E           File "/remote/workspace/scripts/check_orchestra_paths.py", line 150, in main
+E             **classify_old_paths(root),
+E               ^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/remote/workspace/scripts/check_orchestra_paths.py", line 112, in classify_old_paths
+E             for relative in tracked_files(root):
+E                             ^^^^^^^^^^^^^^^^^^^
+E           File "/remote/workspace/scripts/check_orchestra_paths.py", line 33, in tracked_files
+E             raw = subprocess.check_output(["git", "ls-files", "-z"], cwd=root)
+E                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/subprocess.py", line 466, in check_output
+E             return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/subprocess.py", line 571, in run
+E             raise CalledProcessError(retcode, process.args,
+E         subprocess.CalledProcessError: Command '['git', 'ls-files', '-z']' returned non-zero exit status 128.
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/remote/workspace/.venv/bin/...rgs,\nsubprocess.CalledProcessError: Command \'[\'git\', \'ls-files\', \'-z\']\' returned non-zero exit status 128.\n').returncode
+
+tests/test_orchestra_layout_430.py:467: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_orchestra_layout_430.py::test_t3_repository_move_has_content_receipt_and_no_old_roots
+FAILED tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+2 failed, 20 passed in 15.51s

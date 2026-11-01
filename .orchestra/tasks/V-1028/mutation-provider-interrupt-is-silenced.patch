@@ -1,0 +1,11 @@
+--- app/session_turns.py
++++ app/session_turns.py
+@@ -273,7 +273,7 @@
+ 
+         if s.is_orchestrator or not s.on_idle:
+             return
+-        if s._manually_interrupted:
++        if s._manually_interrupted or s._last_stop_reason == "interrupted":
+             skipped("manual interrupt")
+             return
+         if s._pending_messages or s._compacting:

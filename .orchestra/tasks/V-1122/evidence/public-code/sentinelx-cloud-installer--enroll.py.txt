@@ -1,0 +1,476 @@
+     1	#!/usr/bin/env python3
+     2	"""sentinelx-enroll: drive the OAuth enrollment flow on first install.
+     3	
+     4	Two modes:
+     5	
+     6	1. **browser** (default): spin up a one-shot HTTP server on a localhost port,
+     7	   print the enrollment URL, and capture the token when the redirect lands.
+     8	   Works when the user has a browser that can reach this machine's localhost
+     9	   (typical case: installing on the same machine you're sitting in front of,
+    10	   or via SSH tunnel: `ssh -L 8765:localhost:8765 server`).
+    11	
+    12	2. **paste**: just print instructions for the user to visit the dashboard URL,
+    13	   complete enrollment there, and type or paste what it shows on stdin: the
+    14	   short enrollment code (XXXX-XXXX-XXXX) or the full token. Works on any
+    15	   headless server.
+    16	
+    17	Non-interactive: SENTINELX_ENROLL_CODE (the short code, what the dashboard and
+    18	assistants hand out) or SENTINELX_ENROLL_TOKEN (the full token, for automation).
+    19	Either way the hub exchanges it at POST /agent/enroll for this host's session
+    20	credential, which is all identity.json ever holds.
+    21	
+    22	The installer chooses the mode automatically based on `--mode` (default: browser).
+    23	The script never opens the browser itself — always prints the URL for the user
+    24	to copy. This is more predictable across SSH/headless setups.
+    25	
+    26	Standalone — only depends on the Python stdlib so it works on any boxed Linux
+    27	without pip-installing anything.
+    28	"""
+    29	
+    30	from __future__ import annotations
+    31	
+    32	import argparse
+    33	import base64
+    34	import json
+    35	import os
+    36	import signal
+    37	import socket
+    38	import sys
+    39	import threading
+    40	import urllib.error
+    41	import urllib.parse
+    42	import urllib.request
+    43	from http.server import BaseHTTPRequestHandler, HTTPServer
+    44	from pathlib import Path
+    45	
+    46	# Sent on every request to the hub. The default 'Python-urllib/x.y' is blocked
+    47	# by Cloudflare's Browser Integrity Check (HTTP 403, 'error code: 1010'), which
+    48	# broke enrollment against mcp-dev.pensa.ar on 2026-10-19.
+    49	USER_AGENT = "sentinelx-enroll/1 (+https://sentinelx.app)"
+    50	
+    51	# How long we wait for the user to finish the OAuth dance (browser mode)
+    52	TIMEOUT_SECONDS = 600
+    53	
+    54	# Page returned to the browser at /. Reads the URL fragment (which can't be
+    55	# read server-side) and POSTs it back to /finish.
+    56	CAPTURE_PAGE = """<!doctype html>
+    57	<html><head><title>SentinelX enrollment</title>
+    58	<style>body{font-family:system-ui;background:#0e1116;color:#e6edf3;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    59	.box{max-width:420px;text-align:center;padding:32px;border:1px solid #30363d;border-radius:8px}
+    60	h1{font-size:18px;margin:0 0 12px}.s{color:#7ee787;font-size:24px}.f{color:#ff7b72}</style>
+    61	</head><body><div class="box" id="box">
+    62	<h1>Connecting your server to SentinelX</h1><p id="msg">Finalizing enrollment…</p>
+    63	</div><script>
+    64	(async()=>{
+    65	  const frag = window.location.hash.slice(1);
+    66	  if(!frag){document.getElementById('msg').innerHTML='<span class="f">No token received.</span>';return}
+    67	  try{
+    68	    const r=await fetch('/finish',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:frag});
+    69	    if(r.ok){document.getElementById('msg').innerHTML='<span class="s">✓ Done!</span><br>You can close this window.';}
+    70	    else{document.getElementById('msg').innerHTML='<span class="f">Server rejected the token.</span>';}
+    71	  }catch(e){document.getElementById('msg').innerHTML='<span class="f">Network error.</span>';}
+    72	})();
+    73	</script></body></html>
+    74	"""
+    75	
+    76	
+    77	class CallbackServer(HTTPServer):
+    78	    """Wraps HTTPServer with a place to stash the result."""
+    79	
+    80	    def __init__(self, *args: object, **kwargs: object) -> None:
+    81	        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+    82	        self.result: dict[str, str] | None = None
+    83	        self.error: str | None = None
+    84	
+    85	
+    86	class CallbackHandler(BaseHTTPRequestHandler):
+    87	    server: CallbackServer  # type: ignore[assignment]
+    88	
+    89	    def log_message(self, format: str, *args: object) -> None:  # silence stderr
+    90	        return
+    91	
+    92	    def do_GET(self) -> None:  # noqa: N802
+    93	        self.send_response(200)
+    94	        self.send_header("Content-Type", "text/html; charset=utf-8")
+    95	        self.end_headers()
+    96	        self.wfile.write(CAPTURE_PAGE.encode("utf-8"))
+    97	
+    98	    def do_POST(self) -> None:  # noqa: N802
+    99	        length = int(self.headers.get("Content-Length", "0"))
+   100	        body = self.rfile.read(length).decode("utf-8")
+   101	        params = dict(urllib.parse.parse_qsl(body))
+   102	        if "token" in params:
+   103	            self.server.result = params
+   104	            self.send_response(200)
+   105	            self.end_headers()
+   106	            self.wfile.write(b"ok")
+   107	        else:
+   108	            self.server.error = "no token in fragment"
+   109	            self.send_response(400)
+   110	            self.end_headers()
+   111	
+   112	
+   113	def find_free_port() -> int:
+   114	    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+   115	        s.bind(("127.0.0.1", 0))
+   116	        return s.getsockname()[1]
+   117	
+   118	
+   119	def banner(text: str) -> str:
+   120	    """Box the URL so the user can spot it among installer log noise."""
+   121	    line = "─" * (len(text) + 2)
+   122	    return f"\n┌{line}┐\n│ {text} │\n└{line}┘\n"
+   123	
+   124	
+   125	def run_browser_mode(hub: str, host_id: str) -> dict[str, str]:
+   126	    """Spin up local HTTP server, print URL, wait for callback."""
+   127	    port = find_free_port()
+   128	    callback_url = f"http://localhost:{port}/"
+   129	
+   130	    server = CallbackServer(("127.0.0.1", port), CallbackHandler)
+   131	    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+   132	    server_thread.start()
+   133	
+   134	    enroll_url = (
+   135	        f"{hub.rstrip('/')}/auth/enroll/start"
+   136	        f"?host_id={urllib.parse.quote(host_id)}"
+   137	        f"&callback={urllib.parse.quote(callback_url)}"
+   138	    )
+   139	
+   140	    print(file=sys.stderr)
+   141	    print("=" * 60, file=sys.stderr)
+   142	    print("  SentinelX enrollment — open this URL in your browser:", file=sys.stderr)
+   143	    print(banner(enroll_url), file=sys.stderr)
+   144	    print("  Local listener:", callback_url, file=sys.stderr)
+   145	    print("  If running on a remote server, tunnel first:", file=sys.stderr)
+   146	    print(f"    ssh -L {port}:localhost:{port} <user>@<remote>", file=sys.stderr)
+   147	    print(f"  Or use 'paste' mode: --mode paste", file=sys.stderr)
+   148	    print("=" * 60, file=sys.stderr)
+   149	    print(file=sys.stderr)
+   150	    print(f"Waiting for completion (timeout: {TIMEOUT_SECONDS}s)…", file=sys.stderr)
+   151	
+   152	    try:
+   153	        for _ in range(TIMEOUT_SECONDS):
+   154	            if server.result or server.error:
+   155	                break
+   156	            server_thread.join(timeout=1.0)
+   157	    finally:
+   158	        server.shutdown()
+   159	
+   160	    if server.error:
+   161	        raise SystemExit(f"Enrollment failed: {server.error}")
+   162	    if not server.result:
+   163	        raise SystemExit(f"Enrollment timed out after {TIMEOUT_SECONDS}s")
+   164	    return server.result
+   165	
+   166	
+   167	def run_paste_mode(hub: str, host_id: str) -> dict[str, str]:
+   168	    """Print dashboard URL, read JWT from stdin."""
+   169	    dashboard_url = (
+   170	        f"{hub.rstrip('/')}/auth/dashboard/enroll"
+   171	        f"?host_id={urllib.parse.quote(host_id)}"
+   172	    )
+   173	
+   174	    print(file=sys.stderr)
+   175	    print("=" * 60, file=sys.stderr)
+   176	    print("  SentinelX enrollment (paste mode)", file=sys.stderr)
+   177	    print(file=sys.stderr)
+   178	    print("  1. Open this URL in your browser:", file=sys.stderr)
+   179	    print(banner(dashboard_url), file=sys.stderr)
+   180	    print("  2. Log in with your SentinelX account.", file=sys.stderr)
+   181	    print("  3. The page will display an enrollment code (XXXX-XXXX-XXXX).", file=sys.stderr)
+   182	    print("  4. Type or paste it below.", file=sys.stderr)
+   183	    print("=" * 60, file=sys.stderr)
+   184	    print(file=sys.stderr)
+   185	
+   186	    print("Paste the enrollment code (or token): ", file=sys.stderr, end="", flush=True)
+   187	
+   188	    # Read the token. If we were started via `curl | bash` then sys.stdin is
+   189	    # the install script itself (already consumed) and reading it returns "".
+   190	    # In that case fall back to reading from the controlling terminal directly,
+   191	    # which is the same source the user is typing into.
+   192	    token = sys.stdin.readline().strip()
+   193	    if not token and sys.stdin.isatty() is False:
+   194	        # Root cause of the classic hang: under `sudo` with `Defaults use_pty`
+   195	        # (the default on modern Ubuntu) this process is a background job on
+   196	        # sudo's pty, so reading the controlling terminal raises SIGTTIN — which
+   197	        # by default STOPS the process (State T) and freezes the whole installer
+   198	        # forever. Ignoring SIGTTIN makes the read fail fast with EIO instead,
+   199	        # which we catch below and turn into a clear, actionable message. (The
+   200	        # keyboard genuinely isn't reachable in this setup, so failing cleanly
+   201	        # and pointing at the run-as-root workaround is the best we can do.)
+   202	        try:
+   203	            signal.signal(signal.SIGTTIN, signal.SIG_IGN)
+   204	        except (ValueError, OSError):
+   205	            pass  # not the main thread / unsupported — best effort
+   206	        try:
+   207	            with open("/dev/tty", "r") as tty:
+   208	                # With SIGTTIN ignored this fails fast with EIO under use_pty
+   209	                # (keyboard unreachable), and blocks normally for a real paste.
+   210	                token = tty.readline().strip()
+   211	        except OSError:
+   212	            # EIO (background read under use_pty) or no controlling terminal.
+   213	            token = ""
+   214	
+   215	    if not token:
+   216	        raise SystemExit(
+   217	            "Nothing entered.\n"
+   218	            "\n"
+   219	            "If the prompt stalled and nothing happened when you pasted: your\n"
+   220	            "`sudo` likely uses `Defaults use_pty` (the default on modern Ubuntu),\n"
+   221	            "which breaks the interactive token prompt. The cleanest fix is to run\n"
+   222	            "as root so `sudo` isn't in the pipe:\n"
+   223	            "\n"
+   224	            "  sudo -i\n"
+   225	            "  curl -fsSL https://get.sentinelx.app | bash\n"
+   226	            "\n"
+   227	            "(Pass SENTINELX_HOST_ID=host_xxx to reuse this host's id.)\n"
+   228	            "\n"
+   229	            "Or skip the prompt: put the code in the command,\n"
+   230	            "  curl -fsSL https://get.sentinelx.app | SENTINELX_ENROLL_CODE=XXXX-XXXX-XXXX bash\n"
+   231	        )
+   232	    if looks_like_token(token):
+   233	        return {"token": token, "host_id": host_id}
+   234	    # Anything else is taken as a code; the hub normalises it (case, dashes,
+   235	    # spaces, I/L/O) and says plainly if it is not one.
+   236	    return {"code": token, "host_id": host_id}
+   237	
+   238	
+   239	def looks_like_token(value: str) -> bool:
+   240	    """A full enrollment token: three dot-separated segments, hundreds long.
+   241	
+   242	    The length matters: a code typed with dots between its groups
+   243	    (ABCD.1234.WXYZ) also has three segments.
+   244	    """
+   245	    return value.count(".") == 2 and len(value) > 64
+   246	
+   247	
+   248	def _claims_unverified(token: str) -> dict:
+   249	    """Read a JWT's payload WITHOUT verifying it.
+   250	
+   251	    There is no key here; the hub verifies. This only decides what to DO with
+   252	    the token -- write it as-is, or exchange it -- so a forged payload gains
+   253	    nothing: the hub rejects it at the exchange or on connect.
+   254	    """
+   255	    try:
+   256	        seg = token.split(".")[1]
+   257	        seg += "=" * (-len(seg) % 4)
+   258	        data = json.loads(base64.urlsafe_b64decode(seg))
+   259	        return data if isinstance(data, dict) else {}
+   260	    except Exception:  # noqa: BLE001
+   261	        return {}
+   262	
+   263	
+   264	DAMAGED_TOKEN = (
+   265	    "This token is damaged: part of it was lost when it was copied, so it can't\n"
+   266	    "be read. Nothing was written. Generate a new one from the dashboard and\n"
+   267	    "paste it exactly as shown, without retyping it."
+   268	)
+   269	
+   270	
+   271	_EXCHANGE_ERRORS = {
+   272	    "enrollment_token_already_used": (
+   273	        "This enrollment token was already used. Enrollment tokens work once;\n"
+   274	        "generate a new one from the dashboard and run the installer again."
+   275	    ),
+   276	    "expired": (
+   277	        "This enrollment token has expired. Generate a new one from the\n"
+   278	        "dashboard and run the installer again."
+   279	    ),
+   280	    "host_disabled": (
+   281	        "This host id has been disabled on your account, so it cannot be\n"
+   282	        "enrolled. Generate a token for a new host from the dashboard."
+   283	    ),
+   284	}
+   285	
+   286	# What the hub says about a CODE, in the words the person used: they never saw
+   287	# a token. Codes and tokens otherwise share the exchange and its errors.
+   288	_CODE_ERRORS = {
+   289	    "invalid_or_expired_code": (
+   290	        "That enrollment code is wrong or has expired. Codes work once and\n"
+   291	        "expire after a few hours. Check it, or get a new one (dashboard: +\n"
+   292	        "Enroll a new host, or ask your assistant) and run the installer again.\n"
+   293	        "Nothing was written."
+   294	    ),
+   295	    "enrollment_token_already_used": (
+   296	        "This enrollment code was already used. Codes work once; get a new one\n"
+   297	        "(dashboard: + Enroll a new host, or ask your assistant) and run the\n"
+   298	        "installer again. Nothing was written."
+   299	    ),
+   300	    "host_disabled": (
+   301	        "The host this code was made for has been disabled on your account, so\n"
+   302	        "it cannot be enrolled. Get a new code from the dashboard."
+   303	    ),
+   304	    "enroll_unavailable": (
+   305	        "The hub could not check the code just now. Nothing was written; wait a\n"
+   306	        "minute and run the installer again with the same code."
+   307	    ),
+   308	}
+   309	
+   310	
+   311	def _too_many_attempts(retry_after: object) -> str:
+   312	    try:
+   313	        minutes = max(1, -(-int(retry_after) // 60))  # round up
+   314	    except (TypeError, ValueError):
+   315	        minutes = 10
+   316	    return (
+   317	        "Too many wrong enrollment codes from this network. Wait "
+   318	        f"{minutes} minute{'s' if minutes != 1 else ''} and run the installer again.\n"
+   319	        "Nothing was written."
+   320	    )
+   321	
+   322	
+   323	def _post_enroll(hub: str, *, headers: dict, data: bytes, errors: dict, what: str) -> dict:
+   324	    """POST /agent/enroll and return the hub's JSON. Exits on any refusal.
+   325	
+   326	    Exits WITHOUT writing identity.json. That matters: the installer skips
+   327	    enrollment whenever identity.json exists, so a file written with something
+   328	    that never worked would leave a host that silently never connects, and
+   329	    re-running would not fix it.
+   330	    """
+   331	    url = f"{hub.rstrip('/')}/agent/enroll"
+   332	    req = urllib.request.Request(
+   333	        url, data=data, method="POST", headers={"User-Agent": USER_AGENT, **headers}
+   334	    )
+   335	    try:
+   336	        with urllib.request.urlopen(req, timeout=30) as resp:
+   337	            body = json.loads(resp.read().decode("utf-8") or "{}")
+   338	    except urllib.error.HTTPError as exc:
+   339	        raw = exc.read().decode("utf-8", "replace")
+   340	        try:
+   341	            payload = json.loads(raw or "{}")
+   342	        except Exception:  # noqa: BLE001
+   343	            payload = {}
+   344	        err = payload.get("error") if isinstance(payload, dict) else None
+   345	        if err == "too_many_attempts":
+   346	            raise SystemExit(_too_many_attempts(payload.get("retry_after")))
+   347	        # Not the hub's JSON (e.g. a proxy or CDN page): show its first line
+   348	        # rather than "no detail", so the cause is visible.
+   349	        detail = err or (raw.strip().splitlines() or ["no detail"])[0][:160]
+   350	        raise SystemExit(
+   351	            errors.get(err or "")
+   352	            or f"The hub refused the enrollment {what} (HTTP {exc.code}, {detail})."
+   353	        )
+   354	    except (urllib.error.URLError, OSError) as exc:
+   355	        raise SystemExit(
+   356	            f"Could not reach {hub} to exchange the enrollment {what}: {exc}\n"
+   357	            "Nothing was written; check connectivity and run the installer again."
+   358	        )
+   359	    cred = body.get("credential") if isinstance(body, dict) else None
+   360	    if not isinstance(body, dict) or not body.get("ok") or not isinstance(cred, str) \
+   361	            or cred.count(".") != 2:
+   362	        raise SystemExit("The hub did not return a host credential. Nothing was written.")
+   363	    return body
+   364	
+   365	
+   366	def exchange_enrollment_token(hub: str, token: str) -> str:
+   367	    """Trade a one-time enrollment token for this host's session credential."""
+   368	    body = _post_enroll(
+   369	        hub, headers={"Authorization": f"Bearer {token}"}, data=b"",
+   370	        errors=_EXCHANGE_ERRORS, what="token",
+   371	    )
+   372	    return body["credential"]
+   373	
+   374	
+   375	def exchange_enrollment_code(hub: str, code: str) -> tuple[str, str | None]:
+   376	    """Trade a short enrollment code for (credential, host_id).
+   377	
+   378	    The code says nothing about the host by itself; the hub returns the host id
+   379	    it was made for, and that is the one recorded.
+   380	    """
+   381	    body = _post_enroll(
+   382	        hub, headers={"Content-Type": "application/json"},
+   383	        data=json.dumps({"code": code}).encode("utf-8"),
+   384	        errors=_CODE_ERRORS, what="code",
+   385	    )
+   386	    host_id = body.get("host_id")
+   387	    return body["credential"], host_id if isinstance(host_id, str) and host_id else None
+   388	
+   389	
+   390	def run_env_mode(token: str, host_id: str) -> dict[str, str]:
+   391	    """Non-interactive enrollment from SENTINELX_ENROLL_TOKEN.
+   392	
+   393	    For hosts provisioned by automation, where nobody is there to paste. The
+   394	    token's own host_id is used: it was not minted for the id this installer
+   395	    run generated, and the hub treats the claim as authoritative anyway.
+   396	    """
+   397	    token = token.strip()
+   398	    if token.count(".") != 2:
+   399	        raise SystemExit("SENTINELX_ENROLL_TOKEN doesn't look like a JWT (expected 3 segments).")
+   400	    print("Using SENTINELX_ENROLL_TOKEN (non-interactive enrollment).", file=sys.stderr)
+   401	    return {"token": token, "host_id": _claims_unverified(token).get("host_id") or host_id}
+   402	
+   403	
+   404	def run_env_code_mode(code: str, host_id: str) -> dict[str, str]:
+   405	    """Non-interactive enrollment from SENTINELX_ENROLL_CODE (the short code)."""
+   406	    print("Using SENTINELX_ENROLL_CODE (non-interactive enrollment).", file=sys.stderr)
+   407	    return {"code": code.strip(), "host_id": host_id}
+   408	
+   409	
+   410	def main() -> None:
+   411	    parser = argparse.ArgumentParser(description="Enroll this host with SentinelX")
+   412	    parser.add_argument("--hub", required=True, help="Hub base URL (e.g. https://mcp.sentinelx.app)")
+   413	    parser.add_argument("--host-id", required=True)
+   414	    parser.add_argument("--output", required=True, help="Path to write identity.json")
+   415	    parser.add_argument(
+   416	        "--mode",
+   417	        choices=["browser", "paste"],
+   418	        default="browser",
+   419	        help="browser=local HTTP server captures token; paste=user copies token from web dashboard",
+   420	    )
+   421	    args = parser.parse_args()
+   422	
+   423	    env_token = os.environ.get("SENTINELX_ENROLL_TOKEN", "").strip()
+   424	    env_code = os.environ.get("SENTINELX_ENROLL_CODE", "").strip()
+   425	    if env_token:
+   426	        result = run_env_mode(env_token, args.host_id)
+   427	    elif env_code:
+   428	        result = run_env_code_mode(env_code, args.host_id)
+   429	    elif args.mode == "paste":
+   430	        result = run_paste_mode(args.hub, args.host_id)
+   431	    else:
+   432	        result = run_browser_mode(args.hub, args.host_id)
+   433	
+   434	    if "code" in result:
+   435	        credential, enrolled_host = exchange_enrollment_code(args.hub, result["code"])
+   436	        _write_identity(args.output, enrolled_host or result.get("host_id", args.host_id),
+   437	                        credential, args.hub)
+   438	        return
+   439	
+   440	    token = result["token"]
+   441	    host_id = result.get("host_id", args.host_id)
+   442	
+   443	    # A one-time enrollment token is exchanged for the host's session
+   444	    # credential BEFORE anything is written. Legacy tokens (no `typ`) are
+   445	    # written exactly as before -- that is every token issued today.
+   446	    claims = _claims_unverified(token)
+   447	    if not claims:
+   448	        # A token whose payload can't be read was damaged on the way here: cut
+   449	        # or retyped when it was copied (sxrep_BJNC0WGMBMGN, sxrep_VV880Z9JHFXV:
+   450	        # 638 of ~658 characters). It used to fall through to the legacy branch
+   451	        # below and be written as-is, leaving an identity the hub rejects on
+   452	        # every connect -- and since install.sh skips enrollment whenever
+   453	        # identity.json exists, every re-run kept the broken one.
+   454	        raise SystemExit(DAMAGED_TOKEN)
+   455	    if claims.get("typ") == "enroll":
+   456	        host_id = claims.get("host_id") or host_id
+   457	        token = exchange_enrollment_token(args.hub, token)
+   458	
+   459	    _write_identity(args.output, host_id, token, args.hub)
+   460	
+   461	
+   462	def _write_identity(output: str, host_id: str, token: str, hub: str) -> None:
+   463	    identity = {
+   464	        "host_id": host_id,
+   465	        "token": token,
+   466	        "hub": hub,
+   467	    }
+   468	    out_path = Path(output)
+   469	    out_path.parent.mkdir(parents=True, exist_ok=True)
+   470	    out_path.write_text(json.dumps(identity, indent=2))
+   471	    print(f"Identity written to {out_path}", file=sys.stderr)
+   472	
+   473	
+   474	if __name__ == "__main__":
+   475	    main()
+   476	

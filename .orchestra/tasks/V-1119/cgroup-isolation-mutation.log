@@ -1,0 +1,26 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_inherited_required_state_is_isolated_and_restored ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x714cde9a7440>
+
+    def test_inherited_required_state_is_isolated_and_restored(monkeypatch):
+        inherited = {
+            "ORCHESTRA_AGENT_CGROUP_REQUIRED": "1",
+            "ORCHESTRA_AGENT_ROOT": "/unavailable-test-root",
+            "ORCHESTRA_AGENT_JOB_CGROUP": "/unavailable-test-root/jobs",
+        }
+        for name, value in inherited.items():
+            monkeypatch.setenv(name, value)
+        fixture = _restore_agent_cgroup_env.__wrapped__()
+        next(fixture)
+        try:
+>           assert all(name not in os.environ for name in _AGENT_CGROUP_VARS)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError
+
+tests/test_agent_cgroup_env_isolation_v928.py:30: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_agent_cgroup_env_isolation_v928.py::test_inherited_required_state_is_isolated_and_restored
+1 failed in 10.49s
+Negative control confirmed: the previous restore-only fixture fails the new inherited-state regression.

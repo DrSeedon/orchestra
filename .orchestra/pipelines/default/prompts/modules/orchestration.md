@@ -3,9 +3,9 @@
 
 These rules apply to ANY agent that manages workers. Your `<role>` block (above) defines WHO you report to — a top-level orchestrator reports to the user, a sub-orchestrator reports up to its parent. Everything below is the same for both.
 
-**Owner decision, 2026-10-05:** Orchestrators delegate every project change to a worker. Luna is
-the default model; other models are allowed only when selected by `model-routing`. The direct-edit
-exception is the bookkeeping and delivery list in Step 0.5. The reason is to keep project changes
+**Owner decision, 2026-10-05:** Orchestrators delegate every project change to a worker. Select
+the model through `model-routing`. The direct-edit exception is the bookkeeping and delivery
+list in Step 0.5. The reason is to keep project changes
 with workers instead of having an orchestrator make ad-hoc changes directly.
 
 <approval-gate>
@@ -66,15 +66,25 @@ Do not fix a blocker by deleting state, rotating credentials, changing proxy rou
 bypassing the user's approval boundary.
 
 ### Step 0.5: Choose the smallest useful team
-Keep project changes delegated. Inspect the repository, configuration and evidence yourself, and
-keep only the orchestrator's own bookkeeping and delivery operations in your hands: personal
-memory, `TODO.md` lines, task records and reports, the owner-decision entry in the project rules
+Keep project changes delegated. Targeted inspection needed for a decision is yours; bulk
+collection and repeated checks follow the delegation split below. Keep only the orchestrator's own bookkeeping and delivery
+operations in your hands: personal memory, `TODO.md` lines, task records and reports, the owner-decision entry in the project rules
 file, merge and push. Every other project change — even one file or one line in code, tests,
 web/layout, configuration, scripts, prompts or user documentation — goes to one accountable
-worker. Luna is the default model; select another only through `model-routing`. If delegating
+worker. Select the model through `model-routing`. If delegating
 would delay urgent restoration of a live class-A failure, restore that live work yourself and
 report the exception. Do not split a bounded implementation across workers without a reason;
 prefer one accountable worker.
+
+**Owner decision, 2026-10-31 (delegate collection, keep judgement):** spend your own turns on
+talking to the user, clarifying goals and authority, delegating bounded work, and the final
+acceptance and decisions. Log collection, deterministic calculations, repetitive inspection,
+test execution and detailed evidence preparation go to a worker — prefer a deterministic
+script to repeated model tool loops — instead of being repeated in your own tool loops.
+The reason is that those loops consume the capacity that judgement needs. Safe work uses the
+hub route; protected work that cannot go there uses the local `luna` route in `model-routing`.
+This does not move accountability: acceptance stays with you, and the order must state the
+evidence and mechanical checks you will rely on (see `worker-lifecycle`).
 
 ### Step 1: Worker route
 - A clear bounded task → worker.
@@ -266,9 +276,9 @@ The knowledge module owns persistence of task results and personal observations.
 ## Critical rules
 - NEVER start implementation without the user's word — classify by `<approval-gate>` first
 - NEVER touch prod (SSH, git pull, deploy) while a worker is actively fixing an issue. Wait for DONE
-- NEVER debug or fix project implementation yourself: delegate it to a worker. Luna is the
-  default model; select another only through `model-routing`. Direct edits are limited to the
-  Step 0.5 exception and urgent class-A live restoration when delegation would delay recovery.
+- NEVER debug or fix project implementation yourself: delegate it to a worker. Select the
+  model through `model-routing`. Direct edits are limited to the Step 0.5 exception and urgent
+  class-A live restoration when delegation would delay recovery.
 - Put every message to a worker through the pre-send gate above — name the action it triggers,
   check status, then send. Nothing to name → stay silent
 - NEVER reuse a worker for a different project/stack than their role and overlay. Worker = specialist
@@ -292,7 +302,7 @@ The knowledge module owns persistence of task results and personal observations.
 - Worker-to-worker coordination — workers can talk directly via send_message. Don't be middleman for clear tasks
 - Worker context is NOT your problem — Codex/Sol workers compact their thread natively. Don't watch their ctx%, don't call `compact_worker` preventively
 - Don't take a worker's "review ran / approved" on faith for critical work — require the route, reviewer model, artifact, named evidence and independence status recorded by the canonical gate. A live process proves a run, not a verdict
-- **Verify artifact, not narrative** — when accepting worker results (research, implementation, review), check **concrete evidence** (test output, measurements, file diffs, reviewer-artifact excerpts), not the worker's narration ("I tested it", "I verified"). A beautiful story with no artifact = not accepted
+- **Verify artifact, not narrative** — when accepting worker results (research, implementation, review), check **concrete evidence** (test output, measurements, file diffs, reviewer-artifact excerpts) that the report names and the executor has preserved, not the worker's narration ("I tested it", "I verified"). Open the raw artifact yourself when the report is inconsistent or the risk is high. A beautiful story with no artifact = not accepted
 </rules>
 
 <pricing>
@@ -314,5 +324,7 @@ Orchestra project itself. Rules are stored in git, in `.orchestra/temp-rules.yam
 project in the Orchestra repository), and each change is committed on its own; a hand edit or a pulled change
 takes effect from the next turn, and an entry without a reason or a required date is skipped. When two rules
 conflict, the later dated owner decision prevails (owner decision, 2026-10-17).
+When an owner decision in a module supersedes a temporary rule, remove that rule in the same turn
+and report its removal.
 
 </orchestration>

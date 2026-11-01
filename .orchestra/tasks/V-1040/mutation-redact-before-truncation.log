@@ -1,0 +1,13 @@
+Sparse import stand-in: app.hub_workspace
+Sparse import stand-in: app.hub_activity
+Sparse import stand-in: app.hub_outbox
+Sparse import stand-in: app.events
+Sparse import stand-in: app.usage_contract
+Imported app namespace: ['<hub-workspace>', '<hub-workspace>']
+Imported app.backend_hub: <hub-workspace>
+Imported app.multicode_client: <hub-workspace>
+FF                                                                       [100%]
+=========================== short test summary info ============================
+FAILED tests/test_multicode_client.py::test_plain_http_400_has_redacted_bounded_body_without_retry[False]
+FAILED tests/test_multicode_client.py::test_plain_http_400_has_redacted_bounded_body_without_retry[True]
+2 failed, 58 deselected in 0.18s

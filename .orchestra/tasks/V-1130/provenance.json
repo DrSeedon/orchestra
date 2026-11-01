@@ -1,0 +1,41 @@
+{
+  "provenance": "Provisioned source copy; no repository history supplied.",
+  "imported_app": "app/__init__.py",
+  "absolute_import_matches_this_copy": true,
+  "files": {
+    "app/manager.py": {
+      "before_sha256": "3048c3ab50cdadfa1d63fdac25eeab7e3b22029f9095b916252f2d65e3457987",
+      "after_sha256": "8e4286d469681f43c0c0e01a7af313a1e1730c869b42b12e220fa296d4578e66"
+    },
+    "app/workspace.py": {
+      "before_sha256": "506423fb9ffdebb7c4ac1c231cc734243e45e352fe6fbbf438386f5ee05b8d97",
+      "after_sha256": "b11469fcada590f326b973e52733d76f2ceefc8621129fbbf8b4edb6a124f0e2"
+    },
+    "app/prompting.py": {
+      "before_sha256": "ed023d89b180fbafd84bbc67c0df7e7786d16542d8bc574806156770d6c1a941",
+      "after_sha256": "46f2c8a183209d7a8694a9c36ba9da4e94e3806f1f4f6a1ebb6902177627d03d"
+    },
+    "app/private_folder.py": {
+      "before_sha256": "467085f97dcd79a89d3f68979643b8e1a33460d4e99e840f9d360dc1b2eb5235",
+      "after_sha256": "4f09cc3076fdcaa6726531511a1ecacb738a51f0a2a6836fd1a03db7166ed836"
+    },
+    "app/orchestra_layout.py": {
+      "unchanged_context_sha256": "82a47b793a2301b40688c778ef95acf528452079e79258ca9c8d016bd4111ee6"
+    },
+    "app/routes/sessions.py": {
+      "unchanged_context_sha256": "a2b9e8457448dd609d0cac1cf6e68de29c2fb5d23cec04316b4ac8fb75941283"
+    },
+    "app/mcp_stdio.py": {
+      "unchanged_context_sha256": "4ae626b55ae71d82d00223de44d68b1e34e6109eca12de5539017984526e8f55"
+    },
+    "app/hub_workspace.py": {
+      "unchanged_context_sha256": "1bd06911cf353501505613d24159ca1b95bd4330ce321dd68708c1463f23b9c1"
+    },
+    "app/backend_hub.py": {
+      "unchanged_context_sha256": "8fc8d359df41fc4fa043ef863ce1af59b61d6b0a5b2a9989a37de93c963f5271"
+    },
+    "tests/conftest.py": {
+      "unchanged_context_sha256": "c0572b6f743a695dd910159d5793ed7792ec3cf69195ac5bb499df855919e875"
+    }
+  }
+}

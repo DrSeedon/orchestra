@@ -113,6 +113,22 @@ def _ensure_session_model_reasons_schema(connection: sqlite3.Connection) -> None
     )""")
 
 
+def _ensure_restart_cut_turns_schema(connection: sqlite3.Connection) -> None:
+    # A startup may itself be cut after sessions have been loaded as idle, before
+    # their staggered restart notices run. Keep that obligation across generations.
+    connection.execute("""CREATE TABLE IF NOT EXISTS restart_cut_turns (
+        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE
+    )""")
+
+
+def acknowledge_restart_cut_turns(session_ids: list[str]) -> None:
+    with _conn() as connection:
+        connection.executemany(
+            "DELETE FROM restart_cut_turns WHERE session_id=?",
+            [(session_id,) for session_id in session_ids],
+        )
+
+
 _SESSION_SELECT = """SELECT sessions.*, COALESCE((
     SELECT reason FROM session_model_reasons
     WHERE session_id=sessions.id AND model=sessions.model
@@ -125,6 +141,7 @@ def init_db(path: Path | None = None) -> None:
         if version == SCHEMA_VERSION:
             _ensure_usage_analytics_schema(connection)
             _ensure_session_model_reasons_schema(connection)
+            _ensure_restart_cut_turns_schema(connection)
             return
         if version or connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").fetchone():
             raise RuntimeError('database schema needs offline migration before starting Orchestra')
@@ -136,6 +153,7 @@ def init_db(path: Path | None = None) -> None:
             [(key, now) for key in ('tool_error_collector_started_at','turn_usage_collector_started_at')])
         _ensure_usage_analytics_schema(connection)
         _ensure_session_model_reasons_schema(connection)
+        _ensure_restart_cut_turns_schema(connection)
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
 
 
@@ -1414,49 +1432,162 @@ def get_logs_before(session_id: str, before_id: int, limit: int = 500, max_bytes
 
 
 LOG_SEARCH_SCAN_LIMIT = 10_000
+LOG_SEARCH_TEXT_CAP = 200_000
+LOG_SEARCH_PATTERN_CAP = 200
+# Conversation only: tool/tool_result are 65% of rows and ~all of the bytes, so scanning
+# them by default shrank the 10k-row window to 1-3 days.
+LOG_SEARCH_DEFAULT_KINDS = ("user_message", "text")
+LOG_SEARCH_KINDS = frozenset({
+    "user_message", "text", "tool", "tool_result", "thinking", "status", "system", "error",
+    "warning", "policy_violation", "provider_limit", "compact_event", "subagent_start",
+    "subagent_progress", "subagent_end", "checklist_update", "checklist_reminder",
+})
+_REGEX_META = re.compile(r"[\\^$.*+?()\[\]{}|]")
+# A quantified group that is itself quantified, e.g. (a+)+ or (a|aa)*: exponential backtracking.
+_NESTED_QUANTIFIER = re.compile(r"[+*}]\)?[+*{]|\)[+*{]")
+
+
+def parse_log_kinds(kinds: str | None) -> tuple[str, ...] | None:
+    """Comma-separated log types -> tuple; None means every type; ValueError on unknown."""
+    if kinds is None or not kinds.strip():
+        return LOG_SEARCH_DEFAULT_KINDS
+    items = tuple(dict.fromkeys(k.strip() for k in kinds.split(",") if k.strip()))
+    if items == ("all",):
+        return None
+    unknown = [k for k in items if k not in LOG_SEARCH_KINDS]
+    if unknown:
+        raise ValueError(f"unknown kinds: {', '.join(unknown)}")
+    return items
+
+
+def _log_matcher(query: str):
+    """Return text -> (start, end) | None for a case-insensitive query.
+
+    Plain text keeps casefold matching (ß/ss, İ). A query with regex syntax is compiled
+    with IGNORECASE; a syntax error or a nested-quantifier shape falls back to the
+    literal substring, so a pattern can neither crash nor stall the search.
+    """
+    if _REGEX_META.search(query):
+        pattern = None
+        if len(query) <= LOG_SEARCH_PATTERN_CAP and not _NESTED_QUANTIFIER.search(query):
+            try:
+                pattern = re.compile(query, re.IGNORECASE)
+            except re.error:
+                pattern = None
+        if pattern is None:
+            pattern = re.compile(re.escape(query[:LOG_SEARCH_PATTERN_CAP]), re.IGNORECASE)
+
+        def regex_match(text: str):
+            m = pattern.search(text[:LOG_SEARCH_TEXT_CAP])
+            return (m.start(), m.end()) if m and m.end() > m.start() else None
+        return regex_match
+
+    needle = query.casefold()
+
+    def literal_match(content: str):
+        folded = content.casefold()
+        at = folded.find(needle)
+        if at < 0:
+            return None
+        # casefold may expand characters (ß → ss, İ → i + combining dot).
+        # Convert folded offsets back before slicing the original transcript.
+        match_end = at + len(needle)
+        if len(folded) != len(content):
+            offset = 0
+            for index, char in enumerate(content):
+                next_offset = offset + len(char.casefold())
+                if offset <= at < next_offset:
+                    original_at = index
+                if next_offset >= match_end:
+                    return original_at, index + 1
+                offset = next_offset
+        return at, match_end
+    return literal_match
 
 
 def search_logs(query: str, *, scope: str | None, agent: str | None = None,
                 date_from: str | None = None, date_to: str | None = None,
-                limit: int = 20) -> dict:
-    """Search a bounded newest-first slice of project logs, including voice transcripts."""
+                limit: int = 20, kinds: str | None = None) -> dict:
+    """Search a bounded newest-first slice of project logs, including voice transcripts.
+
+    Only conversation (user_message, text) is scanned unless ``kinds`` names other log types.
+    The query is a case-insensitive regex (``a|b`` alternatives); regex matching looks at the
+    first LOG_SEARCH_TEXT_CAP characters of each row, plain text at the whole row.
+    """
+    kind_list = parse_log_kinds(kinds)
     clauses = []
     params: list[object] = []
-    if scope is not None:
+    # A single day retains V-1078's ordered day-index lookup: a session can have
+    # a large old history but very few rows on that day.
+    single_day = bool(date_from) and date_from == date_to
+    exact_session = scope is not None and bool(agent) and not single_day
+    if exact_session:
+        # UNIQUE(name, scope) identifies at most one session. Resolve it once,
+        # rather than walking other projects' logs before applying visibility.
+        clauses.append("l.session_id = (SELECT id FROM sessions WHERE scope = ? AND name = ?)")
+        params.extend((scope, agent))
+    elif scope is not None:
         clauses.append("s.scope = ?")
         params.append(scope)
-    if agent:
+    if agent and not exact_session:
         clauses.append("s.name = ?")
         params.append(agent)
-    if date_from:
-        clauses.append("date(l.ts) >= date(?)")
+    # Unary + leaves date()'s TEXT/NULL value unchanged but disqualifies the global
+    # day index here: even ANALYZE must not turn a single-session lookup into a
+    # walk of every project's logs for that day. idx_logs_session supplies id order.
+    day = "+date(l.ts)" if exact_session else "date(l.ts)"
+    if single_day:
+        # Equality on the expression index also supplies descending rowid order.
+        # Two range predicates make SQLite sort even for a single UTC day.
+        clauses.append(f"{day} = date(?)")
         params.append(date_from)
-    if date_to:
-        clauses.append("date(l.ts) <= date(?)")
+    elif date_from:
+        clauses.append(f"{day} >= date(?)")
+        params.append(date_from)
+    if date_to and date_to != date_from:
+        clauses.append(f"{day} <= date(?)")
         params.append(date_to)
+    if kind_list is not None:
+        clauses.append("l.type IN (%s)" % ",".join("?" * len(kind_list)))
+        params.extend(kind_list)
     where = " AND ".join(clauses) or "1"
-    needle = query.casefold()
+    match = _log_matcher(query)
     results = []
     scanned = 0
-    # CROSS JOIN fixes logs as the outer loop, allowing the rowid index to stop after
-    # the bounded candidate slice instead of sorting all sessions' logs first.
+    oldest_scanned = None
+    # Keep payloads out of any range-query sorter. Load only the bounded ids, then
+    # fetch content on demand so an early result limit never materializes old blobs.
+    # Broad searches keep logs outer so they can stop at the candidate bound.
+    # One explicit read transaction keeps both phases in the same WAL snapshot.
+    tables = "logs AS l" if exact_session else "logs AS l CROSS JOIN sessions AS s"
+    if not exact_session:
+        where = "s.id = l.session_id AND " + where
     with _conn() as c:
+        c.execute("BEGIN")
         candidates = c.execute(
-            f"""SELECT l.id, l.session_id, l.ts, l.type, l.content, l.origin,
-                       s.name AS agent, s.scope AS project
-                FROM logs AS l CROSS JOIN sessions AS s
-                WHERE s.id = l.session_id AND {where}
+            f"""SELECT l.id
+                FROM {tables}
+                WHERE {where}
                 ORDER BY l.id DESC LIMIT ?""",
             (*params, LOG_SEARCH_SCAN_LIMIT + 1),
         )
-        while scanned < LOG_SEARCH_SCAN_LIMIT and (row := candidates.fetchone()) is not None:
+        while scanned < LOG_SEARCH_SCAN_LIMIT and (candidate := candidates.fetchone()) is not None:
+            row = c.execute(
+                """SELECT l.id, l.ts, l.type, l.content, l.origin,
+                          s.name AS agent, s.scope AS project
+                   FROM logs AS l JOIN sessions AS s ON s.id = l.session_id
+                   WHERE l.id = ?""",
+                (candidate["id"],),
+            ).fetchone()
             scanned += 1
+            oldest_scanned = row["ts"]
             content = str(row["content"] or "")
-            at = content.casefold().find(needle)
-            if at < 0:
+            found = match(content)
+            if found is None:
                 continue
+            at, match_end = found
             start = max(0, at - 120)
-            end = min(len(content), at + len(query) + 180)
+            end = min(len(content), match_end + 180)
             snippet = ("…" if start else "") + content[start:end] + ("…" if end < len(content) else "")
             log_type = row["type"]
             if log_type == "user_message" and row["origin"] == "agent":
@@ -1478,6 +1609,7 @@ def search_logs(query: str, *, scope: str | None, agent: str | None = None,
         "results": results,
         "scanned": scanned,
         "scan_truncated": scan_truncated,
+        "oldest_scanned": oldest_scanned,
         "limit": limit,
         "result_limit_reached": len(results) == limit,
     }
@@ -2156,14 +2288,20 @@ def bg_cron_should_fire(job_id: str) -> bool:
         return row is not None
 
 
-def bg_cron_record_fire(job_id: str) -> None:
-    # IMMEDIATE lock: prevents two scheduler ticks from recording the same fire
-    # (cron jobs can fire again while the previous trigger is still being processed)
-    with _conn() as c:
-        c.execute("BEGIN IMMEDIATE")
-        row = c.execute("SELECT config, status FROM bg_jobs WHERE id=?", (job_id,)).fetchone()
+def bg_cron_record_fire(
+    job_id: str, *, delivery_id: str | None = None,
+    _connection: sqlite3.Connection | None = None,
+) -> None:
+    # Durable cron acceptance lends its transaction so the marker and receipt
+    # commit together. Legacy callers still own an IMMEDIATE transaction.
+    connection_scope = nullcontext(_connection) if _connection is not None else _conn()
+    with connection_scope as c:
+        if _connection is None:
+            c.execute("BEGIN IMMEDIATE")
+        row = c.execute("SELECT config, status, type, last_output FROM bg_jobs WHERE id=?", (job_id,)).fetchone()
         if not row or row["status"] != "active":
-            c.execute("ROLLBACK")
+            if _connection is None:
+                c.execute("ROLLBACK")
             return
         try:
             cfg = json.loads(row["config"])
@@ -2172,11 +2310,17 @@ def bg_cron_record_fire(job_id: str) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()
         cfg["last_fired_at"] = now_iso
         cfg["fire_count"] = cfg.get("fire_count", 0) + 1
+        if delivery_id is not None:
+            cfg["last_delivery_id"] = delivery_id
+        display = f"fired #{cfg['fire_count']} at {now_iso}"
+        if delivery_id is not None and row["type"] == "cron_command":
+            display = row["last_output"]
         c.execute(
             "UPDATE bg_jobs SET config=?, last_output=? WHERE id=? AND status='active'",
-            (json.dumps(cfg), f"fired #{cfg['fire_count']} at {now_iso}", job_id),
+            (json.dumps(cfg), display, job_id),
         )
-        c.execute("COMMIT")
+        if _connection is None:
+            c.execute("COMMIT")
 
 
 def bg_claim_trigger(job_id: str) -> bool:
@@ -2270,6 +2414,17 @@ def bg_record_process(job_id: str, process: dict) -> bool:
             "UPDATE bg_jobs SET config=json_set(config,'$._process',json(?)) "
             "WHERE id=? AND status='active'",
             (json.dumps(process), job_id),
+        )
+        return cur.rowcount > 0
+
+
+def bg_record_progress(job_id: str, record: dict) -> bool:
+    """Store the latest progress sample of an active run job (V-1135); never revives a finished one."""
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE bg_jobs SET config=json_set(config,'$._progress',json(?)) "
+            "WHERE id=? AND status='active'",
+            (json.dumps(record), job_id),
         )
         return cur.rowcount > 0
 
@@ -2844,7 +2999,8 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5, until: str = "") -
             prev = raw[ri]
             prev_ts = next_ts
         if t - prev_ts <= stale_limit:
-            grid.append({**prev, "ts": t.isoformat()})
+            # Static charts need the stored time, not the time of a carried grid value.
+            grid.append({**prev, "ts": t.isoformat(), "sample_ts": prev["ts"]})
         t += step
     if not grid or grid[-1].get("id") != raw[-1].get("id"):
         grid.append(raw[-1])

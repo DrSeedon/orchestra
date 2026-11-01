@@ -1,0 +1,18 @@
+usage: elevenlabs_tts.py [-h] (--text TEXT | --file FILE) --out OUT
+                         [--cache CACHE] [--lang {ru,en}] [--voice VOICE]
+                         [--rate RATE] [--stability STABILITY]
+                         [--similarity SIMILARITY]
+
+ElevenLabs Flash RU/EN → cached 48 kHz mono WAV
+
+options:
+  -h, --help            show this help message and exit
+  --text TEXT
+  --file FILE           UTF-8 text file
+  --out OUT
+  --cache CACHE         default: <out parent>/.tts-cache
+  --lang {ru,en}
+  --voice VOICE         voice ID; default: Sergey or ELEVENLABS_VOICE_ID
+  --rate RATE
+  --stability STABILITY
+  --similarity SIMILARITY

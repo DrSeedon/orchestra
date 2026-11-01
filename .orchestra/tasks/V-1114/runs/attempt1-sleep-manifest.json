@@ -1,0 +1,55 @@
+{
+  "budget_usd": 3.0,
+  "complete": false,
+  "dispatched_calls": 0,
+  "finished": true,
+  "partial_reason": "credit_unavailable",
+  "result": [
+    {
+      "result": null,
+      "task_id": "task-1",
+      "task_index": 0
+    },
+    {
+      "result": null,
+      "task_id": "task-2",
+      "task_index": 1
+    },
+    {
+      "result": null,
+      "task_id": "task-3",
+      "task_index": 2
+    }
+  ],
+  "resume_command": "env ORCHESTRA_TASK_ID=V-1114 ORCHESTRA_SCOPE= /home/kesha/orchestra/.venv/bin/python /home/kesha/orchestra/scripts/wf_run.py --budget-usd 3 --max-calls 3 --max-concurrency 3 --spec /home/kesha/orchestra/data/workflow-runs/V-1114-sleep-17564463/request.json --repo /tmp/v1114-empty2 --base-commit e61cfe445a6eace085d7dc27e194f10d9dccf710 --resume V-1114-sleep-17564463",
+  "run_id": "V-1114-sleep-17564463",
+  "scheduler": {},
+  "spent_usd": 0.0,
+  "steps": [
+    {
+      "call_key": "362a1b6035e3004099c8a65bbc6dd9d26eaa0241a16b567f3e99f665c650f60e:0",
+      "error": "Claude API credits unavailable: exhausted",
+      "label": "Task 1",
+      "reason": "credit_unavailable",
+      "result_path": null,
+      "workspace_path": null
+    },
+    {
+      "call_key": "9799b94a07664e2079e4376438aec094cd7b0e05b6cf6f9a0cc64ec9f1f9ec65:0",
+      "error": "Claude API credits unavailable: exhausted",
+      "label": "Task 2",
+      "reason": "credit_unavailable",
+      "result_path": null,
+      "workspace_path": null
+    },
+    {
+      "call_key": "c36a2967a40160af5f3121ba5477da113378a91d8691705ce843634e4ee566a6:0",
+      "error": "Claude API credits unavailable: exhausted",
+      "label": "Task 3",
+      "reason": "credit_unavailable",
+      "result_path": null,
+      "workspace_path": null
+    }
+  ],
+  "wake_message": "wf_run V-1114-sleep-17564463 interrupted; resume with: env ORCHESTRA_TASK_ID=V-1114 ORCHESTRA_SCOPE= /home/kesha/orchestra/.venv/bin/python /home/kesha/orchestra/scripts/wf_run.py --budget-usd 3 --max-calls 3 --max-concurrency 3 --spec /home/kesha/orchestra/data/workflow-runs/V-1114-sleep-17564463/request.json --repo /tmp/v1114-empty2 --base-commit e61cfe445a6eace085d7dc27e194f10d9dccf710 --resume V-1114-sleep-17564463"
+}

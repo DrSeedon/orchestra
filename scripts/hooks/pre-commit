@@ -11,7 +11,6 @@ if [ ! -f "$scan" ]; then
   # Fail-closed с названной причиной: молча пропускать нельзя, а «commit exit 127» увёл бы
   # в поиск поломки git. Случай реальный — главный чекаут на ветке старше гейта.
   echo "secret-gate: нет $scan (главный чекаут на ветке без гейта)." >&2
-  echo "secret-gate: верни файл либо сними хук: rm $(git rev-parse --git-common-dir)/hooks/pre-commit" >&2
   exit 1
 fi
 exec "$py" "$scan" --staged

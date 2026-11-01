@@ -1,0 +1,22 @@
+Imported transcription: <hub-copy>/app/transcription.py
+Imported app paths: ['<hub-copy>/app']
+test_actual_handle_voice_body_forwards_annotations (__main__.ConfidenceChecks.test_actual_handle_voice_body_forwards_annotations) ... ok
+test_corrupt_cache_recovers (__main__.ConfidenceChecks.test_corrupt_cache_recovers) ... transcription cache load failed: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+ok
+test_empty_transcript_is_not_noise (__main__.ConfidenceChecks.test_empty_transcript_is_not_noise) ... ok
+test_high_confidence_unchanged_and_reload (__main__.ConfidenceChecks.test_high_confidence_unchanged_and_reload) ... ok
+test_legacy_cache_hit_without_key_or_audio (__main__.ConfidenceChecks.test_legacy_cache_hit_without_key_or_audio) ... ok
+test_low_confidence_marked_and_reload (__main__.ConfidenceChecks.test_low_confidence_marked_and_reload) ... ok
+test_missing_audio_never_creates_http_client (__main__.ConfidenceChecks.test_missing_audio_never_creates_http_client) ... Transcription input unavailable: FileNotFoundError: [Errno 2] No such file or directory: '<hub-copy>/.orchestra/tasks/V-1058/tmp_c33e2dl/voice.oga'
+ok
+test_missing_words_and_scores_are_not_invented (__main__.ConfidenceChecks.test_missing_words_and_scores_are_not_invented) ... ok
+test_new_entries_preserve_legacy_cache (__main__.ConfidenceChecks.test_new_entries_preserve_legacy_cache) ... ok
+test_repeated_words_and_closing_punctuation (__main__.ConfidenceChecks.test_repeated_words_and_closing_punctuation) ... ok
+test_strict_boundary_and_unknown_scores (__main__.ConfidenceChecks.test_strict_boundary_and_unknown_scores) ... ok
+test_unaligned_smart_format_retains_all_words (__main__.ConfidenceChecks.test_unaligned_smart_format_retains_all_words) ... ok
+test_upstream_error_is_not_cached_or_billed (__main__.ConfidenceChecks.test_upstream_error_is_not_cached_or_billed) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.083s
+
+OK

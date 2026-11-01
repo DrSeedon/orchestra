@@ -1,0 +1,18 @@
+HTTP/2 200 
+content-type: text/html; charset=utf-8
+etag: "CLSDidfvzpcDEAE="
+last-modified: Fri, 23 Oct 2026 00:22:48 GMT
+access-control-allow-origin: *
+x-robots-tag: nofollow
+link: <https://arxiv.org/html/2610.30571>; rel='canonical'
+server: Google Frontend
+via: 1.1 google, 1.1 varnish, 1.1 varnish
+fastly-restarts: 1
+accept-ranges: bytes
+age: 273494
+date: Mon, 26 Oct 2026 06:13:46 GMT
+x-served-by: cache-lga-kjfk8660051-LGA, cache-fra-etou8220198-FRA
+x-cache: HIT, HIT
+x-timer: S1792995227.585187,VS0,VE1
+content-length: 81783
+

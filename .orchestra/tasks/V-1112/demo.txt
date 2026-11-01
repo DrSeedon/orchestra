@@ -1,0 +1,25 @@
+$ mcp_watch.py --init
+MCP_WATCH_BASELINE host=laptop entry=claude:marketplace:local-mods source=directory path=/home/maxim/.claude/mods
+MCP_WATCH_BASELINE host=laptop entry=claude:marketplace:ultrapack source=github repo=btseytlin/ultrapack
+MCP_WATCH_BASELINE host=laptop entry=claude:mcp:mcp-pandoc command=/home/maxim/.local/bin/uvx type=stdio nargs=1 args_sha=0ad3f48a71053c0b
+MCP_WATCH_BASELINE host=laptop entry=claude:mcp:websearch command=node type=stdio nargs=1 args_sha=bba78ec135cebcb4 env_keys=OPENROUTER_API_KEY
+MCP_WATCH_BASELINE host=laptop entry=claude:plugin:agents-md@local-mods enabled=True
+MCP_WATCH_BASELINE host=laptop entry=claude:plugin:pyright-lsp@claude-plugins-official enabled=True
+MCP_WATCH_BASELINE host=laptop entry=claude:plugin:up@ultrapack enabled=True
+MCP_WATCH_BASELINE host=laptop entry=claude:project:/home/maxim/.claude/mcp-servers/websearch:mcp:websearch command=node type=stdio nargs=1 args_sha=bba78ec135cebcb4 env_keys=OPENROUTER_API_KEY
+MCP_WATCH_BASELINE host=laptop entry=claude:project:/home/maxim/.local/share/plasma/plasmoids:mcp:websearch command=node type=stdio nargs=1 args_sha=bba78ec135cebcb4 env_keys=OPENROUTER_API_KEY
+MCP_WATCH_BASELINE host=laptop entry=claude:project:/mnt/data/Projects/Unity/AISwapFace:mcp:chroma command=/home/maxim/.local/bin/uvx type=stdio nargs=5 args_sha=6504f9b822c636ff env_keys=OPENAI_API_KEY
+MCP_WATCH_BASELINE host=laptop entry=claude:project:/mnt/data/Projects/Unity/POLUS:mcp:UnityMCP command=/home/maxim/.local/bin/uvx type=stdio nargs=4 args_sha=bc38cae1fd679cb4
+MCP_WATCH_BASELINE host=laptop entry=claude:project:/mnt/data/Рабочий стол/Cursor/Sensar:mcp:websearch command=node type=stdio nargs=1 args_sha=bba78ec135cebcb4 env_keys=OPENROUTER_API_KEY
+MCP_WATCH_BASELINE host=laptop entry=codex:mcp:openaiDeveloperDocs url=https://developers.openai.com/mcp nargs=0 args_sha=4f53cda18c2baa0c
+MCP_WATCH_BASELINE host=laptop entry=codex:mcp:orchestra command=/mnt/data/Projects/Python/orchestra/.venv/bin/python nargs=1 args_sha=28cd23cfa3776eff env_keys=ORCHESTRA_ACCESS_MODE,ORCHESTRA_ROLE,ORCHESTRA_URL,PYTHONPATH,WORKER_NAME
+MCP_WATCH_BASELINE host=vps entry=claude:marketplace:claude-community source=github repo=anthropics/claude-plugins-community
+MCP_WATCH_BASELINE host=vps entry=claude:marketplace:local-mods source=directory path=/home/kesha/.claude/mods
+MCP_WATCH_BASELINE host=vps entry=claude:plugin:agents-md@local-mods enabled=True
+MCP_WATCH_BASELINE host=vps entry=claude:project:/home/kesha/projects/comfy-image-pipeline:mcp:figma url=https://mcp.figma.com/mcp type=http nargs=0 args_sha=4f53cda18c2baa0c
+MCP_WATCH_BASELINE host=vps entry=codex:mcp:openaiDeveloperDocs url=https://developers.openai.com/mcp nargs=0 args_sha=4f53cda18c2baa0c
+MCP_WATCH_BASELINE host=vps entry=codex:mcp:yandex-direct command=node nargs=1 args_sha=65c6c20c95ec8d4d env_keys=YANDEX_DIRECT_ALLOW_LIVE_WRITES,YANDEX_DIRECT_LOGIN,YANDEX_DIRECT_TOKEN
+rc=0
+
+$ mcp_watch.py (2nd run)
+rc=0 (empty above = silent)

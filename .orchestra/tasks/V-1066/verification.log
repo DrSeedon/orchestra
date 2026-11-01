@@ -1,0 +1,5 @@
+Pinned uv 0.11.28; default .venv; app import /remote/workspace/app/__init__.py
+AST syntax and shared credential-shape scan: 21 files, no findings.
+Saved logs sanitized; synthetic temporary workspaces removed.
+Source blocks reviewed; no .git is supplied for a local git diff.
+Platform owns import/commit; no live recovery or restart executed.

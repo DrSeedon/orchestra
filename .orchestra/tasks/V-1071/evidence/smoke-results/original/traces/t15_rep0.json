@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "My Arc Kettle from order 5001 stopped heating after a week. I don't want it repaired or looked at. Please just set up sending it back."
+  },
+  {
+    "role": "assistant",
+    "content": "I can help with orders, returns, accounts and devices."
+  }
+]

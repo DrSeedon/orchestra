@@ -1,0 +1,28 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_nonmatch_cannot_overwrite_full_accepted_source_or_display ________
+
+cron = namespace(bg=<app.bg_jobs.BgJobManager object at 0x71494ce62f00>, manager=<app.manager.SessionManager object at 0x7149...mmunicate=<AsyncMock id='124559634984272'>, slot=datetime.datetime(2026, 10, 24, 21, 36, tzinfo=datetime.timezone.utc))
+
+    @pytest.mark.asyncio
+    async def test_nonmatch_cannot_overwrite_full_accepted_source_or_display(cron):
+        raw = "  MATCH\n" + "x" * 4100 + "\nfixture tail\n  "
+        cron.communicate.return_value = (raw.encode(), b"fixture stderr\n")
+        delivery_id = await fire(cron)
+        accepted = receipt(delivery_id)
+>       assert accepted["message"] == raw + "fixture stderr\n"
+E       AssertionError: assert 'xxxxxxxxxxxx...ixture stderr' == '  MATCH\nxxx...ture stderr\n'
+E         
+E         -   MATCH
+E         - xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...
+E         
+E         ...Full output truncated (7 lines hidden), use '-vv' to show
+
+tests/test_cron_drain_delivery_v1074.py:158: AssertionError
+----------------------------- Captured stderr call -----------------------------
+cron_command fixture-cron: match accepted → fixture-worker
+------------------------------ Captured log call -------------------------------
+INFO     app.bg_jobs:bg_jobs.py:1207 cron_command fixture-cron: match accepted → fixture-worker
+=========================== short test summary info ============================
+FAILED tests/test_cron_drain_delivery_v1074.py::test_nonmatch_cannot_overwrite_full_accepted_source_or_display
+1 failed in 2.43s

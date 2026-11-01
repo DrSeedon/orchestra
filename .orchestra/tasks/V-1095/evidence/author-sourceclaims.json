@@ -1,0 +1,31 @@
+{
+  "sourceURL": "https://t.me/shneural/1435",
+  "sourceClass": "author small test; separate from official OpenAI results",
+  "checked": "public embed HTML downloaded and embedded chart independently inspected",
+  "claims": [
+    {
+      "claim": "approximately 4x faster than Luna and Sol",
+      "effort": "unknown",
+      "N": "14 tasks declared for chart, claim aggregation unknown",
+      "limits": "not measured on Orchestra; no matched raw runs or variance"
+    },
+    {
+      "claim": "70 TPS",
+      "effort": "unknown",
+      "N": "unknown",
+      "limits": "tokenizer, token types, streaming window and workload unknown"
+    },
+    {
+      "claim": "Fast mode gives no boost",
+      "effort": "unknown",
+      "N": "unknown",
+      "limits": "no controlled speed comparison; not a general provider property"
+    },
+    {
+      "claim": "Plus $20 is sufficient for active subagent usage",
+      "effort": "unknown",
+      "N": "unknown",
+      "limits": "personal assessment; not a quantified subscription allowance"
+    }
+  ]
+}

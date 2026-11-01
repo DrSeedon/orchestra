@@ -1,0 +1,56 @@
+[Publication-redacted evidence: remote installation prefixes are shown as /remote/workspace; derived installation slugs/account labels are neutralized. Source-relative paths, synthetic test suffixes and actual results are preserved.]
+
+........................................................................ [ 16%]
+.........................................................FF............. [ 33%]
+........................................................................ [ 50%]
+.....................F.................................................. [ 67%]
+........................................................................ [ 84%]
+...................................................................      [100%]
+=================================== FAILURES ===================================
+__________ test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools __________
+tests/test_hub_workspace.py:1493: in test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+    assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
+E   AssertionError: assert ('worker wrk' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...holds everything you need, and any other line in the file is dropped.\n</orchestra-link>\n\nTask:\nimplement the thing')
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:288 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+________ test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it _________
+tests/test_hub_workspace.py:1511: in test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it
+    assert ob.OUTBOX_NAME not in prompt and "plain task" in prompt and "Do not run git push/clone/commit" in prompt
+E   AssertionError: assert ('.orchestra-outbox.jsonl' not in 'You are a w...\nplain task'
+E     
+E     '.orchestra-outbox.jsonl' is contained here:
+E       
+E       plain task and 'plain task' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...her task artifacts under .orchestra/tasks/V-1/ (create it); nowhere else outside the source tree.\n\nTask:\nplain task' and 'Do not run git push/clone/commit' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...her task artifacts under .orchestra/tasks/V-1/ (create it); nowhere else outside the source tree.\n\nTask:\nplain task')
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:288 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_____________ TestCreateWorktree.test_different_repos_no_collision _____________
+tests/test_workspace.py:468: in test_different_repos_no_collision
+    wt2 = create_worktree(str(other), "worker-1")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/workspace.py:764: in create_worktree
+    raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
+E   ValueError: worktree already exists: /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-8/test_different_repos_no_collis0/worktrees/remote-workspace/worker-1. Remove session first.
+----------------------------- Captured stderr call -----------------------------
+'CLAUDE.md' is tracked by /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-8/test_different_repos_no_collis0/repo — copy skipped
+'.mcp.json' is tracked by /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-8/test_different_repos_no_collis0/repo — copy skipped
+'.env' is tracked by /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-8/test_different_repos_no_collis0/repo — copy skipped
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:847 'CLAUDE.md' is tracked by /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-8/test_different_repos_no_collis0/repo — copy skipped
+INFO     app.workspace:workspace.py:847 '.mcp.json' is tracked by /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-8/test_different_repos_no_collis0/repo — copy skipped
+INFO     app.workspace:workspace.py:847 '.env' is tracked by /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-8/test_different_repos_no_collis0/repo — copy skipped
+=============================== warnings summary ===============================
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2159742) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_hub_workspace.py::test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+FAILED tests/test_hub_workspace.py::test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it
+FAILED tests/test_workspace.py::TestCreateWorktree::test_different_repos_no_collision
+3 failed, 424 passed, 2 warnings in 382.79s (0:06:22)

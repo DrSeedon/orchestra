@@ -1,0 +1,17 @@
+Sparse import stand-in: app.hub_workspace
+Sparse import stand-in: app.hub_activity
+Sparse import stand-in: app.hub_outbox
+Sparse import stand-in: app.events
+Sparse import stand-in: app.usage_contract
+Imported app namespace: ['<hub-workspace>', '<hub-workspace>']
+Imported app.backend_hub: <hub-workspace>
+Imported app.multicode_client: <hub-workspace>
+FFFFFF                                                                   [100%]
+=========================== short test summary info ============================
+FAILED tests/test_backend_hub.py::test_start_never_relaunches_after_uncertain_send[ReadError]
+FAILED tests/test_backend_hub.py::test_start_never_relaunches_after_uncertain_send[RemoteProtocolError]
+FAILED tests/test_backend_hub.py::test_start_never_relaunches_after_uncertain_send[ConnectError]
+FAILED tests/test_backend_hub.py::test_start_never_relaunches_after_uncertain_send[ReadTimeout]
+FAILED tests/test_backend_hub.py::test_start_never_relaunches_after_uncertain_send[500]
+FAILED tests/test_backend_hub.py::test_start_never_relaunches_after_uncertain_send[503]
+6 failed, 54 deselected in 0.12s

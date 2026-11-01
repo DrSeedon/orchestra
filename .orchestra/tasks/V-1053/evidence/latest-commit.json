@@ -1,0 +1,84 @@
+[
+  {
+    "sha": "eeaf897ce18e37018540d6b425accbed4945389c",
+    "node_id": "C_kwDOVDijhtoAKGVlYWY4OTdjZTE4ZTM3MDE4NTQwZDZiNDI1YWNjYmVkNDk0NTM4OWM",
+    "commit": {
+      "author": {
+        "name": "DaiAoki",
+        "email": "a.dai.0814ap@gmail.com",
+        "date": "2026-10-15T14:40:28Z"
+      },
+      "committer": {
+        "name": "DaiAoki",
+        "email": "a.dai.0814ap@gmail.com",
+        "date": "2026-10-15T14:40:28Z"
+      },
+      "message": "Show the screens and write the tours in Spanish\n\n- es for the screens, the tours and the answers to questions, in neutral Spanish; es_* locales pick it\n- the example tour in Spanish, written by Claude Code with the current prompts ($1.35, no repairs)\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+      "tree": {
+        "sha": "272b7962bb71326e1128f921c6edbbe5b54cb58a",
+        "url": "https://api.github.com/repos/init-co-jp/diff-tour/git/trees/272b7962bb71326e1128f921c6edbbe5b54cb58a"
+      },
+      "url": "https://api.github.com/repos/init-co-jp/diff-tour/git/commits/eeaf897ce18e37018540d6b425accbed4945389c",
+      "comment_count": 0,
+      "verification": {
+        "verified": false,
+        "reason": "unsigned",
+        "signature": null,
+        "payload": null,
+        "verified_at": null
+      }
+    },
+    "url": "https://api.github.com/repos/init-co-jp/diff-tour/commits/eeaf897ce18e37018540d6b425accbed4945389c",
+    "html_url": "https://github.com/init-co-jp/diff-tour/commit/eeaf897ce18e37018540d6b425accbed4945389c",
+    "comments_url": "https://api.github.com/repos/init-co-jp/diff-tour/commits/eeaf897ce18e37018540d6b425accbed4945389c/comments",
+    "author": {
+      "login": "DaiAoki",
+      "id": 24362928,
+      "node_id": "MDQ6VXNlcjI0MzYyOTI4",
+      "avatar_url": "https://avatars.githubusercontent.com/u/24362928?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/DaiAoki",
+      "html_url": "https://github.com/DaiAoki",
+      "followers_url": "https://api.github.com/users/DaiAoki/followers",
+      "following_url": "https://api.github.com/users/DaiAoki/following{/other_user}",
+      "gists_url": "https://api.github.com/users/DaiAoki/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/DaiAoki/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/DaiAoki/subscriptions",
+      "organizations_url": "https://api.github.com/users/DaiAoki/orgs",
+      "repos_url": "https://api.github.com/users/DaiAoki/repos",
+      "events_url": "https://api.github.com/users/DaiAoki/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/DaiAoki/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "DaiAoki",
+      "id": 24362928,
+      "node_id": "MDQ6VXNlcjI0MzYyOTI4",
+      "avatar_url": "https://avatars.githubusercontent.com/u/24362928?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/DaiAoki",
+      "html_url": "https://github.com/DaiAoki",
+      "followers_url": "https://api.github.com/users/DaiAoki/followers",
+      "following_url": "https://api.github.com/users/DaiAoki/following{/other_user}",
+      "gists_url": "https://api.github.com/users/DaiAoki/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/DaiAoki/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/DaiAoki/subscriptions",
+      "organizations_url": "https://api.github.com/users/DaiAoki/orgs",
+      "repos_url": "https://api.github.com/users/DaiAoki/repos",
+      "events_url": "https://api.github.com/users/DaiAoki/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/DaiAoki/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "8d8db7681a9557617d6be10e5311a722aaedaba3",
+        "url": "https://api.github.com/repos/init-co-jp/diff-tour/commits/8d8db7681a9557617d6be10e5311a722aaedaba3",
+        "html_url": "https://github.com/init-co-jp/diff-tour/commit/8d8db7681a9557617d6be10e5311a722aaedaba3"
+      }
+    ]
+  }
+]

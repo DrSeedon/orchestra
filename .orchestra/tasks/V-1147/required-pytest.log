@@ -1,0 +1,18 @@
+
+==================================== ERRORS ====================================
+_________________ ERROR collecting tests/test_hub_workspace.py _________________
+ImportError while importing test module '/home/<REMOTE_IDENTIFIER>/orchestra-ws/vmi3407579/hub-f5836ca1beef480b/tests/test_hub_workspace.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_hub_workspace.py:14: in <module>
+    from app import backend_hub, hub_workspace as hw
+app/backend_hub.py:24: in <module>
+    from app import hub_workspace as hw
+E   ImportError: cannot import name 'hub_workspace' from 'app' (unknown location)
+=========================== short test summary info ============================
+ERROR tests/test_hub_workspace.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.82s

@@ -1,0 +1,30 @@
+===== v1052 before rep1
+none
+
+Unverified: Runtime behavior, old-data compatibility, and recovery paths were not exercised; I did not run the test suite.
+
+===== v1052 before rep2
+none
+
+Unverified: тесты не запускал; не проверял фактический squash-коммит на случай расхождения проверяемого и записываемого сообщения.
+
+===== v1052 before rep3
+none
+
+Unverified: тесты не запускал; фактическое поведение сканера и merge-пути не проверял выполнением. Проверил diff HEAD и связанный код формирования squash-коммита.
+
+===== v1052 after rep1
+none
+
+Unverified: Не запускал тесты по инструкции. Проверил diff и вызов `merge_worktree_to_main`: `scan_tree` проверяет итоговый diff, архивы и сформированное сообщение squash-коммита; `scan_range` остаётся для публикации истории по коммитам. Поведение merge при сбое и восстановление после него отдельно не проверял.
+
+===== v1052 after rep2
+1. `app/workspace.py` — The guard scans `_build_squash_message(...)`, but when `prepared_squash_message` is set, the merge commits `_validated_squash_message(...)`, which can add an `Orchestra-Operation` trailer. A forbidden string in that trailer would reach the commit without being scanned. The guard should scan the exact message that will be committed.
+
+Unverified: I inspected the changed code, its merge-message construction and commit call sites, and the existing tests by reading files. I did not run tests or verify behavior dynamically; rollback and repeated-call behavior remain unverified.
+
+===== v1052 after rep3
+1. none
+
+Unverified: не запускал тесты и не проверял выполнение merge на реальном репозитории; проверил diff HEAD, реализацию сканеров и путь вызова merge.
+

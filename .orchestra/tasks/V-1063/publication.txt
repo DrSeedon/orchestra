@@ -1,0 +1,4 @@
+Redaction: workspace/HOME prefixes, encoded workspace slug and username replaced by /remote/workspace, /remote/workspaces, /remote/home, remote-workspace and remote-user.
+$ uv run --frozen python scripts/secret_scan.py app/hub_workspace.py tests/test_hub_inputs_v1063.py tests/test_publication_gate_v1047.py CHANGELOG.md .orchestra/tasks/V-1063/baseline.txt .orchestra/tasks/V-1063/focused.txt .orchestra/tasks/V-1063/environment.txt .orchestra/tasks/V-1063/check.py .orchestra/tasks/V-1063/mutations.py
+
+exit_code=0

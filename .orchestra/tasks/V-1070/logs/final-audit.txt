@@ -1,0 +1,8 @@
+PASS: all 12 baseline source hashes unchanged
+PASS: all sample hashes match final generator artifacts
+PASS: final rotation correction sign and identical center crops checked
+PASS: 24 existing offline vision tests passed; see preserved pytest stdout
+PASS: canonical scripts.secret_scan.scan_text provider-shape filter: 46 text artifacts; no credential stores read
+PASS: relative artifact links resolve
+research_artifact_files 84 bytes 3074163
+RESEARCH DONE; product/runtime/paid inference untouched; native usage and real-workload quality unverified

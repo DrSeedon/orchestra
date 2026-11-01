@@ -1,0 +1,155 @@
+test_archived_target_is_acknowledged_without_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_archived_target_is_acknowledged_without_wake) ... ok
+test_existing_live_notice_is_not_filtered_by_backfill (test_message_failure_backfill_1045.FailureNoticeBackfill.test_existing_live_notice_is_not_filtered_by_backfill) ... ok
+test_failed_recent_wake_is_retried_once_on_recovery (test_message_failure_backfill_1045.FailureNoticeBackfill.test_failed_recent_wake_is_retried_once_on_recovery) ... FAIL
+test_fresh_failure_wakes_live_sender_exactly_once (test_message_failure_backfill_1045.FailureNoticeBackfill.test_fresh_failure_wakes_live_sender_exactly_once) ... 
+  test_fresh_failure_wakes_live_sender_exactly_once (test_message_failure_backfill_1045.FailureNoticeBackfill.test_fresh_failure_wakes_live_sender_exactly_once) (initial=False, state='FAILED_BEFORE_SUBMIT') ... FAIL
+  test_fresh_failure_wakes_live_sender_exactly_once (test_message_failure_backfill_1045.FailureNoticeBackfill.test_fresh_failure_wakes_live_sender_exactly_once) (initial=False, state='DELIVERY_UNKNOWN_ORPHANED') ... FAIL
+  test_fresh_failure_wakes_live_sender_exactly_once (test_message_failure_backfill_1045.FailureNoticeBackfill.test_fresh_failure_wakes_live_sender_exactly_once) (initial=True, state='FAILED_BEFORE_SUBMIT') ... FAIL
+  test_fresh_failure_wakes_live_sender_exactly_once (test_message_failure_backfill_1045.FailureNoticeBackfill.test_fresh_failure_wakes_live_sender_exactly_once) (initial=True, state='DELIVERY_UNKNOWN') ... FAIL
+test_invalid_and_future_dates_are_acknowledged_without_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_invalid_and_future_dates_are_acknowledged_without_wake) ... ok
+test_legacy_acknowledged_notice_keeps_ack_and_does_not_replay (test_message_failure_backfill_1045.FailureNoticeBackfill.test_legacy_acknowledged_notice_keeps_ack_and_does_not_replay) ... ok
+test_legacy_naive_utc_and_offset_dates_can_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_legacy_naive_utc_and_offset_dates_can_wake) ... FAIL
+test_live_notice_path_ignores_backfill_age_and_target_filters (test_message_failure_backfill_1045.FailureNoticeBackfill.test_live_notice_path_ignores_backfill_age_and_target_filters) ... ok
+test_missing_target_is_acknowledged_without_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_missing_target_is_acknowledged_without_wake) ... ok
+test_old_failure_is_acknowledged_without_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_old_failure_is_acknowledged_without_wake) ... ok
+test_old_pending_legacy_notice_is_screened_on_adoption (test_message_failure_backfill_1045.FailureNoticeBackfill.test_old_pending_legacy_notice_is_screened_on_adoption) ... ok
+test_second_backfill_never_replays_skipped_or_delivered_rows (test_message_failure_backfill_1045.FailureNoticeBackfill.test_second_backfill_never_replays_skipped_or_delivered_rows) ... FAIL
+test_skipped_revision_does_not_prevent_fresh_failure_of_same_id (test_message_failure_backfill_1045.FailureNoticeBackfill.test_skipped_revision_does_not_prevent_fresh_failure_of_same_id) ... FAIL
+test_window_uses_updated_at_with_inclusive_24_hour_boundary (test_message_failure_backfill_1045.FailureNoticeBackfill.test_window_uses_updated_at_with_inclusive_24_hour_boundary) ... FAIL
+
+======================================================================
+FAIL: test_failed_recent_wake_is_retried_once_on_recovery (test_message_failure_backfill_1045.FailureNoticeBackfill.test_failed_recent_wake_is_retried_once_on_recovery)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 217, in test_failed_recent_wake_is_retried_once_on_recovery
+    self.assertIsNone(deliveries._failure_notice(did)["delivered_at"])
+AssertionError: '2026-10-22T14:00:00+00:00' is not None
+
+======================================================================
+FAIL: test_fresh_failure_wakes_live_sender_exactly_once (test_message_failure_backfill_1045.FailureNoticeBackfill.test_fresh_failure_wakes_live_sender_exactly_once) (initial=False, state='FAILED_BEFORE_SUBMIT')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 118, in test_fresh_failure_wakes_live_sender_exactly_once
+    self.assertEqual(await deliveries.recover_message_delivery_failure_notices(self.manager), 1)
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_fresh_failure_wakes_live_sender_exactly_once (test_message_failure_backfill_1045.FailureNoticeBackfill.test_fresh_failure_wakes_live_sender_exactly_once) (initial=False, state='DELIVERY_UNKNOWN_ORPHANED')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 118, in test_fresh_failure_wakes_live_sender_exactly_once
+    self.assertEqual(await deliveries.recover_message_delivery_failure_notices(self.manager), 1)
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_fresh_failure_wakes_live_sender_exactly_once (test_message_failure_backfill_1045.FailureNoticeBackfill.test_fresh_failure_wakes_live_sender_exactly_once) (initial=True, state='FAILED_BEFORE_SUBMIT')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 118, in test_fresh_failure_wakes_live_sender_exactly_once
+    self.assertEqual(await deliveries.recover_message_delivery_failure_notices(self.manager), 1)
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_fresh_failure_wakes_live_sender_exactly_once (test_message_failure_backfill_1045.FailureNoticeBackfill.test_fresh_failure_wakes_live_sender_exactly_once) (initial=True, state='DELIVERY_UNKNOWN')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-workspace>", line 118, in test_fresh_failure_wakes_live_sender_exactly_once
+    self.assertEqual(await deliveries.recover_message_delivery_failure_notices(self.manager), 1)
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_legacy_naive_utc_and_offset_dates_can_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_legacy_naive_utc_and_offset_dates_can_wake)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 198, in test_legacy_naive_utc_and_offset_dates_can_wake
+    self.assertEqual(await deliveries.recover_message_delivery_failure_notices(self.manager), 2)
+AssertionError: 0 != 2
+
+======================================================================
+FAIL: test_second_backfill_never_replays_skipped_or_delivered_rows (test_message_failure_backfill_1045.FailureNoticeBackfill.test_second_backfill_never_replays_skipped_or_delivered_rows)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 134, in test_second_backfill_never_replays_skipped_or_delivered_rows
+    self.assertEqual(await deliveries.recover_message_delivery_failure_notices(self.manager), 1)
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_skipped_revision_does_not_prevent_fresh_failure_of_same_id (test_message_failure_backfill_1045.FailureNoticeBackfill.test_skipped_revision_does_not_prevent_fresh_failure_of_same_id)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 173, in test_skipped_revision_does_not_prevent_fresh_failure_of_same_id
+    self.assertEqual(await deliveries.recover_message_delivery_failure_notices(self.manager), 1)
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_window_uses_updated_at_with_inclusive_24_hour_boundary (test_message_failure_backfill_1045.FailureNoticeBackfill.test_window_uses_updated_at_with_inclusive_24_hour_boundary)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 182, in test_window_uses_updated_at_with_inclusive_24_hour_boundary
+    self.assertEqual(await deliveries.recover_message_delivery_failure_notices(self.manager), 1)
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.043s
+
+FAILED (failures=9)

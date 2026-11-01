@@ -1,0 +1,50 @@
+[
+  {
+    "file": "app/models.py",
+    "sha256": "c6b79c146a8f1ab63cce8b580d5dbfc2ec06fafdbfd03dac894d7c7fd87a49d1"
+  },
+  {
+    "file": "app/harness/images.py",
+    "sha256": "e82f09c4d722fdbac7094459a20c9972b47e44f0b966eed639a8fb4a981113f1"
+  },
+  {
+    "file": "app/harness/llm.py",
+    "sha256": "d6d415964aa2014ab8580c2af955c1e9a407cfd4f11a8e90453060d8c06e642e"
+  },
+  {
+    "file": "app/harness/tools.py",
+    "sha256": "b2a0823c968cae07c085a2eb5e012df21253caeaacb750c68d1a3442facd41ca"
+  },
+  {
+    "file": "app/backend_claude.py",
+    "sha256": "11f75ef1aa10097bf45d39a476ee89634f9e03ac096340f0dc500bc67cdbe119"
+  },
+  {
+    "file": "app/backend_codex.py",
+    "sha256": "ac44171eb07ea81e1396626c5ec02339a3c2f52dae619870bc419e65a2a9e79c"
+  },
+  {
+    "file": "app/backend_hub.py",
+    "sha256": "8ea2147243d7a8993ce56949778a5be979632bc3734b9ea073080e154f26d162"
+  },
+  {
+    "file": "app/tg_bridge.py",
+    "sha256": "3390262739f5ef6ebcdb6b441cf8cdabd5bfa6cd71a2b6d5269be96a917d6c86"
+  },
+  {
+    "file": "app/routes/artifacts.py",
+    "sha256": "96ac812762da61c68da6232ac53f2be7b258e235a8a9435eb6a2c4d2a447b8ad"
+  },
+  {
+    "file": "app/static/js/chat.js",
+    "sha256": "3fb67a6558b9f254d22b42c8f6a1011e4e048a78bed5b7e5b18128e6abcc2a38"
+  },
+  {
+    "file": "app/model_catalog.py",
+    "sha256": "d1f015f3ffb50dabb0dcee8954fab3bfd8897be133efb4e87722a79cb8764cc1"
+  },
+  {
+    "file": "app/usage_contract.py",
+    "sha256": "7fcb10d4e6d5f7f76ca6c96fbcf1f6510a04715d498b5b4cde463d19c2f44956"
+  }
+]

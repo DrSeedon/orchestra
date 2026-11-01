@@ -1,0 +1,8 @@
+PASS: all three source edits reconstruct against saved unified diff.
+PASS: structural tags, template variables and code-fence counts unchanged.
+PASS: both eval excerpts exactly match their corresponding source pre-mortem bullet.
+PASS: eval wrappers are identical.
+PASS: cases.json contains exactly four unique existing supplied diff paths; no labels.
+PASS: stored case hashes without inspecting diff contents or deriving an answer key.
+Scope: standard-library artifact integrity checks only, not project pytest or prompt wording tests.
+Runner: python3; app was not imported and app/ is absent.

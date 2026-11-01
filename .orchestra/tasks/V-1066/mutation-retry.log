@@ -1,0 +1,23 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_large_no_work_retry_uses_same_file_and_thread ______________
+tests/test_hub_message_v1066.py:362: in test_large_no_work_retry_uses_same_file_and_thread
+    assert attempts[0][1]["message"] == attempts[1][1]["message"]
+E   AssertionError: assert 'Read ./.orch...r input file.' == 'You are a wo...xxxxxxxxxxxxx'
+E     
+E     + Read ./.orchestra-hub-inputs/dac5673e589bf64e8eae9cf4a072fdccee0475cf89f63fdbdc936d2542737319.txt in full before acting. It is the complete message for this turn (121293 UTF-8 bytes), delivered through the private workspace because it exceeds the hub message field limit. Read in chunks if needed; follow all its instructions and preserve their order. Do not edit this broker input file.
+E     - You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). Edit files in place with your normal tools; when you finish, the pla...
+E     
+E     ...Full output truncated (11 lines hidden), use '-vv' to show
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+hub message via workspace: 121293 UTF-16 units, 121293 UTF-8 bytes
+hub: hub thread ended with status failed; no reason exposed by hub; no work detected; retry 1/2 on the same thread in 1s
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:290 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.backend_hub:backend_hub.py:664 hub message via workspace: 121293 UTF-16 units, 121293 UTF-8 bytes
+WARNING  app.backend_hub:backend_hub.py:557 hub: hub thread ended with status failed; no reason exposed by hub; no work detected; retry 1/2 on the same thread in 1s
+=========================== short test summary info ============================
+FAILED tests/test_hub_message_v1066.py::test_large_no_work_retry_uses_same_file_and_thread
+1 failed in 2.86s
+MUTATION retry: pytest_exit=1; killed=True

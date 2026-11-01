@@ -1,0 +1,24 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_gate_closes_after_acceptance_and_release_clears_hold ___________
+
+tree = {'add_worker': <function world.<locals>.add_worker at 0x7e3785efda80>, 'manager': <tests.test_v1028_report_holds.Manag...095400>, 'parent_id': '217513f0-ff84-4ce9-b35b-4d40146c5448', 'worker_id': '11b9b555-ce3f-4d32-acb9-301531dc2c2b', ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e37881d8ad0>
+
+    @pytest.mark.asyncio
+    async def test_gate_closes_after_acceptance_and_release_clears_hold(tree, monkeypatch):
+        monkeypatch.setattr(message_deliveries, "ensure_target_runner", lambda *_: None)
+        receipt, _ = await _accept(tree, parked=False)
+        await message_deliveries.run_message_delivery(receipt["delivery_id"], tree["manager"])
+        await _settle_notices()
+        held = message_deliveries.get_message_delivery(receipt["delivery_id"], tree["worker_id"])
+        assert held["delivery_state"] == "WAITING_QUOTA"
+>       assert len(tree["manager"].sent) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <tests.test_v1028_report_holds.Manager object at 0x7e3785095400>.sent
+
+tests/test_v1028_report_holds.py:182: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v1028_report_holds.py::test_gate_closes_after_acceptance_and_release_clears_hold
+1 failed, 12 deselected in 3.91s

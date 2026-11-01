@@ -15,8 +15,22 @@ DEFAULT_MODEL = "claude-sonnet-5-5"
 CLIENT_INFO = {"name": "orchestra", "version": "1.0.0"}
 
 
+def _invalid_params(detail: str) -> bool:
+    return any(marker in detail.lower() for marker in (
+        "invalid argument", "invalid_argument", "invalid params", "invalid_params",
+        "validation", "expected value", "-32602"))
+
+
 class MultiCodeError(RuntimeError):
     """A safe-to-display MultiCode transport or protocol error."""
+
+    def __init__(self, message: str, *, retryable: bool = False,
+                 invalid_params: bool = False):
+        super().__init__(message)
+        # Retry only read operations: a failed send may already have reached the hub.
+        self.retryable = retryable
+        # A rejected payload says nothing about whether the existing thread is usable.
+        self.invalid_params = invalid_params
 
 
 class MultiCodeClient:
@@ -58,7 +72,8 @@ class MultiCodeClient:
             await self._client.aclose()
             self._client = None
 
-    async def _post(self, message: dict[str, Any]) -> tuple[dict[str, Any] | None, httpx.Headers]:
+    async def _post(self, message: dict[str, Any], *,
+                    _retry_session: bool = True) -> tuple[dict[str, Any] | None, httpx.Headers]:
         if self._client is None:
             raise MultiCodeError("MultiCode client must be used as an async context manager")
         headers = {
@@ -71,9 +86,30 @@ class MultiCodeClient:
         try:
             response = await self._client.post(self.base_url, headers=headers, json=message)
         except httpx.HTTPError as exc:
-            raise MultiCodeError(f"MultiCode MCP request failed: {type(exc).__name__}") from None
+            raise MultiCodeError(
+                f"MultiCode MCP request failed: {type(exc).__name__}",
+                retryable=isinstance(exc, (httpx.RemoteProtocolError, httpx.ReadError,
+                                           httpx.ConnectError, httpx.TimeoutException)),
+            ) from None
         if response.status_code >= 400:
-            raise MultiCodeError(f"MultiCode MCP returned HTTP {response.status_code}")
+            body = response.text
+            session_expired = "Mcp-Session-Id" in headers and (
+                response.status_code == 404 or (
+                    response.status_code == 400 and
+                    any(marker in body.lower() for marker in ("session", "not initialized"))))
+            if session_expired:
+                self._session_id = None
+                self._initialized = False
+                if _retry_session:
+                    await self.initialize()
+                    return await self._post(message, _retry_session=False)
+            # Redact before truncating: slicing a token first could expose its prefix.
+            detail = self._redact(body)[:300]
+            raise MultiCodeError(
+                f"MultiCode MCP returned HTTP {response.status_code}: {detail}",
+                retryable=session_expired or 500 <= response.status_code < 600,
+                invalid_params=response.status_code in (400, 422) and _invalid_params(body),
+            )
         self._session_id = response.headers.get("Mcp-Session-Id", self._session_id)
         if not response.content:
             return None, response.headers
@@ -95,7 +131,8 @@ class MultiCodeClient:
         if result.get("error"):
             error = result["error"]
             raise MultiCodeError(f"MultiCode MCP error {error.get('code', 'unknown')}: "
-                                 f"{self._redact(str(error.get('message', 'request failed')))}")
+                                 f"{self._redact(str(error.get('message', 'request failed')))}",
+                                 invalid_params=error.get("code") == -32602)
         return result, response.headers
 
     async def initialize(self) -> None:
@@ -107,10 +144,11 @@ class MultiCodeClient:
             "jsonrpc": "2.0", "id": request_id, "method": "initialize",
             "params": {"protocolVersion": PROTOCOL_VERSION, "capabilities": {},
                        "clientInfo": CLIENT_INFO},
-        })
+        }, _retry_session=False)
         if not result or result.get("id") != request_id or not isinstance(result.get("result"), dict):
             raise MultiCodeError("MultiCode MCP initialize handshake failed")
-        await self._post({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        await self._post({"jsonrpc": "2.0", "method": "notifications/initialized"},
+                         _retry_session=False)
         self._initialized = True
 
     async def tool_call(self, name: str, arguments: dict[str, Any]) -> Any:
@@ -130,7 +168,8 @@ class MultiCodeClient:
             detail = " ".join(item.get("text", "") for item in result.get("content", [])
                                if isinstance(item, dict))
             raise MultiCodeError(f"MultiCode tool {name} failed: "
-                                 f"{self._redact(detail) if detail else 'tool error'}")
+                                 f"{self._redact(detail) if detail else 'tool error'}",
+                                 invalid_params=_invalid_params(detail))
         if "structuredContent" in result:
             return self._redact_value(result["structuredContent"])
         content = result.get("content", [])

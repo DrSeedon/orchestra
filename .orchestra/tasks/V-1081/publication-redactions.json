@@ -1,0 +1,35 @@
+{
+  "note": "Only public runtime-path derivatives; exact raw originals preserved in private V-1081/raw-worker. Product source unchanged.",
+  "files": [
+    {
+      "path": ".orchestra/tasks/V-1081/old-gap.stdout",
+      "before_sha256": "59f3b3709b107251fe161d50c680b8ac314b90c35d1c71c44dc3ebb01d604440",
+      "after_sha256": "7d7f5d49a51f5782632385c0d315f4576ee6efb5c4df71955be02cb96d3fb8e8",
+      "newlines_before": 378,
+      "newlines_after": 378,
+      "rules": [
+        "forbidden-string line 2 of forbidden-strings.txt"
+      ]
+    },
+    {
+      "path": ".orchestra/tasks/V-1081/report.md",
+      "before_sha256": "2778c823f6b69955267f9917c7391c4fbf9fb6f56391b5c8093806d8094433db",
+      "after_sha256": "f4cb0cb5f896b21f5eaa8a575a477c07194fbcd185d258427b7f978e8faf0b94",
+      "newlines_before": 107,
+      "newlines_after": 107,
+      "rules": [
+        "forbidden-string line 2 of forbidden-strings.txt"
+      ]
+    },
+    {
+      "path": ".orchestra/tasks/V-1081/runner.stdout",
+      "before_sha256": "669169b98fae030799ad6df8b10da64a63ef39bc77b31cc4c55e8ea67e534958",
+      "after_sha256": "263be362c7c9d5aa0070b692759568e3484109b5abb4ed6ab27a43854a5cc7ac",
+      "newlines_before": 3,
+      "newlines_after": 3,
+      "rules": [
+        "forbidden-string line 2 of forbidden-strings.txt"
+      ]
+    }
+  ]
+}

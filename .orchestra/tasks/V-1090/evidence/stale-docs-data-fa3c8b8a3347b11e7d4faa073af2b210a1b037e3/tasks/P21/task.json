@@ -1,0 +1,11 @@
+{
+  "id": "P21",
+  "package": "roomsched",
+  "prompt": "Add a conflict report for the bookings. It runs as `python -m roomsched.conflicts ROOMS_CSV BOOKINGS_CSV OUTPUT_JSON` and reads the same rooms and bookings files as the agenda command.\n\nCancelled bookings are ignored completely. Every other booking is checked for three kinds of conflict:\n- overlap: an earlier booking in the bookings file (also not cancelled) is for the same room on the same date, and the two time ranges overlap. Ranges that only touch, where one ends at 10:00 and the other starts at 10:00, do not overlap. There is one overlap entry for each such earlier booking.\n- hours: the booking starts before the room opens or ends after the room closes.\n- capacity: the booking has more attendees than the room holds.\n\nWrite a JSON report with two keys. \"conflicts\" is a list of entries. Each entry has \"booking\" (the id of the booking), \"kind\" (\"overlap\", \"hours\" or \"capacity\") and \"other\" (for an overlap the id of the earlier booking, otherwise null). The entries follow the order of the bookings file. For one booking, its overlaps come first, in file order of the earlier booking, then hours, then capacity. \"counts\" gives the number of entries of each kind and always has all three keys, also when a count is zero.\n\nIf any booking names a room that is not in the rooms file, the input is invalid. The function that finds the conflicts must report this to its caller, and the command must then exit with status 2 without writing the report. The command also exits with status 2 when an input file cannot be read or is invalid. Otherwise it exits with status 0, also when it finds conflicts.\n\nAdd tests for the new feature. Give every new public function a docstring that describes its parameters and return value.",
+  "decisions": [
+    {"id": "D1", "type": "ENUM", "doc_side": "left"},
+    {"id": "D2", "type": "ERR", "doc_side": "left"},
+    {"id": "D3", "type": "NAME", "doc_side": "right"},
+    {"id": "D4", "type": "DOCSTR", "doc_side": "right"}
+  ]
+}

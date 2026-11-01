@@ -1,0 +1,14 @@
+app namespace: ['<hub-workspace>']
+error_watch imported from: <hub-workspace>
+LIMITATION: DB_PATH stub; mask_secrets identity stub; no real pytest fixtures/plugins
+Offline baseline: 22/22 passed
+FAIL test_expected_hub_failures_never_become_recurring_findings: AssertionError: Hub worker turn failed: Hub claude usage limit; use model='hubsol'
+FAIL test_expected_hub_failures_never_count_as_post_fix_recurrences: AssertionError: Hub worker turn failed: Hub claude usage limit; use model='hubsol'
+FAIL test_expected_hub_outcome_beyond_output_wrapper_is_still_excluded: AssertionError:
+FAIL test_hub_scan_keeps_legacy_fix_state_and_only_reports_real_recurrence: AssertionError:
+FAIL test_hub_turn_failure_signatures_drop_volatile_details: AssertionError:
+FAIL test_hub_turn_failure_signatures_preserve_error_class_and_http_status: AssertionError:
+FAIL test_real_hub_transport_error_reaches_threshold_and_recurs_after_fix: AssertionError:
+Mutation (whole fix reverted): 7/7 tests rejected the regression
+FAIL test_expected_hub_failures_never_count_as_post_fix_recurrences: AssertionError: Hub worker turn failed: Hub claude usage limit; use model='hubsol'
+Mutation (post-fix exclusion reverted): 1/1 tests rejected the regression

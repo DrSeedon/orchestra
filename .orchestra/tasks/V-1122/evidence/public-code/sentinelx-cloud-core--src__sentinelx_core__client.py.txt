@@ -1,0 +1,950 @@
+     1	"""Hub WebSocket client.
+     2	
+     3	Owns the connection lifecycle: handshake, reconnection with exponential backoff,
+     4	ping/pong heartbeat, dispatching incoming requests to the executor.
+     5	"""
+     6	
+     7	from __future__ import annotations
+     8	
+     9	import asyncio
+    10	import json
+    11	import logging
+    12	import time
+    13	import random
+    14	import os
+    15	import platform
+    16	import shutil
+    17	import socket
+    18	import subprocess
+    19	import sys
+    20	from datetime import datetime, timezone
+    21	from pathlib import Path
+    22	from typing import Any
+    23	from uuid import uuid4
+    24	
+    25	import websockets
+    26	from sentinelx_protocol import (
+    27	    HEARTBEAT_INTERVAL_SECONDS,
+    28	    MAX_BINARY_FRAME_BYTES,
+    29	    PROTOCOL_VERSION,
+    30	    ConfigSummary,
+    31	    EventMessage,
+    32	    HelloMessage,
+    33	    HostInfo,
+    34	    PongMessage,
+    35	    bound_response,
+    36	    decode_binary_frame,
+    37	    encode_binary_frame,
+    38	    is_binary_transfer_frame,
+    39	    parse_message,
+    40	)
+    41	from websockets.exceptions import ConnectionClosed
+    42	
+    43	from sentinelx_core import AGENT_VERSION
+    44	from sentinelx_core.executor import Executor
+    45	from sentinelx_core.identity import Identity
+    46	from sentinelx_core.jobs import build_completed_event_data
+    47	
+    48	from sentinelx_core import pending_results
+    49	
+    50	logger = logging.getLogger(__name__)
+    51	
+    52	
+    53	# Reconnect delays, in seconds. The early steps are deliberately gentle: the
+    54	# common failure is a momentary break on an otherwise healthy path, where the
+    55	# next attempt usually works and waiting buys nothing. The old curve jumped
+    56	# 5 -> 30, so a host whose connection dropped spent close to a minute away
+    57	# (1s, a failed handshake, 5s, another failed handshake, 30s) even though the
+    58	# hub was up the whole time. The tail stays long for the case the curve was
+    59	# written for: the hub genuinely being down, where hammering it on the way
+    60	# back up is how a fleet of ours takes it out again.
+    61	#
+    62	# The tail stops at 60 s (0.23.26). With 120 and 300 s steps, an agent that went
+    63	# through a network outage of a few minutes kept sleeping up to 5 minutes after
+    64	# the network came back: orion, 2026-10-15, last failed attempt 20:07:35, then a
+    65	# 265 s wait, connected at 20:12:01. Across the fleet that showed up as hosts
+    66	# returning 12-17 minutes after a drop. At 60 s with full jitter, a fleet of
+    67	# ~3100 comes back at ~50 connections/s, the same wave every deploy already
+    68	# absorbs; and a hub that is up can still ask for longer with Retry-After.
+    69	BACKOFF_SCHEDULE = [0, 1, 2, 5, 10, 20, 30, 60]
+    70	
+    71	# Seconds before trying the hub's next address when the first one doesn't answer
+    72	# (RFC 8305 recommends 250 ms). See _run_once's websockets.connect.
+    73	HAPPY_EYEBALLS_DELAY = 0.25
+    74	
+    75	# Cap on a hub-supplied retry hint. The hub knows things the agent cannot --
+    76	# how many agents are reconnecting at once, whether it is mid-deploy -- so its
+    77	# suggestion is worth following. It is a suggestion, though: a buggy or hostile
+    78	# hub must not be able to tell the fleet to go quiet for a day, so the agent
+    79	# decides the ceiling.
+    80	MAX_RETRY_AFTER_SECONDS = 300
+    81	
+    82	
+    83	def _read_text(path: str) -> str | None:
+    84	    """Read a small pseudo-file, returning None on any error."""
+    85	    try:
+    86	        with open(path, encoding="utf-8", errors="replace") as f:
+    87	            return f.read()
+    88	    except Exception:
+    89	        return None
+    90	
+    91	
+    92	def _run(args: list[str]) -> str | None:
+    93	    """Run a short command; return stripped stdout, or None on any failure."""
+    94	    try:
+    95	        out = subprocess.run(args, capture_output=True, text=True, timeout=3)
+    96	        if out.returncode == 0:
+    97	            return out.stdout.strip()
+    98	    except Exception:
+    99	        pass
+   100	    return None
+   101	
+   102	
+   103	def _detect_machine_type() -> str | None:
+   104	    """Classify a Linux host as wsl / container / vm / physical (best-effort)."""
+   105	    osrelease = (_read_text("/proc/sys/kernel/osrelease") or "").lower()
+   106	    version = (_read_text("/proc/version") or "").lower()
+   107	    if "microsoft" in osrelease or "wsl" in osrelease or "microsoft" in version:
+   108	        return "wsl"
+   109	    if os.path.exists("/.dockerenv"):
+   110	        return "container"
+   111	    cgroup = (_read_text("/proc/1/cgroup") or "").lower()
+   112	    if any(x in cgroup for x in ("docker", "lxc", "kubepods", "containerd")):
+   113	        return "container"
+   114	    for p in ("/sys/class/dmi/id/product_name", "/sys/class/dmi/id/sys_vendor"):
+   115	        v = (_read_text(p) or "").lower()
+   116	        if any(x in v for x in ("kvm", "vmware", "virtualbox", "qemu", "xen",
+   117	                                "hyper-v", "amazon", "google", "digitalocean",
+   118	                                "vultr", "openstack", "bochs")):
+   119	            return "vm"
+   120	    if "hypervisor" in (_read_text("/proc/cpuinfo") or "").lower():
+   121	        return "vm"
+   122	    return "physical"
+   123	
+   124	
+   125	def _gather_linux(info: dict[str, Any]) -> None:
+   126	    """Fill cpu_model / mem / distro / machine_type from Linux /proc and /sys."""
+   127	    try:
+   128	        for line in (_read_text("/proc/cpuinfo") or "").splitlines():
+   129	            if line.lower().startswith("model name"):
+   130	                info["cpu_model"] = line.split(":", 1)[1].strip()
+   131	                break
+   132	    except Exception:
+   133	        pass
+   134	    try:
+   135	        for line in (_read_text("/proc/meminfo") or "").splitlines():
+   136	            if line.startswith("MemTotal:"):
+   137	                info["mem_total_bytes"] = int(line.split()[1]) * 1024
+   138	                break
+   139	    except Exception:
+   140	        pass
+   141	    try:
+   142	        for line in (_read_text("/etc/os-release") or "").splitlines():
+   143	            if line.startswith("PRETTY_NAME="):
+   144	                info["distro"] = line.split("=", 1)[1].strip().strip('"')
+   145	                break
+   146	    except Exception:
+   147	        pass
+   148	    try:
+   149	        info["machine_type"] = _detect_machine_type()
+   150	    except Exception:
+   151	        pass
+   152	
+   153	
+   154	def _gather_darwin(info: dict[str, Any]) -> None:
+   155	    """Fill cpu_model / mem / distro / machine_type on macOS via sysctl/sw_vers."""
+   156	    try:
+   157	        info["cpu_model"] = _run(["sysctl", "-n", "machdep.cpu.brand_string"]) or None
+   158	    except Exception:
+   159	        pass
+   160	    try:
+   161	        mem = _run(["sysctl", "-n", "hw.memsize"])
+   162	        if mem:
+   163	            info["mem_total_bytes"] = int(mem)
+   164	    except Exception:
+   165	        pass
+   166	    try:
+   167	        name = _run(["sw_vers", "-productName"]) or "macOS"
+   168	        ver = _run(["sw_vers", "-productVersion"]) or ""
+   169	        info["distro"] = (name + " " + ver).strip()
+   170	    except Exception:
+   171	        pass
+   172	    try:
+   173	        vmm = _run(["sysctl", "-n", "kern.hv_vmm_present"])
+   174	        model = (_run(["sysctl", "-n", "hw.model"]) or "").lower()
+   175	        if vmm == "1" or any(x in model for x in ("vmware", "parallels", "virtualbox", "qemu")):
+   176	            info["machine_type"] = "vm"
+   177	        else:
+   178	            info["machine_type"] = "physical"
+   179	    except Exception:
+   180	        pass
+   181	
+   182	
+   183	def _gather_windows(info: dict[str, Any]) -> None:
+   184	    """Fill cpu_model / mem / distro / machine_type on Windows using stdlib
+   185	    only (no PowerShell at handshake time — keeps the handshake fast and
+   186	    avoids depending on pwsh being present)."""
+   187	    try:
+   188	        info["cpu_model"] = (
+   189	            os.environ.get("PROCESSOR_IDENTIFIER") or platform.processor() or None
+   190	        )
+   191	    except Exception:
+   192	        pass
+   193	    try:
+   194	        import ctypes
+   195	
+   196	        class _MEMORYSTATUSEX(ctypes.Structure):
+   197	            _fields_ = [
+   198	                ("dwLength", ctypes.c_ulong),
+   199	                ("dwMemoryLoad", ctypes.c_ulong),
+   200	                ("ullTotalPhys", ctypes.c_ulonglong),
+   201	                ("ullAvailPhys", ctypes.c_ulonglong),
+   202	                ("ullTotalPageFile", ctypes.c_ulonglong),
+   203	                ("ullAvailPageFile", ctypes.c_ulonglong),
+   204	                ("ullTotalVirtual", ctypes.c_ulonglong),
+   205	                ("ullAvailVirtual", ctypes.c_ulonglong),
+   206	                ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+   207	            ]
+   208	
+   209	        stat = _MEMORYSTATUSEX()
+   210	        stat.dwLength = ctypes.sizeof(_MEMORYSTATUSEX)
+   211	        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
+   212	            info["mem_total_bytes"] = int(stat.ullTotalPhys)
+   213	    except Exception:
+   214	        pass
+   215	    try:
+   216	        info["distro"] = _detect_os()
+   217	    except Exception:
+   218	        pass
+   219	    # VM-vs-physical detection needs CIM (Win32_ComputerSystem); defer to a
+   220	    # later milestone. Default to "physical" so the field isn't None.
+   221	    info["machine_type"] = "physical"
+   222	
+   223	
+   224	def _gather_machine_info() -> dict[str, Any]:
+   225	    """Best-effort machine details for the dashboard. Each field is guarded so a
+   226	    failure yields None and never breaks the handshake. Cross-platform: Linux
+   227	    reads /proc and /sys; macOS uses sysctl and sw_vers."""
+   228	    info: dict[str, Any] = {
+   229	        "cpu_model": None, "cpu_cores": None, "mem_total_bytes": None,
+   230	        "disk_total_bytes": None, "machine_type": None, "distro": None,
+   231	    }
+   232	    # Cross-platform fields
+   233	    try:
+   234	        info["cpu_cores"] = os.cpu_count()
+   235	    except Exception:
+   236	        pass
+   237	    try:
+   238	        info["disk_total_bytes"] = shutil.disk_usage("/").total
+   239	    except Exception:
+   240	        pass
+   241	    # Platform-specific fields
+   242	    try:
+   243	        if sys.platform == "win32":
+   244	            _gather_windows(info)
+   245	        elif sys.platform == "darwin":
+   246	            _gather_darwin(info)
+   247	        else:
+   248	            _gather_linux(info)
+   249	    except Exception:
+   250	        pass
+   251	    return info
+   252	
+   253	
+   254	def _detect_os() -> str:
+   255	    """Best-effort human-readable OS name from /etc/os-release.
+   256	
+   257	    Returns something like "Ubuntu 24.04.1 LTS" (the PRETTY_NAME) when the
+   258	    file is present, else falls back to "linux". Never raises — a missing
+   259	    or malformed file, a minimal container, or a non-standard distro all
+   260	    degrade gracefully to the generic label. The hub stores whatever we
+   261	    send, so an older agent (plain "linux") and a newer one (pretty name)
+   262	    coexist fine. On macOS, /etc/os-release is absent, so we use sw_vers.
+   263	    """
+   264	    if sys.platform == "win32":
+   265	        # e.g. "Windows 11 (build 26200)". platform.version() -> "10.0.26200",
+   266	        # so the last dotted component is the build number.
+   267	        rel = platform.release()
+   268	        build = platform.version().split(".")[-1] if platform.version() else ""
+   269	        return f"Windows {rel} (build {build})" if build else f"Windows {rel}"
+   270	    if sys.platform == "darwin":
+   271	        name = _run(["sw_vers", "-productName"]) or "macOS"
+   272	        ver = _run(["sw_vers", "-productVersion"]) or ""
+   273	        return (name + " " + ver).strip()
+   274	    try:
+   275	        text = Path("/etc/os-release").read_text(encoding="utf-8")
+   276	    except (OSError, UnicodeDecodeError):
+   277	        return "linux"
+   278	    for line in text.splitlines():
+   279	        if line.startswith("PRETTY_NAME="):
+   280	            value = line.split("=", 1)[1].strip().strip('"').strip("'")
+   281	            if value:
+   282	                return value
+   283	    return "linux"
+   284	
+   285	
+   286	class HubClient:
+   287	    def __init__(
+   288	        self,
+   289	        hub_url: str,
+   290	        identity: Identity,
+   291	        config_path: Path,
+   292	        identity_path: Path | None = None,
+   293	    ) -> None:
+   294	        # Normalize: hub URL might be https://, we need wss://
+   295	        if hub_url.startswith("http://"):
+   296	            self._ws_url = "ws://" + hub_url[7:]
+   297	        elif hub_url.startswith("https://"):
+   298	            self._ws_url = "wss://" + hub_url[8:]
+   299	        else:
+   300	            self._ws_url = hub_url
+   301	
+   302	        # Kept as-is for the HTTP rotate endpoint (which is http(s), not ws).
+   303	        self._hub_url = hub_url
+   304	        # Where identity.json lives; the rotated credential is written in a
+   305	        # writable dir near it. None disables rotation (nowhere to persist).
+   306	        self._identity_path = identity_path
+   307	
+   308	        self._identity = identity
+   309	        self._executor = Executor(config_path=config_path)
+   310	        self._stop = asyncio.Event()
+   311	        self._session_established = False
+   312	        self._background_tasks: set[asyncio.Task[Any]] = set()
+   313	
+   314	    async def run(self) -> None:
+   315	        """Main loop: connect, handle messages, reconnect on failure."""
+   316	        attempt = 0
+   317	        retry_hint: float | None = None
+   318	        while not self._stop.is_set():
+   319	            if retry_hint is not None:
+   320	                wait = retry_hint
+   321	                logger.info("reconnecting in %.0fs (hub asked us to wait)", wait)
+   322	                retry_hint = None
+   323	            else:
+   324	                wait = apply_jitter(
+   325	                    BACKOFF_SCHEDULE[min(attempt, len(BACKOFF_SCHEDULE) - 1)]
+   326	                )
+   327	                if wait > 0:
+   328	                    logger.info(
+   329	                        "reconnecting in %.1fs (attempt %d)", wait, attempt
+   330	                    )
+   331	            if wait > 0:
+   332	                try:
+   333	                    await asyncio.wait_for(self._stop.wait(), timeout=wait)
+   334	                    return  # stop signalled during wait
+   335	                except asyncio.TimeoutError:
+   336	                    pass
+   337	
+   338	            self._session_established = False
+   339	            try:
+   340	                await self._connect_and_serve()
+   341	                attempt = 0  # reset on clean disconnect
+   342	            except FatalProtocolError as exc:
+   343	                logger.error("fatal protocol error, not reconnecting: %s", exc)
+   344	                return
+   345	            except EnrollmentRejected as exc:
+   346	                _log_enrollment_rejected(str(exc))
+   347	                attempt += 1
+   348	            except ConnectionClosed as exc:
+   349	                # 1012 = "service restart": the hub told us it is coming
+   350	                # right back (e.g. a deploy). That is not a network failure,
+   351	                # so don't grow the backoff — reset it and reconnect promptly.
+   352	                # Otherwise a hub restart could leave an agent that already
+   353	                # had a high attempt count waiting up to the top of the curve.
+   354	                if exc.code == 1012:
+   355	                    retry_hint = parse_retry_after(_close_reason(exc))
+   356	                    logger.info(
+   357	                        "hub restarting (1012); reconnecting %s",
+   358	                        f"in {retry_hint:.0f}s as asked"
+   359	                        if retry_hint is not None
+   360	                        else "promptly",
+   361	                    )
+   362	                    attempt = 0
+   363	                elif exc.code == 1008:
+   364	                    # Policy rejection. The hub closes right after sending the
+   365	                    # error frame, so whether we get to read that frame is a
+   366	                    # race; losing it used to surface here as a plain
+   367	                    # "connection closed" and retry in silence. Same cause,
+   368	                    # same message, either way.
+   369	                    _log_enrollment_rejected(
+   370	                        _close_reason(exc) or "policy violation"
+   371	                    )
+   372	                    attempt += 1
+   373	                else:
+   374	                    logger.warning("connection closed (%s): %s", exc.code, exc)
+   375	                    retry_hint = parse_retry_after(_close_reason(exc))
+   376	                    attempt = 1 if self._session_established else attempt + 1
+   377	            except Exception as exc:  # noqa: BLE001
+   378	                logger.warning("connection failed: %s", exc)
+   379	                attempt = 1 if self._session_established else attempt + 1
+   380	
+   381	    async def _connect_and_serve(self) -> None:
+   382	        url = f"{self._ws_url}/agent/connect"
+   383	        logger.info("connecting to %s", self._ws_url)
+   384	
+   385	        # Carry the enrollment token in the Authorization header, not the query
+   386	        # string, so the request URL stays short. Long query strings are
+   387	        # rejected by some edges/proxies with HTTP 400 (issue #34). websockets
+   388	        # renamed extra_headers -> additional_headers in 14.0.
+   389	        hdr_kw = (
+   390	            "additional_headers"
+   391	            if int(websockets.__version__.split(".")[0]) >= 14
+   392	            else "extra_headers"
+   393	        )
+   394	        auth_headers = {"Authorization": f"Bearer {self._identity.token}"}
+   395	
+   396	        async with websockets.connect(
+   397	            url,
+   398	            **{hdr_kw: auth_headers},
+   399	            ping_interval=30,
+   400	            ping_timeout=60,
+   401	            max_size=MAX_BINARY_FRAME_BYTES,
+   402	            # Passed through to loop.create_connection: when the hub name has
+   403	            # several addresses (mcp-direct has two relays since 2026-10-23) and
+   404	            # the first doesn't answer, e.g. filtered in this agent's network,
+   405	            # race the next one after a short delay instead of spending the
+   406	            # whole open_timeout on the first and never trying the second.
+   407	            happy_eyeballs_delay=HAPPY_EYEBALLS_DELAY,
+   408	            interleave=1,
+   409	        ) as ws:
+   410	            # 1. Send hello
+   411	            hello = HelloMessage(
+   412	                protocol_version=PROTOCOL_VERSION,
+   413	                agent_version=AGENT_VERSION,
+   414	                agent_name="sentinelx-core",
+   415	                host=HostInfo(
+   416	                    id=self._identity.host_id,
+   417	                    hostname=socket.gethostname(),
+   418	                    os=_detect_os(),
+   419	                    kernel=platform.release(),
+   420	                    arch=platform.machine(),
+   421	                    config_summary=ConfigSummary(**self._executor.config_summary()),
+   422	                    **_gather_machine_info(),
+   423	                ),
+   424	                capabilities=self._executor.capability_names(),
+   425	                preferred_profile=self._executor.preferred_profile(),
+   426	            )
+   427	            await ws.send(hello.model_dump_json())
+   428	
+   429	            # 2. Wait for welcome (or fatal error)
+   430	            raw = await asyncio.wait_for(ws.recv(), timeout=10.0)
+   431	            welcome = parse_message(json.loads(raw))
+   432	            if welcome.type == "error":  # type: ignore[union-attr]
+   433	                code = welcome.code  # type: ignore[union-attr]
+   434	                message = welcome.message  # type: ignore[union-attr]
+   435	                if code == "enrollment_rejected":
+   436	                    raise EnrollmentRejected(message)
+   437	                raise FatalProtocolError(f"hub rejected: {code}: {message}")
+   438	            if welcome.type != "welcome":  # type: ignore[union-attr]
+   439	                raise RuntimeError(f"expected welcome, got {welcome.type}")  # type: ignore[union-attr]
+   440	
+   441	            # A valid welcome starts a new retry history. If this session later
+   442	            # fails, the exception handler advances from zero to the first retry.
+   443	            self._session_established = True
+   444	            logger.info("connected; session=%s", welcome.session_id)  # type: ignore[union-attr]
+   445	
+   446	            # Rotate the credential if it is past its half-life. AFTER a
+   447	            # proven-good session, so a rotation only ever follows a credential
+   448	            # that just worked. Best-effort: any failure is logged and the
+   449	            # agent keeps its current, still-valid credential.
+   450	            await self._maybe_rotate_credential()
+   451	
+   452	            # 3. Deliver results whose own connection did not survive them.
+   453	            # Before the read loop, so an operator waiting on an answer from
+   454	            # before the interruption gets it as soon as we are back.
+   455	            self._result_state()["current_ws"] = ws
+   456	            await self._replay_pending_results(ws)
+   457	
+   458	            # 4. Concurrent loops: read messages, send heartbeat
+   459	            read_task = asyncio.create_task(self._read_loop(ws))
+   460	            heartbeat_task = asyncio.create_task(self._heartbeat_loop(ws))
+   461	            try:
+   462	                done, pending = await asyncio.wait(
+   463	                    [read_task, heartbeat_task],
+   464	                    return_when=asyncio.FIRST_COMPLETED,
+   465	                )
+   466	                for task in pending:
+   467	                    task.cancel()
+   468	                # surface the first exception
+   469	                for task in done:
+   470	                    if exc := task.exception():
+   471	                        raise exc
+   472	            finally:
+   473	                for task in (read_task, heartbeat_task):
+   474	                    if not task.done():
+   475	                        task.cancel()
+   476	                # Always await both connection-loop tasks so a simultaneous
+   477	                # transport failure cannot leave an exception un-retrieved.
+   478	                await asyncio.gather(read_task, heartbeat_task, return_exceptions=True)
+   479	                state = self._result_state()
+   480	                if state["current_ws"] is ws:
+   481	                    state["current_ws"] = None
+   482	
+   483	    async def _read_loop(self, ws: websockets.WebSocketClientProtocol) -> None:
+   484	        async for raw in ws:
+   485	            # Binary transfer frames (this host is the DESTINATION receiving
+   486	            # chunks from the Hub) are raw bytes carrying the mini-framing
+   487	            # header; everything else is JSON control. See sentinelx_protocol.binary.
+   488	            if is_binary_transfer_frame(raw):
+   489	                self._spawn_background_task(self._handle_binary_frame(ws, raw))
+   490	                continue
+   491	            try:
+   492	                data = json.loads(raw) if isinstance(raw, str) else json.loads(raw.decode())
+   493	                msg = parse_message(data)
+   494	            except Exception as exc:  # noqa: BLE001
+   495	                logger.warning("failed to parse incoming message: %s", exc)
+   496	                continue
+   497	
+   498	            if msg.type == "request":  # type: ignore[union-attr]
+   499	                # Handle in background so a slow op doesn't block the read loop
+   500	                self._spawn_background_task(self._handle_request(ws, msg))
+   501	            elif msg.type == "ping":  # type: ignore[union-attr]
+   502	                await ws.send(
+   503	                    PongMessage(timestamp=datetime.now(timezone.utc)).model_dump_json()
+   504	                )
+   505	            elif msg.type == "error":  # type: ignore[union-attr]
+   506	                raise FatalProtocolError(
+   507	                    f"{msg.code}: {msg.message}"  # type: ignore[union-attr]
+   508	                )
+   509	            elif msg.type == "pong":  # type: ignore[union-attr]
+   510	                pass  # heartbeat ack
+   511	            else:
+   512	                logger.warning("unexpected message type: %s", msg.type)  # type: ignore[union-attr]
+   513	
+   514	    async def _maybe_rotate_credential(self) -> None:
+   515	        """Rotate past the credential's half-life; never disturb the session."""
+   516	        import asyncio as _asyncio
+   517	
+   518	        # getattr, not self._identity_path: some construction paths (tests using
+   519	        # object.__new__) skip __init__, and rotation must simply no-op then
+   520	        # rather than raise into the connect path.
+   521	        if getattr(self, "_identity_path", None) is None:
+   522	            return
+   523	        try:
+   524	            from sentinelx_core import rotation
+   525	
+   526	            if not rotation.should_rotate(self._identity.token):
+   527	                return
+   528	            new_token = await _asyncio.to_thread(
+   529	                self._rotate_over_http, self._hub_url, self._identity.token
+   530	            )
+   531	            if not new_token:
+   532	                return
+   533	            ok = await _asyncio.to_thread(
+   534	                rotation.persist_rotated,
+   535	                self._identity_path,
+   536	                self._identity.host_id,
+   537	                new_token,
+   538	                self._identity.hub,
+   539	            )
+   540	            if ok:
+   541	                logger.info("credential rotated; effective next reconnect")
+   542	        except Exception as exc:  # noqa: BLE001
+   543	            logger.warning("credential rotation skipped: %s", exc)
+   544	
+   545	    @staticmethod
+   546	    def _rotate_over_http(hub_url: str, token: str) -> "str | None":
+   547	        """POST /agent/rotate with urllib (the agent has no HTTP dependency).
+   548	        Returns the new credential, or None on any failure."""
+   549	        import json as _json
+   550	        import urllib.error
+   551	        import urllib.request
+   552	
+   553	        url = f"{hub_url.rstrip('/')}/agent/rotate"
+   554	        req = urllib.request.Request(
+   555	            url, data=b"", method="POST",
+   556	            headers={"Authorization": f"Bearer {token}"},
+   557	        )
+   558	        try:
+   559	            with urllib.request.urlopen(req, timeout=30) as resp:
+   560	                body = _json.loads(resp.read().decode("utf-8") or "{}")
+   561	        except (urllib.error.URLError, OSError, ValueError) as exc:
+   562	            logger.warning("rotate request failed: %s", exc)
+   563	            return None
+   564	        cred = body.get("credential") if isinstance(body, dict) else None
+   565	        if isinstance(cred, str) and cred.count(".") == 2:
+   566	            return cred
+   567	        return None
+   568	
+   569	    async def _replay_pending_results(
+   570	        self, ws: websockets.WebSocketClientProtocol
+   571	    ) -> None:
+   572	        """Re-send job results recorded while no connection could carry them.
+   573	
+   574	        Safe to repeat: the hub matches a completion by job id and owning user,
+   575	        not by session, and applying the same one twice leaves the same record.
+   576	        A result for a job the hub has already forgotten is discarded there,
+   577	        which is why these expire locally too.
+   578	
+   579	        Never raises. A replay failure must not stop a session from starting --
+   580	        the results stay on disk for the next one.
+   581	
+   582	        Runs after welcome, on every heartbeat, and right after a job fails to
+   583	        send on its own (dead) socket. One replay at a time, and it skips a
+   584	        result whose job is sending it right now, so nothing goes out twice.
+   585	        """
+   586	        state = self._result_state()
+   587	        async with state["replay_lock"]:
+   588	            try:
+   589	                waiting = [
+   590	                    (path, event)
+   591	                    for path, event in pending_results.drain(self._executor.upload_base)
+   592	                    if _held_job_id(event) not in state["sending"]
+   593	                ]
+   594	            except Exception:  # noqa: BLE001
+   595	                logger.exception("could not read pending results")
+   596	                return
+   597	            if not waiting:
+   598	                return
+   599	            logger.info("replaying %d held result(s)", len(waiting))
+   600	            for path, event in waiting:
+   601	                try:
+   602	                    await ws.send(json.dumps(event, default=str))
+   603	                except Exception:  # noqa: BLE001
+   604	                    logger.warning("replay failed for %s; keeping it", path.name)
+   605	                    return  # the socket is gone again; stop and keep the rest
+   606	                pending_results.clear(path)
+   607	
+   608	    def _result_state(self) -> dict:
+   609	        """Per-client state for result delivery, created on first use.
+   610	
+   611	        Lazily, not in __init__: tests and other callers build the client with
+   612	        HubClient.__new__. Holds the live connection (None between sessions),
+   613	        the replay lock, and the job ids whose own send is in flight.
+   614	        """
+   615	        state = self.__dict__.get("_results_state")
+   616	        if state is None:
+   617	            state = {"current_ws": None, "replay_lock": asyncio.Lock(), "sending": set()}
+   618	            self.__dict__["_results_state"] = state
+   619	        return state
+   620	
+   621	    async def _start_background_job(
+   622	        self,
+   623	        ws: websockets.WebSocketClientProtocol,
+   624	        request: Any,  # RequestMessage
+   625	    ) -> None:
+   626	        """Ack a background op as "running" at once, then run it detached and
+   627	        emit a job_completed event when it finishes. The immediate ack is a
+   628	        normal response on the request id, so the hub's pending future for the
+   629	        call resolves right away instead of blocking on the real result."""
+   630	        job_id = request.payload.get("job_id") or f"job_{uuid4().hex[:12]}"
+   631	        started_at = datetime.now(timezone.utc)
+   632	        ack = {
+   633	            "type": "response",
+   634	            "id": request.id,
+   635	            "ok": True,
+   636	            "result": {
+   637	                "status": "running",
+   638	                "job_id": job_id,
+   639	                "tool": request.op,
+   640	                "host": self._identity.host_id,
+   641	            },
+   642	        }
+   643	        await ws.send(json.dumps(ack, default=str))
+   644	        self._spawn_background_task(
+   645	            self._run_job_and_report(ws, request, job_id, started_at)
+   646	        )
+   647	
+   648	    async def _run_job_and_report(
+   649	        self,
+   650	        ws: websockets.WebSocketClientProtocol,
+   651	        request: Any,  # RequestMessage
+   652	        job_id: str,
+   653	        started_at: datetime,
+   654	    ) -> None:
+   655	        """Run the op to completion and emit its job_completed event. Never
+   656	        raises into the caller: a failed op is a completed job with
+   657	        status=failed, and even an emit failure is only logged (the hub's
+   658	        §3d reaper covers a job whose event never arrives)."""
+   659	        try:
+   660	            response = await self._executor.dispatch(request)
+   661	        except Exception as exc:  # noqa: BLE001
+   662	            logger.exception("background job crashed on %s", request.op)
+   663	            response = {
+   664	                "ok": False,
+   665	                "error": {"code": "internal_error", "message": str(exc)},
+   666	            }
+   667	        # A job_completed event rides the same WS frame limit as a
+   668	        # synchronous response, so bound its result too (issue #24, repro C).
+   669	        if isinstance(response, dict):
+   670	            response, _ = bound_response(response)
+   671	        data = build_completed_event_data(
+   672	            job_id=job_id,
+   673	            op=request.op,
+   674	            host=self._identity.host_id,
+   675	            dispatch_response=response,
+   676	            started_at=started_at,
+   677	            finished_at=datetime.now(timezone.utc),
+   678	        )
+   679	        event = EventMessage(
+   680	            kind="job_completed",
+   681	            data=data,
+   682	            timestamp=datetime.now(timezone.utc),
+   683	        )
+   684	
+   685	        # Write the answer down BEFORE trying to send it. This send goes over
+   686	        # the socket the request arrived on, and if that socket has gone the
+   687	        # result is lost -- the work done, the answer built, and nobody
+   688	        # listening. Recorded here, it is replayed on the next connection.
+   689	        pending_path = None
+   690	        try:
+   691	            pending_path = pending_results.record(
+   692	                self._executor.upload_base, job_id, json.loads(event.model_dump_json())
+   693	            )
+   694	        except Exception:  # noqa: BLE001
+   695	            logger.exception("could not record pending result for %s", job_id)
+   696	
+   697	        state = self._result_state()
+   698	        state["sending"].add(job_id)
+   699	        try:
+   700	            await ws.send(event.model_dump_json())
+   701	        except Exception:  # noqa: BLE001
+   702	            logger.exception("failed to emit job_completed for %s", job_id)
+   703	            state["sending"].discard(job_id)
+   704	            # It's on disk. If a newer connection is already up, its opening
+   705	            # replay may have run before this job finished: deliver it there now
+   706	            # instead of waiting for a heartbeat (issue #38, FalconZip).
+   707	            current = state["current_ws"]
+   708	            if current is not None and current is not ws:
+   709	                await self._replay_pending_results(current)
+   710	            return
+   711	        state["sending"].discard(job_id)
+   712	        pending_results.clear(pending_path)
+   713	
+   714	    async def _handle_request(
+   715	        self,
+   716	        ws: websockets.WebSocketClientProtocol,
+   717	        request: Any,  # RequestMessage
+   718	    ) -> None:
+   719	        # Background ops (spec §3): ack "running" now, run detached, and report
+   720	        # completion as a job_completed event. notify_* implies background; the
+   721	        # hub sets payload["background"] and payload["job_id"].
+   722	        if request.payload.get("background"):
+   723	            await self._start_background_job(ws, request)
+   724	            return
+   725	
+   726	        # When this request reached us, before anything else happens to it. The
+   727	        # hub already knows when it dispatched and when the answer came back,
+   728	        # but end to end is all it can measure, so "this took 57 seconds" has
+   729	        # never been answerable: transit, queueing here, and the work itself
+   730	        # were one number. An operator reported exactly that -- seconds-long
+   731	        # calls whose host-side work was milliseconds -- and we could only
+   732	        # reason from distributions. These two stamps split the number.
+   733	        received_at = time.time()
+   734	        try:
+   735	            response = await self._executor.dispatch(request)
+   736	        except Exception as exc:  # noqa: BLE001
+   737	            logger.exception("executor crashed on %s", request.op)
+   738	            response = {
+   739	                "type": "response",
+   740	                "id": request.id,
+   741	                "ok": False,
+   742	                "error": {"code": "internal_error", "message": str(exc)},
+   743	            }
+   744	        # Cross-host transfer: a successful file_export_chunk carries its bytes
+   745	        # under "__binary_payload__" — emit them as a raw binary frame instead of
+   746	        # a JSON response (the Hub coordinator awaits the binary frame, not a
+   747	        # response; a chunk-level failure still comes back as a JSON error).
+   748	        # Carried inside `result`, which is a free-form dict, rather than as a
+   749	        # new top-level field: ResponseMessage is extra="forbid", so a field the
+   750	        # hub's pinned protocol does not know would make it reject the whole
+   751	        # message. That exact shape of mismatch cost us an outage once already.
+   752	        # The hub records these and strips the key before the caller sees it.
+   753	        result = response.get("result") if isinstance(response, dict) else None
+   754	        if isinstance(result, dict) and "__binary_payload__" not in result:
+   755	            result["_sx_timing"] = {
+   756	                "received_at": received_at,
+   757	                "finished_at": time.time(),
+   758	            }
+   759	
+   760	        if response.get("ok") and isinstance(result, dict) and "__binary_payload__" in result:
+   761	            payload = result.pop("__binary_payload__")  # bytes leave the JSON path
+   762	            try:
+   763	                frame = encode_binary_frame(
+   764	                    bytes.fromhex(result["transfer_id"]),
+   765	                    int(result["chunk_index"]),
+   766	                    payload,
+   767	                )
+   768	                await ws.send(frame)
+   769	            except Exception as exc:  # noqa: BLE001
+   770	                logger.exception("failed to emit binary transfer chunk")
+   771	                await ws.send(json.dumps({
+   772	                    "type": "response", "id": request.id, "ok": False,
+   773	                    "error": {"code": "binary_emit_error", "message": str(exc)},
+   774	                }))
+   775	                return
+   776	            # Binary chunk sent; fall through to ALSO send the JSON ack response
+   777	            # (result no longer holds the bytes) so the Hub correlates the chunk
+   778	            # via normal request/response and reads bytes/eof. The binary frame
+   779	            # is sent first, so by the time this ack arrives at the Hub the chunk
+   780	            # is already queued there.
+   781	        # Bound an oversized response before it hits the frame limit (issue
+   782	        # #24, repro C): truncate the largest field(s) + attach truncation
+   783	        # metadata so an executed op is never lost to a 1009 "message too big".
+   784	        if isinstance(response, dict):
+   785	            response, _ = bound_response(response)
+   786	        await ws.send(json.dumps(response, default=str))
+   787	
+   788	    async def _handle_binary_frame(
+   789	        self, ws: websockets.WebSocketClientProtocol, raw: bytes
+   790	    ) -> None:
+   791	        """DESTINATION side: a raw binary chunk arrived from the Hub. Write it to
+   792	        the upload staging dir and ack it (JSON event) so the Hub's backpressure
+   793	        can release the next chunk."""
+   794	        try:
+   795	            frame = decode_binary_frame(bytes(raw))
+   796	        except Exception as exc:  # noqa: BLE001
+   797	            logger.warning("bad binary transfer frame: %s", exc)
+   798	            return
+   799	        upload_id = frame.transfer_id.hex()
+   800	        data = {"transfer_id": upload_id, "chunk_index": frame.chunk_index}
+   801	        try:
+   802	            written = await self._executor.ingest_transfer_chunk(
+   803	                upload_id, frame.chunk_index, frame.payload
+   804	            )
+   805	            data.update(ok=True, bytes=written)
+   806	        except Exception as exc:  # noqa: BLE001
+   807	            code = getattr(exc, "code", "ingest_error")
+   808	            data.update(ok=False, error=f"{code}: {exc}")
+   809	        try:
+   810	            await ws.send(EventMessage(
+   811	                kind="transfer_chunk_ack", data=data,
+   812	                timestamp=datetime.now(timezone.utc),
+   813	            ).model_dump_json())
+   814	        except Exception:  # noqa: BLE001
+   815	            pass
+   816	
+   817	    def _spawn_background_task(self, awaitable: Any) -> asyncio.Task[Any]:
+   818	        """Retain fire-and-forget work and deterministically consume failures.
+   819	
+   820	        Foreground request execution is deliberately not cancelled when a
+   821	        connection closes: the operation may already have crossed a mutation
+   822	        boundary and existing request replay/idempotency remains authoritative.
+   823	        The task is retained until completion so Python never reports an orphaned
+   824	        exception if response delivery later fails on the old WebSocket.
+   825	        """
+   826	        task = asyncio.create_task(awaitable)
+   827	        self._background_tasks.add(task)
+   828	        task.add_done_callback(self._background_task_done)
+   829	        return task
+   830	
+   831	    def _background_task_done(self, task: asyncio.Task[Any]) -> None:
+   832	        self._background_tasks.discard(task)
+   833	        if task.cancelled():
+   834	            return
+   835	        try:
+   836	            exc = task.exception()
+   837	        except asyncio.CancelledError:
+   838	            return
+   839	        if exc is None:
+   840	            return
+   841	        if isinstance(exc, ConnectionClosed):
+   842	            logger.debug("background task ended after WebSocket close: %s", exc)
+   843	        else:
+   844	            logger.error(
+   845	                "background client task failed",
+   846	                exc_info=(type(exc), exc, exc.__traceback__),
+   847	            )
+   848	
+   849	    async def _heartbeat_loop(self, ws: websockets.WebSocketClientProtocol) -> None:
+   850	        from sentinelx_protocol import PingMessage
+   851	
+   852	        while True:
+   853	            await asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS)
+   854	            ping = PingMessage(timestamp=datetime.now(timezone.utc))
+   855	            await ws.send(ping.model_dump_json())
+   856	            # A result can land on disk after this connection's opening replay
+   857	            # (its job finished on the socket it started on, which had died), and
+   858	            # nothing else would look until the next disconnect. Never raises.
+   859	            await self._replay_pending_results(ws)
+   860	
+   861	
+   862	def _held_job_id(event: dict) -> str | None:
+   863	    """The job id of a held job_completed event: it lives under ``data``."""
+   864	    data = event.get("data")
+   865	    return (data or {}).get("job_id") if isinstance(data, dict) else event.get("job_id")
+   866	
+   867	
+   868	def _close_reason(exc: ConnectionClosed) -> str:
+   869	    """Close reason across websockets versions.
+   870	
+   871	    ``ConnectionClosed.reason`` is deprecated since 13.1 in favour of
+   872	    ``.rcvd.reason``, but ``.rcvd`` does not exist on older releases the agent
+   873	    still runs on, so prefer the new accessor and fall back.
+   874	    """
+   875	    rcvd = getattr(exc, "rcvd", None)
+   876	    if rcvd is not None and getattr(rcvd, "reason", None):
+   877	        return str(rcvd.reason)
+   878	    try:
+   879	        return str(exc.reason or "")
+   880	    except Exception:  # noqa: BLE001
+   881	        return ""
+   882	
+   883	
+   884	def parse_retry_after(reason: str | None) -> float | None:
+   885	    """Read a ``retry_after=<seconds>`` hint out of a close reason.
+   886	
+   887	    The hub appends it to the reason string (``hub_shutdown;retry_after=37``)
+   888	    so that a fleet-wide reconnect can be spread deliberately instead of every
+   889	    agent picking the same delay. Returns None when absent or unusable: a
+   890	    malformed hint must fall back to the local schedule rather than break
+   891	    reconnection.
+   892	    """
+   893	    if not reason:
+   894	        return None
+   895	    for part in str(reason).replace(",", ";").split(";"):
+   896	        key, _, value = part.strip().partition("=")
+   897	        if key.strip() != "retry_after":
+   898	            continue
+   899	        try:
+   900	            seconds = float(value.strip())
+   901	        except (TypeError, ValueError):
+   902	            return None
+   903	        if seconds != seconds or seconds in (float("inf"), float("-inf")):
+   904	            return None  # NaN / infinity
+   905	        return max(0.0, min(seconds, MAX_RETRY_AFTER_SECONDS))
+   906	    return None
+   907	
+   908	
+   909	def apply_jitter(wait: float) -> float:
+   910	    """Spread a delay over its own window so agents stop retrying in lockstep.
+   911	
+   912	    Every agent sees the same hub restart at the same instant and, without
+   913	    this, waits exactly the same time and comes back in one spike -- roughly
+   914	    1700 of them, precisely while the hub is starting up. Full jitter over the
+   915	    interval turns that into a steady trickle. Zero stays zero: the first
+   916	    attempt after a clean disconnect should still be immediate.
+   917	    """
+   918	    if wait <= 0:
+   919	        return 0.0
+   920	    return random.uniform(0.0, wait)
+   921	
+   922	
+   923	def _log_enrollment_rejected(detail: str) -> None:
+   924	    """One place for the message, so the frame and close paths never diverge."""
+   925	    logger.error(
+   926	        "ENROLLMENT REJECTED by the hub (%s). This host will keep retrying but "
+   927	        "cannot connect until it is fixed. Either the enrollment token in "
+   928	        "identity.json is not the one the hub issued (it can be altered when "
+   929	        "copied -- re-run enrollment from the dashboard to get a fresh one), or "
+   930	        "the owner disabled this host in the dashboard (re-enable it and this "
+   931	        "agent reconnects on its own within a few minutes).",
+   932	        detail,
+   933	    )
+   934	
+   935	
+   936	class FatalProtocolError(Exception):
+   937	    """Hub sent a fatal error. Don't reconnect."""
+   938	
+   939	
+   940	class EnrollmentRejected(Exception):
+   941	    """The hub refused our enrollment token, or this host is disabled.
+   942	
+   943	    Deliberately NOT a FatalProtocolError: retrying is the point. The two
+   944	    causes both clear from the other side without touching this machine -- an
+   945	    owner re-enables a disabled host, or a hub-side problem is fixed -- and an
+   946	    agent that gave up would then need a manual restart on every host. So we
+   947	    keep the normal retry cadence and instead make each attempt say plainly
+   948	    what is wrong and what fixes it, because the previous behaviour was to log
+   949	    it as an ordinary network failure and retry in silence.
+   950	    """

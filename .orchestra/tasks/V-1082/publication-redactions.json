@@ -1,0 +1,49 @@
+{
+  "note": "Publication-only runtime-path derivatives; verbatim originals preserved privately. Product source and images unchanged.",
+  "files": [
+    {
+      "path": ".orchestra/tasks/V-1082/artifact-check.stdout",
+      "raw_private": "/home/kesha/orchestra/.orchestra/private/V-1082/raw-worker/artifact-check.stdout",
+      "before_sha256": "66949da2262d4d28af0b33aa5a089beeecf46f5d04d8a1f12c8dd31cdb297ca8",
+      "after_sha256": "632c242d2c6036687e14198874641c83a641ee7c97ddc1d8dcceb647aa84d5c5",
+      "newlines_before": 5,
+      "newlines_after": 5,
+      "rules": [
+        "forbidden-string line 2 of forbidden-strings.txt"
+      ]
+    },
+    {
+      "path": ".orchestra/tasks/V-1082/preview.stdout",
+      "raw_private": "/home/kesha/orchestra/.orchestra/private/V-1082/raw-worker/preview.stdout",
+      "before_sha256": "918644f21e9bcf9d8d376b080b5dd3e3c38587087c17748ef99404544f202ff5",
+      "after_sha256": "5559b1c46e1a88b97859a52d6427b2681dbf9be6c62433dbf040561984aae067",
+      "newlines_before": 5,
+      "newlines_after": 5,
+      "rules": [
+        "forbidden-string line 2 of forbidden-strings.txt"
+      ]
+    },
+    {
+      "path": ".orchestra/tasks/V-1082/report.md",
+      "raw_private": "/home/kesha/orchestra/.orchestra/private/V-1082/raw-worker/report.md",
+      "before_sha256": "84ca5b053ec892ac45d94a484fedee772d2ac0d8839ba69a859e1a8d788b63af",
+      "after_sha256": "1c9cae6a5c7e487551bcf672857ec2cd3532aca53750cb6f0b0cfc1d0c4a5812",
+      "newlines_before": 53,
+      "newlines_after": 53,
+      "rules": [
+        "forbidden-string line 2 of forbidden-strings.txt"
+      ]
+    },
+    {
+      "path": ".orchestra/tasks/V-1082/setup.stdout",
+      "raw_private": "/home/kesha/orchestra/.orchestra/private/V-1082/raw-worker/setup.stdout",
+      "before_sha256": "ed189adfe857124a3e53828cf783bf63a0485572e6a493cf1a813ef1336dfcdf",
+      "after_sha256": "44d3ea9bfaeb376bc5e9550eecdf15949dfbc7dea10461b5c51455bdd69c2624",
+      "newlines_before": 4,
+      "newlines_after": 4,
+      "rules": [
+        "forbidden-string line 2 of forbidden-strings.txt"
+      ]
+    }
+  ]
+}

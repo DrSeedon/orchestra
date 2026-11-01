@@ -1,0 +1,227 @@
+Using CPython 3.12.3 interpreter (provisioned uv; default .venv)
+Creating virtual environment at: .venv
+Installed 76 packages in 55ms
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+________ test_unmerged_ready_commit_continues_on_diverged_branch[False] ________
+
+started = namespace(repo=PosixPath('task-copy/.orchest...utput_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0), branch='task-42/followup')
+reconnect = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('reconnect', [False, True])
+    async def test_unmerged_ready_commit_continues_on_diverged_branch(started, reconnect):
+        env = started
+        ready = git(env.root, 'rev-parse', 'HEAD').strip()
+        assert git(env.root, 'rev-list', '--count', 'main..HEAD').strip() == '1'
+        assert git(env.root, 'status', '--porcelain') == ''
+        assert not (env.repo / 'task/output.txt').exists(), 'worker output is still unmerged'
+        files = add_inputs(env, 1)
+        # Even conflicting base content must not force reconciliation for a follow-up.
+        (env.repo / 'task/seed.txt').write_text('independent main edit\n')
+        git(env.repo, 'add', '.')
+        git(env.repo, 'commit', '-qm', 'main advanced independently')
+        before = local_snapshot(env.root)
+        state = env.state
+        provenance = dict(state.input_manifest)
+        baseline = dict(state.manifest)
+        if reconnect:
+            env.backend._resume = state.ws_id
+            env.backend._state = None
+            await env.backend.connect()
+    
+        def add_changelog(remote):
+            assert local_snapshot(env.root) == before, 'optional refresh must preserve the task branch'
+            env.observed.append({str(p.relative_to(remote)): p.read_bytes()
+                                 for p in remote.rglob('*') if p.is_file()})
+            (remote / 'task/CHANGELOG.md').write_text('Document completed worker output.\n')
+    
+        env.mc.hub_edit = add_changelog
+        events = await _turn(env.backend, 'add CHANGELOG before acceptance')
+>       assert not [event.content for event in events if event.type == 'error']
+E       AssertionError: assert not ['Hub worker turn failed: hub source refresh: cannot fast-forward task-42/followup to main; reconcile committed work explicitly before retrying; nothing uploaded']
+
+tests/test_hub_followup_v1125.py:171: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+________ test_unmerged_ready_commit_continues_on_diverged_branch[True] _________
+
+started = namespace(repo=PosixPath('task-copy/.orchest...utput_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0), branch='task-42/followup')
+reconnect = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('reconnect', [False, True])
+    async def test_unmerged_ready_commit_continues_on_diverged_branch(started, reconnect):
+        env = started
+        ready = git(env.root, 'rev-parse', 'HEAD').strip()
+        assert git(env.root, 'rev-list', '--count', 'main..HEAD').strip() == '1'
+        assert git(env.root, 'status', '--porcelain') == ''
+        assert not (env.repo / 'task/output.txt').exists(), 'worker output is still unmerged'
+        files = add_inputs(env, 1)
+        # Even conflicting base content must not force reconciliation for a follow-up.
+        (env.repo / 'task/seed.txt').write_text('independent main edit\n')
+        git(env.repo, 'add', '.')
+        git(env.repo, 'commit', '-qm', 'main advanced independently')
+        before = local_snapshot(env.root)
+        state = env.state
+        provenance = dict(state.input_manifest)
+        baseline = dict(state.manifest)
+        if reconnect:
+            env.backend._resume = state.ws_id
+            env.backend._state = None
+            await env.backend.connect()
+    
+        def add_changelog(remote):
+            assert local_snapshot(env.root) == before, 'optional refresh must preserve the task branch'
+            env.observed.append({str(p.relative_to(remote)): p.read_bytes()
+                                 for p in remote.rglob('*') if p.is_file()})
+            (remote / 'task/CHANGELOG.md').write_text('Document completed worker output.\n')
+    
+        env.mc.hub_edit = add_changelog
+        events = await _turn(env.backend, 'add CHANGELOG before acceptance')
+>       assert not [event.content for event in events if event.type == 'error']
+E       AssertionError: assert not ['Hub worker turn failed: hub source refresh: cannot fast-forward task-42/followup to main; reconcile committed work explicitly before retrying; nothing uploaded']
+
+tests/test_hub_followup_v1125.py:171: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=hub-8dba61a00eca4af9
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=hub-8dba61a00eca4af9
+_____ test_dirty_checkout_skips_optional_ff_and_keeps_local_work[tracked] ______
+
+continued = namespace(repo=PosixPath('task-copy/.orchest...2026-10-29', 'files': 1, 'insertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}})
+kind = 'tracked'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('kind', ['tracked', 'staged', 'untracked', 'rename'])
+    async def test_dirty_checkout_skips_optional_ff_and_keeps_local_work(continued, kind):
+        env = continued
+        files = add_inputs(env, 1)
+        if kind == 'untracked':
+            (env.root / 'task/untracked.txt').write_text('untracked WIP\n')
+        elif kind == 'rename':
+            git(env.root, 'mv', 'task/seed.txt', 'task/renamed.txt')
+        else:
+            (env.root / 'task/seed.txt').write_text('local WIP\n')
+            if kind == 'staged':
+                git(env.root, 'add', 'task/seed.txt')
+                (env.root / 'task/seed.txt').write_text('unstaged WIP over staged WIP\n')
+        before = local_snapshot(env.root)
+        events = await _turn(env.backend, 'continue with existing task data')
+>       assert not [event.content for event in events if event.type == 'error']
+E       assert not ["Hub worker turn failed: hub source refresh: hub source working tree is dirty at 'task-copy/worker' (1 file(s): task/seed.txt) — commit or discard first; nothing uploaded"]
+
+tests/test_hub_followup_v1125.py:210: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-0/test_dirty_checkout_skips_opti0/worktrees/synthetic-scope/followup reset to main (1c3ceecb)
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-0/test_dirty_checkout_skips_opti0/worktrees/synthetic-scope/followup reset to main (1c3ceecb)
+______ test_dirty_checkout_skips_optional_ff_and_keeps_local_work[staged] ______
+
+continued = namespace(repo=PosixPath('task-copy/.orchest...2026-10-29', 'files': 1, 'insertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}})
+kind = 'staged'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('kind', ['tracked', 'staged', 'untracked', 'rename'])
+    async def test_dirty_checkout_skips_optional_ff_and_keeps_local_work(continued, kind):
+        env = continued
+        files = add_inputs(env, 1)
+        if kind == 'untracked':
+            (env.root / 'task/untracked.txt').write_text('untracked WIP\n')
+        elif kind == 'rename':
+            git(env.root, 'mv', 'task/seed.txt', 'task/renamed.txt')
+        else:
+            (env.root / 'task/seed.txt').write_text('local WIP\n')
+            if kind == 'staged':
+                git(env.root, 'add', 'task/seed.txt')
+                (env.root / 'task/seed.txt').write_text('unstaged WIP over staged WIP\n')
+        before = local_snapshot(env.root)
+        events = await _turn(env.backend, 'continue with existing task data')
+>       assert not [event.content for event in events if event.type == 'error']
+E       assert not ["Hub worker turn failed: hub source refresh: hub source working tree is dirty at 'task-copy/worker' (1 file(s): task/seed.txt) — commit or discard first; nothing uploaded"]
+
+tests/test_hub_followup_v1125.py:210: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-0/test_dirty_checkout_skips_opti1/worktrees/synthetic-scope/followup reset to main (71191515)
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-0/test_dirty_checkout_skips_opti1/worktrees/synthetic-scope/followup reset to main (71191515)
+____ test_dirty_checkout_skips_optional_ff_and_keeps_local_work[untracked] _____
+
+continued = namespace(repo=PosixPath('task-copy/.orchest...2026-10-29', 'files': 1, 'insertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}})
+kind = 'untracked'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('kind', ['tracked', 'staged', 'untracked', 'rename'])
+    async def test_dirty_checkout_skips_optional_ff_and_keeps_local_work(continued, kind):
+        env = continued
+        files = add_inputs(env, 1)
+        if kind == 'untracked':
+            (env.root / 'task/untracked.txt').write_text('untracked WIP\n')
+        elif kind == 'rename':
+            git(env.root, 'mv', 'task/seed.txt', 'task/renamed.txt')
+        else:
+            (env.root / 'task/seed.txt').write_text('local WIP\n')
+            if kind == 'staged':
+                git(env.root, 'add', 'task/seed.txt')
+                (env.root / 'task/seed.txt').write_text('unstaged WIP over staged WIP\n')
+        before = local_snapshot(env.root)
+        events = await _turn(env.backend, 'continue with existing task data')
+>       assert not [event.content for event in events if event.type == 'error']
+E       assert not ["Hub worker turn failed: hub source refresh: hub source working tree is dirty at 'task-copy/worker' (1 file(s): task/untracked.txt) — commit or discard first; nothing uploaded"]
+
+tests/test_hub_followup_v1125.py:210: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-0/test_dirty_checkout_skips_opti2/worktrees/synthetic-scope/followup reset to main (58007f27)
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-0/test_dirty_checkout_skips_opti2/worktrees/synthetic-scope/followup reset to main (58007f27)
+______ test_dirty_checkout_skips_optional_ff_and_keeps_local_work[rename] ______
+
+continued = namespace(repo=PosixPath('task-copy/.orchest...2026-10-29', 'files': 1, 'insertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}})
+kind = 'rename'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('kind', ['tracked', 'staged', 'untracked', 'rename'])
+    async def test_dirty_checkout_skips_optional_ff_and_keeps_local_work(continued, kind):
+        env = continued
+        files = add_inputs(env, 1)
+        if kind == 'untracked':
+            (env.root / 'task/untracked.txt').write_text('untracked WIP\n')
+        elif kind == 'rename':
+            git(env.root, 'mv', 'task/seed.txt', 'task/renamed.txt')
+        else:
+            (env.root / 'task/seed.txt').write_text('local WIP\n')
+            if kind == 'staged':
+                git(env.root, 'add', 'task/seed.txt')
+                (env.root / 'task/seed.txt').write_text('unstaged WIP over staged WIP\n')
+        before = local_snapshot(env.root)
+        events = await _turn(env.backend, 'continue with existing task data')
+>       assert not [event.content for event in events if event.type == 'error']
+E       assert not ["Hub worker turn failed: hub source refresh: hub source working tree is dirty at 'task-copy/worker' (2 file(s): task/renamed.txt, task/seed.txt) — commit or discard first; nothing uploaded"]
+
+tests/test_hub_followup_v1125.py:210: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-0/test_dirty_checkout_skips_opti3/worktrees/synthetic-scope/followup reset to main (a0e800fb)
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: task-copy/.orchestra/tasks/V-1129/tmp/pytest-of-test-user/pytest-0/test_dirty_checkout_skips_opti3/worktrees/synthetic-scope/followup reset to main (a0e800fb)
+=========================== short test summary info ============================
+FAILED tests/test_hub_followup_v1125.py::test_unmerged_ready_commit_continues_on_diverged_branch[False]
+FAILED tests/test_hub_followup_v1125.py::test_unmerged_ready_commit_continues_on_diverged_branch[True]
+FAILED tests/test_hub_followup_v1125.py::test_dirty_checkout_skips_optional_ff_and_keeps_local_work[tracked]
+FAILED tests/test_hub_followup_v1125.py::test_dirty_checkout_skips_optional_ff_and_keeps_local_work[staged]
+FAILED tests/test_hub_followup_v1125.py::test_dirty_checkout_skips_optional_ff_and_keeps_local_work[untracked]
+FAILED tests/test_hub_followup_v1125.py::test_dirty_checkout_skips_optional_ff_and_keeps_local_work[rename]
+6 failed, 18 deselected in 24.19s

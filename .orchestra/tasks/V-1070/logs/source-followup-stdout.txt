@@ -1,0 +1,5 @@
+{"file": "openai-vision.md", "url": "https://developers.openai.com/api/docs/guides/images-vision.md", "bytes": 41313, "sha256": "3e9e51de880a3563882ebbea37f06eaa44a315c363039330f838fdf24dab380c"}
+{"file": "claude-vision.md", "url": "https://platform.claude.com/docs/en/build-with-claude/vision.md", "error": "HTTP Error 403: Forbidden"}
+{"file": "claude-coordinates.md", "url": "https://platform.claude.com/docs/en/build-with-claude/vision-coordinates.md", "error": "HTTP Error 403: Forbidden"}
+{"file": "openrouter-understanding.md", "url": "https://openrouter.ai/docs/guides/overview/multimodal/image-understanding.md", "error": "HTTP Error 403: Forbidden"}
+{"file": "public-catalog.json", "url": "https://openrouter.ai/api/v1/models", "bytes": 792466, "sha256": "10619725221f5e1ac1621b15ce1312ca464e6b75b407e0cc22727e2e392792e3"}

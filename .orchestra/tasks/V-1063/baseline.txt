@@ -1,0 +1,379 @@
+Redaction: workspace/HOME prefixes, encoded workspace slug and username replaced by /remote/workspace, /remote/workspaces, /remote/home, remote-workspace and remote-user.
+$ uv run --frozen python -m pytest tests/test_hub_uv.py tests/test_publication_gate_v1047.py -q
+....................FFFFFF............................. [100%]
+=================================== FAILURES ===================================
+____ test_backend_provisions_before_upload_and_rechecks_resumed_turn[False] ____
+
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_provisions_before0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea8a98c0320>
+persistent = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("persistent", [False, True])
+    async def test_backend_provisions_before_upload_and_rechecks_resumed_turn(tmp_path, monkeypatch, persistent):
+        from unittest.mock import AsyncMock
+    
+        t = _provision_case(tmp_path, monkeypatch)
+    
+        async def base(*args):
+            t.order.append("upload")
+            return 2, 0
+    
+        monkeypatch.setattr(hw, "provision_from_base", AsyncMock(side_effect=base))
+        options = hw.ProjectOptions(persistent=persistent)
+>       await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan, options, True, t.scratch)
+
+tests/test_hub_uv.py:282: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:570: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_provisions_before0/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/remote/workspaces/... thread_id='', turns=0, hub_made=[], uploaded=False, activity_pos=0, created_at=1792770763.083244, input_manifest=None)
+manifest = {'pyproject.toml': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac', 'uv.lock': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:997: HubWorkspaceError
+____ test_backend_provisions_before_upload_and_rechecks_resumed_turn[True] _____
+
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_provisions_before1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea8a98cc110>
+persistent = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("persistent", [False, True])
+    async def test_backend_provisions_before_upload_and_rechecks_resumed_turn(tmp_path, monkeypatch, persistent):
+        from unittest.mock import AsyncMock
+    
+        t = _provision_case(tmp_path, monkeypatch)
+    
+        async def base(*args):
+            t.order.append("upload")
+            return 2, 0
+    
+        monkeypatch.setattr(hw, "provision_from_base", AsyncMock(side_effect=base))
+        options = hw.ProjectOptions(persistent=persistent)
+>       await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan, options, True, t.scratch)
+
+tests/test_hub_uv.py:282: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:570: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_provisions_before1/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/remote/workspaces/...thread_id='', turns=0, hub_made=[], uploaded=False, activity_pos=0, created_at=1792770763.3142946, input_manifest=None)
+manifest = {'pyproject.toml': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac', 'uv.lock': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:997: HubWorkspaceError
+_________ test_backend_uv_failure_prevents_upload_and_project_creation _________
+
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_uv_failure_preven0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea8a98c1760>
+
+    @pytest.mark.asyncio
+    async def test_backend_uv_failure_prevents_upload_and_project_creation(tmp_path, monkeypatch):
+        t = _provision_case(tmp_path, monkeypatch)
+        t.ssh.ensure_uv.side_effect = hw.HubWorkspaceError("uv missing")
+        with pytest.raises(hw.HubWorkspaceError, match="uv missing"):
+>           await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan,
+                                       hw.ProjectOptions(), True, t.scratch)
+
+tests/test_hub_uv.py:301: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:570: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_uv_failure_preven0/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/remote/workspaces/...thread_id='', turns=0, hub_made=[], uploaded=False, activity_pos=0, created_at=1792770763.4500144, input_manifest=None)
+manifest = {'pyproject.toml': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac', 'uv.lock': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:997: HubWorkspaceError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_uv_failure_preven0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea8a98c1760>
+
+    @pytest.mark.asyncio
+    async def test_backend_uv_failure_prevents_upload_and_project_creation(tmp_path, monkeypatch):
+        t = _provision_case(tmp_path, monkeypatch)
+        t.ssh.ensure_uv.side_effect = hw.HubWorkspaceError("uv missing")
+>       with pytest.raises(hw.HubWorkspaceError, match="uv missing"):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'uv missing'
+E         Actual message: 'cannot inspect Git index for hub input provenance'
+
+tests/test_hub_uv.py:300: AssertionError
+___________ test_backend_incomplete_python_pair_needs_no_uv[files0] ____________
+
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_incomplete_python0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea8a98c22d0>
+files = ()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("files", [(), ("pyproject.toml",), ("uv.lock",)])
+    async def test_backend_incomplete_python_pair_needs_no_uv(tmp_path, monkeypatch, files):
+        t = _provision_case(tmp_path, monkeypatch, files)
+>       await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan,
+                                   hw.ProjectOptions(), True, t.scratch)
+
+tests/test_hub_uv.py:312: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:570: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_incomplete_python0/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/remote/workspaces/... thread_id='', turns=0, hub_made=[], uploaded=False, activity_pos=0, created_at=1792770763.563586, input_manifest=None)
+manifest = {}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:997: HubWorkspaceError
+___________ test_backend_incomplete_python_pair_needs_no_uv[files1] ____________
+
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_incomplete_python1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea8a9826cf0>
+files = ('pyproject.toml',)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("files", [(), ("pyproject.toml",), ("uv.lock",)])
+    async def test_backend_incomplete_python_pair_needs_no_uv(tmp_path, monkeypatch, files):
+        t = _provision_case(tmp_path, monkeypatch, files)
+>       await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan,
+                                   hw.ProjectOptions(), True, t.scratch)
+
+tests/test_hub_uv.py:312: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:570: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_incomplete_python1/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/remote/workspaces/...thread_id='', turns=0, hub_made=[], uploaded=False, activity_pos=0, created_at=1792770763.6524465, input_manifest=None)
+manifest = {'pyproject.toml': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:997: HubWorkspaceError
+___________ test_backend_incomplete_python_pair_needs_no_uv[files2] ____________
+
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_incomplete_python2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ea8a98246e0>
+files = ('uv.lock',)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("files", [(), ("pyproject.toml",), ("uv.lock",)])
+    async def test_backend_incomplete_python_pair_needs_no_uv(tmp_path, monkeypatch, files):
+        t = _provision_case(tmp_path, monkeypatch, files)
+>       await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan,
+                                   hw.ProjectOptions(), True, t.scratch)
+
+tests/test_hub_uv.py:312: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:570: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/remote/workspace/.orchestra/tasks/V-1063/tmp/pytest-of-remote-user/pytest-0/test_backend_incomplete_python2/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/remote/workspaces/...thread_id='', turns=0, hub_made=[], uploaded=False, activity_pos=0, created_at=1792770763.7554271, input_manifest=None)
+manifest = {'uv.lock': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:997: HubWorkspaceError
+_ MutationTests.test_reverting_each_requested_guard_fails_its_behavioral_test (check='GateTests.test_merge_worker_allows_shape_mentions') _
+
+self = <tests.test_publication_gate_v1047.MutationTests testMethod=test_reverting_each_requested_guard_fails_its_behavioral_test>
+
+    def test_reverting_each_requested_guard_fails_its_behavioral_test(self):
+        mutations = (
+            ("app/publication_secrets.py", "PLATFORM_ROOT = Path(__file__).resolve().parents[1]",
+             "from app import secret_mask\\nPLATFORM_ROOT = Path(__file__).resolve().parents[1]",
+             "GateTests.test_minimal_hook_import_and_literal_inventory_use_only_stdlib"),
+            ("scripts/install_git_hooks.py", 'return Path(system_python).resolve()',
+             'return Path(sys.executable).absolute()',
+             "GateTests.test_generated_hook_ignores_foreign_venv_and_caller_python"),
+            ("scripts/install_git_hooks.py", 'python = hook_python(root)',
+             'python = Path(shutil.which("python3", path=os.defpath)).resolve()',
+             "GateTests.test_generated_hook_prefers_orchestra_venv"),
+            ("app/forbidden_strings.py", "rules += publication_secrets.literal_rules(repo)", "pass",
+             "GateTests.test_existing_scanner_load_path_adds_target_env"),
+            ("app/forbidden_strings.py", "_RulePath(override, repo=repo)", "_RulePath(override, repo=None)",
+             "GateTests.test_rule_paths_keep_project_context_when_interleaved"),
+            ("app/publication_secrets.py", "if value in text", "if False and value in text",
+             "GateTests.test_existing_scanner_load_path_adds_target_env"),
+            ("app/publication_secrets.py", 'r"(?:[A-Za-z0-9+/=][\\r\\n]*){40,}"', 'r""',
+             "GateTests.test_hub_pem_header_mentions_pass_but_body_requires_40_characters"),
+            ("app/publication_secrets.py", "    names = [name for name, value in rules if value in text]",
+             "    names = [name for name, value in rules if value in text]\\n"
+             "    names.extend(name for name, pattern in HUB_SECRET_SHAPES if pattern.search(text))",
+             "GateTests.test_scan_range_does_not_apply_hub_shapes"),
+            ("app/publication_secrets.py",
+             "    matches = [(name, text.find(value)) for name, value in rules if value in text]",
+             "    matches = [(name, text.find(value)) for name, value in rules if value in text]\\n"
+             "    matches.extend((name, match.start()) for name, pattern in HUB_SECRET_SHAPES "
+             "if (match := pattern.search(text)))",
+             "GateTests.test_merge_worker_allows_shape_mentions"),
+            ("scripts/install_git_hooks.py", 'scanner = root / "scripts" / "secret_scan.py"',
+             'scanner = root / "scripts" / "missing-scanner.py"',
+             "GateTests.test_installer_dispatches_existing_canonical_scanner_in_all_modes"),
+            ("scripts/hooks/pre-push", 'scan="$root/scripts/secret_scan.py"',
+             'scan="$root/scripts/missing-scanner.py"',
+             "GateTests.test_versioned_hook_shims_dispatch_canonical_scanner"),
+            ("scripts/install_git_hooks.py",
+             '            raise HookInstallError(f"foreign hook preserved: {path}; chain it explicitly before retrying")',
+             '            pass', "GateTests.test_installer_idempotent_and_preserves_foreign_hooks"),
+        )
+        ARTIFACTS.mkdir(parents=True, exist_ok=True)
+        for filename, original, replacement, test in mutations:
+            with self.subTest(check=test), tempfile.TemporaryDirectory(dir=ARTIFACTS, prefix="mutation-") as tmp:
+                directory = Path(tmp)
+                for name in MODULES:
+                    target = directory / "app" / name
+                    target.parent.mkdir(exist_ok=True)
+                    shutil.copyfile(ROOT / "app" / name, target)
+                # The PEM test exercises real hub upload planning, with its normal imports.
+                if "hub_pem" in test:
+                    shutil.copytree(ROOT / "app", directory / "app", dirs_exist_ok=True,
+                                    ignore=shutil.ignore_patterns("__pycache__"))
+                (directory / "scripts").mkdir()
+                shutil.copytree(ROOT / "scripts" / "hooks", directory / "scripts" / "hooks")
+                shutil.copyfile(ROOT / "scripts" / "install_git_hooks.py",
+                                directory / "scripts" / "install_git_hooks.py")
+                (directory / "tests").mkdir()
+                target_test = directory / "tests" / Path(__file__).name
+                shutil.copyfile(__file__, target_test)
+                source = directory / filename
+                text = source.read_text()
+                self.assertIn(original, text, "explicit mutation target disappeared")
+                source.write_text(text.replace(original, replacement.replace("\\n", "\n")))
+                result = subprocess.run([sys.executable, str(target_test), test], cwd=directory,
+                                        capture_output=True, text=True, timeout=45,
+                                        env={**os.environ, "PYTHONPATH": str(directory)})
+                self.assertEqual(result.returncode, 1)
+>               self.assertIn("FAIL:", result.stderr, "must fail an assertion, not setup/import")
+E               AssertionError: 'FAIL:' not found in 'E\n======================================================================\nERROR: test_merge_worker_allows_shape_mentions (__main__.GateTests.test_merge_worker_allows_shape_mentions)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File "/remote/workspace/.orchestra/tasks/V-1047/mutation-4bul1v0u/tests/test_publication_gate_v1047.py", line 415, in test_merge_worker_allows_shape_mentions\n    result = workspace.merge_worktree_to_main(str(worker), str(self.repo), target_branch="main")\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "/remote/workspace/.orchestra/tasks/V-1047/mutation-4bul1v0u/app/workspace.py", line 1692, in merge_worktree_to_main\n    from app import hub_workspace\nImportError: cannot import name \'hub_workspace\' from \'app\' (unknown location). Did you mean: \'workspace\'?\n\n----------------------------------------------------------------------\nRan 1 test in 0.512s\n\nFAILED (errors=1)\n' : must fail an assertion, not setup/import
+
+tests/test_publication_gate_v1047.py:516: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_hub_uv.py::test_backend_provisions_before_upload_and_rechecks_resumed_turn[False]
+FAILED tests/test_hub_uv.py::test_backend_provisions_before_upload_and_rechecks_resumed_turn[True]
+FAILED tests/test_hub_uv.py::test_backend_uv_failure_prevents_upload_and_project_creation
+FAILED tests/test_hub_uv.py::test_backend_incomplete_python_pair_needs_no_uv[files0]
+FAILED tests/test_hub_uv.py::test_backend_incomplete_python_pair_needs_no_uv[files1]
+FAILED tests/test_hub_uv.py::test_backend_incomplete_python_pair_needs_no_uv[files2]
+SUBFAILED(check='GateTests.test_merge_worker_allows_shape_mentions') tests/test_publication_gate_v1047.py::MutationTests::test_reverting_each_requested_guard_fails_its_behavioral_test
+7 failed, 49 passed, 18 subtests passed in 26.14s
+
+exit_code=1

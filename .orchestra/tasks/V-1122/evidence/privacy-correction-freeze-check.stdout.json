@@ -1,0 +1,17 @@
+{
+  "verifier_exit_code": 0,
+  "frozen_files": [
+    {
+      "path": ".orchestra/tasks/V-1122/evidence/orchestra-source-manifest.json",
+      "before_sha256": "273751cdef03835369ea08d482bee5dc9b44d5d1a66c31cf8c3e9041ad9483bf",
+      "after_sha256": "273751cdef03835369ea08d482bee5dc9b44d5d1a66c31cf8c3e9041ad9483bf",
+      "bytes_equal": true
+    },
+    {
+      "path": ".orchestra/tasks/V-1122/verify-artifacts.py",
+      "before_sha256": "47041e06f79462858860dc360b933e9324dd2d41d849b24bab4ac7c172f6abf5",
+      "after_sha256": "47041e06f79462858860dc360b933e9324dd2d41d849b24bab4ac7c172f6abf5",
+      "bytes_equal": true
+    }
+  ]
+}

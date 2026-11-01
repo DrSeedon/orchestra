@@ -1,0 +1,104 @@
+[
+  {
+    "url": "https://api.github.com/repos/init-co-jp/diff-tour/issues/2",
+    "repository_url": "https://api.github.com/repos/init-co-jp/diff-tour",
+    "labels_url": "https://api.github.com/repos/init-co-jp/diff-tour/issues/2/labels{/name}",
+    "comments_url": "https://api.github.com/repos/init-co-jp/diff-tour/issues/2/comments",
+    "events_url": "https://api.github.com/repos/init-co-jp/diff-tour/issues/2/events",
+    "html_url": "https://github.com/init-co-jp/diff-tour/issues/2",
+    "id": 5849461539,
+    "node_id": "I_kwDOVDijhs8AAAABXKezIw",
+    "number": 2,
+    "title": "[Feature Request] Add OpenCode v2 Support",
+    "user": {
+      "login": "kotarotaniguchi0523",
+      "id": 119092698,
+      "node_id": "U_kgDOBxk12g",
+      "avatar_url": "https://avatars.githubusercontent.com/u/119092698?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/kotarotaniguchi0523",
+      "html_url": "https://github.com/kotarotaniguchi0523",
+      "followers_url": "https://api.github.com/users/kotarotaniguchi0523/followers",
+      "following_url": "https://api.github.com/users/kotarotaniguchi0523/following{/other_user}",
+      "gists_url": "https://api.github.com/users/kotarotaniguchi0523/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/kotarotaniguchi0523/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/kotarotaniguchi0523/subscriptions",
+      "organizations_url": "https://api.github.com/users/kotarotaniguchi0523/orgs",
+      "repos_url": "https://api.github.com/users/kotarotaniguchi0523/repos",
+      "events_url": "https://api.github.com/users/kotarotaniguchi0523/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/kotarotaniguchi0523/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "labels": [
+
+    ],
+    "state": "closed",
+    "locked": false,
+    "assignees": [
+
+    ],
+    "milestone": null,
+    "comments": 3,
+    "created_at": "2026-10-14T14:16:36Z",
+    "updated_at": "2026-10-16T08:49:42Z",
+    "closed_at": "2026-10-15T12:51:18Z",
+    "assignee": null,
+    "author_association": "NONE",
+    "issue_field_values": [
+
+    ],
+    "type": null,
+    "active_lock_reason": null,
+    "sub_issues_summary": {
+      "total": 0,
+      "completed": 0,
+      "percent_completed": 0
+    },
+    "issue_dependencies_summary": {
+      "blocked_by": 0,
+      "total_blocked_by": 0,
+      "blocking": 0,
+      "total_blocking": 0
+    },
+    "body": "## Description\n\nWould it be possible to add support for **OpenCode v2** alongside Claude Code, Codex CLI, and Gemini CLI?\n\n## Requested Features\n\n- Support OpenCode v2 in `tour setup`.\n- Support tour generation and follow-up questions using `opencode run` with OpenCode v2.\n- Maintain the same read-only behavior and security restrictions as existing integrations.\n\nOpenCode v2 supports multiple model providers, making diff-tour more accessible to users with different AI setups.\n\nReference: https://opencode.ai/docs/cli/",
+    "closed_by": {
+      "login": "DaiAoki",
+      "id": 24362928,
+      "node_id": "MDQ6VXNlcjI0MzYyOTI4",
+      "avatar_url": "https://avatars.githubusercontent.com/u/24362928?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/DaiAoki",
+      "html_url": "https://github.com/DaiAoki",
+      "followers_url": "https://api.github.com/users/DaiAoki/followers",
+      "following_url": "https://api.github.com/users/DaiAoki/following{/other_user}",
+      "gists_url": "https://api.github.com/users/DaiAoki/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/DaiAoki/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/DaiAoki/subscriptions",
+      "organizations_url": "https://api.github.com/users/DaiAoki/orgs",
+      "repos_url": "https://api.github.com/users/DaiAoki/repos",
+      "events_url": "https://api.github.com/users/DaiAoki/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/DaiAoki/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "reactions": {
+      "url": "https://api.github.com/repos/init-co-jp/diff-tour/issues/2/reactions",
+      "total_count": 0,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 0,
+      "eyes": 0
+    },
+    "timeline_url": "https://api.github.com/repos/init-co-jp/diff-tour/issues/2/timeline",
+    "performed_via_github_app": null,
+    "state_reason": "completed",
+    "pinned_comment": null
+  }
+]

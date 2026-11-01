@@ -174,6 +174,9 @@ def _already_in_parent_log(parent_id: str, signal_id: int) -> bool:
 
 async def deliver_due(manager, only_ids: list[int] | None = None) -> int:
     """Send every due pending signal; one message per parent. Returns rows delivered."""
+    from app import report_holds
+
+    report_holds.ensure_runner(manager)
     rows = _due(only_ids)
     if not rows:
         return 0
@@ -219,6 +222,10 @@ async def deliver_due(manager, only_ids: list[int] | None = None) -> int:
                 detail = f"{type(error).__name__}: {err_text(error)}"
                 logger.warning("turn signal %s not delivered to %s: %s", fresh_ids, parent.name, detail)
                 _retry_later(fresh_ids, detail)
+                from app.quota_gate import QuotaGateError
+
+                if isinstance(error, QuotaGateError):
+                    report_holds.ensure_runner(manager)
                 continue
             _finish(fresh_ids, "delivered")
             delivered += len(fresh_ids)
@@ -301,4 +308,3 @@ def start_sweeper(manager) -> asyncio.Task:
 
 def sweeper_task() -> asyncio.Task | None:
     return _sweeper if _sweeper is not None and not _sweeper.done() else None
-

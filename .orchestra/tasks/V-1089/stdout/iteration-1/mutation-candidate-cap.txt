@@ -1,0 +1,32 @@
+.FFF                                                                     [100%]
+=================================== FAILURES ===================================
+____ test_exact_session_candidate_cap_keeps_rare_matches_and_coverage[9999] ____
+tests/test_log_search_v1089.py:165: in test_exact_session_candidate_cap_keeps_rare_matches_and_coverage
+    assert [r["id"] for r in result["results"]] == ([] if count > 10_000 else [1])
+E   assert [] == [1]
+E     
+E     Right contains one more item: 1
+E     Use -v to get more diff
+___ test_exact_session_candidate_cap_keeps_rare_matches_and_coverage[10000] ____
+tests/test_log_search_v1089.py:165: in test_exact_session_candidate_cap_keeps_rare_matches_and_coverage
+    assert [r["id"] for r in result["results"]] == ([] if count > 10_000 else [1])
+E   assert [] == [1]
+E     
+E     Right contains one more item: 1
+E     Use -v to get more diff
+___ test_exact_session_candidate_cap_keeps_rare_matches_and_coverage[10001] ____
+tests/test_log_search_v1089.py:166: in test_exact_session_candidate_cap_keeps_rare_matches_and_coverage
+    assert result["scanned"] == min(count, 10_000)
+E   assert 100 == 10000
+E    +  where 10000 = min(10001, 10000)
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309
+  /<hub-copy>/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1089.py::test_exact_session_candidate_cap_keeps_rare_matches_and_coverage[9999]
+FAILED tests/test_log_search_v1089.py::test_exact_session_candidate_cap_keeps_rare_matches_and_coverage[10000]
+FAILED tests/test_log_search_v1089.py::test_exact_session_candidate_cap_keeps_rare_matches_and_coverage[10001]
+3 failed, 1 passed, 30 deselected, 1 warning in 3.48s

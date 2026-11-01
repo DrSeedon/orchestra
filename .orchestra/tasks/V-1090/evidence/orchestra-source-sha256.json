@@ -1,0 +1,19 @@
+{
+  "AGENTS.md": "f486fc0d7618c28cc0db1807f838a9014334792f526bc78270cfce6a70cb6ce4",
+  "scripts/check_instruction_contract.py": "6f8fd1dce4cdca72cac3fa197731d0f70c0cac5724be2fa0fb497adf25e1d69f",
+  ".orchestra/pipelines/default/prompts/modules/background-jobs.md": "272abb91243ae7c2474527ddcb9d04ab6786c8e424c2b1c191ccc78c979263d1",
+  ".orchestra/pipelines/default/prompts/modules/code-quality.md": "1a7fda907336c9c46d2e7ead3f0ea48483cc503704e752c78820e1ab438dfadd",
+  ".orchestra/pipelines/default/prompts/modules/communication-style.md": "037a6d2adf0591a1a28c5a8f2ed64a273f849d37cc16376b12eaa359c8a03d98",
+  ".orchestra/pipelines/default/prompts/modules/dynamic-workflows.md": "87ed3b12b861ed551f75fe00da29a521e3f551b204c9fc8b7405da0d47d292e1",
+  ".orchestra/pipelines/default/prompts/modules/git-workflow.md": "fc195de41eb4c31026b734316c056f6c030c6ac3e8537f0312b5c5bc37c106b3",
+  ".orchestra/pipelines/default/prompts/modules/knowledge.md": "6ec24cba1423d3f7f31422850e21d8961c5cafa6b8bae8a7ad387b23cca37df4",
+  ".orchestra/pipelines/default/prompts/modules/model-routing.md": "0c85d90a052b15ae2ea1998e363269c229709f4bb0680485ff39539baf237838",
+  ".orchestra/pipelines/default/prompts/modules/orchestration.md": "649de595a2fae4dcf8c619256925636c42c6a15ab71372f623ca9f9aa608eda5",
+  ".orchestra/pipelines/default/prompts/modules/project-maintenance.md": "eebfd5507070c8ad9a88b9067b2c8fec8ff47aa5e8bc2813a5bac6fc9928dec6",
+  ".orchestra/pipelines/default/prompts/modules/report-format.md": "d17512576a1a7e26d741ebc2a163168077f1c50388547f1e17593181f3ea4678",
+  ".orchestra/pipelines/default/prompts/modules/research-method.md": "956f373c5c7ac8a6993fa8d26c4bff4ecd8f7455675e8f5bdb6c014d1f217f72",
+  ".orchestra/pipelines/default/prompts/modules/safety.md": "55fbf10035644acd0f8716715c3dec6f156deda254ae4201555802a995eb7710",
+  ".orchestra/pipelines/default/prompts/modules/task-management.md": "35b21fcfe72f66442000e9c7055415af643683cd11db8ea5e60ca2cd21be1a67",
+  ".orchestra/pipelines/default/prompts/modules/user-values.md": "4e272c81a7599f04a9e6641e718875ba3b4bd94ea68ad98d1513c4ee3ebc7396",
+  ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md": "eaba54739e7d8eaac438acaea9e3be02416978d6e794ac33805a2157b1b1c9d6"
+}

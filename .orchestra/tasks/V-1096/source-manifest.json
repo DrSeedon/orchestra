@@ -1,0 +1,1316 @@
+{
+  "task": "V-1096",
+  "retrieved_at_utc": "2026-10-27T05:36:07.711410+00:00",
+  "local_commit": null,
+  "local_commit_reason": "Broker copy has no .git; branch task-V-1096/research-ub-mode is a handoff label, not a commit identity.",
+  "repositories": [
+    {
+      "repo": "ub-mode",
+      "sha": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+      "date": "2026-10-25T16:07:58Z",
+      "tree_truncated": false,
+      "files": [
+        {
+          "path": "README.md",
+          "git_blob_sha1": "c54164fb5a21a0f917e081fd54c959d4d235ea01",
+          "size": 2195
+        },
+        {
+          "path": "SKILL.md",
+          "git_blob_sha1": "9ac940b23b61d77e8e5192721d7b6066357f892c",
+          "size": 3958
+        }
+      ]
+    },
+    {
+      "repo": "crapper",
+      "sha": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "date": "2026-10-21T14:16:07Z",
+      "tree_truncated": false,
+      "files": [
+        {
+          "path": ".gitignore",
+          "git_blob_sha1": "3f5f01c3d4e95ed9271e24862f10dcc69d167f44",
+          "size": 97
+        },
+        {
+          "path": "LICENSE",
+          "git_blob_sha1": "7209f1285b50fc22c1f257f94de3861701badcf2",
+          "size": 698
+        },
+        {
+          "path": "README.md",
+          "git_blob_sha1": "f5690415b719a010d23cfbed76fb5add957f1988",
+          "size": 5934
+        },
+        {
+          "path": "crapper",
+          "git_blob_sha1": "e12af6d5d97371bafc9f2aa65f99ff3d5bb0fe3d",
+          "size": 277
+        },
+        {
+          "path": "examples/crapper.edn",
+          "git_blob_sha1": "006cb88caa81216d4b5bf18163ae07b0b07ce742",
+          "size": 12115
+        },
+        {
+          "path": "examples/crapper.policy.edn",
+          "git_blob_sha1": "20c6ed629b6c3cb7a03760ea616fb084e4a6d4bc",
+          "size": 532
+        },
+        {
+          "path": "pyproject.toml",
+          "git_blob_sha1": "435e115eb8b970347a3fb080dddfa2075ed11915",
+          "size": 674
+        },
+        {
+          "path": "src/crapper/__init__.py",
+          "git_blob_sha1": "0e9769964b09f24c581eabda971abdf4eec0438c",
+          "size": 94
+        },
+        {
+          "path": "src/crapper/__main__.py",
+          "git_blob_sha1": "0563624f16346a4dffe5f8a633da021538a44e21",
+          "size": 68
+        },
+        {
+          "path": "src/crapper/analyze.py",
+          "git_blob_sha1": "b2ac23a6596fe9acdfeb11530a991a9487db8fec",
+          "size": 1770
+        },
+        {
+          "path": "src/crapper/cli.py",
+          "git_blob_sha1": "88b9b235156bae55ab327a36c30763c5194fc46c",
+          "size": 11465
+        },
+        {
+          "path": "src/crapper/coverage.py",
+          "git_blob_sha1": "fea28fb8bb782f910845b33e7b0efb04874f7406",
+          "size": 18456
+        },
+        {
+          "path": "src/crapper/crap.py",
+          "git_blob_sha1": "d22af1d3eec7533857be0dd9b94254e6011a1dd7",
+          "size": 1464
+        },
+        {
+          "path": "src/crapper/discover.py",
+          "git_blob_sha1": "3e57a1201b0cca47f838b668509e5dc649b95fbe",
+          "size": 2706
+        },
+        {
+          "path": "src/crapper/languages/__init__.py",
+          "git_blob_sha1": "0d38fea2f4fb85a08339450ec10576163f43afc5",
+          "size": 968
+        },
+        {
+          "path": "src/crapper/languages/clojure.py",
+          "git_blob_sha1": "f8bb8151adb58c0fcaf2f8fb93de6ba25bcb7175",
+          "size": 13141
+        },
+        {
+          "path": "src/crapper/languages/golang.py",
+          "git_blob_sha1": "94235adb60d8d7c3d283e6a2100a2448f233bc87",
+          "size": 4201
+        },
+        {
+          "path": "src/crapper/languages/java.py",
+          "git_blob_sha1": "1651bb936abc6fed708764bb3005b7cb219318cc",
+          "size": 3450
+        },
+        {
+          "path": "src/crapper/languages/python.py",
+          "git_blob_sha1": "cb9dbcc64f71de50db87f18907a1f9be28972e22",
+          "size": 3933
+        },
+        {
+          "path": "src/crapper/languages/rust.py",
+          "git_blob_sha1": "4c8f9fa526d9851dddac637c10fcdf94c74cd3f2",
+          "size": 5690
+        },
+        {
+          "path": "src/crapper/languages/treesitter.py",
+          "git_blob_sha1": "936282983c2fe836a734b62b1f88b15639c2bb47",
+          "size": 1991
+        },
+        {
+          "path": "src/crapper/languages/typescript.py",
+          "git_blob_sha1": "378d1b51310ab74ca487284a5091772afa81fb12",
+          "size": 11825
+        },
+        {
+          "path": "src/crapper/metrics.py",
+          "git_blob_sha1": "09592da4f588058ed21b2d472166f1e8649b337d",
+          "size": 1643
+        },
+        {
+          "path": "src/crapper/model.py",
+          "git_blob_sha1": "58b79eea046cd2fc87f30b98fab1e0411ad4d447",
+          "size": 727
+        },
+        {
+          "path": "src/crapper/report.py",
+          "git_blob_sha1": "fb4516e00e00335ef85de3147730c5939851b97e",
+          "size": 1335
+        },
+        {
+          "path": "src/crapper/runners.py",
+          "git_blob_sha1": "9b02fbcd85e8e549f49655bd8c32751bec5159b4",
+          "size": 19573
+        },
+        {
+          "path": "tests/conftest.py",
+          "git_blob_sha1": "443cee77c90dd4ae793c2009109cc46b6d33d186",
+          "size": 402
+        },
+        {
+          "path": "tests/test_cli.py",
+          "git_blob_sha1": "32660963442ee6f0a7b14de6c7fccbc153c062a9",
+          "size": 15476
+        },
+        {
+          "path": "tests/test_clojure.py",
+          "git_blob_sha1": "acc23f4ccad42396295007756b357cbf0c0ca16a",
+          "size": 5789
+        },
+        {
+          "path": "tests/test_coverage.py",
+          "git_blob_sha1": "36dcc75bbfd338f381c4c8fd74546d52ca4ca87a",
+          "size": 5700
+        },
+        {
+          "path": "tests/test_crap.py",
+          "git_blob_sha1": "3fce93e906f6e7d8529f2c1f6b469fa8e6b4da19",
+          "size": 2820
+        },
+        {
+          "path": "tests/test_edges.py",
+          "git_blob_sha1": "8ecb3962b0d9a5c85debaf9dda70d29fdc80ebaa",
+          "size": 13741
+        },
+        {
+          "path": "tests/test_go.py",
+          "git_blob_sha1": "8e9a312ee6844fe3175ff3fd2ba0699e94deabb6",
+          "size": 1616
+        },
+        {
+          "path": "tests/test_java.py",
+          "git_blob_sha1": "83679cfef8aeefc3f79bca0aee08edc4fc62e744",
+          "size": 3424
+        },
+        {
+          "path": "tests/test_languages.py",
+          "git_blob_sha1": "05f73b1c043e805c30c57d17d561405d1399dbfa",
+          "size": 951
+        },
+        {
+          "path": "tests/test_python.py",
+          "git_blob_sha1": "9ad04a4bc487d6597e71f9cfe5befa88d1b8ffce",
+          "size": 2751
+        },
+        {
+          "path": "tests/test_runners.py",
+          "git_blob_sha1": "679e1ba82b4036891ecb87a41fbfd933b1463277",
+          "size": 21579
+        },
+        {
+          "path": "tests/test_rust.py",
+          "git_blob_sha1": "25c4b086c789be93beb40570fd7edeb777afc547",
+          "size": 3087
+        },
+        {
+          "path": "tests/test_typescript.py",
+          "git_blob_sha1": "918a3ea22fc5206e1b3da33607fffb23f968cec3",
+          "size": 3709
+        },
+        {
+          "path": "uml",
+          "git_blob_sha1": "0272bd1c47a0fa61120c820be7444a7773710151",
+          "size": 1942
+        }
+      ]
+    },
+    {
+      "repo": "dryer",
+      "sha": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "date": "2026-10-03T23:03:53Z",
+      "tree_truncated": false,
+      "files": [
+        {
+          "path": ".gitignore",
+          "git_blob_sha1": "a588dbd36f59f96f536637477aaba664a495e5a4",
+          "size": 78
+        },
+        {
+          "path": "LICENSE",
+          "git_blob_sha1": "7209f1285b50fc22c1f257f94de3861701badcf2",
+          "size": 698
+        },
+        {
+          "path": "README.md",
+          "git_blob_sha1": "fae6e640c1d77ab94c599d96d987c63df5452da3",
+          "size": 4509
+        },
+        {
+          "path": "dryer",
+          "git_blob_sha1": "16756c091a4468ad860446815a2ffcb269fa5272",
+          "size": 284
+        },
+        {
+          "path": "pyproject.toml",
+          "git_blob_sha1": "645115abc9f3df81483d905611463abe74c357e6",
+          "size": 671
+        },
+        {
+          "path": "src/dryer/__init__.py",
+          "git_blob_sha1": "3591c905c9178e145ff6dc6add9b8ec83d858fd4",
+          "size": 108
+        },
+        {
+          "path": "src/dryer/__main__.py",
+          "git_blob_sha1": "cb40ee0ca8a5260054d1c01405b61b7d4cc367c4",
+          "size": 66
+        },
+        {
+          "path": "src/dryer/astnorm.py",
+          "git_blob_sha1": "88f758268013934e35d2f878e8bbbcd158d67bda",
+          "size": 9849
+        },
+        {
+          "path": "src/dryer/cli.py",
+          "git_blob_sha1": "288754dacc433279654ea99771b23afeb8f00f76",
+          "size": 10938
+        },
+        {
+          "path": "src/dryer/clojure_read.py",
+          "git_blob_sha1": "9fdd9d4a4037b585e8ecfe8d784d34f8ef63665c",
+          "size": 15142
+        },
+        {
+          "path": "src/dryer/discover.py",
+          "git_blob_sha1": "6feeaa761b03015ad50a3ff39ac1ab6f29635bba",
+          "size": 2637
+        },
+        {
+          "path": "src/dryer/extract.py",
+          "git_blob_sha1": "51f316000b3bf08fc8318d20035af77de2a373bb",
+          "size": 6073
+        },
+        {
+          "path": "src/dryer/model.py",
+          "git_blob_sha1": "74ed88884402087d2b2b728bedf60533105dc4bb",
+          "size": 667
+        },
+        {
+          "path": "src/dryer/report.py",
+          "git_blob_sha1": "25bf7a6ee82f99baba18101298d81151a53bcfae",
+          "size": 2158
+        },
+        {
+          "path": "src/dryer/scan.py",
+          "git_blob_sha1": "f8996e20b07cf8e0303e1d8324496df9c3c5b8b7",
+          "size": 2973
+        },
+        {
+          "path": "src/dryer/shape.py",
+          "git_blob_sha1": "7b9bb16efed3315cb5f697c43a8a33731ba920e8",
+          "size": 2950
+        },
+        {
+          "path": "src/dryer/treesitter.py",
+          "git_blob_sha1": "4038af907647b9d8f8f8f43b60f387abd7473294",
+          "size": 1005
+        },
+        {
+          "path": "tests/test_cli.py",
+          "git_blob_sha1": "7a6875d27bd73ad3102bc7f4457612d3c1f772ca",
+          "size": 12697
+        },
+        {
+          "path": "tests/test_clojure.py",
+          "git_blob_sha1": "89effff057030ecd587381549a8d93b2be11086e",
+          "size": 12174
+        },
+        {
+          "path": "tests/test_languages.py",
+          "git_blob_sha1": "1710cf8e404a55b55160d8cf2a640cb175441a2d",
+          "size": 15227
+        }
+      ]
+    },
+    {
+      "repo": "mutator",
+      "sha": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "date": "2026-10-21T19:33:45Z",
+      "tree_truncated": false,
+      "files": [
+        {
+          "path": ".gitignore",
+          "git_blob_sha1": "55336356b71cdbffb744cb5e4faaf6f08e963ffb",
+          "size": 84
+        },
+        {
+          "path": "LICENSE",
+          "git_blob_sha1": "7209f1285b50fc22c1f257f94de3861701badcf2",
+          "size": 698
+        },
+        {
+          "path": "README.md",
+          "git_blob_sha1": "1152ce6da20cb132905f50ecd6304fabe313d03b",
+          "size": 7361
+        },
+        {
+          "path": "bugs/python-tests-run-with-mutators-virtualenv.md",
+          "git_blob_sha1": "34988a07527ec388bd976abbd24f7aa1e64e8397",
+          "size": 2011
+        },
+        {
+          "path": "mutator",
+          "git_blob_sha1": "5cd7ca83100c606b9cd03ec91f2407a6ba0f9fd7",
+          "size": 281
+        },
+        {
+          "path": "pyproject.toml",
+          "git_blob_sha1": "818c4e19fb5e97122cfdfad7ae8ed69829d982c6",
+          "size": 679
+        },
+        {
+          "path": "src/mutator/__init__.py",
+          "git_blob_sha1": "89d0345494c3474615a2c057850fd66aa8ccbe15",
+          "size": 80
+        },
+        {
+          "path": "src/mutator/__main__.py",
+          "git_blob_sha1": "ae8e3afdd9edac6a83bc7cdf97062d358a34c9c6",
+          "size": 68
+        },
+        {
+          "path": "src/mutator/cli.py",
+          "git_blob_sha1": "9a556b5934da8c91d489a8555785e871f243e128",
+          "size": 20306
+        },
+        {
+          "path": "src/mutator/coverage.py",
+          "git_blob_sha1": "a4e5d33255e31cdc260f183fa3d08cd462c6b30a",
+          "size": 7238
+        },
+        {
+          "path": "src/mutator/crapper_link.py",
+          "git_blob_sha1": "7f045fb25fef0700c110d3909a71de3607fa236a",
+          "size": 1001
+        },
+        {
+          "path": "src/mutator/edn.py",
+          "git_blob_sha1": "6eab75769f1808749ec746251d8649c520d87372",
+          "size": 6922
+        },
+        {
+          "path": "src/mutator/engine.py",
+          "git_blob_sha1": "0cc70d861b01b9fd98e8e17bf5f2dac7e8554a99",
+          "size": 11164
+        },
+        {
+          "path": "src/mutator/functions.py",
+          "git_blob_sha1": "4d983b7381ed29fe51baec0f33eafd373e0194c2",
+          "size": 6948
+        },
+        {
+          "path": "src/mutator/metrics.py",
+          "git_blob_sha1": "daf18ff36b2989d92224a4baf7c0607c05077e78",
+          "size": 11011
+        },
+        {
+          "path": "src/mutator/model.py",
+          "git_blob_sha1": "293e788a64674438defc36fbe061aaf43c9ee72d",
+          "size": 1829
+        },
+        {
+          "path": "src/mutator/report.py",
+          "git_blob_sha1": "e861390d65c92e56c56006d8850cdb611fac8149",
+          "size": 2680
+        },
+        {
+          "path": "src/mutator/runner.py",
+          "git_blob_sha1": "e554c76d7cb76e9f109fba8d81292794b863780a",
+          "size": 7883
+        },
+        {
+          "path": "src/mutator/sites.py",
+          "git_blob_sha1": "50d1b7837a385b052551b3e1d6fc514ec46b687f",
+          "size": 11228
+        },
+        {
+          "path": "src/mutator/workers.py",
+          "git_blob_sha1": "b1f154c19b77c65725ed80d39a8edefeaa37f7cb",
+          "size": 12165
+        },
+        {
+          "path": "tests/test_boundaries.py",
+          "git_blob_sha1": "701cce95cc246c96c16be3f4078a41bc7585961f",
+          "size": 34458
+        },
+        {
+          "path": "tests/test_cli.py",
+          "git_blob_sha1": "aaa08ada013650114ae285fca479eab98c31eea7",
+          "size": 4241
+        },
+        {
+          "path": "tests/test_coverage.py",
+          "git_blob_sha1": "c31eb4e632db5f672da32e6910137367e9badce1",
+          "size": 3750
+        },
+        {
+          "path": "tests/test_edn.py",
+          "git_blob_sha1": "ace328ea2a53916db859a584d2a27e8a2b98cb75",
+          "size": 1688
+        },
+        {
+          "path": "tests/test_engine.py",
+          "git_blob_sha1": "1bdb2daab6e59a4d6523f3b10536c6b2b6e4f7b1",
+          "size": 10699
+        },
+        {
+          "path": "tests/test_metrics.py",
+          "git_blob_sha1": "f53397eb65223c10706dad53fdb6883e821bbefa",
+          "size": 4398
+        },
+        {
+          "path": "tests/test_runner.py",
+          "git_blob_sha1": "796f2c976f32acb24544ee4d6dbd23dc7fe44aac",
+          "size": 5945
+        },
+        {
+          "path": "tests/test_sites.py",
+          "git_blob_sha1": "bae3e6274ca81e306186dbfd9bf82f831c72df8d",
+          "size": 8666
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "repository": "ub-mode",
+      "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+      "path": "README.md",
+      "git_blob_sha1": "c54164fb5a21a0f917e081fd54c959d4d235ea01",
+      "sha256": "1c8e56902f538453bb79674193e632bb1076624bcde0a00516d97410a18a6bd9",
+      "bytes": 2195,
+      "line_count": 20,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/ub-mode/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/README.md",
+      "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/README.md",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "ub-mode",
+      "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+      "path": "SKILL.md",
+      "git_blob_sha1": "9ac940b23b61d77e8e5192721d7b6066357f892c",
+      "sha256": "4120873db2e3681ea9b7de4d7105fc9d3406657c9ada91ce77b9b3c4962f3202",
+      "bytes": 3958,
+      "line_count": 152,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/ub-mode/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md",
+      "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "LICENSE",
+      "git_blob_sha1": "7209f1285b50fc22c1f257f94de3861701badcf2",
+      "sha256": "bbdd284f0223e627a5ace5ba4507410de374e9d3284c7fa9b1216e2fb4797e30",
+      "bytes": 698,
+      "line_count": 7,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/LICENSE",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/LICENSE",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "README.md",
+      "git_blob_sha1": "f5690415b719a010d23cfbed76fb5add957f1988",
+      "sha256": "680673c95f9fc04e0a1c7fd8a3d11c285a5d5f282bc587649a08c86fe3b30674",
+      "bytes": 5934,
+      "line_count": 93,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/README.md",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/README.md",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "crapper",
+      "git_blob_sha1": "e12af6d5d97371bafc9f2aa65f99ff3d5bb0fe3d",
+      "sha256": "1442993e6ad36e1505ad27808aca509d6a7b66eb851ba07a5c5996428cd0eec9",
+      "bytes": 277,
+      "line_count": 9,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/crapper",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/crapper",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "pyproject.toml",
+      "git_blob_sha1": "435e115eb8b970347a3fb080dddfa2075ed11915",
+      "sha256": "02111362bcff7d6e4caa1ed670998e5a3d45ac75038007107a761e389ae46227",
+      "bytes": 674,
+      "line_count": 28,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/pyproject.toml",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/pyproject.toml",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "src/crapper/analyze.py",
+      "git_blob_sha1": "b2ac23a6596fe9acdfeb11530a991a9487db8fec",
+      "sha256": "037bca3e241cc49c7a3eab0d1cfef3ddc490d544526a04a0d664c82010b5de76",
+      "bytes": 1770,
+      "line_count": 56,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/analyze.py",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/analyze.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "src/crapper/cli.py",
+      "git_blob_sha1": "88b9b235156bae55ab327a36c30763c5194fc46c",
+      "sha256": "6290c429bb0118125081b3ea56146cd7dec7785c556b236be2223c686771a04c",
+      "bytes": 11465,
+      "line_count": 330,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/cli.py",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/cli.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "src/crapper/crap.py",
+      "git_blob_sha1": "d22af1d3eec7533857be0dd9b94254e6011a1dd7",
+      "sha256": "ba897cb7af52f12041b81ec8ee4a897d84bd03a1fb3f7ce34f8cb162a67fd922",
+      "bytes": 1464,
+      "line_count": 47,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/crap.py",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/crap.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "src/crapper/discover.py",
+      "git_blob_sha1": "3e57a1201b0cca47f838b668509e5dc649b95fbe",
+      "sha256": "012422551de300b0e1f1e4acaac123c0c8997868afcad2a7dfff90a520912ad2",
+      "bytes": 2706,
+      "line_count": 116,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/discover.py",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/discover.py",
+      "consulted_ranges": [
+        [
+          1,
+          90
+        ]
+      ]
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "src/crapper/languages/__init__.py",
+      "git_blob_sha1": "0d38fea2f4fb85a08339450ec10576163f43afc5",
+      "sha256": "c3981dcf830fbd1e37e2a96371b324dda1ceeb44785bd0c00dccfa7788ffa0f9",
+      "bytes": 968,
+      "line_count": 27,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/languages/__init__.py",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/languages/__init__.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "src/crapper/runners.py",
+      "git_blob_sha1": "9b02fbcd85e8e549f49655bd8c32751bec5159b4",
+      "sha256": "6314615e23c91445845d60ba30a8d9cb7b813b593157424c0566747b70d87247",
+      "bytes": 19573,
+      "line_count": 596,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/runners.py",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/runners.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "tests/test_cli.py",
+      "git_blob_sha1": "32660963442ee6f0a7b14de6c7fccbc153c062a9",
+      "sha256": "b0b5b149121ad161637cd9aec9b7a6cde93449a5e26dfbb2553d32fabfe8966d",
+      "bytes": 15476,
+      "line_count": 401,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/tests/test_cli.py",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/tests/test_cli.py",
+      "consulted_ranges": [
+        [
+          297,
+          310
+        ]
+      ]
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "tests/test_runners.py",
+      "git_blob_sha1": "679e1ba82b4036891ecb87a41fbfd933b1463277",
+      "sha256": "6561a964778fa66fca2ced5d3dfcf37389fc19cea2f72dc8285994e07d6a0853",
+      "bytes": 21579,
+      "line_count": 549,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/tests/test_runners.py",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/tests/test_runners.py",
+      "consulted_ranges": [
+        [
+          412,
+          429
+        ]
+      ]
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "LICENSE",
+      "git_blob_sha1": "7209f1285b50fc22c1f257f94de3861701badcf2",
+      "sha256": "bbdd284f0223e627a5ace5ba4507410de374e9d3284c7fa9b1216e2fb4797e30",
+      "bytes": 698,
+      "line_count": 7,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/LICENSE",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/LICENSE",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "README.md",
+      "git_blob_sha1": "fae6e640c1d77ab94c599d96d987c63df5452da3",
+      "sha256": "3f53eb535958e88a2e4f1447d30e62f61606e0fc18c1bc898e4dd5556630f3d8",
+      "bytes": 4509,
+      "line_count": 115,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/README.md",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/README.md",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "pyproject.toml",
+      "git_blob_sha1": "645115abc9f3df81483d905611463abe74c357e6",
+      "sha256": "af5a68b6f91016b447c8bbeef9baed64fb4df076331d7b2616d3e82b3d14b2c0",
+      "bytes": 671,
+      "line_count": 29,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/pyproject.toml",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/pyproject.toml",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "src/dryer/cli.py",
+      "git_blob_sha1": "288754dacc433279654ea99771b23afeb8f00f76",
+      "sha256": "090261dbe261d99794eed82454792f01a7321f46ac3a6242d6ec49e135062639",
+      "bytes": 10938,
+      "line_count": 320,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/cli.py",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/cli.py",
+      "consulted_ranges": [
+        [
+          71,
+          83
+        ],
+        [
+          109,
+          166
+        ],
+        [
+          169,
+          320
+        ]
+      ]
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "src/dryer/discover.py",
+      "git_blob_sha1": "6feeaa761b03015ad50a3ff39ac1ab6f29635bba",
+      "sha256": "14a3686653e439fa52df1f3270a997f14ced8215571ed7482ae64b16fa02cb1e",
+      "bytes": 2637,
+      "line_count": 109,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/discover.py",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/discover.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "src/dryer/extract.py",
+      "git_blob_sha1": "51f316000b3bf08fc8318d20035af77de2a373bb",
+      "sha256": "59f6cd001cde59ff2a174f2aa0968509f1a2157c9fde5d135c053b66adc20411",
+      "bytes": 6073,
+      "line_count": 202,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/extract.py",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/extract.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "src/dryer/scan.py",
+      "git_blob_sha1": "f8996e20b07cf8e0303e1d8324496df9c3c5b8b7",
+      "sha256": "e264457134f66e09bf91a588876258aab0dce9f92e7483b86a83bd326a7eba05",
+      "bytes": 2973,
+      "line_count": 91,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/scan.py",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/scan.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "src/dryer/shape.py",
+      "git_blob_sha1": "7b9bb16efed3315cb5f697c43a8a33731ba920e8",
+      "sha256": "b2bcdf055f6a64bc33b30a019b58585f6d0e700431139b73e4c84592cc7edc77",
+      "bytes": 2950,
+      "line_count": 108,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/shape.py",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/shape.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "tests/test_cli.py",
+      "git_blob_sha1": "7a6875d27bd73ad3102bc7f4457612d3c1f772ca",
+      "sha256": "06d624b527994e3e9c30842206a12e5e6f16b30d906a882b42b1460acf59ba65",
+      "bytes": 12697,
+      "line_count": 350,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/tests/test_cli.py",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/tests/test_cli.py",
+      "consulted_ranges": [
+        [
+          68,
+          106
+        ]
+      ]
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "LICENSE",
+      "git_blob_sha1": "7209f1285b50fc22c1f257f94de3861701badcf2",
+      "sha256": "bbdd284f0223e627a5ace5ba4507410de374e9d3284c7fa9b1216e2fb4797e30",
+      "bytes": 698,
+      "line_count": 7,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/LICENSE",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/LICENSE",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "README.md",
+      "git_blob_sha1": "1152ce6da20cb132905f50ecd6304fabe313d03b",
+      "sha256": "54bffe5ed1ad6a4d0cce3931c2fda0175ec55774729b28b4b3edeaec05e006b3",
+      "bytes": 7361,
+      "line_count": 123,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/README.md",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/README.md",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "bugs/python-tests-run-with-mutators-virtualenv.md",
+      "git_blob_sha1": "34988a07527ec388bd976abbd24f7aa1e64e8397",
+      "sha256": "9b7dbbd51dc461312b84211466774587661982c8a50ab5ee1b2aa57670feaf40",
+      "bytes": 2011,
+      "line_count": 47,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/bugs/python-tests-run-with-mutators-virtualenv.md",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/bugs/python-tests-run-with-mutators-virtualenv.md",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "pyproject.toml",
+      "git_blob_sha1": "818c4e19fb5e97122cfdfad7ae8ed69829d982c6",
+      "sha256": "a7a8e79b4ee6980b38cd2c55e29356d077e12fd2e19151f883320a523f553864",
+      "bytes": 679,
+      "line_count": 28,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/pyproject.toml",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/pyproject.toml",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "src/mutator/cli.py",
+      "git_blob_sha1": "9a556b5934da8c91d489a8555785e871f243e128",
+      "sha256": "e8724377807d14989e29e18bd928ba434d4054334e907b9970b242586f64829b",
+      "bytes": 20306,
+      "line_count": 591,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/cli.py",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/cli.py",
+      "consulted_ranges": [
+        [
+          1,
+          180
+        ],
+        [
+          300,
+          591
+        ]
+      ]
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "src/mutator/crapper_link.py",
+      "git_blob_sha1": "7f045fb25fef0700c110d3909a71de3607fa236a",
+      "sha256": "b0c447014831b83fcfd9916762481d0692fae3d34a1dfe7bdbd092172fe33b8b",
+      "bytes": 1001,
+      "line_count": 36,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/crapper_link.py",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/crapper_link.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "src/mutator/engine.py",
+      "git_blob_sha1": "0cc70d861b01b9fd98e8e17bf5f2dac7e8554a99",
+      "sha256": "3e6cf8e57e054a756501dd0a8b5b0c0ab7ca990e51c6acc4b5e2162ad4b3f479",
+      "bytes": 11164,
+      "line_count": 356,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/engine.py",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/engine.py",
+      "consulted_ranges": [
+        [
+          1,
+          340
+        ]
+      ]
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "src/mutator/runner.py",
+      "git_blob_sha1": "e554c76d7cb76e9f109fba8d81292794b863780a",
+      "sha256": "2957fa7f9473c2e09394a86be6a1e62796a2a9653dc7b970fa6f4c7c1088d576",
+      "bytes": 7883,
+      "line_count": 248,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/runner.py",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/runner.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "src/mutator/sites.py",
+      "git_blob_sha1": "50d1b7837a385b052551b3e1d6fc514ec46b687f",
+      "sha256": "8e94a5d638a9abcc6fd28c03ff416a871a79443aa6c847ed4aa042b648b139b0",
+      "bytes": 11228,
+      "line_count": 376,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/sites.py",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/sites.py",
+      "consulted_ranges": [
+        [
+          14,
+          54
+        ],
+        [
+          109,
+          160
+        ],
+        [
+          282,
+          376
+        ]
+      ]
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "src/mutator/workers.py",
+      "git_blob_sha1": "b1f154c19b77c65725ed80d39a8edefeaa37f7cb",
+      "sha256": "474dd799511b2b0e5610e219ea441069777dff7d39e6f495b401b92ed138d8c3",
+      "bytes": 12165,
+      "line_count": 446,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/workers.py",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/workers.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "tests/test_engine.py",
+      "git_blob_sha1": "1bdb2daab6e59a4d6523f3b10536c6b2b6e4f7b1",
+      "sha256": "a7dd16bf19ce927c93f0973e0bb028158e0634c80a1b13c794c6bfc4b874541e",
+      "bytes": 10699,
+      "line_count": 302,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/tests/test_engine.py",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/tests/test_engine.py",
+      "consulted_ranges": [
+        [
+          36,
+          169
+        ]
+      ]
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "dryer",
+      "git_blob_sha1": "16756c091a4468ad860446815a2ffcb269fa5272",
+      "sha256": "d0500fa042d6dad1f238f85475179feda8b50b4dbe16e8dbc25aabb8748d9257",
+      "bytes": 284,
+      "line_count": 9,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/dryer",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/dryer",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "mutator",
+      "git_blob_sha1": "5cd7ca83100c606b9cd03ec91f2407a6ba0f9fd7",
+      "sha256": "ee970fbeb3950ad3ddc3fa781ed5f6d539d4f61743098f247984681767157a6a",
+      "bytes": 281,
+      "line_count": 9,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/mutator",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/mutator",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "src/crapper/languages/treesitter.py",
+      "git_blob_sha1": "936282983c2fe836a734b62b1f88b15639c2bb47",
+      "sha256": "5617ad63a65593f67ed2fc4f5e0afe72a59d40a161bde5e464c829692ec0402c",
+      "bytes": 1991,
+      "line_count": 82,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/languages/treesitter.py",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/languages/treesitter.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "dryer",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0",
+      "path": "src/dryer/treesitter.py",
+      "git_blob_sha1": "4038af907647b9d8f8f8f43b60f387abd7473294",
+      "sha256": "2877bf1ecfa8a2be01d45693f7ddf0dc1c0fad3299612676b492cf1dcfb374a9",
+      "bytes": 1005,
+      "line_count": 47,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/dryer/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/treesitter.py",
+      "url": "https://github.com/unclebob/dryer/blob/66ff6d21a42c04afcad89c78a80066176d1294b0/src/dryer/treesitter.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "src/mutator/functions.py",
+      "git_blob_sha1": "4d983b7381ed29fe51baec0f33eafd373e0194c2",
+      "sha256": "a8f266e8191431de5c8c4ddf0075ab4bcde9067d3938647bb846e7f4c37840c9",
+      "bytes": 6948,
+      "line_count": 214,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/functions.py",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/functions.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "mutator",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41",
+      "path": "src/mutator/coverage.py",
+      "git_blob_sha1": "a4e5d33255e31cdc260f183fa3d08cd462c6b30a",
+      "sha256": "3bd9983f6191ed020a4f6ea680735475124d1350b6f724050ae1487e4a9d22ed",
+      "bytes": 7238,
+      "line_count": 226,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/mutator/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/coverage.py",
+      "url": "https://github.com/unclebob/mutator/blob/a5a0cb803b66e0cdb8bf471b3b08af701d424a41/src/mutator/coverage.py",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "examples/crapper.edn",
+      "git_blob_sha1": "006cb88caa81216d4b5bf18163ae07b0b07ce742",
+      "sha256": "ea2eb34fe73661ddbc512c49e9bcb2c362f29c67467e3dd0d0704b65b0190e96",
+      "bytes": 12115,
+      "line_count": 324,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/examples/crapper.edn",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/examples/crapper.edn",
+      "consulted_ranges": [
+        [
+          1,
+          200
+        ]
+      ]
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "examples/crapper.policy.edn",
+      "git_blob_sha1": "20c6ed629b6c3cb7a03760ea616fb084e4a6d4bc",
+      "sha256": "c95aaef73dae550443fa52b3d80b65ba672f220ae1db06833fcc27b9ab5de60a",
+      "bytes": 532,
+      "line_count": 18,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/examples/crapper.policy.edn",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/examples/crapper.policy.edn",
+      "consulted_ranges": "all"
+    },
+    {
+      "repository": "crapper",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d",
+      "path": "src/crapper/metrics.py",
+      "git_blob_sha1": "09592da4f588058ed21b2d472166f1e8649b337d",
+      "sha256": "faa40509457c475c9214f280e747c55d2b01655370b1a16cfc75474a744f8a48",
+      "bytes": 1643,
+      "line_count": 59,
+      "raw_url": "https://raw.githubusercontent.com/unclebob/crapper/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/metrics.py",
+      "url": "https://github.com/unclebob/crapper/blob/6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d/src/crapper/metrics.py",
+      "consulted_ranges": "all"
+    }
+  ],
+  "local_context": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "f486fc0d7618c28cc0db1807f838a9014334792f526bc78270cfce6a70cb6ce4",
+      "bytes": 16356,
+      "line_count": 126,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/code-quality.md",
+      "sha256": "1a7fda907336c9c46d2e7ead3f0ea48483cc503704e752c78820e1ab438dfadd",
+      "bytes": 7388,
+      "line_count": 98,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+      "sha256": "eaba54739e7d8eaac438acaea9e3be02416978d6e794ac33805a2157b1b1c9d6",
+      "bytes": 5509,
+      "line_count": 80,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+      "sha256": "649de595a2fae4dcf8c619256925636c42c6a15ab71372f623ca9f9aa608eda5",
+      "bytes": 20815,
+      "line_count": 320,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/git-workflow.md",
+      "sha256": "fc195de41eb4c31026b734316c056f6c030c6ac3e8537f0312b5c5bc37c106b3",
+      "bytes": 4786,
+      "line_count": 54,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "app/merge_test_gate.py",
+      "sha256": "015d013c8e22c9ba52b4ecc33a6e77e443cb5629b956567ac40b0cde1b541474",
+      "bytes": 49430,
+      "line_count": 1092,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "app/merge_operations.py",
+      "sha256": "2e885f3cf30f4f3888e6493776791b19b60b88c7ef85b9f96e372a8b8c6056ae",
+      "bytes": 108381,
+      "line_count": 2550,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "app/routes/merge_operations.py",
+      "sha256": "49712e3ff8b37a93075e8c74a52427c05e6a8c0097eb25acba5676aa1ac54b44",
+      "bytes": 9015,
+      "line_count": 215,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "app/routes/sessions.py",
+      "sha256": "c735ac8764ab754af6697e8ec66fc7da3121d0aff6eb92e52989f0987cbfcd72",
+      "bytes": 180172,
+      "line_count": 3922,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "app/diff_budget.py",
+      "sha256": "c7e42508c962c7b005e9122b7df3d0c3cdcf91f9561fdc5cf97a6be674a50517",
+      "bytes": 4850,
+      "line_count": 121,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "app/workspace.py",
+      "sha256": "506423fb9ffdebb7c4ac1c231cc734243e45e352fe6fbbf438386f5ee05b8d97",
+      "bytes": 167784,
+      "line_count": 3591,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "app/worktree_cleanup.py",
+      "sha256": "488e81d9d7d1fc70b378975bedab9e6519cfb6583068452b1ed987202a1c70e8",
+      "bytes": 9202,
+      "line_count": 218,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "app/session.py",
+      "sha256": "2da656139ea45193e6f32f22fc9156160956a761008433d9ff14bae9e0fe68cf",
+      "bytes": 231501,
+      "line_count": 5028,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "tests/test_merge_test_gate.py",
+      "sha256": "c64caef36ae9840e1932aa38b1e64022fd1a158c772a3238659ad184ae4aecd7",
+      "bytes": 65995,
+      "line_count": 1530,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "tests/test_merge_gate_mutation_702.py",
+      "sha256": "b51c0da8d1e9e2d57b6b328d684c8f2720ff8abf0677b5716b49776c70bdcaf0",
+      "bytes": 2592,
+      "line_count": 71,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "tests/test_diff_budget.py",
+      "sha256": "f3171670b18237655ff3449c461bcc7616537dbc26aa7baadc27b5e0bc13d2db",
+      "bytes": 4673,
+      "line_count": 111,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "tests/test_merge_operations.py",
+      "sha256": "224f258143518d5eed37c36a26cd99090a1fe70b3c4e6f8f8d3d9956d766c9c2",
+      "bytes": 50562,
+      "line_count": 1265,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "tests/test_work_acceptance.py",
+      "sha256": "153a1a5f01759cc4815131bd8e8449670e05a83a6fc7e53f8868f35f1ed01de7",
+      "bytes": 16003,
+      "line_count": 303,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "tests/test_worktree_cleanup_v984.py",
+      "sha256": "ce4a8ce85e036ae3f6242fcbd01ec97d2b59ae80cf1d0c511888669b1b0016f7",
+      "bytes": 7646,
+      "line_count": 194,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "tests/test_worktree_cleanup_v1072.py",
+      "sha256": "8b34eaa214a03de80638d827cf93a92e795db2071673cb01acf59d35f2e09ec7",
+      "bytes": 12981,
+      "line_count": 342,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "scripts/run_tests.py",
+      "sha256": "418c257616742630e0d05334c441cb97aa5815982be7a6610b4897758e0ec4fc",
+      "bytes": 2364,
+      "line_count": 72,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "91ad056de186c4be6d744474f12bb80a1763d883db0ba14916009dbad8c8d463",
+      "bytes": 2614,
+      "line_count": 50,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "uv.lock",
+      "sha256": "b1b9364dd130ddc03376563d83c14d8ef15bc9753d3f421e682df1588a558a70",
+      "bytes": 467099,
+      "line_count": 2234,
+      "scope": "local supplied snapshot; consulted excerpts/search, not necessarily entire file"
+    },
+    {
+      "path": "tests/test_log_write_loss.py",
+      "sha256": "e2db6851d1868057a92d25a1e3e95e5e029392d60c999dcb6b6f0b05f066c6b2",
+      "bytes": 4021,
+      "line_count": 86,
+      "scope": "consulted initial excerpt and function names, not necessarily full file"
+    }
+  ],
+  "raw_third_party_files_persisted": false,
+  "skill_inventory": {
+    "bullet_count": 61,
+    "bullet_lines": [
+      12,
+      13,
+      14,
+      20,
+      21,
+      25,
+      26,
+      27,
+      31,
+      32,
+      33,
+      34,
+      38,
+      39,
+      43,
+      44,
+      45,
+      49,
+      53,
+      54,
+      58,
+      59,
+      65,
+      66,
+      67,
+      71,
+      72,
+      73,
+      77,
+      78,
+      79,
+      83,
+      87,
+      88,
+      94,
+      95,
+      96,
+      100,
+      101,
+      105,
+      106,
+      110,
+      111,
+      112,
+      116,
+      120,
+      121,
+      122,
+      123,
+      127,
+      128,
+      129,
+      135,
+      136,
+      140,
+      141,
+      145,
+      146,
+      150,
+      151,
+      152
+    ],
+    "definition": "One actually read SKILL bullet per row, including three phase bullets"
+  }
+}

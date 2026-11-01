@@ -1,0 +1,12 @@
+tests/test_checklists_v858.py:301:    _insert_session(db, "worker-lifecycle", "task-1")
+tests/test_checklists_v858.py:305:        id="worker-lifecycle", name="worker", scope="/v858", cwd="/v858",
+tests/test_hot_apply.py:342:    assert result["cut_names"] == ["running"]
+tests/test_hot_apply.py:364:    assert result["ok"] is True and result["cut_names"] == ["stuck"]
+tests/test_hot_apply.py:397:    assert result["cut_names"] == ["agent-one"]
+tests/test_default_pipeline.py:158:        shared = {"safety", "knowledge", "communication-style", "user-values"}
+tests/test_restart_generation_liveness.py:651:            "cut_names": [],
+tests/test_wf_run.py:356:        "communication-style",
+tests/test_wf_run.py:357:        "user-values",
+tests/test_system_restart.py:87:        "cut_names": [],
+tests/test_system_restart.py:116:            "cut_names": [],
+tests/test_audit0901_sysquota.py:56:            "ok": True, "prepared": True, "cut_turns": 0, "cut_names": [], "cut_ids": [],

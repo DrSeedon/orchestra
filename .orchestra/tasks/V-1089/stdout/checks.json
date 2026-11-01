@@ -1,0 +1,146 @@
+[
+  {
+    "name": "mutation-baseline",
+    "command": [
+      "uv",
+      "run",
+      "--frozen",
+      "python",
+      "/<hub-copy>/.orchestra/tasks/V-1089/run_mutation.py",
+      "baseline"
+    ],
+    "exit_code": 1,
+    "expected_exit": 1
+  },
+  {
+    "name": "mutation-global-day-index",
+    "command": [
+      "uv",
+      "run",
+      "--frozen",
+      "python",
+      "/<hub-copy>/.orchestra/tasks/V-1089/run_mutation.py",
+      "global-day-index"
+    ],
+    "exit_code": 1,
+    "expected_exit": 1
+  },
+  {
+    "name": "mutation-single-day-session",
+    "command": [
+      "uv",
+      "run",
+      "--frozen",
+      "python",
+      "/<hub-copy>/.orchestra/tasks/V-1089/run_mutation.py",
+      "single-day-session"
+    ],
+    "exit_code": 1,
+    "expected_exit": 1
+  },
+  {
+    "name": "mutation-snapshot",
+    "command": [
+      "uv",
+      "run",
+      "--frozen",
+      "python",
+      "/<hub-copy>/.orchestra/tasks/V-1089/run_mutation.py",
+      "snapshot"
+    ],
+    "exit_code": 1,
+    "expected_exit": 1
+  },
+  {
+    "name": "mutation-scope",
+    "command": [
+      "uv",
+      "run",
+      "--frozen",
+      "python",
+      "/<hub-copy>/.orchestra/tasks/V-1089/run_mutation.py",
+      "scope"
+    ],
+    "exit_code": 1,
+    "expected_exit": 1
+  },
+  {
+    "name": "mutation-payload-prefix",
+    "command": [
+      "uv",
+      "run",
+      "--frozen",
+      "python",
+      "/<hub-copy>/.orchestra/tasks/V-1089/run_mutation.py",
+      "payload-prefix"
+    ],
+    "exit_code": 1,
+    "expected_exit": 1
+  },
+  {
+    "name": "mutation-candidate-cap",
+    "command": [
+      "uv",
+      "run",
+      "--frozen",
+      "python",
+      "/<hub-copy>/.orchestra/tasks/V-1089/run_mutation.py",
+      "candidate-cap"
+    ],
+    "exit_code": 1,
+    "expected_exit": 1
+  },
+  {
+    "name": "mutation-inline",
+    "command": [
+      "uv",
+      "run",
+      "--frozen",
+      "python",
+      "/<hub-copy>/.orchestra/tasks/V-1089/run_mutation.py",
+      "inline"
+    ],
+    "exit_code": 1,
+    "expected_exit": 1
+  },
+  {
+    "name": "final-tests",
+    "command": [
+      "uv",
+      "run",
+      "--frozen",
+      "python",
+      "-m",
+      "pytest",
+      "tests/test_log_search_v1001.py",
+      "tests/test_log_search_v1078.py",
+      "tests/test_log_search_v1089.py",
+      "tests/test_db.py",
+      "tests/test_db_connection_ownership.py",
+      "tests/test_mcp_stdio.py",
+      "tests/test_session_logs_conditional.py",
+      "tests/test_instruction_contract.py",
+      "tests/test_mcp_proof.py",
+      "tests/test_mcp_config_isolation.py",
+      "tests/test_mcp_resolve_operation_423.py",
+      "-q",
+      "--tb=short",
+      "--basetemp=.orchestra/tasks/V-1089/tmp/final"
+    ],
+    "exit_code": 1,
+    "expected_exit": 0
+  },
+  {
+    "name": "instruction-contract",
+    "command": [
+      "uv",
+      "run",
+      "--frozen",
+      "python",
+      "-c",
+      "import runpy; runpy.run_path(\"tests/conftest.py\"); runpy.run_path(\"scripts/check_instruction_contract.py\", run_name=\"__main__\")"
+    ],
+    "exit_code": 1,
+    "expected_exit": 0
+  }
+]

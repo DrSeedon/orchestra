@@ -1,0 +1,69 @@
+test_reinclude_with_missing_generated_ignore (private_regressions.PrivateSymlinkDirtyTests.test_reinclude_with_missing_generated_ignore) ... FAIL
+test_tracked_project_ignore_cannot_be_repaired (private_regressions.PrivateSymlinkDirtyTests.test_tracked_project_ignore_cannot_be_repaired) ... FAIL
+test_branch_reset_replaces_generated_ignore_and_sparse_reapply (private_regressions.PrivateSymlinkDirtyTests.test_branch_reset_replaces_generated_ignore_and_sparse_reapply) ... FAIL
+test_hub_roundtrip_and_merge_with_exposed_link (private_regressions.PrivateSymlinkDirtyTests.test_hub_roundtrip_and_merge_with_exposed_link) ... FAIL
+
+======================================================================
+FAIL: test_reinclude_with_missing_generated_ignore (private_regressions.PrivateSymlinkDirtyTests.test_reinclude_with_missing_generated_ignore)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<task-copy>/tests/test_private_symlink_dirty_v1049.py", line 77, in test_reinclude_with_missing_generated_ignore
+    self.assert_clean()
+  File "<task-copy>/tests/test_private_symlink_dirty_v1049.py", line 71, in assert_clean
+    self.assertEqual(result["uncommitted"], [])
+AssertionError: Lists differ: ['.orchestra/private'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'.orchestra/private'
+
+- ['.orchestra/private']
++ []
+
+======================================================================
+FAIL: test_tracked_project_ignore_cannot_be_repaired (private_regressions.PrivateSymlinkDirtyTests.test_tracked_project_ignore_cannot_be_repaired)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<task-copy>/tests/test_private_symlink_dirty_v1049.py", line 91, in test_tracked_project_ignore_cannot_be_repaired
+    self.assert_clean()
+  File "<task-copy>/tests/test_private_symlink_dirty_v1049.py", line 71, in assert_clean
+    self.assertEqual(result["uncommitted"], [])
+AssertionError: Lists differ: ['.orchestra/private'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'.orchestra/private'
+
+- ['.orchestra/private']
++ []
+
+======================================================================
+FAIL: test_branch_reset_replaces_generated_ignore_and_sparse_reapply (private_regressions.PrivateSymlinkDirtyTests.test_branch_reset_replaces_generated_ignore_and_sparse_reapply)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<task-copy>/tests/test_private_symlink_dirty_v1049.py", line 103, in test_branch_reset_replaces_generated_ignore_and_sparse_reapply
+    self.assertTrue(result["ok"], result)
+AssertionError: False is not true : {'ok': False, 'state': 'rollback_failed', 'error': 'switched worktree has inconsistent final state: ?? .orchestra/private', 'actual_branch': 'task-V-1050/worker', 'actual_head': '0ad42bece12c03f255e44ecef8c3559e1f245790'}
+
+======================================================================
+FAIL: test_hub_roundtrip_and_merge_with_exposed_link (private_regressions.PrivateSymlinkDirtyTests.test_hub_roundtrip_and_merge_with_exposed_link)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<task-copy>/tests/test_private_symlink_dirty_v1049.py", line 129, in test_hub_roundtrip_and_merge_with_exposed_link
+    self.assert_clean()
+  File "<task-copy>/tests/test_private_symlink_dirty_v1049.py", line 71, in assert_clean
+    self.assertEqual(result["uncommitted"], [])
+AssertionError: Lists differ: ['.orchestra/private'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'.orchestra/private'
+
+- ['.orchestra/private']
++ []
+
+----------------------------------------------------------------------
+Ran 4 tests in 2.824s
+
+FAILED (failures=4)
+Verified: all four positive regressions fail with the filter disabled; no source was modified.

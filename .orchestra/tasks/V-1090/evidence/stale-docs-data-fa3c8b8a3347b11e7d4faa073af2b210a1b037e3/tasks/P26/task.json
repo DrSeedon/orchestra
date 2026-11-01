@@ -1,0 +1,12 @@
+{
+  "id": "P26",
+  "package": "mailmerge",
+  "prompt": "Some customers want paper letters instead of mail. Please add a letters command that renders one letter file per recipient into a folder. It runs as `python -m mailmerge.letters TEMPLATE RECIPIENTS OUTPUT_DIR [--greeting TEXT]`.\n\nRead the template with the template loader we already have and the recipients with the recipients reader we already have (it already drops rows with a bad or repeated address). Handle the recipients in the order the reader returns them.\n\nEach letter starts with a greeting line, then one empty line, then the template filled in for that recipient with the renderer we already have. The greeting is \"Dear NAME,\" where NAME is the recipient's value in the name column. If a recipient has no name (the value is empty or there is no name column), the greeting is the fallback text given with --greeting, used exactly as given, for example \"Dear customer,\". The fallback greeting may be left out; then recipients without a name are skipped. A recipient whose template cannot be filled in (a placeholder has no value) is skipped too. Tell the user about every skipped recipient with the address and the reason, and at the end tell the user how many letters were written and how many recipients were skipped.\n\nWrite the letters to OUTPUT_DIR as letter-001.txt, letter-002.txt and so on, numbered from 1 in the order they are written; skipped recipients get no number. A letter file holds the greeting line, an empty line and the filled-in template without its trailing line breaks, followed by one line break. Also write OUTPUT_DIR/index.csv with the header file,email and one row per letter, in the same order. Create OUTPUT_DIR if it does not exist. Write index.csv even when no letter was written.\n\nIf the template file or the recipients file does not exist or cannot be read, the command exits with status 2 and creates nothing. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "LOG", "doc_side": "right"},
+    {"id": "D2", "type": "FMT", "doc_side": "right"},
+    {"id": "D3", "type": "OPT", "doc_side": "right"},
+    {"id": "D4", "type": "NAME", "doc_side": "right"},
+    {"id": "D5", "type": "IMPORT", "doc_side": "left"}
+  ]
+}

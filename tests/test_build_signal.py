@@ -56,22 +56,63 @@ class TestBuildId:
 
 class TestModelsHeader:
     def test_header_present_and_body_unchanged(self, tmp_path, monkeypatch):
+        from fastapi import Response
+        from fastapi.encoders import jsonable_encoder
         from fastapi.testclient import TestClient
         monkeypatch.setattr("app.db.DB_PATH", tmp_path / "t.db")
         from app.db import init_db
         init_db()
         from app.main import app
+        from app.routes import system
         with TestClient(app) as client:
             # .env с DASHBOARD_* попадает в окружение воркера и даёт 401 — гасим ПОСЛЕ
             # старта, lifespan подтягивает его обратно
             monkeypatch.delenv("DASHBOARD_USER", raising=False)
             monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
+            endpoint_payload = client.portal.call(system.list_models, Response())
             r = client.get("/api/models")
+            # Compare the transport body to the endpoint, including future additive fields.
+            assert r.json() == jsonable_encoder(endpoint_payload)
+            # Changing only the header's version must not change the JSON payload.
+            monkeypatch.setattr(system, "build_id", lambda: "next-build-for-header-check")
+            changed_header = client.get("/api/models")
         assert r.status_code == 200, r.text
         assert r.headers.get("X-Orchestra-Build")
         from app.deps import build_id
         assert r.headers["X-Orchestra-Build"] == build_id()
-        assert set(r.json()) == {"models", "provider_metadata", "proxy_connected"}
+        assert changed_header.status_code == 200, changed_header.text
+        assert changed_header.headers["X-Orchestra-Build"] == "next-build-for-header-check"
+        assert changed_header.headers["X-Orchestra-Build"] != r.headers["X-Orchestra-Build"]
+        assert changed_header.json() == jsonable_encoder(endpoint_payload)
+
+    @pytest.mark.parametrize("corruption", ["transport_body", "header_in_body"])
+    def test_body_integrity_check_rejects_response_corruption(self, tmp_path, monkeypatch, corruption):
+        from app.main import app
+        from app.routes import system
+
+        endpoint = system.list_models
+        calls = []
+
+        async def corrupt_body(response):
+            payload = await endpoint(response)
+            version = system.build_id()
+            calls.append(version)
+            payload["header_integrity_probe"] = version if corruption == "header_in_body" else True
+            return payload
+
+        route = next(route for route in app.routes
+                     if getattr(route, "path", None) == "/api/models"
+                     and "GET" in getattr(route, "methods", ()))
+        # Transport-only corruption is absent from the direct endpoint baseline.
+        monkeypatch.setattr(route.dependant, "call", corrupt_body)
+        if corruption == "header_in_body":
+            # Both paths agree initially, but changing the header must expose the leak.
+            monkeypatch.setattr(system, "list_models", corrupt_body)
+        with pytest.raises(AssertionError):
+            self.test_header_present_and_body_unchanged(tmp_path, monkeypatch)
+        assert len(calls) == (3 if corruption == "header_in_body" else 1)
+        if corruption == "header_in_body":
+            assert calls[0] != calls[-1]
 
     def test_head_carries_same_build_header_with_empty_body(self, tmp_path, monkeypatch):
         """Проверка не «метод разрешён», а «заголовок тот же»: heartbeat читает только его,

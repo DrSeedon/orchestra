@@ -1,0 +1,842 @@
+FFFFFF........FF.                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_already_removed_worktree_is_normal[repo_resolution] ___________
+
+cleanup_case = (PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-107...49f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_already_removed_worktree_0/wt'), <AsyncMock id='126232013330944'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72ceb1903470>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x72ceae29aa20>
+phase = 'repo_resolution'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("phase", ["repo_resolution", "inspection"])
+    async def test_already_removed_worktree_is_normal(cleanup_case, monkeypatch, caplog, phase):
+        main, wt, release = cleanup_case
+        source, target = snapshot(wt), snapshot(main)
+        retained = wt.with_name("retained")
+        wt.rename(retained)
+        if phase == "inspection":
+            # Isolate the reported stack after repo resolution also succeeded.
+            monkeypatch.setattr("app.workspace._resolve_repo", lambda *_: main)
+        await cleanup()
+>       assert errors(caplog) == []
+E       assert [<LogRecord: ...ation_id=%s">] == []
+E         
+E         Left contains one more item: <LogRecord: orchestra.merge_operations, 40, /home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py, 2286, "post-merge worktree cleanup failed operation_id=%s">
+E         Use -v to get more diff
+
+tests/test_worktree_cleanup_v1072.py:53: AssertionError
+----------------------------- Captured stderr call -----------------------------
+post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2276, in _clean_worktree_after_merge
+    repo = await asyncio.to_thread(_resolve_repo, worktree, worktree)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/workspace.py", line 1049, in _resolve_repo
+    git_common = _git_cmd(
+                 ^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/workspace.py", line 156, in _git_cmd
+    return subprocess.run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_already_removed_worktree_0/wt'
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.merge_operations:merge_operations.py:2286 post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2276, in _clean_worktree_after_merge
+    repo = await asyncio.to_thread(_resolve_repo, worktree, worktree)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/workspace.py", line 1049, in _resolve_repo
+    git_common = _git_cmd(
+                 ^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/workspace.py", line 156, in _git_cmd
+    return subprocess.run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_already_removed_worktree_0/wt'
+_____________ test_already_removed_worktree_is_normal[inspection] ______________
+
+cleanup_case = (PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-107...49f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_already_removed_worktree_1/wt'), <AsyncMock id='126232001959392'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72ceb1903380>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x72ceada2e210>
+phase = 'inspection'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("phase", ["repo_resolution", "inspection"])
+    async def test_already_removed_worktree_is_normal(cleanup_case, monkeypatch, caplog, phase):
+        main, wt, release = cleanup_case
+        source, target = snapshot(wt), snapshot(main)
+        retained = wt.with_name("retained")
+        wt.rename(retained)
+        if phase == "inspection":
+            # Isolate the reported stack after repo resolution also succeeded.
+            monkeypatch.setattr("app.workspace._resolve_repo", lambda *_: main)
+        await cleanup()
+>       assert errors(caplog) == []
+E       assert [<LogRecord: ...ation_id=%s">] == []
+E         
+E         Left contains one more item: <LogRecord: orchestra.merge_operations, 40, /home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py, 2286, "post-merge worktree cleanup failed operation_id=%s">
+E         Use -v to get more diff
+
+tests/test_worktree_cleanup_v1072.py:53: AssertionError
+----------------------------- Captured stderr call -----------------------------
+post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 144, in clean_worktree
+    reason = _refusal(wt, git)
+             ^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 69, in _refusal
+    status = git(["git", "status", "--porcelain"], cwd=str(wt), text=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_already_removed_worktree_1/wt'
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.merge_operations:merge_operations.py:2286 post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 144, in clean_worktree
+    reason = _refusal(wt, git)
+             ^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 69, in _refusal
+    status = git(["git", "status", "--porcelain"], cwd=str(wt), text=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_already_removed_worktree_1/wt'
+____________ test_removal_between_check_and_git_is_normal[status-1] ____________
+
+cleanup_case = (PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-107...49f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and0/wt'), <AsyncMock id='126232013327584'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72ceae60b830>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x72ceada2f3b0>
+paused_git = (<function paused_git.<locals>.make at 0x72ceafb40900>, <threading.Event at 0x72ceada2f470: set>, <threading.Event at 0x72ceada2f4a0: set>, [FileNotFoundError(2, 'No such file or directory')])
+command = 'status', occurrence = 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("command,occurrence", [("status", 1), ("ls-files", 1),
+                                                   ("hash-object", 1), ("status", 2)])
+    async def test_removal_between_check_and_git_is_normal(
+        cleanup_case, monkeypatch, caplog, paused_git, command, occurrence,
+    ):
+        main, wt, release = cleanup_case
+        source, target = snapshot(wt), snapshot(main)
+        retained = wt.with_name("retained")
+        make, entered, proceed, failures = paused_git
+        real_clean = worktree_cleanup.clean_worktree
+        runner = make(wt, command, occurrence)
+        monkeypatch.setattr(worktree_cleanup, "clean_worktree",
+                            lambda *a, **kw: real_clean(*a, **kw, git=runner))
+        task = asyncio.create_task(cleanup())
+        try:
+            assert await asyncio.to_thread(entered.wait, 10)
+            wt.rename(retained)
+        finally:
+            proceed.set()
+            await asyncio.wait_for(task, 15)
+        assert len(failures) == 1
+        assert failures[0].filename == str(wt)
+>       assert errors(caplog) == []
+E       assert [<LogRecord: ...ation_id=%s">] == []
+E         
+E         Left contains one more item: <LogRecord: orchestra.merge_operations, 40, /home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py, 2286, "post-merge worktree cleanup failed operation_id=%s">
+E         Use -v to get more diff
+
+tests/test_worktree_cleanup_v1072.py:111: AssertionError
+----------------------------- Captured stderr call -----------------------------
+post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 101, in <lambda>
+    lambda *a, **kw: real_clean(*a, **kw, git=runner))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 144, in clean_worktree
+    reason = _refusal(wt, git)
+             ^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 69, in _refusal
+    status = git(["git", "status", "--porcelain"], cwd=str(wt), text=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 77, in run
+    return worktree_cleanup._run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and0/wt'
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.merge_operations:merge_operations.py:2286 post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 101, in <lambda>
+    lambda *a, **kw: real_clean(*a, **kw, git=runner))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 144, in clean_worktree
+    reason = _refusal(wt, git)
+             ^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 69, in _refusal
+    status = git(["git", "status", "--porcelain"], cwd=str(wt), text=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 77, in run
+    return worktree_cleanup._run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and0/wt'
+___________ test_removal_between_check_and_git_is_normal[ls-files-1] ___________
+
+cleanup_case = (PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-107...49f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and1/wt'), <AsyncMock id='126232001735968'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72ceae2c8d10>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x72cead9f7b00>
+paused_git = (<function paused_git.<locals>.make at 0x72ceae2fba60>, <threading.Event at 0x72cead9f7b90: set>, <threading.Event at 0x72cead9f7bc0: set>, [FileNotFoundError(2, 'No such file or directory')])
+command = 'ls-files', occurrence = 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("command,occurrence", [("status", 1), ("ls-files", 1),
+                                                   ("hash-object", 1), ("status", 2)])
+    async def test_removal_between_check_and_git_is_normal(
+        cleanup_case, monkeypatch, caplog, paused_git, command, occurrence,
+    ):
+        main, wt, release = cleanup_case
+        source, target = snapshot(wt), snapshot(main)
+        retained = wt.with_name("retained")
+        make, entered, proceed, failures = paused_git
+        real_clean = worktree_cleanup.clean_worktree
+        runner = make(wt, command, occurrence)
+        monkeypatch.setattr(worktree_cleanup, "clean_worktree",
+                            lambda *a, **kw: real_clean(*a, **kw, git=runner))
+        task = asyncio.create_task(cleanup())
+        try:
+            assert await asyncio.to_thread(entered.wait, 10)
+            wt.rename(retained)
+        finally:
+            proceed.set()
+            await asyncio.wait_for(task, 15)
+        assert len(failures) == 1
+        assert failures[0].filename == str(wt)
+>       assert errors(caplog) == []
+E       assert [<LogRecord: ...ation_id=%s">] == []
+E         
+E         Left contains one more item: <LogRecord: orchestra.merge_operations, 40, /home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py, 2286, "post-merge worktree cleanup failed operation_id=%s">
+E         Use -v to get more diff
+
+tests/test_worktree_cleanup_v1072.py:111: AssertionError
+----------------------------- Captured stderr call -----------------------------
+post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 101, in <lambda>
+    lambda *a, **kw: real_clean(*a, **kw, git=runner))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 148, in clean_worktree
+    for rel in _ignored_files(wt, git):
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 130, in _ignored_files
+    res = git(["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard"], cwd=str(wt))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 77, in run
+    return worktree_cleanup._run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and1/wt'
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.merge_operations:merge_operations.py:2286 post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 101, in <lambda>
+    lambda *a, **kw: real_clean(*a, **kw, git=runner))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 148, in clean_worktree
+    for rel in _ignored_files(wt, git):
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 130, in _ignored_files
+    res = git(["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard"], cwd=str(wt))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 77, in run
+    return worktree_cleanup._run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and1/wt'
+_________ test_removal_between_check_and_git_is_normal[hash-object-1] __________
+
+cleanup_case = (PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-107...49f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and2/wt'), <AsyncMock id='126232001918016'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72ceae504dd0>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x72ceada01820>
+paused_git = (<function paused_git.<locals>.make at 0x72ceada18540>, <threading.Event at 0x72ceada01c70: set>, <threading.Event at 0x72ceada020c0: set>, [FileNotFoundError(2, 'No such file or directory')])
+command = 'hash-object', occurrence = 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("command,occurrence", [("status", 1), ("ls-files", 1),
+                                                   ("hash-object", 1), ("status", 2)])
+    async def test_removal_between_check_and_git_is_normal(
+        cleanup_case, monkeypatch, caplog, paused_git, command, occurrence,
+    ):
+        main, wt, release = cleanup_case
+        source, target = snapshot(wt), snapshot(main)
+        retained = wt.with_name("retained")
+        make, entered, proceed, failures = paused_git
+        real_clean = worktree_cleanup.clean_worktree
+        runner = make(wt, command, occurrence)
+        monkeypatch.setattr(worktree_cleanup, "clean_worktree",
+                            lambda *a, **kw: real_clean(*a, **kw, git=runner))
+        task = asyncio.create_task(cleanup())
+        try:
+            assert await asyncio.to_thread(entered.wait, 10)
+            wt.rename(retained)
+        finally:
+            proceed.set()
+            await asyncio.wait_for(task, 15)
+        assert len(failures) == 1
+        assert failures[0].filename == str(wt)
+>       assert errors(caplog) == []
+E       assert [<LogRecord: ...ation_id=%s">] == []
+E         
+E         Left contains one more item: <LogRecord: orchestra.merge_operations, 40, /home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py, 2286, "post-merge worktree cleanup failed operation_id=%s">
+E         Use -v to get more diff
+
+tests/test_worktree_cleanup_v1072.py:111: AssertionError
+----------------------------- Captured stderr call -----------------------------
+post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 101, in <lambda>
+    lambda *a, **kw: real_clean(*a, **kw, git=runner))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 171, in clean_worktree
+    if st.st_size in blobs and _hash(full, wt, git) in blobs[st.st_size]:
+                               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 115, in _hash
+    res = git(["git", "hash-object", "--no-filters", "--", str(path)], cwd=str(wt), text=True)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 77, in run
+    return worktree_cleanup._run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and2/wt'
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.merge_operations:merge_operations.py:2286 post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 101, in <lambda>
+    lambda *a, **kw: real_clean(*a, **kw, git=runner))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 171, in clean_worktree
+    if st.st_size in blobs and _hash(full, wt, git) in blobs[st.st_size]:
+                               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 115, in _hash
+    res = git(["git", "hash-object", "--no-filters", "--", str(path)], cwd=str(wt), text=True)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 77, in run
+    return worktree_cleanup._run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and2/wt'
+____________ test_removal_between_check_and_git_is_normal[status-2] ____________
+
+cleanup_case = (PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-107...49f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and3/wt'), <AsyncMock id='126232001788192'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72ceae2c8ef0>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x72ceada2b5c0>
+paused_git = (<function paused_git.<locals>.make at 0x72ceada18a40>, <threading.Event at 0x72ceada2b650: set>, <threading.Event at 0x72ceada2b680: set>, [FileNotFoundError(2, 'No such file or directory')])
+command = 'status', occurrence = 2
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("command,occurrence", [("status", 1), ("ls-files", 1),
+                                                   ("hash-object", 1), ("status", 2)])
+    async def test_removal_between_check_and_git_is_normal(
+        cleanup_case, monkeypatch, caplog, paused_git, command, occurrence,
+    ):
+        main, wt, release = cleanup_case
+        source, target = snapshot(wt), snapshot(main)
+        retained = wt.with_name("retained")
+        make, entered, proceed, failures = paused_git
+        real_clean = worktree_cleanup.clean_worktree
+        runner = make(wt, command, occurrence)
+        monkeypatch.setattr(worktree_cleanup, "clean_worktree",
+                            lambda *a, **kw: real_clean(*a, **kw, git=runner))
+        task = asyncio.create_task(cleanup())
+        try:
+            assert await asyncio.to_thread(entered.wait, 10)
+            wt.rename(retained)
+        finally:
+            proceed.set()
+            await asyncio.wait_for(task, 15)
+        assert len(failures) == 1
+        assert failures[0].filename == str(wt)
+>       assert errors(caplog) == []
+E       assert [<LogRecord: ...ation_id=%s">] == []
+E         
+E         Left contains one more item: <LogRecord: orchestra.merge_operations, 40, /home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py, 2286, "post-merge worktree cleanup failed operation_id=%s">
+E         Use -v to get more diff
+
+tests/test_worktree_cleanup_v1072.py:111: AssertionError
+----------------------------- Captured stderr call -----------------------------
+post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 101, in <lambda>
+    lambda *a, **kw: real_clean(*a, **kw, git=runner))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 187, in clean_worktree
+    reason = _refusal(wt, git)
+             ^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 69, in _refusal
+    status = git(["git", "status", "--porcelain"], cwd=str(wt), text=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 77, in run
+    return worktree_cleanup._run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and3/wt'
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.merge_operations:merge_operations.py:2286 post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 101, in <lambda>
+    lambda *a, **kw: real_clean(*a, **kw, git=runner))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 187, in clean_worktree
+    reason = _refusal(wt, git)
+             ^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 69, in _refusal
+    status = git(["git", "status", "--porcelain"], cwd=str(wt), text=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 77, in run
+    return worktree_cleanup._run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_removal_between_check_and3/wt'
+________________ test_hub_release_error_survives_local_removal _________________
+
+cleanup_case = (PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-107...49f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_hub_release_error_survive0/wt'), <AsyncMock id='126232001951552'>)
+caplog = <_pytest.logging.LogCaptureFixture object at 0x72ceada02450>
+
+    @pytest.mark.asyncio
+    async def test_hub_release_error_survives_local_removal(cleanup_case, caplog):
+        _main, wt, release = cleanup_case
+        release.side_effect = RuntimeError("hub cleanup failed")
+        wt.rename(wt.with_name("retained"))
+        await cleanup()
+        warnings = [r for r in caplog.records if r.name == operations.logger.name
+                    and r.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        assert warnings[0].exc_info[1] is release.side_effect
+>       assert errors(caplog) == []
+E       assert [<LogRecord: ...ation_id=%s">] == []
+E         
+E         Left contains one more item: <LogRecord: orchestra.merge_operations, 40, /home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py, 2286, "post-merge worktree cleanup failed operation_id=%s">
+E         Use -v to get more diff
+
+tests/test_worktree_cleanup_v1072.py:217: AssertionError
+----------------------------- Captured stderr call -----------------------------
+hub workspace release failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2271, in _clean_worktree_after_merge
+    await release_for_worktree(worktree)
+  File "/usr/lib/python3.12/unittest/mock.py", line 2262, in _execute_mock_call
+    raise effect
+RuntimeError: hub cleanup failed
+post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2276, in _clean_worktree_after_merge
+    repo = await asyncio.to_thread(_resolve_repo, worktree, worktree)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/workspace.py", line 1049, in _resolve_repo
+    git_common = _git_cmd(
+                 ^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/workspace.py", line 156, in _git_cmd
+    return subprocess.run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_hub_release_error_survive0/wt'
+------------------------------ Captured log call -------------------------------
+WARNING  orchestra.merge_operations:merge_operations.py:2273 hub workspace release failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2271, in _clean_worktree_after_merge
+    await release_for_worktree(worktree)
+  File "/usr/lib/python3.12/unittest/mock.py", line 2262, in _execute_mock_call
+    raise effect
+RuntimeError: hub cleanup failed
+ERROR    orchestra.merge_operations:merge_operations.py:2286 post-merge worktree cleanup failed operation_id=cleanup-regression
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2276, in _clean_worktree_after_merge
+    repo = await asyncio.to_thread(_resolve_repo, worktree, worktree)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/workspace.py", line 1049, in _resolve_repo
+    git_common = _git_cmd(
+                 ^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/workspace.py", line 156, in _git_cmd
+    return subprocess.run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_hub_release_error_survive0/wt'
+________ test_terminal_merge_and_target_survive_optional_cleanup[False] ________
+
+merge_db = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_terminal_merge_and_target0/merge.db')
+setup = (PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-107...ird/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_terminal_merge_and_target0/wt'))
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72cead9e40b0>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x72ceada22060>
+paused_git = (<function paused_git.<locals>.make at 0x72ceada19120>, <threading.Event at 0x72ceada22360: set>, <threading.Event at 0x72ceada22510: set>, [FileNotFoundError(2, 'No such file or directory')])
+cleanup_failure = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("cleanup_failure", [False, True])
+    async def test_terminal_merge_and_target_survive_optional_cleanup(
+        merge_db, setup, monkeypatch, caplog, paused_git, cleanup_failure,  # noqa: F811
+    ):
+        from app import db
+    
+        main, wt = setup
+        (wt / "src.py").write_text("x = 2\n")
+        git(wt, "add", "src.py")
+        git(wt, "commit", "-qm", "worker result")
+        head = git(wt, "rev-parse", "HEAD").stdout.strip()
+        row = db.get_session("merge-session")
+        row["worktree_path"] = str(wt)
+        db.save_session(row)
+        monkeypatch.setattr("app.workspace.inspect_worktree_identity",
+                            lambda _path: ("task-42/worker", "b" * 40))
+        release = AsyncMock(return_value=[])
+        monkeypatch.setattr("app.backend_hub.release_for_worktree", release)
+        make, entered, proceed, failures = paused_git
+        real_clean = worktree_cleanup.clean_worktree
+        runner = make(wt, "status")
+        genuine = PermissionError(13, "cleanup denied")
+    
+        def clean(*args, **kwargs):
+            if cleanup_failure:
+                entered.set()
+                assert proceed.wait(10)
+                raise genuine
+            return real_clean(*args, **kwargs, git=runner)
+    
+        monkeypatch.setattr(worktree_cleanup, "clean_worktree", clean)
+    
+        async def execute(**_kwargs):
+            before = git(main, "rev-parse", "HEAD").stdout.strip()
+            git(main, "merge", "--ff-only", head)
+            return {"ok": True, "state": "merged", "commit_point": "target_committed",
+                    "target_branch": "main", "target_before": before, "target_after": head,
+                    "worker_branch": "task-42/worker", "worker_head": "b" * 40,
+                    "conflicts": [], "commits_merged": 1, "lifecycle_status": {"ok": True},
+                    "rag_backfill_status": "accepted"}
+    
+        monkeypatch.setattr("app.routes.sessions.execute_merge_session", execute)
+        operation_id = str(uuid.uuid4())
+        await operations.accept_merge_operation(
+            operation_id=operation_id, name="worker", scope="/scope/", target="main",
+            expected_head="b" * 40, acceptance_note="Inspected the pinned worker changes.",
+        )
+        try:
+            assert await asyncio.to_thread(entered.wait, 10)
+            stored = operations.get_operation_result(operation_id)
+            assert stored["operation_state"] == "SUCCEEDED"
+            assert stored["commit_point"] == "REACHED"
+            assert git(main, "rev-parse", "HEAD").stdout.strip() == head
+            source = snapshot(wt)
+            if not cleanup_failure:
+                wt.rename(wt.with_name("retained"))
+        finally:
+            proceed.set()
+            await asyncio.wait_for(asyncio.gather(*list(operations._runner_tasks.values())), 15)
+        assert operations.get_operation_result(operation_id) == stored
+        assert git(main, "rev-parse", "HEAD").stdout.strip() == head
+        assert (main / "src.py").read_text() == "x = 2\n"
+        assert snapshot(wt if cleanup_failure else wt.with_name("retained")) == source
+>       assert len(errors(caplog)) == int(cleanup_failure)
+E       assert 1 == 0
+E        +  where 1 = len([<LogRecord: orchestra.merge_operations, 40, /home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py, 2286, "post-merge worktree cleanup failed operation_id=%s">])
+E        +    where [<LogRecord: orchestra.merge_operations, 40, /home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py, 2286, "post-merge worktree cleanup failed operation_id=%s">] = errors(<_pytest.logging.LogCaptureFixture object at 0x72ceada22060>)
+E        +  and   0 = int(False)
+
+tests/test_worktree_cleanup_v1072.py:284: AssertionError
+----------------------------- Captured stderr call -----------------------------
+post-merge worktree cleanup failed operation_id=82ad9788-3376-47ff-9a23-70de302bd886
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 249, in clean
+    return real_clean(*args, **kwargs, git=runner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 144, in clean_worktree
+    reason = _refusal(wt, git)
+             ^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 69, in _refusal
+    status = git(["git", "status", "--porcelain"], cwd=str(wt), text=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 77, in run
+    return worktree_cleanup._run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_terminal_merge_and_target0/wt'
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.merge_operations:merge_operations.py:2286 post-merge worktree cleanup failed operation_id=82ad9788-3376-47ff-9a23-70de302bd886
+Traceback (most recent call last):
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/merge_operations.py", line 2277, in _clean_worktree_after_merge
+    outcome = await asyncio.to_thread(
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 249, in clean
+    return real_clean(*args, **kwargs, git=runner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 144, in clean_worktree
+    reason = _refusal(wt, git)
+             ^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 69, in _refusal
+    status = git(["git", "status", "--porcelain"], cwd=str(wt), text=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/tests/test_worktree_cleanup_v1072.py", line 77, in run
+    return worktree_cleanup._run(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/app/worktree_cleanup.py", line 41, in _run
+    return subprocess.run(args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/usr/lib/python3.12/subprocess.py", line 1955, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-6649f1d461d54a7d/.orchestra/tasks/V-1072/test-tmp/test_terminal_merge_and_target0/wt'
+=========================== short test summary info ============================
+FAILED tests/test_worktree_cleanup_v1072.py::test_already_removed_worktree_is_normal[repo_resolution]
+FAILED tests/test_worktree_cleanup_v1072.py::test_already_removed_worktree_is_normal[inspection]
+FAILED tests/test_worktree_cleanup_v1072.py::test_removal_between_check_and_git_is_normal[status-1]
+FAILED tests/test_worktree_cleanup_v1072.py::test_removal_between_check_and_git_is_normal[ls-files-1]
+FAILED tests/test_worktree_cleanup_v1072.py::test_removal_between_check_and_git_is_normal[hash-object-1]
+FAILED tests/test_worktree_cleanup_v1072.py::test_removal_between_check_and_git_is_normal[status-2]
+FAILED tests/test_worktree_cleanup_v1072.py::test_hub_release_error_survives_local_removal
+FAILED tests/test_worktree_cleanup_v1072.py::test_terminal_merge_and_target_survive_optional_cleanup[False]
+8 failed, 9 passed in 9.25s

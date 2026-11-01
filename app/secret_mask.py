@@ -14,21 +14,18 @@ import re
 # Bearer/Basic и PEM уже описаны в runtime_history (leaf-модуль, ничего из app не тянет).
 # Переиспользуем ПАТТЕРНЫ, а не функцию: замена у нас своя, с длиной и хвостом.
 from app.runtime_history import _AUTH_VALUE, _PEM_PRIVATE_KEY
+from app.publication_secrets import _MIN_LEN, _SECRET_WORDS
 
-_MIN_LEN = 12          # короче — не трогаем: шум забьёт журнал
 _TAIL_FROM = 16        # хвост отдаём только когда 4 символа — малая доля значения
 
-# ЕДИНСТВЕННЫЙ список имён. И регулярка, и быстрый предфильтр строятся из него —
+# Общие имена и минимальная длина принадлежат publication_secrets.
+# И регулярка, и быстрый предфильтр строятся из одного списка —
 # держать их двумя списками нельзя: копия разойдётся и предфильтр начнёт молча
 # отбрасывать то, что правило поймало бы.
 # Суффиксы ловят любой префикс (OPENROUTER_API_KEY, YOUGILE_PASSWORD, GROK_TOKEN);
 # явные имена суффиксом не ловятся, но матчатся по границе `_`/`-`, поэтому
 # SENTRY_DSN и SESSION_COOKIE попадают, а DSNAME — нет.
-_SECRET_WORDS = (
-    "TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "APIKEY",
-    "COOKIE", "CREDENTIAL", "PRIVATE_KEY", "PASSPHRASE", "DATABASE_URL",
-    "CONNECTION_STRING", "DSN", "AUTH_TOKEN", "API_HASH", "YANDEX_DIRECT_LOGIN",
-)
+
 _SUFFIX = "(?:" + "|".join(w.replace("_", "[_-]?") for w in _SECRET_WORDS) + ")"
 _EXPLICIT = _SUFFIX  # исторические имена: правило одно, список один
 # `_HASH` суффиксом НЕ берём: TEMPLATE_HASH/_TEMPLATE_HASH — хеши содержимого, не секреты

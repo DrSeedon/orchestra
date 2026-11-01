@@ -1,0 +1,51 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_t2_unrelated_dirty_target_allows_merge_and_preserves_file ________
+
+tmp_path = PosixPath('.orchestra/tasks/V-1034/v416-mutation-tmp/test_t2_unrelated_dirty_target0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7cd7c1bff230>
+
+    def test_t2_unrelated_dirty_target_allows_merge_and_preserves_file(
+        tmp_path, monkeypatch,
+    ):
+        import app.mcp_stdio as mcp
+        import app.merge_operations as operations
+        import app.workspace as workspace
+    
+        repo = _make_repo(tmp_path)
+        worktree_root = tmp_path / "worktrees"
+        worktree_root.mkdir()
+        monkeypatch.setattr(workspace, "WORKTREE_ROOT", worktree_root)
+        worker = workspace.create_worktree(
+            str(repo), "reason-worker", task_id="416", base_branch="main",
+        )
+        worker_path = Path(worker.path)
+        (worker_path / "worker.txt").write_text("worker payload\n")
+        _git(worker_path, "add", "worker.txt")
+        _git(worker_path, "commit", "-m", "#416: worker payload")
+        dirty_file = repo / ".orchestra" / "tasks" / "49" / "research.md"
+        dirty_file.parent.mkdir(parents=True)
+        dirty_file.write_text("untracked target WIP\n")
+        status_before = _git(repo, "status", "--porcelain").stdout
+        target_before = _git(repo, "rev-parse", "main").stdout.strip()
+    
+        raw = workspace.merge_worktree_to_main(
+            worker.path, str(repo), target_branch="main", waive_diff_budget=True,
+        )
+        normalized = operations.normalize_merge_result(
+            "t2-unrelated-operation", raw,
+            operations.normalize_request(
+                name="reason-worker", scope=str(repo), target="main",
+                waive_diff_budget=True,
+            ),
+        )
+        delivered = mcp._merge_tool_result(normalized)
+    
+>       assert raw["ok"] is True, raw
+E       AssertionError: {'commit_point': 'not_reached', 'conflicts': [], 'diff_budget_limit': 2000, 'diff_budget_waived': True, ...}
+E       assert False is True
+
+tests/test_merge_reason_preservation_416.py:170: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_reason_preservation_416.py::test_t2_unrelated_dirty_target_allows_merge_and_preserves_file
+1 failed in 4.30s

@@ -1,0 +1,14 @@
+
+## v2.26.1 — 2026-07-27 — #95 Grok T2: MCP isolation
+
+This closes a leak channel, not a hygiene issue: the T1 artifact contained a live third-party service key because Grok
+starts foreign MCP servers itself and relays their environment.
+
+### Fixed
+- 🔒 **A Grok worker starts with EXACTLY our MCP server set** (`app/backend_grok.py`). Two layers: an Orchestra-owned
+  `GROK_HOME` (`data/grok-home`, in `.gitignore`) with `[compat.claude] mcps = false`, plus verification of the actual roster
+  on connect. A foreign server raises `GrokMcpIsolationError`; the worker **does not start**, and the error lists offenders.
+  - `auth.json` is a symlink to the user's file so token refresh does not go stale in a private copy. The directory is
+    stable, not temporary: it also holds the session store required for resume (T3).
+- ⚙️ **Environment `GROK_BIN` overrides PATH discovery** (`app/backend_grok.py`). Previously `shutil.which()` ran first,
+  allowing an unrelated `grok` in PATH to silently beat explicit configuration.

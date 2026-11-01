@@ -1,0 +1,54 @@
+{
+  "format": [
+    {
+      "name": "explainer-craft",
+      "required_fields_and_lengths": true,
+      "extra_top_level_fields": [],
+      "strict_allowed_fields": true
+    },
+    {
+      "name": "grill-me",
+      "required_fields_and_lengths": true,
+      "extra_top_level_fields": [
+        "integrations",
+        "roles"
+      ],
+      "strict_allowed_fields": false
+    },
+    {
+      "name": "html-artifacts",
+      "required_fields_and_lengths": true,
+      "extra_top_level_fields": [],
+      "strict_allowed_fields": true
+    },
+    {
+      "name": "laptop-access",
+      "required_fields_and_lengths": true,
+      "extra_top_level_fields": [],
+      "strict_allowed_fields": true
+    },
+    {
+      "name": "orchestra-agents",
+      "required_fields_and_lengths": true,
+      "extra_top_level_fields": [],
+      "strict_allowed_fields": true
+    },
+    {
+      "name": "video-artifact",
+      "required_fields_and_lengths": true,
+      "extra_top_level_fields": [],
+      "strict_allowed_fields": true
+    },
+    {
+      "name": "vps-deploy",
+      "required_fields_and_lengths": true,
+      "extra_top_level_fields": [],
+      "strict_allowed_fields": true
+    }
+  ],
+  "local_line_links_checked": 68,
+  "source_fingerprints_unchanged": true,
+  "publication_shape_findings": [],
+  "errors": [],
+  "artifact_count": 68
+}

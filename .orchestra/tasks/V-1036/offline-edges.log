@@ -1,0 +1,14 @@
+test_cancel_route_initial_fallback_and_pending_identity (__main__.Edges.test_cancel_route_initial_fallback_and_pending_identity) ... ok
+test_mcp_accepts_error_receipts_without_losing_identity (__main__.Edges.test_mcp_accepts_error_receipts_without_losing_identity) ... Executing <Task finished name='Task-7' coro=<Edges.test_mcp_accepts_error_receipts_without_losing_identity() done, defined at <hub-workspace>:74> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.158 seconds
+ok
+test_mcp_pending_tool_forwards_target (__main__.Edges.test_mcp_pending_tool_forwards_target) ... ok
+test_mcp_still_raises_rejections_with_id (__main__.Edges.test_mcp_still_raises_rejections_with_id) ... ok
+test_receipt_text_reports_failure_and_quota_eta (__main__.Edges.test_receipt_text_reports_failure_and_quota_eta) ... Executing <Task finished name='Task-22' coro=<Edges.test_receipt_text_reports_failure_and_quota_eta() done, defined at <hub-workspace>:96> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.100 seconds
+ok
+test_spawn_admission_precedes_every_allocation_and_skips_orchestrator (__main__.Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator) ... Executing <Task finished name='Task-27' coro=<Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator() done, defined at <hub-workspace>:115> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.123 seconds
+ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.570s
+
+OK

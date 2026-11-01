@@ -1,0 +1,8 @@
+PASS: shared prompt additions contain no Cyrillic or trailing whitespace; existing role wrappers preserved.
+PASS: AGENTS.md and inspected canonical modules unchanged by SHA-256.
+AGENTS.md: 16356 bytes (limit 16384).
+Role diff: +18/-0 lines; changelog diff inspected separately.
+Only prose changed; no assembly, runtime, model routing, approval gate or tool edits.
+Manual review: additions contain no credentials or source log dumps.
+Instruction contract unavailable: scripts/check_instruction_contract.py is absent.
+No pytest run; app/, tests/ and prompt assembly registry are absent from the supplied copy.

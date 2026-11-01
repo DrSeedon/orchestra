@@ -1,0 +1,159 @@
+     1	"""`local_api` op: list, describe and call host-local structured endpoints.
+     2	
+     3	Registered ONLY when the host declares `local_apis`. A host without that block
+     4	gets no handler and advertises no capability, so this is additive by
+     5	construction: nothing changes for the fleet that does not opt in.
+     6	"""
+     7	
+     8	from __future__ import annotations
+     9	
+    10	import logging
+    11	from typing import Any
+    12	
+    13	from sentinelx_core.local_api import LocalApiError, call_action
+    14	from sentinelx_core.policy import Policy
+    15	
+    16	logger = logging.getLogger(__name__)
+    17	
+    18	
+    19	def _param_names(action: Any) -> list[str]:
+    20	    """Parameter names for one action, from whichever source it has.
+    21	
+    22	    A declared schema wins because it is the richer statement; the template is
+    23	    the fallback and needs no declaring. Required names come first, since that
+    24	    is the order a caller cares about.
+    25	    """
+    26	    schema = getattr(action, "params_schema", None)
+    27	    if isinstance(schema, dict):
+    28	        props = schema.get("properties")
+    29	        if isinstance(props, dict):
+    30	            required = [r for r in (schema.get("required") or []) if r in props]
+    31	            rest = sorted(k for k in props if k not in required)
+    32	            return list(required) + rest
+    33	    return sorted(
+    34	        {
+    35	            seg.split("}")[0]
+    36	            for seg in (getattr(action, "request", None) or "").split("{")[1:]
+    37	            if "}" in seg
+    38	        }
+    39	    )
+    40	
+    41	
+    42	def make_local_api_handler(policy: Policy):
+    43	    """Build the handler over this host's configured endpoints."""
+    44	
+    45	    async def handle_local_api(payload: dict[str, Any]) -> dict[str, Any]:
+    46	        operation = str(payload.get("operation") or "").strip()
+    47	
+    48	        if operation == "list":
+    49	            return {
+    50	                "ok": True,
+    51	                "operation": "list",
+    52	                "endpoints": [
+    53	                    {
+    54	                        "name": e.name,
+    55	                        "protocol": e.protocol,
+    56	                        "transport": e.transport,
+    57	                        "action_count": len(e.actions),
+    58	                    }
+    59	                    for e in policy.local_apis.values()
+    60	                ],
+    61	            }
+    62	
+    63	        name = str(payload.get("endpoint") or "").strip()
+    64	        endpoint = policy.local_apis.get(name)
+    65	        if endpoint is None:
+    66	            return {
+    67	                "ok": False,
+    68	                "error": "endpoint_not_configured",
+    69	                "message": (
+    70	                    f"no local endpoint named '{name}' on this host. "
+    71	                    f"Configured: {sorted(policy.local_apis)}"
+    72	                ),
+    73	            }
+    74	
+    75	        if operation == "describe":
+    76	            # Mandatory, not a convenience. Without it the model has to guess
+    77	            # the shape of `params`, and a guessed call against an opaque
+    78	            # endpoint is exactly what the action allowlist exists to prevent.
+    79	            return {
+    80	                "ok": True,
+    81	                "operation": "describe",
+    82	                "endpoint": endpoint.name,
+    83	                "protocol": endpoint.protocol,
+    84	                "transport": endpoint.transport,
+    85	                # For stdio, what runs. The COUNT of args and not their values:
+    86	                # an operator may put a token or a private path there.
+    87	                **(
+    88	                    {
+    89	                        "path": endpoint.path,
+    90	                        "handshake": endpoint.handshake,
+    91	                        "arg_count": len(endpoint.args),
+    92	                    }
+    93	                    if endpoint.transport == "stdio"
+    94	                    else {}
+    95	                ),
+    96	                "actions": {
+    97	                    an: {
+    98	                        "request": a.request,
+    99	                        "method": a.method,
+   100	                        "returns": list(a.select) or "the endpoint's own shape",
+   101	                        "description": a.description,
+   102	                        # Names the caller must supply. Two sources, and the
+   103	                        # field stays a list of names either way so a consumer
+   104	                        # that only reads this keeps working:
+   105	                        #
+   106	                        #   HTTP     -> the {placeholders} in the request
+   107	                        #               template, which cannot drift from what
+   108	                        #               actually runs.
+   109	                        #   JSON-RPC -> the properties of the declared schema.
+   110	                        #               There is no template to read, so
+   111	                        #               without a declaration this was empty
+   112	                        #               for every such action.
+   113	                        "params": _param_names(a),
+   114	                        # The declared shape, verbatim, when the profile gives
+   115	                        # one. Nested objects, arrays and enums live here; the
+   116	                        # flat list above cannot express them. Absent when
+   117	                        # undeclared rather than null, so its presence means
+   118	                        # something.
+   119	                        **(
+   120	                            {"params_schema": a.params_schema}
+   121	                            if a.params_schema
+   122	                            else {}
+   123	                        ),
+   124	                    }
+   125	                    for an, a in sorted(endpoint.actions.items())
+   126	                },
+   127	            }
+   128	
+   129	        if operation == "call":
+   130	            action = str(payload.get("action") or "").strip()
+   131	            params = payload.get("params") or {}
+   132	            if not isinstance(params, dict):
+   133	                return {
+   134	                    "ok": False,
+   135	                    "error": "invalid_payload",
+   136	                    "message": "params must be an object",
+   137	                }
+   138	            try:
+   139	                result = await call_action(endpoint, action, params)
+   140	            except LocalApiError as exc:
+   141	                logger.warning(
+   142	                    "local_api call failed: %s/%s: %s", name, action, exc.code
+   143	                )
+   144	                return {"ok": False, "error": exc.code, "message": exc.message}
+   145	            return {
+   146	                "ok": True,
+   147	                "operation": "call",
+   148	                "endpoint": endpoint.name,
+   149	                "action": action,
+   150	                "result": result,
+   151	            }
+   152	
+   153	        return {
+   154	            "ok": False,
+   155	            "error": "invalid_payload",
+   156	            "message": f"unknown operation '{operation}'; expected list, describe or call",
+   157	        }
+   158	
+   159	    return handle_local_api

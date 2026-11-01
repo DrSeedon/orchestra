@@ -1,0 +1,531 @@
+.........................................................F.............. [ 35%]
+...................................F.......F..............F......F...... [ 70%]
+....FF....................................FF...............              [100%]
+=================================== FAILURES ===================================
+__ test_concurrent_keys_start_exactly_one_executor_and_survive_request_return __
+
+fut = <coroutine object Event.wait at 0x7d1c9458cac0>, timeout = 30
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.locks.Event object at 0x7d1c954b0ce0 [unset]>
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+>           await fut
+E           asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+merge_db = PosixPath('.orchestra/tasks/V-1034/regression-tmp/test_concurrent_keys_start_exa0/merge.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d1c9549db50>
+
+    @pytest.mark.asyncio
+    async def test_concurrent_keys_start_exactly_one_executor_and_survive_request_return(
+        merge_db, monkeypatch,
+    ):
+        import app.merge_operations as operations
+    
+        monkeypatch.setattr(
+            "app.workspace.inspect_worktree_identity",
+            lambda _path: ("task-42/worker", "b" * 40),
+        )
+        started = asyncio.Event()
+        release = asyncio.Event()
+        calls = 0
+    
+        async def fake_execute(**_kwargs):
+            nonlocal calls
+            calls += 1
+            started.set()
+            await release.wait()
+            return {
+                "ok": True,
+                "state": "merged",
+                "commit_point": "target_committed",
+                "target_branch": "main",
+                "target_before": "a" * 40,
+                "target_after": "c" * 40,
+                "worker_branch": "task-42/worker",
+                "worker_head": "b" * 40,
+                "conflicts": [],
+                "commits_merged": 1,
+                "lifecycle_status": {"ok": True},
+                "rag_backfill_status": "accepted",
+            }
+    
+        monkeypatch.setattr("app.routes.sessions.execute_merge_session", fake_execute)
+        # This test owns operation arbitration, not review coverage: with the policy
+        # marker live the admission refuses before the executor and started never fires.
+        primary = str(uuid.uuid4())
+        ids = [primary] * 20 + [str(uuid.uuid4()), str(uuid.uuid4())]
+        responses = await asyncio.gather(*[
+            operations.accept_merge_operation(
+                operation_id=operation_id,
+                name="worker",
+                scope="/scope/",
+                target="main",
+            )
+            for operation_id in ids
+        ])
+        # Bounded on purpose: a regression here must fail loudly, never hang the gate.
+>       await asyncio.wait_for(started.wait(), timeout=30)
+
+tests/test_merge_operations.py:174: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7d1c94587f40>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+_________ test_merge_after_adhoc_switch_does_not_report_stale_success __________
+
+drift_env = {'db': <module 'app.db' from 'app/...-ws/vmi3407579/hub-51c41c2e0f074ade/.orchestra/tasks/V-1034/regression-tmp/test_merge_after_adhoc_switch_0/repo'), ...}
+
+    @pytest.mark.asyncio
+    async def test_merge_after_adhoc_switch_does_not_report_stale_success(drift_env):
+        env = drift_env
+        partial_id = str(uuid.uuid4())
+        _simulate_partial(env, partial_id)
+    
+        adhoc = await _auto_switch(env)
+        assert adhoc.startswith("adhoc-"), f"auto-switch не создал adhoc-ветку: {adhoc}"
+    
+        new_commit = _commit(env["wt"], "work.md", "работа воркера после switch\n")
+        before = _target_commit_count(env["repo"])
+    
+        result = await _merge(env, str(uuid.uuid4()))
+        after = _target_commit_count(env["repo"])
+    
+        # Страж F1: новый operation_id после переезда обязан слить ФАКТИЧЕСКУЮ ветку
+        # (зелёный на main — ветка берётся из worktree, а не из схемы имени).
+        if result["operation_state"] == "SUCCEEDED":
+            assert after > before, (
+                f"SUCCEEDED при нуле смерженного: operation_id={result['operation_id']}, "
+                f"worker_branch={result['git']['worker_branch']}, "
+                f"worker_head={result['git']['worker_head']}, "
+                f"фактическая ветка={adhoc}, фактический HEAD={new_commit}, "
+                f"коммитов в main до={before} после={after}"
+            )
+            assert result["git"]["worker_branch"] == adhoc
+        else:
+            # Честный отказ обязан назвать ФАКТИЧЕСКУЮ ветку — иначе агенту нечего искать.
+            detail = env["operations"]._json(result)
+>           assert adhoc in detail, f"отказ не называет фактическую ветку {adhoc}: {detail}"
+E           AssertionError: отказ не называет фактическую ветку adhoc-1792672030-1/drift-worker: {"commit_point":"NOT_REACHED","error":{"code":"WORK_ACCEPTANCE_REQUIRED","details":{},"message":"expected_head must be the full 40-character SHA from worker_wip","outcome_unknown":false,"request_id":"829a0f16-dfb4-44a1-b29e-56352fb5feab","retry_after_seconds":null,"retryable":false,"status":409},"git":{"conflicts":[],"status":"FAILED","target_after":null,"target_before":null,"target_branch":"","worker_branch":"","worker_head":null},"lifecycle":{"status":"NOT_RUN"},"next_action":{"code":"CHECK_SAME_OPERATION","message":"Check operation 829a0f16-dfb4-44a1-b29e-56352fb5feab; do not merge manually."},"next_task":{"status":"NOT_REQUESTED"},"operation_id":"829a0f16-dfb4-44a1-b29e-56352fb5feab","operation_state":"FAILED","rag":{"status":"NOT_RUN"},"retryable":false,"schema_version":1,"task_links":{"items":{},"status":"NOT_RUN"},"warnings":[]}
+E           assert 'adhoc-1792672030-1/drift-worker' in '{"commit_point":"NOT_REACHED","error":{"code":"WORK_ACCEPTANCE_REQUIRED","details":{},"message":"expected_head must b...:{"status":"NOT_RUN"},"retryable":false,"schema_version":1,"task_links":{"items":{},"status":"NOT_RUN"},"warnings":[]}'
+
+tests/test_merge_branch_drift.py:223: AssertionError
+----------------------------- Captured stderr call -----------------------------
+auto-switch drift-worker to adhoc-1792672030-1/drift-worker before delivery
+------------------------------ Captured log call -------------------------------
+INFO     app.manager:manager.py:1083 auto-switch drift-worker to adhoc-1792672030-1/drift-worker before delivery
+________________ test_ci_pytest_does_not_stop_at_first_failure _________________
+
+    def test_ci_pytest_does_not_stop_at_first_failure():
+        """Финальный прогон CI без -x: один красный не прячет хвост."""
+>       text = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_merge_test_gate.py:97: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('.github/workflows/ci.yml'), mode = 'r', buffering = -1
+encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '.github/workflows/ci.yml'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+_______________ test_run_pytest_isolates_live_state_environment ________________
+
+tmp_path = PosixPath('.orchestra/tasks/V-1034/regression-tmp/test_run_pytest_isolates_live_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d1c9414e750>
+
+    def test_run_pytest_isolates_live_state_environment(tmp_path, monkeypatch):
+        from app import merge_test_gate as gate
+    
+        seen = {}
+    
+        def fake_run(argv, **kwargs):
+            seen.update(kwargs["env"])
+            return subprocess.CompletedProcess(argv, 0, "passed", "")
+    
+        monkeypatch.setenv("ORCHESTRA_DB_PATH", "/production/orchestra.db")
+        monkeypatch.setenv("ORCHESTRA_TASK_REPOSITORY", "/production/tasks")
+        monkeypatch.setenv("ORCHESTRA_TASK_PREFIX", "V-")
+        monkeypatch.setenv("QUOTA_GATED_LANES", "claude")
+        monkeypatch.setattr(gate, "_git", lambda *_args: None)
+        monkeypatch.setattr(gate.subprocess, "run", fake_run)
+    
+        result = gate.run_pytest(str(tmp_path), ["tests/test_widget.py"])
+    
+        assert result["status"] == gate.PASSED
+>       assert seen["ORCHESTRA_DB_PATH"].startswith("/tmp/")
+E       AssertionError: assert False
+E        +  where False = <built-in method startswith of str object at 0x7d1c940ca3f0>('/tmp/')
+E        +    where <built-in method startswith of str object at 0x7d1c940ca3f0> = '.orchestra/tasks/V-1034/tmp/orchestra-merge-gate-daqoznnm/orchestra.db'.startswith
+
+tests/test_merge_test_gate.py:501: AssertionError
+____________ test_orchestra_worktree_is_detected_by_git_common_dir _____________
+
+    def test_orchestra_worktree_is_detected_by_git_common_dir():
+        from app.merge_test_gate import _is_orchestra_worktree
+    
+        root = Path(__file__).resolve().parents[1]
+>       assert _is_orchestra_worktree(str(root)) is True
+E       AssertionError: assert False is True
+E        +  where False = <function _is_orchestra_worktree at 0x7d1c94f6f600>('.')
+E        +    where '.' = str(PosixPath('.'))
+
+tests/test_merge_test_gate.py:697: AssertionError
+____________________ test_live_probe_inventory_is_explicit _____________________
+
+    def test_live_probe_inventory_is_explicit():
+        """Живая проба не может исчезнуть из гейта незаметно.
+    
+        Маркер снимает тест с merge-gate, то есть выводит его из-под общей проверки. Такой
+        ход обязан быть заявленным: список ниже — единственное место, где он заявляется.
+        Появился маркер где-то ещё (или пропал отсюда) — тест краснеет и заставляет
+        объяснить, почему проба тратит настоящий ход провайдера.
+        """
+        from app.merge_test_gate import LIVE_PROBE_MARKER
+    
+        expected = {
+            "tests/test_native_history_import.py": 1,
+            "tests/test_runtime_history.py": 1,
+            # Требует настоящий `~/.codex/auth.json` владельца: предмет проверки — живая
+            # подписка, герметичным он не бывает. На публичном раннике таких кред нет и быть
+            # не должно (#515).
+            "tests/test_mcp_config_isolation.py": 1,
+        }
+    
+        # Считаем ДЕКОРАТОРЫ, а не вхождения строки: первая версия этой проверки насчитала 3
+        # вместо 2, потому что имя маркера упомянуто в докстринге файла. Проза не должна ни
+        # раздувать инвентарь, ни прятать в себе настоящий маркер.
+        decorator = f"@pytest.mark.{LIVE_PROBE_MARKER}"
+        root = Path(__file__).resolve().parent
+        found = {}
+        for path in sorted(root.rglob("*.py")):
+            count = sum(
+                1
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip().startswith(decorator)
+            )
+            if count:
+                found[str(path.relative_to(root.parent))] = count
+    
+>       assert found == expected, (
+            "инвентарь живых проб разошёлся с заявленным; добавляешь пробу — впиши её сюда "
+            f"и в докстринг её файла. Найдено: {found}"
+        )
+E       AssertionError: инвентарь живых проб разошёлся с заявленным; добавляешь пробу — впиши её сюда и в докстринг её файла. Найдено: {'tests/test_mcp_config_isolation.py': 1, 'tests/test_native_history_import.py': 1}
+E       assert {'tests/test_...import.py': 1} == {'tests/test_...istory.py': 1}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'tests/test_runtime_history.py': 1}
+E         Use -v to get more diff
+
+tests/test_merge_test_gate.py:1058: AssertionError
+______________________ test_browser_inventory_is_explicit ______________________
+
+    def test_browser_inventory_is_explicit():
+        """Состав снятого с гейта ВИДЕН и проверяем, а не спрятан в неявном исключении.
+    
+        Браузерные тесты не блокируют merge-гейт (`-m "not live_probe and not browser"`), но
+        продолжают гоняться. Значит их состав обязан быть заявленным: маркер ставится
+        автоматически по факту запроса браузерной фикстуры (`tests/conftest.py`), и если он
+        начнёт цеплять лишнее или потеряет файл — тест краснеет и заставляет объяснить.
+        Проверяется РАСКЛАДКА ПО ФАЙЛАМ, а не список имён: имена тестов меняются свободно,
+        а вот «браузерных узлов стало вдвое больше» или «целый файл ушёл из-под гейта» —
+        именно то изменение, которое нельзя пропускать молча.
+        """
+        import subprocess
+        import sys
+    
+        root = Path(__file__).resolve().parent.parent
+        expected = {
+        # Collection includes the voice-input test explicitly skipped since #365;
+        # V-1027 adds three model-picker request cases using dashboard_browser.
+        "tests/test_frontend.py": 105,
+        # +1 с #V-546: потолок полосы на графике (`test_lane_ceiling_is_drawn_and_capped_like_the_gate`);
+        # +2 с #V-547: два плеча состояния гейта (включён на части полос / снят со всех).
+        "tests/test_t344_quota_lines_browser.py": 20,
+        "tests/test_usage_analytics_frontend.py": 14,
+        "tests/test_usage_history_frontend.py": 11,
+        "tests/test_grok_usage_frontend.py": 11,
+        "tests/test_antigravity_usage_frontend.py": 6,
+        # +1 с 5f7e72c5 (08.09): `test_dashboard_channel_renders_as_chat_without_hiding_unknown_api_sender`
+        # пришёл вместе с меткой канала сообщений на дашборде, инвентарь тогда не обновили.
+        "tests/test_system_chat_entry.py": 2,
+        "tests/test_quota_headroom_447.py": 1,
+        "tests/test_model_catalog_frontend.py": 1,
+        "tests/test_frontend_context_panel_468.py": 1,
+        "tests/test_i18n_dashboard.py": 6,  # добавились с английской локалью #V-591
+        }
+    
+        result = subprocess.run(
+            [sys.executable, "-m", "pytest", "--rootdir", str(root), "-c", str(root / "pyproject.toml"),
+             "--collect-only", "-q", "-m", "browser", "tests/"],
+            cwd=root, capture_output=True, text=True, timeout=600,
+        )
+>       assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
+E       AssertionError:  sure your test modules/packages have valid Python names.
+E         Traceback:
+E         /usr/lib/python3.12/importlib/__init__.py:90: in import_module
+E             return _bootstrap._gcd_import(name[level:], package, level)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         tests/test_video_artifact.py:16: in <module>
+E             from video_text import caption_text, normalize_vosk_text, UnsupportedVoskSymbol
+E         E   ModuleNotFoundError: No module named 'video_text'
+E         ____________________ ERROR collecting tests/test_wf_run.py _____________________
+E         ImportError while importing test module 'tests/test_wf_run.py'.
+E         Hint: make sure your test modules/packages have valid Python names.
+E         Traceback:
+E         /usr/lib/python3.12/importlib/__init__.py:90: in import_module
+E             return _bootstrap._gcd_import(name[level:], package, level)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         tests/test_wf_run.py:11: in <module>
+E             from scripts.wf_adapters import (
+E         E   ModuleNotFoundError: No module named 'scripts'
+E         =========================== short test summary info ============================
+E         ERROR tests/local_bench/test_local_bench.py
+E         ERROR tests/test_check_pipeline_manifest.py - FileNotFoundError: [Errno 2] No...
+E         ERROR tests/test_dynamic_workflows.py
+E         ERROR tests/test_enc_cli_dir.py - FileNotFoundError: [Errno 2] No such file o...
+E         ERROR tests/test_kb_index_injection_522.py - FileNotFoundError: pipeline 'def...
+E         ERROR tests/test_kb_markdown_contract.py
+E         ERROR tests/test_migrate_agent.py - FileNotFoundError: [Errno 2] No such file...
+E         ERROR tests/test_multicode_oauth_renew.py
+E         ERROR tests/test_orchestra_backup.py
+E         ERROR tests/test_probe_free_models.py
+E         ERROR tests/test_process_guard.py
+E         ERROR tests/test_process_guard_calibration.py
+E         ERROR tests/test_video_artifact.py
+E         ERROR tests/test_wf_run.py
+E         !!!!!!!!!!!!!!!!!!! Interrupted: 14 errors during collection !!!!!!!!!!!!!!!!!!!
+E         221/4822 tests collected (4601 deselected), 14 errors in 20.88s
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['.venv/bin/...s during collection !!!!!!!!!!!!!!!!!!!\n221/4822 tests collected (4601 deselected), 14 errors in 20.88s\n', stderr='').returncode
+
+tests/test_merge_test_gate.py:1104: AssertionError
+_ test_t386_t1_public_operation_pins_target_and_task_oracle_before_runner[integration] _
+
+git_graph = {'broken': PosixPath('.orchestra/t...sion-tmp/test_t386_t1_public_operation_0/candidate'), 'candidate_sha': 'a544fd4bd7bc13d9141b226d9a3c475978f94014', ...}
+tmp_path = PosixPath('.orchestra/tasks/V-1034/regression-tmp/test_t386_t1_public_operation_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d1c943f7cb0>
+requested_target = 'integration'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("requested_target", ["integration", ""])
+    async def test_t386_t1_public_operation_pins_target_and_task_oracle_before_runner(
+        git_graph, tmp_path, monkeypatch, requested_target,
+    ):
+        import app.db as dbmod
+        import app.merge_operations as operations
+        import app.tm as tm
+    
+        _required_parameters(
+            tm.api_create_task,
+            {"acceptance_manifest", "acceptance_required", "acceptance_actor"},
+            "tm.api_create_task",
+        )
+        db_path = tmp_path / "pin-operation386.db"
+        monkeypatch.setattr(dbmod, "DB_PATH", db_path)
+        dbmod.init_db()
+        operations._runner_tasks.clear()
+        dbmod.save_session(_session_row(git_graph))
+        with tm._conn() as conn:
+            project = tm.ensure_project(conn, "proj", scope="/scope")
+            task = seed_task(
+                conn,
+                project["id"],
+                "pinned ticket",
+                par_number=386,
+                acceptance_command=git_graph["ticket_command"],
+                acceptance_manifest=MANIFEST,
+                acceptance_required=True,
+                acceptance_actor=ACTOR,
+            )
+        monkeypatch.setattr(operations, "ensure_operation_runner", lambda _operation_id: None)
+    
+        operation_id = str(uuid.uuid4())
+        result, status = await operations.accept_merge_operation(
+            operation_id=operation_id,
+            name="worker-386",
+            scope="/scope",
+            target=requested_target,
+        )
+    
+>       assert status == 202
+E       assert 409 == 202
+
+tests/test_merge_target_oracle_386.py:738: AssertionError
+__ test_t386_t1_public_operation_pins_target_and_task_oracle_before_runner[] ___
+
+git_graph = {'broken': PosixPath('.orchestra/t...sion-tmp/test_t386_t1_public_operation_1/candidate'), 'candidate_sha': 'a544fd4bd7bc13d9141b226d9a3c475978f94014', ...}
+tmp_path = PosixPath('.orchestra/tasks/V-1034/regression-tmp/test_t386_t1_public_operation_1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d1c943f7650>
+requested_target = ''
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("requested_target", ["integration", ""])
+    async def test_t386_t1_public_operation_pins_target_and_task_oracle_before_runner(
+        git_graph, tmp_path, monkeypatch, requested_target,
+    ):
+        import app.db as dbmod
+        import app.merge_operations as operations
+        import app.tm as tm
+    
+        _required_parameters(
+            tm.api_create_task,
+            {"acceptance_manifest", "acceptance_required", "acceptance_actor"},
+            "tm.api_create_task",
+        )
+        db_path = tmp_path / "pin-operation386.db"
+        monkeypatch.setattr(dbmod, "DB_PATH", db_path)
+        dbmod.init_db()
+        operations._runner_tasks.clear()
+        dbmod.save_session(_session_row(git_graph))
+        with tm._conn() as conn:
+            project = tm.ensure_project(conn, "proj", scope="/scope")
+            task = seed_task(
+                conn,
+                project["id"],
+                "pinned ticket",
+                par_number=386,
+                acceptance_command=git_graph["ticket_command"],
+                acceptance_manifest=MANIFEST,
+                acceptance_required=True,
+                acceptance_actor=ACTOR,
+            )
+        monkeypatch.setattr(operations, "ensure_operation_runner", lambda _operation_id: None)
+    
+        operation_id = str(uuid.uuid4())
+        result, status = await operations.accept_merge_operation(
+            operation_id=operation_id,
+            name="worker-386",
+            scope="/scope",
+            target=requested_target,
+        )
+    
+>       assert status == 202
+E       assert 409 == 202
+
+tests/test_merge_target_oracle_386.py:738: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_operations.py::test_concurrent_keys_start_exactly_one_executor_and_survive_request_return
+FAILED tests/test_merge_branch_drift.py::test_merge_after_adhoc_switch_does_not_report_stale_success
+FAILED tests/test_merge_test_gate.py::test_ci_pytest_does_not_stop_at_first_failure
+FAILED tests/test_merge_test_gate.py::test_run_pytest_isolates_live_state_environment
+FAILED tests/test_merge_test_gate.py::test_orchestra_worktree_is_detected_by_git_common_dir
+FAILED tests/test_merge_test_gate.py::test_live_probe_inventory_is_explicit
+FAILED tests/test_merge_test_gate.py::test_browser_inventory_is_explicit - As...
+FAILED tests/test_merge_target_oracle_386.py::test_t386_t1_public_operation_pins_target_and_task_oracle_before_runner[integration]
+FAILED tests/test_merge_target_oracle_386.py::test_t386_t1_public_operation_pins_target_and_task_oracle_before_runner[]
+9 failed, 194 passed in 118.74s (0:01:58)

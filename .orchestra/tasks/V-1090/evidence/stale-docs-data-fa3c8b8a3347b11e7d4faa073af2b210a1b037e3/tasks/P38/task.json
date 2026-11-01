@@ -1,0 +1,32 @@
+{
+  "id": "P38",
+  "package": "plantcare",
+  "prompt": "While we travel, a neighbour waters our plants. Please add a command that plans the neighbour's visits. It runs as `python -m plantcare.vacation LEAVE BACK OUTPUT_FILE [--settings FILE] [--max-dry DAYS]`. LEAVE is the first day away and BACK is the day we are home again, both as YYYY-MM-DD. --settings is the same settings file that the plantcare commands read. The plants come from the plant file named in the settings, and a plant without an interval gets the default interval from the settings, as in the other commands.\n\nAdd a new setting max_dry_days: the number of days a plant may go without water past its interval. Its default is 2, and a settings file can set it to another whole number. The --max-dry flag sets the same value for one run and wins over the setting. The flag may be left out.\n\nThe plan: we water every plant ourselves on the day before LEAVE, so that day is the last watering of every plant (the last watering date in the plant file does not count here). A plant may go at most interval + max dry days without water. While BACK is more than interval + max dry days after the last watering, the neighbour waters the plant exactly interval + max dry days after the last watering, and that day becomes the last watering. We water everything ourselves on BACK.\n\nThe command writes OUTPUT_FILE as JSON with two keys. \"plants\" has one entry per plant, in plant file order: {\"name\": ..., \"visits\": [...]}, where \"visits\" holds the visit days of that plant as YYYY-MM-DD, earliest first, and is empty when the plant needs no visit. \"days\" has one entry per day on which the neighbour has to come, earliest first: {\"date\": ..., \"plants\": [...]}, with the names of the plants to water on that day, in plant file order. Missing folders of OUTPUT_FILE are created. The command also tells the user on how many days the neighbour has to come.\n\nBACK must be after LEAVE, and the max dry days (from the flag or from the setting) must be 0 or more. When this is not so, or when the settings file or the plant file cannot be read, the command tells the user what is wrong, exits with status 2 and does not write OUTPUT_FILE. In all other cases it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "CONFIG",
+      "doc_side": "left"
+    },
+    {
+      "id": "D2",
+      "type": "OPT",
+      "doc_side": "right"
+    },
+    {
+      "id": "D3",
+      "type": "GENERIC",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "FMT",
+      "doc_side": "right"
+    },
+    {
+      "id": "D5",
+      "type": "PATH",
+      "doc_side": "right"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___ test_changed_recipient_fails_visibly_without_executing_stale_body[task] ____
+
+cron = namespace(bg=<app.bg_jobs.BgJobManager object at 0x7127a5a75d90>, manager=<app.manager.SessionManager object at 0x7127...mmunicate=<AsyncMock id='124415096876416'>, slot=datetime.datetime(2026, 10, 24, 21, 36, tzinfo=datetime.timezone.utc))
+change = 'task'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("change", ["task", "branch", "needs_switch", "missing"])
+    async def test_changed_recipient_fails_visibly_without_executing_stale_body(cron, change):
+        delivery_id = await fire(cron)
+        if change == "missing":
+            cron.manager.sessions.clear()
+            cron.manager.ensure_loaded_by_id.return_value = None
+        elif change == "task":
+            cron.session.task_id = "other-fixture-task"
+        elif change == "branch":
+            cron.session.branch = "other-fixture-branch"
+        else:
+            cron.session.needs_switch = True
+        await dispatch(cron)
+        row = receipt(delivery_id)
+>       assert row["state"] == "FAILED_BEFORE_SUBMIT"
+E       AssertionError: assert 'SUBMITTED' == 'FAILED_BEFORE_SUBMIT'
+E         
+E         - FAILED_BEFORE_SUBMIT
+E         + SUBMITTED
+
+tests/test_cron_drain_delivery_v1074.py:199: AssertionError
+----------------------------- Captured stderr call -----------------------------
+cron_command fixture-cron: match accepted → fixture-worker
+------------------------------ Captured log call -------------------------------
+INFO     app.bg_jobs:bg_jobs.py:1207 cron_command fixture-cron: match accepted → fixture-worker
+=========================== short test summary info ============================
+FAILED tests/test_cron_drain_delivery_v1074.py::test_changed_recipient_fails_visibly_without_executing_stale_body[task]
+1 failed in 2.44s

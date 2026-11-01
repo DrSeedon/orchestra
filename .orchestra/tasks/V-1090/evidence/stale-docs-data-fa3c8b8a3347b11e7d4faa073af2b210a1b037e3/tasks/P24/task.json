@@ -1,0 +1,11 @@
+{
+  "id": "P24",
+  "package": "quizgen",
+  "prompt": "Add a command that grades the filled-in answer sheets of a quiz. It runs as `python -m quizgen.grade BANKS_DIR SHEETS_DIR OUTPUT_CSV`.\n\nThe questions come from BANKS_DIR, read in the same way as by the generate command. Every file in SHEETS_DIR whose name ends in .txt is the sheet of one student, and the student is the file name without .txt. Other files in SHEETS_DIR are ignored.\n\nA sheet has one line per question in the form `question-id: LETTER`, like the blank sheet that the generate command writes. Spaces around the id and around the letter do not matter, and the letter can be lower case. Empty lines and lines that start with # are ignored. Every other line of a sheet is one of these:\n- unknown: the line has no colon, the id is not in any bank, or the same id already appeared on an earlier line of the sheet.\n- blank: there is nothing after the colon.\n- correct: the letter is the answer of the question. The student gets the points of the question.\n- wrong: any other letter.\n\nGrading one sheet gives a result that holds the student, the score (the points of the correct lines), the possible score (the points of all questions on the sheet that are correct, wrong or blank) and the number of correct, wrong, blank and unknown lines.\n\nWrite OUTPUT_CSV with the header student,score,possible,correct,wrong,blank,unknown and one row per sheet, sorted by student. Create the folder of OUTPUT_CSV if it does not exist.\n\nIf BANKS_DIR or SHEETS_DIR does not exist, if a bank is invalid, or if SHEETS_DIR holds no .txt file, the command exits with status 2 and writes nothing. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "PATH", "doc_side": "right"},
+    {"id": "D2", "type": "REC", "doc_side": "right"},
+    {"id": "D3", "type": "NAME", "doc_side": "left"},
+    {"id": "D4", "type": "TSTYLE", "doc_side": "left"}
+  ]
+}

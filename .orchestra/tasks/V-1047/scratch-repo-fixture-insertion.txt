@@ -1,0 +1,3 @@
+(root / "app" / "publication_secrets.py").write_text(
+    (Path(__file__).resolve().parents[1] / "app" / "publication_secrets.py").read_text()
+)

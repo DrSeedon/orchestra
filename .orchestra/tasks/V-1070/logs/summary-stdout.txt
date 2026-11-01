@@ -1,0 +1,13 @@
+full 3sheets bytes 225448 cpu_ms 275.17539699999975 wall_ms 281.39879647642374
+compact 3sheets bytes 329688 cpu_ms 339.3553250000001 wall_ms 340.62605211511254
+half 3sheets bytes 222000 cpu_ms 280.93170999999995 wall_ms 284.47527810931206
+12original bytes 371338
+peakRSS KiB image experiment 103700 orientation 145100
+orientation score minmax 0.7933183908462524 0.9283307194709778
+threshold accepts 0
+ClaudeHigh k 0 tokens 5376 net_percent 62.541806020066886
+ClaudeHigh k 3 tokens 8964 net_percent 37.541806020066886
+ClaudeHigh k 6 tokens 12552 net_percent 12.54180602006689
+ClaudeHigh k 8 tokens 14944 net_percent -4.124860646599777
+ClaudeHigh k 12 tokens 19728 net_percent -37.458193979933114
+formats [{'number': 1, 'png_bytes': 32963, 'webp_bytes': 22726, 'pixels': [1280, 720], 'wall_ms': 64.49791975319386, 'cpu_ms': 64.49014600000002}, {'number': 5, 'png_bytes': 28283, 'webp_bytes': 24082, 'pixels': [1280, 720], 'wall_ms': 54.64975722134113, 'cpu_ms': 53.811906000000185}, {'number': 9, 'png_bytes': 31396, 'webp_bytes': 22482, 'pixels': [1280, 720], 'wall_ms': 43.48648991435766, 'cpu_ms': 43.37944199999999}]

@@ -1,0 +1,11 @@
+{
+  "id": "P04",
+  "package": "gradebook",
+  "prompt": "Instructors sometimes curve a course before they submit the grades. Add a command for this. It runs as `python -m gradebook.curve COURSE_JSON OUTPUT_JSON [--target MEAN]`. COURSE_JSON is the usual course export; read it with the existing loader.\n\nThe percentage of a student is the weighted course percentage that the course report shows. A student without a percentage (no scores, or only excused ones) is not curved and does not count in the mean or the maximum below. The curve adds the same number of points, the shift, to every percentage. With --target, the shift is the target minus the mean percentage of the students. Without --target, the shift is 100 minus the highest percentage, so that the best student reaches 100. A negative shift is replaced by 0. A curved percentage is never more than 100.\n\nRepresent the result for each student as a small record with the student id, the original percentage, the curved percentage and the letter grade of the curved percentage on the default scale. For a student without a percentage, the two percentages and the letter are absent, so the record must allow that.\n\nWrite OUTPUT_JSON as an object with the keys \"course\" (the course code), \"shift\" and \"students\". \"students\" is a list with one object per student, in order of student id, with the keys \"id\", \"original\", \"curved\" and \"letter\". A student without a percentage gets null for \"original\", \"curved\" and \"letter\". Round \"shift\", \"original\" and \"curved\" to two digits after the point when you write them, and compute with the unrounded values. On success the command exits with status 0.\n\nThe command exits with status 2 and does not create OUTPUT_JSON when COURSE_JSON cannot be read or is not a valid course export, when no student has a percentage, or when the target is outside the range 0 to 100.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "REC", "doc_side": "left"},
+    {"id": "D2", "type": "NAME", "doc_side": "left"},
+    {"id": "D3", "type": "TFILE", "doc_side": "right"},
+    {"id": "D4", "type": "OPT", "doc_side": "right"}
+  ]
+}

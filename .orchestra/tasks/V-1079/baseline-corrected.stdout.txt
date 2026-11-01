@@ -1,0 +1,3486 @@
+APP_IMPORT=/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/__init__.py
+.............FFFFFFFF.FFFFFFFFFFFFFFFCodex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1227, in _read_stdout
+    await self._process_group.stop(proc, CODEX_PROCESS_TIMEOUT_SECONDS)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+FCodex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1227, in _read_stdout
+    await self._process_group.stop(proc, CODEX_PROCESS_TIMEOUT_SECONDS)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+FCodex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1227, in _read_stdout
+    await self._process_group.stop(proc, CODEX_PROCESS_TIMEOUT_SECONDS)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+FFFFF....F.FFF[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] hibernating
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+F[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] hibernating
+F[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] hibernating
+F
+=================================== FAILURES ===================================
+___________ test_terminal_failure_never_ok_or_timeout[False-failed] ____________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205c4f20>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+>           raise RuntimeError("Codex context compact already in progress")
+                         ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_codex.py:1114: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205c4f20>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd220741f80>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2205c50a0>
+status = 'failed', with_compact = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["failed", "interrupted", "unsupported"])
+    @pytest.mark.parametrize("with_compact", [False, True])
+    async def test_terminal_failure_never_ok_or_timeout(h, status, with_compact):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), *([compact()] if with_compact else []), terminal(status))
+        with pytest.raises(RuntimeError, match=status) as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:190: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205c4f20>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification
+
+app/backend_codex.py:1132: TimeoutError
+_________ test_terminal_failure_never_ok_or_timeout[False-interrupted] _________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220523440>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+>           raise RuntimeError("Codex context compact already in progress")
+                         ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_codex.py:1114: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220523440>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd2203173c0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220523170>
+status = 'interrupted', with_compact = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["failed", "interrupted", "unsupported"])
+    @pytest.mark.parametrize("with_compact", [False, True])
+    async def test_terminal_failure_never_ok_or_timeout(h, status, with_compact):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), *([compact()] if with_compact else []), terminal(status))
+        with pytest.raises(RuntimeError, match=status) as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:190: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220523440>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification
+
+app/backend_codex.py:1132: TimeoutError
+_________ test_terminal_failure_never_ok_or_timeout[False-unsupported] _________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220d135f0>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+>           raise RuntimeError("Codex context compact already in progress")
+                         ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_codex.py:1114: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220d135f0>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd22036a200>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220d110a0>
+status = 'unsupported', with_compact = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["failed", "interrupted", "unsupported"])
+    @pytest.mark.parametrize("with_compact", [False, True])
+    async def test_terminal_failure_never_ok_or_timeout(h, status, with_compact):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), *([compact()] if with_compact else []), terminal(status))
+        with pytest.raises(RuntimeError, match=status) as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:190: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220d135f0>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification
+
+app/backend_codex.py:1132: TimeoutError
+____________ test_terminal_failure_never_ok_or_timeout[True-failed] ____________
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220522540>
+status = 'failed', with_compact = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["failed", "interrupted", "unsupported"])
+    @pytest.mark.parametrize("with_compact", [False, True])
+    async def test_terminal_failure_never_ok_or_timeout(h, status, with_compact):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), *([compact()] if with_compact else []), terminal(status))
+>       with pytest.raises(RuntimeError, match=status) as observed:
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests/test_codex_compact_state.py:189: Failed
+_________ test_terminal_failure_never_ok_or_timeout[True-interrupted] __________
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2205c6bd0>
+status = 'interrupted', with_compact = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["failed", "interrupted", "unsupported"])
+    @pytest.mark.parametrize("with_compact", [False, True])
+    async def test_terminal_failure_never_ok_or_timeout(h, status, with_compact):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), *([compact()] if with_compact else []), terminal(status))
+>       with pytest.raises(RuntimeError, match=status) as observed:
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests/test_codex_compact_state.py:189: Failed
+_________ test_terminal_failure_never_ok_or_timeout[True-unsupported] __________
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd22056a150>
+status = 'unsupported', with_compact = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", ["failed", "interrupted", "unsupported"])
+    @pytest.mark.parametrize("with_compact", [False, True])
+    async def test_terminal_failure_never_ok_or_timeout(h, status, with_compact):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), *([compact()] if with_compact else []), terminal(status))
+>       with pytest.raises(RuntimeError, match=status) as observed:
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests/test_codex_compact_state.py:189: Failed
+____________ test_failed_beats_retry_hint_and_retains_cause[False] _____________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668260>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+>           raise RuntimeError("Codex context compact already in progress")
+                         ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_codex.py:1114: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668260>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd220394ac0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220668050>
+retry = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("retry", [False, True])
+    async def test_failed_beats_retry_hint_and_retains_cause(h, retry):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), error(retry), terminal("failed"))
+        with pytest.raises(RuntimeError, match="synthetic compact failure") as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668260>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification
+
+app/backend_codex.py:1132: TimeoutError
+_____________ test_failed_beats_retry_hint_and_retains_cause[True] _____________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056a660>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+>           raise RuntimeError("Codex context compact already in progress")
+                         ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_codex.py:1114: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056a660>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd220181c80>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220569d60>
+retry = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("retry", [False, True])
+    async def test_failed_beats_retry_hint_and_retains_cause(h, retry):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), error(retry), terminal("failed"))
+        with pytest.raises(RuntimeError, match="synthetic compact failure") as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056a660>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification
+
+app/backend_codex.py:1132: TimeoutError
+________________ test_fatal_error_wakes_without_terminal[False] ________________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205af440>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+>           raise RuntimeError("Codex context compact already in progress")
+                         ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_codex.py:1114: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205af440>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd220271c00>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2205ac380>
+before_ack = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("before_ack", [False, True])
+    async def test_fatal_error_wakes_without_terminal(h, before_ack):
+        task, request = await h.begin()
+        if not before_ack:
+            await h.ack(request)
+        await h.deliver(start(), error())
+        with pytest.raises(RuntimeError, match="synthetic compact failure") as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:221: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205af440>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification
+
+app/backend_codex.py:1132: TimeoutError
+________________ test_fatal_error_wakes_without_terminal[True] _________________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056bd10>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+>       if not self._thread_id:
+
+app/backend_codex.py:1109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056bd10>
+method = 'thread/compact/start', params = {'threadId': 'compact-test-thread'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_jsonrpc.py:137: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056bd10>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd2203574c0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd22056a210>
+before_ack = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("before_ack", [False, True])
+    async def test_fatal_error_wakes_without_terminal(h, before_ack):
+        task, request = await h.begin()
+        if not before_ack:
+            await h.ack(request)
+        await h.deliver(start(), error())
+        with pytest.raises(RuntimeError, match="synthetic compact failure") as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:221: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056bd10>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement
+
+app/backend_codex.py:1132: TimeoutError
+___________________ test_whole_operation_is_busy_after_item ____________________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22066d580>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+>       if not self._thread_id:
+
+app/backend_codex.py:1109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22066d580>
+method = 'thread/compact/start', params = {'threadId': 'compact-test-thread'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_jsonrpc.py:137: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22066d580>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd220160b40>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd22066d9a0>
+
+    @pytest.mark.asyncio
+    async def test_whole_operation_is_busy_after_item(h):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), compact())
+        with pytest.raises(RuntimeError, match="already in progress"):
+>           await h.backend.compact_context()
+
+tests/test_codex_compact_state.py:233: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22066d580>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement
+
+app/backend_codex.py:1132: TimeoutError
+__________________ test_second_started_does_not_replace_owner __________________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220671130>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+            raise RuntimeError("Codex context compact already in progress")
+    
+>       future = asyncio.get_running_loop().create_future()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/backend_codex.py:1116: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_codex.py:1152: in _drain_compact_lifecycle
+    if self._compact_future is future:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Queue at 0x7fd2206713a0 maxsize=0 tasks=6>
+
+    async def get(self):
+        """Remove and return an item from the queue.
+    
+        If queue is empty, wait until an item is available.
+        """
+        while self.empty():
+            getter = self._get_loop().create_future()
+            self._getters.append(getter)
+            try:
+>               await getter
+E               asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/queues.py:158: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220671130>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd220004d40>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220670b30>
+
+    @pytest.mark.asyncio
+    async def test_second_started_does_not_replace_owner(h):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), start("foreign-turn"), compact(), terminal())
+>       assert (await h.result(task))["ok"]
+                ^^^^^^^^^^^^^^^^^^^^
+
+tests/test_codex_compact_state.py:245: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220671130>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for turn lifecycle
+
+app/backend_codex.py:1132: TimeoutError
+__________ test_foreign_events_cannot_complete_or_contaminate[thread] __________
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd22066c0b0>
+foreign = 'thread'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("foreign", ["thread", "turn"])
+    async def test_foreign_events_cannot_complete_or_contaminate(h, foreign):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start())
+        turn = "foreign-turn" if foreign == "turn" else TURN
+        thread = "foreign-thread" if foreign == "thread" else THREAD
+        await h.deliver(error(turn=turn, thread=thread),
+                        event("thread/tokenUsage/updated", thread=thread, turnId=turn,
+                              tokenUsage={"last": {"totalTokens": 777}, "modelContextWindow": 9999}),
+                        compact(turn=turn, thread=thread), terminal(turn=turn, thread=thread))
+        assert not task.done()
+        await h.deliver(compact(), terminal())
+        result = await h.result(task)
+>       assert result["context_tokens"] is None
+E       assert 777 is None
+
+tests/test_codex_compact_state.py:263: AssertionError
+___________ test_foreign_events_cannot_complete_or_contaminate[turn] ___________
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220569f70>
+foreign = 'turn'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("foreign", ["thread", "turn"])
+    async def test_foreign_events_cannot_complete_or_contaminate(h, foreign):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start())
+        turn = "foreign-turn" if foreign == "turn" else TURN
+        thread = "foreign-thread" if foreign == "thread" else THREAD
+        await h.deliver(error(turn=turn, thread=thread),
+                        event("thread/tokenUsage/updated", thread=thread, turnId=turn,
+                              tokenUsage={"last": {"totalTokens": 777}, "modelContextWindow": 9999}),
+                        compact(turn=turn, thread=thread), terminal(turn=turn, thread=thread))
+        assert not task.done()
+        await h.deliver(compact(), terminal())
+        result = await h.result(task)
+>       assert result["context_tokens"] is None
+E       assert 777 is None
+
+tests/test_codex_compact_state.py:263: AssertionError
+_________ test_timeout_cancel_retains_owner_and_reconciles[False-ack] __________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220677380>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+>       if not self._thread_id:
+
+app/backend_codex.py:1109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220677380>
+method = 'thread/compact/start', params = {'threadId': 'compact-test-thread'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_jsonrpc.py:137: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220677380>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd220011280>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220677080>
+stage = 'ack', cancel = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("cancel", [False, True])
+    async def test_timeout_cancel_retains_owner_and_reconciles(h, stage, cancel):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        if cancel:
+            task.cancel()
+        with pytest.raises(asyncio.CancelledError if cancel else TimeoutError):
+            await h.result(task)
+        with pytest.raises(RuntimeError, match="already in progress|unresolved"):
+>           await h.backend.compact_context()
+
+tests/test_codex_compact_state.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220677380>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement
+
+app/backend_codex.py:1132: TimeoutError
+______ test_timeout_cancel_retains_owner_and_reconciles[False-completion] ______
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220521d90>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+>       if not self._thread_id:
+
+app/backend_codex.py:1109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220521d90>
+method = 'thread/compact/start', params = {'threadId': 'compact-test-thread'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_jsonrpc.py:137: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220521d90>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd220b2ef80>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220521c70>
+stage = 'completion', cancel = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("cancel", [False, True])
+    async def test_timeout_cancel_retains_owner_and_reconciles(h, stage, cancel):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        if cancel:
+            task.cancel()
+        with pytest.raises(asyncio.CancelledError if cancel else TimeoutError):
+            await h.result(task)
+        with pytest.raises(RuntimeError, match="already in progress|unresolved"):
+>           await h.backend.compact_context()
+
+tests/test_codex_compact_state.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220521d90>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement
+
+app/backend_codex.py:1132: TimeoutError
+_______ test_timeout_cancel_retains_owner_and_reconciles[False-terminal] _______
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac680>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+>       if not self._thread_id:
+
+app/backend_codex.py:1109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac680>
+method = 'thread/compact/start', params = {'threadId': 'compact-test-thread'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_jsonrpc.py:137: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac680>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd2200fa6c0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2205ac110>
+stage = 'terminal', cancel = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("cancel", [False, True])
+    async def test_timeout_cancel_retains_owner_and_reconciles(h, stage, cancel):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        if cancel:
+            task.cancel()
+        with pytest.raises(asyncio.CancelledError if cancel else TimeoutError):
+            await h.result(task)
+        with pytest.raises(RuntimeError, match="already in progress|unresolved"):
+>           await h.backend.compact_context()
+
+tests/test_codex_compact_state.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac680>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement
+
+app/backend_codex.py:1132: TimeoutError
+__________ test_timeout_cancel_retains_owner_and_reconciles[True-ack] __________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668440>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+>       if not self._thread_id:
+
+app/backend_codex.py:1109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668440>
+method = 'thread/compact/start', params = {'threadId': 'compact-test-thread'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_jsonrpc.py:137: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668440>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd21ff67980>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220669100>
+stage = 'ack', cancel = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("cancel", [False, True])
+    async def test_timeout_cancel_retains_owner_and_reconciles(h, stage, cancel):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        if cancel:
+            task.cancel()
+        with pytest.raises(asyncio.CancelledError if cancel else TimeoutError):
+            await h.result(task)
+        with pytest.raises(RuntimeError, match="already in progress|unresolved"):
+>           await h.backend.compact_context()
+
+tests/test_codex_compact_state.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668440>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement
+
+app/backend_codex.py:1132: TimeoutError
+______ test_timeout_cancel_retains_owner_and_reconciles[True-completion] _______
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056f860>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+>       if not self._thread_id:
+
+app/backend_codex.py:1109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056f860>
+method = 'thread/compact/start', params = {'threadId': 'compact-test-thread'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_jsonrpc.py:137: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056f860>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd21fd35bc0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd22056f620>
+stage = 'completion', cancel = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("cancel", [False, True])
+    async def test_timeout_cancel_retains_owner_and_reconciles(h, stage, cancel):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        if cancel:
+            task.cancel()
+        with pytest.raises(asyncio.CancelledError if cancel else TimeoutError):
+            await h.result(task)
+        with pytest.raises(RuntimeError, match="already in progress|unresolved"):
+>           await h.backend.compact_context()
+
+tests/test_codex_compact_state.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22056f860>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement
+
+app/backend_codex.py:1132: TimeoutError
+_______ test_timeout_cancel_retains_owner_and_reconciles[True-terminal] ________
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668410>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+>       if not self._thread_id:
+
+app/backend_codex.py:1109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668410>
+method = 'thread/compact/start', params = {'threadId': 'compact-test-thread'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_jsonrpc.py:137: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668410>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd2200bc3c0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220669ee0>
+stage = 'terminal', cancel = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("cancel", [False, True])
+    async def test_timeout_cancel_retains_owner_and_reconciles(h, stage, cancel):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        if cancel:
+            task.cancel()
+        with pytest.raises(asyncio.CancelledError if cancel else TimeoutError):
+            await h.result(task)
+        with pytest.raises(RuntimeError, match="already in progress|unresolved"):
+>           await h.backend.compact_context()
+
+tests/test_codex_compact_state.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220668410>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement
+
+app/backend_codex.py:1132: TimeoutError
+__ test_transport_failure_wakes_every_stage_without_waiting_process[eof-ack] ___
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac1d0>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+>       if not self._thread_id:
+
+app/backend_codex.py:1109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac1d0>
+method = 'thread/compact/start', params = {'threadId': 'compact-test-thread'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_jsonrpc.py:137: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac1d0>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd2201ddd80>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2205ad6d0>
+stage = 'ack', transport = 'eof'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    async def test_transport_failure_wakes_every_stage_without_waiting_process(h, stage, transport):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        h.exit.clear()
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        with pytest.raises(RuntimeError) as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:319: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac1d0>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement
+
+app/backend_codex.py:1132: TimeoutError
+_ test_transport_failure_wakes_every_stage_without_waiting_process[eof-completion] _
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220673cb0>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+>           raise RuntimeError("Codex context compact already in progress")
+                         ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_codex.py:1114: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220673cb0>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd21fc45ac0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2206706b0>
+stage = 'completion', transport = 'eof'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    async def test_transport_failure_wakes_every_stage_without_waiting_process(h, stage, transport):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        h.exit.clear()
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        with pytest.raises(RuntimeError) as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:319: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd220673cb0>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification
+
+app/backend_codex.py:1132: TimeoutError
+_ test_transport_failure_wakes_every_stage_without_waiting_process[eof-terminal] _
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac140>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+            raise RuntimeError("Codex context compact already in progress")
+    
+>       future = asyncio.get_running_loop().create_future()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/backend_codex.py:1116: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_codex.py:1152: in _drain_compact_lifecycle
+    if self._compact_future is future:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Queue at 0x7fd2205ae5a0 maxsize=0 tasks=4>
+
+    async def get(self):
+        """Remove and return an item from the queue.
+    
+        If queue is empty, wait until an item is available.
+        """
+        while self.empty():
+            getter = self._get_loop().create_future()
+            self._getters.append(getter)
+            try:
+>               await getter
+E               asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/queues.py:158: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac140>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd21fe883c0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2205ade80>
+stage = 'terminal', transport = 'eof'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    async def test_transport_failure_wakes_every_stage_without_waiting_process(h, stage, transport):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        h.exit.clear()
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        with pytest.raises(RuntimeError) as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:319: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205ac140>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for turn lifecycle
+
+app/backend_codex.py:1132: TimeoutError
+_ test_transport_failure_wakes_every_stage_without_waiting_process[read_error-ack] _
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205c7080>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+>       if not self._thread_id:
+
+app/backend_codex.py:1109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205c7080>
+method = 'thread/compact/start', params = {'threadId': 'compact-test-thread'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_jsonrpc.py:137: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205c7080>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd21fc51d80>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2205242f0>
+stage = 'ack', transport = 'read_error'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    async def test_transport_failure_wakes_every_stage_without_waiting_process(h, stage, transport):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        h.exit.clear()
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        with pytest.raises(RuntimeError) as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:319: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205c7080>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for request acknowledgement
+
+app/backend_codex.py:1132: TimeoutError
+------------------------------ Captured log call -------------------------------
+ERROR    app.backend_codex:backend_codex.py:1308 Codex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1227, in _read_stdout
+    await self._process_group.stop(proc, CODEX_PROCESS_TIMEOUT_SECONDS)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+_ test_transport_failure_wakes_every_stage_without_waiting_process[read_error-completion] _
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205af530>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+>           raise RuntimeError("Codex context compact already in progress")
+                         ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+app/backend_codex.py:1114: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205af530>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd21fc74080>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2205ac920>
+stage = 'completion', transport = 'read_error'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    async def test_transport_failure_wakes_every_stage_without_waiting_process(h, stage, transport):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        h.exit.clear()
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        with pytest.raises(RuntimeError) as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:319: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205af530>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for completion notification
+
+app/backend_codex.py:1132: TimeoutError
+------------------------------ Captured log call -------------------------------
+ERROR    app.backend_codex:backend_codex.py:1308 Codex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1227, in _read_stdout
+    await self._process_group.stop(proc, CODEX_PROCESS_TIMEOUT_SECONDS)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+_ test_transport_failure_wakes_every_stage_without_waiting_process[read_error-terminal] _
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205a0800>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+            raise RuntimeError("Codex context compact already in progress")
+    
+>       future = asyncio.get_running_loop().create_future()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/backend_codex.py:1116: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_codex.py:1152: in _drain_compact_lifecycle
+    if self._compact_future is future:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Queue at 0x7fd22066c770 maxsize=0 tasks=4>
+
+    async def get(self):
+        """Remove and return an item from the queue.
+    
+        If queue is empty, wait until an item is available.
+        """
+        while self.empty():
+            getter = self._get_loop().create_future()
+            self._getters.append(getter)
+            try:
+>               await getter
+E               asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/queues.py:158: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205a0800>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd2202907c0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd22066d190>
+stage = 'terminal', transport = 'read_error'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    async def test_transport_failure_wakes_every_stage_without_waiting_process(h, stage, transport):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        h.exit.clear()
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        with pytest.raises(RuntimeError) as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:319: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd2205a0800>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for turn lifecycle
+
+app/backend_codex.py:1132: TimeoutError
+------------------------------ Captured log call -------------------------------
+ERROR    app.backend_codex:backend_codex.py:1308 Codex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1227, in _read_stdout
+    await self._process_group.stop(proc, CODEX_PROCESS_TIMEOUT_SECONDS)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+_ test_transport_failure_wakes_every_stage_without_waiting_process[disconnect-ack] _
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2205ac650>
+stage = 'ack', transport = 'disconnect'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    async def test_transport_failure_wakes_every_stage_without_waiting_process(h, stage, transport):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        h.exit.clear()
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        with pytest.raises(RuntimeError) as observed:
+            await h.result(task)
+        assert not isinstance(observed.value, TimeoutError)
+>       assert not h.backend.compact_pending
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'CodexBackend' object has no attribute 'compact_pending'
+
+tests/test_codex_compact_state.py:321: AttributeError
+_ test_transport_failure_wakes_every_stage_without_waiting_process[disconnect-completion] _
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220651ac0>
+stage = 'completion', transport = 'disconnect'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    async def test_transport_failure_wakes_every_stage_without_waiting_process(h, stage, transport):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        h.exit.clear()
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        with pytest.raises(RuntimeError) as observed:
+            await h.result(task)
+        assert not isinstance(observed.value, TimeoutError)
+>       assert not h.backend.compact_pending
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'CodexBackend' object has no attribute 'compact_pending'
+
+tests/test_codex_compact_state.py:321: AttributeError
+_ test_transport_failure_wakes_every_stage_without_waiting_process[disconnect-terminal] _
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22064f440>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+            raise RuntimeError("Codex context compact already in progress")
+    
+>       future = asyncio.get_running_loop().create_future()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/backend_codex.py:1116: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_codex.py:1152: in _drain_compact_lifecycle
+    if self._compact_future is future:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Queue at 0x7fd22064ecc0 maxsize=0 tasks=4>
+
+    async def get(self):
+        """Remove and return an item from the queue.
+    
+        If queue is empty, wait until an item is available.
+        """
+        while self.empty():
+            getter = self._get_loop().create_future()
+            self._getters.append(getter)
+            try:
+>               await getter
+E               asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/queues.py:158: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22064f440>
+
+        return False
+    
+    async def interrupt(self) -> bool:
+        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": self._active_turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+    
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+>           raise RuntimeError("Codex app-server is not running")
+
+app/backend_codex.py:1108: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd2211a7c00>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd22064fe30>
+stage = 'terminal', transport = 'disconnect'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    async def test_transport_failure_wakes_every_stage_without_waiting_process(h, stage, transport):
+        task, request = await h.begin()
+        if stage != "ack":
+            await h.ack(request)
+        await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+        h.exit.clear()
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        with pytest.raises(RuntimeError) as observed:
+>           await h.result(task)
+
+tests/test_codex_compact_state.py:319: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:132: in result
+    return await asyncio.wait_for(asyncio.shield(task), 0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7fd22064f440>
+
+>   ???
+E   TimeoutError: Codex compact timed out after 0.06s while waiting for turn lifecycle
+
+app/backend_codex.py:1132: TimeoutError
+_____________________ test_rpc_rejection_is_not_unresolved _____________________
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220389eb0>
+
+    @pytest.mark.asyncio
+    async def test_rpc_rejection_is_not_unresolved(h):
+        task, request = await h.begin()
+        await h.deliver({"id": request, "error": {"code": -32000, "message": "synthetic rejected"}})
+        with pytest.raises(CodexProtocolError):
+            await h.result(task)
+>       assert not h.backend.compact_pending
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'CodexBackend' object has no attribute 'compact_pending'
+
+tests/test_codex_compact_state.py:330: AttributeError
+_______ test_old_main_queue_and_stale_runtime_snapshot_are_not_evidence ________
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2206502f0>
+
+    @pytest.mark.asyncio
+    async def test_old_main_queue_and_stale_runtime_snapshot_are_not_evidence(h):
+        await h.deliver(start("old-turn"), compact(turn="old-turn"), terminal(turn="old-turn"))
+        h.backend._runtime_context.return_value = {"input_tokens": 70000, "model_context_window": 9999}
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start(), compact(item_id="new-item"), terminal())
+        result = await h.result(task)
+>       assert result["context_tokens"] is None
+E       assert 70000 is None
+
+tests/test_codex_compact_state.py:363: AssertionError
+____ test_ordinary_send_recovers_while_unresolved_with_early_events[False] _____
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2205aeb10>
+late_before_ack = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("late_before_ack", [False, True])
+    async def test_ordinary_send_recovers_while_unresolved_with_early_events(h, late_before_ack):
+        first, request = await h.begin()
+        await h.ack(request)
+        with pytest.raises(TimeoutError):
+            await h.result(first)
+        send = h.task(h.backend.send("ordinary recovery message"))
+        request = await h.request("turn/start")
+        # User lifecycle arrives before its ACK, while old compact has no known turn.
+        await h.deliver(start("user-turn"), compact(turn="user-turn", item_id="auto-item"))
+        if late_before_ack:
+            await h.deliver(start(), compact(), terminal())
+        await h.ack(request, {"turn": {"id": "user-turn"}})
+        await h.result(send)
+        if not late_before_ack:
+            await h.deliver(start(), compact(), terminal())
+        await h.deliver(event("item/agentMessage/delta", turnId="user-turn", delta="user output"),
+                        terminal(turn="user-turn"))
+        events = [item async for item in h.backend.events()]
+>       assert sum(item.content == "codex context compacted" for item in events) == 1
+E       assert 2 == 1
+E        +  where 2 = sum(<generator object test_ordinary_send_recovers_while_unresolved_with_early_events.<locals>.<genexpr> at 0x7fd2203f58a0>)
+
+tests/test_codex_compact_state.py:396: AssertionError
+_____ test_ordinary_send_recovers_while_unresolved_with_early_events[True] _____
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd22041bda0>
+late_before_ack = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("late_before_ack", [False, True])
+    async def test_ordinary_send_recovers_while_unresolved_with_early_events(h, late_before_ack):
+        first, request = await h.begin()
+        await h.ack(request)
+        with pytest.raises(TimeoutError):
+            await h.result(first)
+        send = h.task(h.backend.send("ordinary recovery message"))
+        request = await h.request("turn/start")
+        # User lifecycle arrives before its ACK, while old compact has no known turn.
+        await h.deliver(start("user-turn"), compact(turn="user-turn", item_id="auto-item"))
+        if late_before_ack:
+            await h.deliver(start(), compact(), terminal())
+        await h.ack(request, {"turn": {"id": "user-turn"}})
+        await h.result(send)
+        if not late_before_ack:
+            await h.deliver(start(), compact(), terminal())
+        await h.deliver(event("item/agentMessage/delta", turnId="user-turn", delta="user output"),
+                        terminal(turn="user-turn"))
+        events = [item async for item in h.backend.events()]
+>       assert sum(item.content == "codex context compacted" for item in events) == 1
+E       assert 2 == 1
+E        +  where 2 = sum(<generator object test_ordinary_send_recovers_while_unresolved_with_early_events.<locals>.<genexpr> at 0x7fd21fefdd80>)
+
+tests/test_codex_compact_state.py:396: AssertionError
+___________________ test_native_interrupt_uses_compact_turn ____________________
+
+fut = <coroutine object Queue.get at 0x7fd2203674c0>, timeout = 0.5
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Queue at 0x7fd220335280 maxsize=0 tasks=1>
+
+    async def get(self):
+        """Remove and return an item from the queue.
+    
+        If queue is empty, wait until an item is available.
+        """
+        while self.empty():
+            getter = self._get_loop().create_future()
+            self._getters.append(getter)
+            try:
+>               await getter
+E               asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/queues.py:158: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2203350a0>
+
+    @pytest.mark.asyncio
+    async def test_native_interrupt_uses_compact_turn(h):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start())
+        interrupt = h.task(h.backend.interrupt())
+>       request = await h.request("turn/interrupt")
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_codex_compact_state.py:408: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:113: in request
+    request = await asyncio.wait_for(self.outgoing.get(), 0.5)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7fd21fd19a40>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+_______________ test_session_compact_path_and_hibernate[failed] ________________
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220651e20>
+outcome = 'failed'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("outcome", ["success", "failed", "timeout", "cancel"])
+    async def test_session_compact_path_and_hibernate(h, outcome):
+        s = make_session(h)
+        h.backend._hibernate_safe = True
+        task = h.task(s.compact())
+        request = await h.request("thread/compact/start")
+        await h.ack(request)
+        await h.deliver(start())
+        assert (await s.hibernate_now())["reason"] == "compacting"
+        if outcome in ("success", "failed"):
+            await h.deliver(event("thread/tokenUsage/updated", turnId=TURN,
+                                  tokenUsage={"last": {"totalTokens": 1234}, "modelContextWindow": 100000}),
+                            compact(), terminal("completed" if outcome == "success" else "failed"))
+        if outcome == "cancel":
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await h.result(task)
+        else:
+            result = await h.result(task)
+>           assert result["ok"] == (outcome == "success")
+E           AssertionError: assert True == ('failed' == 'success'
+E             
+E             - success
+E             + failed)
+
+tests/test_codex_compact_state.py:454: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:887 [compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+WARNING  app.session:session.py:887 [compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+_______________ test_session_compact_path_and_hibernate[timeout] _______________
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd220337b30>
+outcome = 'timeout'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("outcome", ["success", "failed", "timeout", "cancel"])
+    async def test_session_compact_path_and_hibernate(h, outcome):
+        s = make_session(h)
+        h.backend._hibernate_safe = True
+        task = h.task(s.compact())
+        request = await h.request("thread/compact/start")
+        await h.ack(request)
+        await h.deliver(start())
+        assert (await s.hibernate_now())["reason"] == "compacting"
+        if outcome in ("success", "failed"):
+            await h.deliver(event("thread/tokenUsage/updated", turnId=TURN,
+                                  tokenUsage={"last": {"totalTokens": 1234}, "modelContextWindow": 100000}),
+                            compact(), terminal("completed" if outcome == "success" else "failed"))
+        if outcome == "cancel":
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await h.result(task)
+        else:
+            result = await h.result(task)
+            assert result["ok"] == (outcome == "success")
+        assert not s._compacting
+        assert s._last_context["total_tokens"] == (1234 if outcome == "success" else 70000)
+        s._wake_durable_message_deliveries.assert_called_once()
+        if outcome in ("timeout", "cancel"):
+>           assert (await s.hibernate_now())["reason"] == "compacting"
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'reason'
+
+tests/test_codex_compact_state.py:459: KeyError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:887 [compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+WARNING  app.session:session.py:887 [compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+INFO     app.session:session_hibernate.py:117 [compact-state] hibernating
+_______________ test_session_compact_path_and_hibernate[cancel] ________________
+
+h = <tests.test_codex_compact_state.Harness object at 0x7fd2202f19d0>
+outcome = 'cancel'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("outcome", ["success", "failed", "timeout", "cancel"])
+    async def test_session_compact_path_and_hibernate(h, outcome):
+        s = make_session(h)
+        h.backend._hibernate_safe = True
+        task = h.task(s.compact())
+        request = await h.request("thread/compact/start")
+        await h.ack(request)
+        await h.deliver(start())
+        assert (await s.hibernate_now())["reason"] == "compacting"
+        if outcome in ("success", "failed"):
+            await h.deliver(event("thread/tokenUsage/updated", turnId=TURN,
+                                  tokenUsage={"last": {"totalTokens": 1234}, "modelContextWindow": 100000}),
+                            compact(), terminal("completed" if outcome == "success" else "failed"))
+        if outcome == "cancel":
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await h.result(task)
+        else:
+            result = await h.result(task)
+            assert result["ok"] == (outcome == "success")
+        assert not s._compacting
+        assert s._last_context["total_tokens"] == (1234 if outcome == "success" else 70000)
+        s._wake_durable_message_deliveries.assert_called_once()
+        if outcome in ("timeout", "cancel"):
+>           assert (await s.hibernate_now())["reason"] == "compacting"
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'reason'
+
+tests/test_codex_compact_state.py:459: KeyError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:887 [compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+WARNING  app.session:session.py:887 [compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+INFO     app.session:session_hibernate.py:117 [compact-state] hibernating
+=========================== short test summary info ============================
+FAILED tests/test_codex_compact_state.py::test_terminal_failure_never_ok_or_timeout[False-failed]
+FAILED tests/test_codex_compact_state.py::test_terminal_failure_never_ok_or_timeout[False-interrupted]
+FAILED tests/test_codex_compact_state.py::test_terminal_failure_never_ok_or_timeout[False-unsupported]
+FAILED tests/test_codex_compact_state.py::test_terminal_failure_never_ok_or_timeout[True-failed]
+FAILED tests/test_codex_compact_state.py::test_terminal_failure_never_ok_or_timeout[True-interrupted]
+FAILED tests/test_codex_compact_state.py::test_terminal_failure_never_ok_or_timeout[True-unsupported]
+FAILED tests/test_codex_compact_state.py::test_failed_beats_retry_hint_and_retains_cause[False]
+FAILED tests/test_codex_compact_state.py::test_failed_beats_retry_hint_and_retains_cause[True]
+FAILED tests/test_codex_compact_state.py::test_fatal_error_wakes_without_terminal[False]
+FAILED tests/test_codex_compact_state.py::test_fatal_error_wakes_without_terminal[True]
+FAILED tests/test_codex_compact_state.py::test_whole_operation_is_busy_after_item
+FAILED tests/test_codex_compact_state.py::test_second_started_does_not_replace_owner
+FAILED tests/test_codex_compact_state.py::test_foreign_events_cannot_complete_or_contaminate[thread]
+FAILED tests/test_codex_compact_state.py::test_foreign_events_cannot_complete_or_contaminate[turn]
+FAILED tests/test_codex_compact_state.py::test_timeout_cancel_retains_owner_and_reconciles[False-ack]
+FAILED tests/test_codex_compact_state.py::test_timeout_cancel_retains_owner_and_reconciles[False-completion]
+FAILED tests/test_codex_compact_state.py::test_timeout_cancel_retains_owner_and_reconciles[False-terminal]
+FAILED tests/test_codex_compact_state.py::test_timeout_cancel_retains_owner_and_reconciles[True-ack]
+FAILED tests/test_codex_compact_state.py::test_timeout_cancel_retains_owner_and_reconciles[True-completion]
+FAILED tests/test_codex_compact_state.py::test_timeout_cancel_retains_owner_and_reconciles[True-terminal]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[eof-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[eof-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[eof-terminal]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[read_error-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[read_error-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[read_error-terminal]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[disconnect-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[disconnect-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[disconnect-terminal]
+FAILED tests/test_codex_compact_state.py::test_rpc_rejection_is_not_unresolved
+FAILED tests/test_codex_compact_state.py::test_old_main_queue_and_stale_runtime_snapshot_are_not_evidence
+FAILED tests/test_codex_compact_state.py::test_ordinary_send_recovers_while_unresolved_with_early_events[False]
+FAILED tests/test_codex_compact_state.py::test_ordinary_send_recovers_while_unresolved_with_early_events[True]
+FAILED tests/test_codex_compact_state.py::test_native_interrupt_uses_compact_turn
+FAILED tests/test_codex_compact_state.py::test_session_compact_path_and_hibernate[failed]
+FAILED tests/test_codex_compact_state.py::test_session_compact_path_and_hibernate[timeout]
+FAILED tests/test_codex_compact_state.py::test_session_compact_path_and_hibernate[cancel]
+37 failed, 20 passed in 8.03s

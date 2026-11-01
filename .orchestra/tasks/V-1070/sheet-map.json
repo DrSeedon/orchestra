@@ -1,0 +1,506 @@
+[
+  {
+    "variant": "full",
+    "sheet": 1,
+    "number": 1,
+    "xy": [
+      0,
+      0
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "01-terminal.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 1,
+    "number": 2,
+    "xy": [
+      1280,
+      0
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "02-terminal.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 1,
+    "number": 3,
+    "xy": [
+      0,
+      720
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "03-terminal.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 1,
+    "number": 4,
+    "xy": [
+      1280,
+      720
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "04-terminal.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 1,
+    "number": 1,
+    "xy": [
+      0,
+      0
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "01-terminal.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 1,
+    "number": 2,
+    "xy": [
+      788,
+      0
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "02-terminal.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 1,
+    "number": 3,
+    "xy": [
+      0,
+      447
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "03-terminal.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 1,
+    "number": 4,
+    "xy": [
+      788,
+      447
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "04-terminal.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 1,
+    "number": 1,
+    "xy": [
+      0,
+      0
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "01-terminal.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 1,
+    "number": 2,
+    "xy": [
+      640,
+      0
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "02-terminal.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 1,
+    "number": 3,
+    "xy": [
+      0,
+      360
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "03-terminal.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 1,
+    "number": 4,
+    "xy": [
+      640,
+      360
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "04-terminal.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 2,
+    "number": 5,
+    "xy": [
+      0,
+      0
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "05-dashboard.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 2,
+    "number": 6,
+    "xy": [
+      1280,
+      0
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "06-dashboard.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 2,
+    "number": 7,
+    "xy": [
+      0,
+      720
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "07-dashboard.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 2,
+    "number": 8,
+    "xy": [
+      1280,
+      720
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "08-dashboard.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 2,
+    "number": 5,
+    "xy": [
+      0,
+      0
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "05-dashboard.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 2,
+    "number": 6,
+    "xy": [
+      788,
+      0
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "06-dashboard.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 2,
+    "number": 7,
+    "xy": [
+      0,
+      447
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "07-dashboard.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 2,
+    "number": 8,
+    "xy": [
+      788,
+      447
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "08-dashboard.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 2,
+    "number": 5,
+    "xy": [
+      0,
+      0
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "05-dashboard.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 2,
+    "number": 6,
+    "xy": [
+      640,
+      0
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "06-dashboard.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 2,
+    "number": 7,
+    "xy": [
+      0,
+      360
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "07-dashboard.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 2,
+    "number": 8,
+    "xy": [
+      640,
+      360
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "08-dashboard.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 3,
+    "number": 9,
+    "xy": [
+      0,
+      0
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "09-document.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 3,
+    "number": 10,
+    "xy": [
+      1280,
+      0
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "10-document.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 3,
+    "number": 11,
+    "xy": [
+      0,
+      720
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "11-document.png"
+  },
+  {
+    "variant": "full",
+    "sheet": 3,
+    "number": 12,
+    "xy": [
+      1280,
+      720
+    ],
+    "pixels": [
+      1280,
+      720
+    ],
+    "original": "12-document.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 3,
+    "number": 9,
+    "xy": [
+      0,
+      0
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "09-document.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 3,
+    "number": 10,
+    "xy": [
+      788,
+      0
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "10-document.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 3,
+    "number": 11,
+    "xy": [
+      0,
+      447
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "11-document.png"
+  },
+  {
+    "variant": "compact",
+    "sheet": 3,
+    "number": 12,
+    "xy": [
+      788,
+      447
+    ],
+    "pixels": [
+      780,
+      439
+    ],
+    "original": "12-document.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 3,
+    "number": 9,
+    "xy": [
+      0,
+      0
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "09-document.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 3,
+    "number": 10,
+    "xy": [
+      640,
+      0
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "10-document.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 3,
+    "number": 11,
+    "xy": [
+      0,
+      360
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "11-document.png"
+  },
+  {
+    "variant": "half",
+    "sheet": 3,
+    "number": 12,
+    "xy": [
+      640,
+      360
+    ],
+    "pixels": [
+      640,
+      360
+    ],
+    "original": "12-document.png"
+  }
+]

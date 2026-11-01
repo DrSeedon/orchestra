@@ -1,0 +1,11 @@
+Publication redaction audit: remote installation prefixes -> /remote/workspace.
+Derived installation slugs and pytest account labels neutralized; source-relative paths and synthetic test suffixes retained.
+All 16 task artifacts checked; forbidden remote prefixes/account identifiers remaining: 0.
+Historical result lines preserved; redacted evidence explicitly labeled.
+Production source SHA-256 unchanged: 4/4.
+Test change: one exact prompt-sentence condition removed; absent-outbox and delivered-task conditions retained.
+Other prompt assertion unchanged.
+Focused test: 1 passed in 4.73s via provisioned uv with frozen lock/default .venv.
+No broad suite/provider run/deployment/restart.
+Task-owned synthetic scratch removed.
+HEAD: platform import/commit occurs after this turn; private copy has no .git.

@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_blocked_sqlite_search_does_not_block_other_api ______________
+tests/test_log_search_v1078.py:282: in test_blocked_sqlite_search_does_not_block_other_api
+    assert not search.done()
+E   AssertionError: assert not True
+E    +  where True = <built-in method done of _asyncio.Task object at 0x7b27137ef4c0>()
+E    +    where <built-in method done of _asyncio.Task object at 0x7b27137ef4c0> = <Task finished name='Task-2' coro=<AsyncClient.get() done, defined at /<hub-copy-path> search\nassert False\n +  where False = wait(2)\n +    where wait = <threading.Event at 0x7b27133df4d0: unset>.wait')>.done
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309
+  /<hub-copy>/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1078.py::test_blocked_sqlite_search_does_not_block_other_api
+1 failed, 35 deselected, 1 warning in 4.40s

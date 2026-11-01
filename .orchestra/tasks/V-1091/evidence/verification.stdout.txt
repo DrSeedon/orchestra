@@ -1,0 +1,9 @@
+PASS README.md bytes=3139 lines=85 git_blob_sha1=99387ba735fabf044220ca8799e2b7aef4b82b41
+PASS LICENSE bytes=1062 lines=21 git_blob_sha1=9ff21c8c5b2e713c357d3e15e641172a211eac21
+PASS skills/landing-page-design/SKILL.md bytes=18801 lines=431 git_blob_sha1=39caa206ac2b179b110562db65e3e3c79a759fb5
+PASS skills/design-to-motion/SKILL.md bytes=39109 lines=513 git_blob_sha1=b7326add823b585689f065a83e7b6b3aadc252fa
+PASS recursive tree: landing has only SKILL.md; no bundled references/assets/scripts
+PASS official snapshot build-skills.md bytes=11035 sha256=ed6e324f747d47adf6f60ee1fca13ba469b3671f55f58c3a78f35947af6919d5
+PASS official snapshot agents-md.md bytes=9149 sha256=9d1f87a2d1cb55b4782b95abe710692b35b9659789c2db31a22c7074a3383e8e
+INFO core=16356 bytes; headroom below strict 16KiB=27 bytes; hypothetical concatenation=35157 bytes
+CONTEXT CLAUDE.md exists=false; not repaired in research task

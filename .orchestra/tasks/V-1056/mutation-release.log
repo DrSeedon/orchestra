@@ -1,0 +1,37 @@
+test_open_workflow_dispatch_has_no_independent_boundary (__main__.ChangeModelRouteSmoke.test_open_workflow_dispatch_has_no_independent_boundary) ... ok
+test_release_observes_new_model_and_ignores_unsuccessful_changes (__main__.ChangeModelRouteSmoke.test_release_observes_new_model_and_ignores_unsuccessful_changes) ... FAIL
+test_allowing_states_and_original_decision_are_unchanged (__main__.QuotaRefusalSmoke.test_allowing_states_and_original_decision_are_unchanged) ... ok
+test_mcp_refusal_names_rule_without_overriding_fail_open_policy (__main__.QuotaRefusalSmoke.test_mcp_refusal_names_rule_without_overriding_fail_open_policy) ... ok
+test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) ... ok
+
+======================================================================
+FAIL: test_release_observes_new_model_and_ignores_unsuccessful_changes (__main__.ChangeModelRouteSmoke.test_release_observes_new_model_and_ignores_unsuccessful_changes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-copy>/.orchestra/tasks/V-1056/offline_checks.py", line 146, in test_release_observes_new_model_and_ignores_unsuccessful_changes
+    self.assertEqual(seen, ["new"])
+AssertionError: Lists differ: [] != ['new']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'new'
+
+- []
++ ['new']
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.088s
+
+FAILED (failures=1)

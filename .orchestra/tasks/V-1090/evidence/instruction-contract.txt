@@ -1,0 +1,6 @@
+PUBLIC DERIVATIVE: native hub paths replaced by <hub-user>/<hub-workspace>; not verbatim. Original bytes are preserved under ignored private/raw; see preservation-manifest.json.
+
+Traceback (most recent call last):
+  File "/home/<hub-user>/<hub-workspace>/scripts/check_instruction_contract.py", line 13, in <module>
+    from app.kb_index import kb_topic_files, kb_topic_index
+ModuleNotFoundError: No module named 'app'

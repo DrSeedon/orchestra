@@ -1,0 +1,10 @@
+baseline_files 665
+changed_or_missing_outside_task []
+added_outside_task []
+artifact_files_shape_scanned 13
+secret_shape_findings []
+local_evidence_links_checked 105
+broken_links []
+recorded_scenarios 44
+git_metadata_present False
+verification PASS

@@ -1,0 +1,5 @@
+preserved raw files: 6
+preserved fixture regular files: 30
+preserved fixture symlinks: 16
+labelled public derivatives: 5
+public receipt: preservation-manifest.json; originals: ignored private/

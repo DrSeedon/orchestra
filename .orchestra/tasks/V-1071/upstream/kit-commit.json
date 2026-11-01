@@ -1,0 +1,13 @@
+{
+  "sha": "c43796287b83bec847db923f07131d1cc8de750d",
+  "commit": {
+    "committer": {
+      "date": "2026-10-21T13:14:55Z"
+    },
+    "tree": {
+      "sha": "f6e64d5450450467f7d0137221f67cb8378865ab",
+      "url": "https://api.github.com/repos/anthropics/single-agent-loop-kit/git/trees/f6e64d5450450467f7d0137221f67cb8378865ab"
+    }
+  },
+  "html_url": "https://github.com/anthropics/single-agent-loop-kit/commit/c43796287b83bec847db923f07131d1cc8de750d"
+}

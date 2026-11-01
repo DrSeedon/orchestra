@@ -1,0 +1,10 @@
+git-history 128 0.028
+git-show 128 0.029
+uv-version 127 0.022
+go-version 127 0.021
+install 0 0.857
+tour-version 0 0.027
+tour-help 1 0.028
+tour-orchestra 1 0.064
+tour-setup-no-tty 1 0.026
+tour-russian 1 0.025

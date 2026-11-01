@@ -1,0 +1,51 @@
+     1	[build-system]
+     2	requires = ["hatchling"]
+     3	build-backend = "hatchling.build"
+     4	
+     5	[project]
+     6	name = "sentinelx-cloud-core"
+     7	version = "0.23.34"
+     8	description = "SentinelX agent: connects a Linux server to sentinelx-cloud-hub via WebSocket"
+     9	readme = "README.md"
+    10	requires-python = ">=3.11"
+    11	license = { text = "Apache-2.0" }
+    12	authors = [{ name = "Pensados" }]
+    13	
+    14	dependencies = [
+    15	    "websockets>=12.0",
+    16	    "pydantic>=2.6,<3",
+    17	    "pyyaml>=6.0",
+    18	    "structlog>=24.1",
+    19	    # v1.12.0 is where RequestMessage gained opaque_ref. Executor advertises
+    20	    # that capability, and RequestMessage is extra="forbid", so a clean
+    21	    # install against v1.11.0 promised a field it would then reject the whole
+    22	    # message for carrying. Reported by FalconZip with the commit pair.
+    23	    "sentinelx-cloud-protocol @ git+https://github.com/pensados/sentinelx-cloud-protocol.git@v1.13.2",
+    24	]
+    25	
+    26	[project.optional-dependencies]
+    27	dev = [
+    28	    "pytest>=8.0",
+    29	    "pytest-asyncio>=0.23",
+    30	    "ruff>=0.4",
+    31	]
+    32	
+    33	[project.scripts]
+    34	sentinelx-cloud-core = "sentinelx_core.__main__:main"
+    35	sentinelx-pensa-safe-edit = "sentinelx_core.vendored.pensa_safe_edit:main"
+    36	
+    37	[tool.hatch.build.targets.wheel]
+    38	packages = ["src/sentinelx_core"]
+    39	
+    40	[tool.hatch.metadata]
+    41	# We pin sentinelx-cloud-protocol to a git tag during dev. Once it's on PyPI
+    42	# we can drop this flag and use a regular version constraint.
+    43	allow-direct-references = true
+    44	
+    45	[tool.pytest.ini_options]
+    46	asyncio_mode = "auto"
+    47	testpaths = ["tests"]
+    48	
+    49	[tool.ruff]
+    50	line-length = 100
+    51	target-version = "py311"

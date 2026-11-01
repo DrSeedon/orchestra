@@ -1,0 +1,11 @@
+--- app/turn_signals.py
++++ app/turn_signals.py
+@@ -211,7 +211,7 @@
+                         parent.id,
+                         "\n\n".join(_compose(manager, row) for row in fresh),
+                         provenance=MessageProvenance(
+-                            origin="agent",
++                            origin="platform",
+                             senders=tuple(dict.fromkeys(row["worker_name"] for row in fresh)),
+                             subtype="auto_report", ref=_ref(fresh_ids),
+                         ),

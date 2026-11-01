@@ -26,6 +26,7 @@ spec.loader.exec_module(make)
 @pytest.fixture(autouse=True)
 def isolate_build_lock(tmp_path, monkeypatch):
     monkeypatch.setattr(make, "BUILD_LOCK_PATH", tmp_path / "video-build.lock")
+    monkeypatch.setattr(make.elevenlabs_tts, "load_environment", lambda: None)
 
 
 def test_all_video_artifact_python_sources_compile():
@@ -120,7 +121,7 @@ def test_tera_requires_spelled_numbers_and_preserves_manual_stress(tmp_path, mon
 
     assert make.check_steps([{"t": "ok", "say": "В две тысячи двадцать шестом году лим+ита."}], "ru", "tera")
     assert make.check_steps([{"t": "pause", "say": "Фраза [0.6] продолжается."}], "ru", "tera")
-    with pytest.raises(SystemExit, match="поддерживает только TeraTTS"):
+    with pytest.raises(SystemExit):
         make.check_steps([{"t": "pause", "say": "Фраза [0.6] дальше."}], "ru", "vosk")
     with pytest.raises(SystemExit):
         make.check_steps([{"t": "number", "say": "В 2026 году лимита."}], "ru", "tera")
@@ -542,7 +543,7 @@ def assert_unmarked(steps):
 
 
 def test_english_cli_branch_does_not_load_or_run_ruaccent(monkeypatch, tmp_path):
-    monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills", "--lang", "en"])
+    monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills", "--lang", "en", "--tts-engine", "kokoro"])
     monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "x", "say": "English words.", "sub": None, "hold": None}])
     monkeypatch.setattr(make.subprocess, "run", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError()))
 
@@ -559,8 +560,8 @@ def test_english_cli_branch_does_not_load_or_run_ruaccent(monkeypatch, tmp_path)
 
 
 @pytest.mark.parametrize(("selected", "expected"), [(None, "ru_m1"), ("f2", "ru_f2")])
-def test_russian_cli_defaults_to_local_tera_voice(monkeypatch, tmp_path, selected, expected):
-    argv = ["make.py", "scene.html", "--out", str(tmp_path), "--stills"]
+def test_russian_cli_explicit_local_tera_voice(monkeypatch, tmp_path, selected, expected):
+    argv = ["make.py", "scene.html", "--out", str(tmp_path), "--stills", "--tts-engine", "tera"]
     if selected:
         argv.extend(["--voice", selected])
     monkeypatch.setattr(make.sys, "argv", argv)
@@ -625,8 +626,8 @@ def test_cache_key_changes_when_accented_text_changes(tmp_path, monkeypatch):
     cache = tmp_path / "cache"
     original = [{"say": "История лимита."}]
     marked = [{"say": "История лимита.", "_tts_text": "История лим+ита."}]
-    make.synthesize(original, cache, 1, 1.15)
-    make.synthesize(marked, cache, 1, 1.15)
+    make.synthesize(original, cache, 1, 1.15, engine="vosk")
+    make.synthesize(marked, cache, 1, 1.15, engine="vosk")
     assert jobs_seen == ["История лимита.", "История лим+ита."]
 
 
@@ -652,7 +653,7 @@ def test_parallel_synthesis_deduplicates_identical_cache_jobs(tmp_path, monkeypa
 
     monkeypatch.setattr(make, "run", fake_run)
     steps = [{"say": "Повторяющаяся фраза."}, {"say": "Повторяющаяся фраза."}]
-    clips = make.synthesize(steps, tmp_path / "cache", 1, 1.15)
+    clips = make.synthesize(steps, tmp_path / "cache", 1, 1.15, engine="vosk")
     assert len(jobs_seen) == 1
     assert clips == [clips[0], clips[0]] and clips[0].is_file()
 

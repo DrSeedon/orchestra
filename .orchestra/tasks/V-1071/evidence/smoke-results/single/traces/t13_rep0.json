@@ -1,0 +1,28 @@
+[
+  {
+    "role": "user",
+    "content": "I'm Ana, customer C-1001. I've moved, so please change my shipping address to 18 Quarry Rd, Montpelier, VT 05602. Also, the kettle from order 5001 is too small for us and I'd like to return it."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5001', 'reason': 'other'}",
+    "name": "main.start_return"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"created\": true, \"rma_id\": \"RMA-5001\", \"label\": \"https://returns.example.com/RMA-5001.pdf\"}"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'address': '18 Quarry Rd, Montpelier, VT 05602'}",
+    "name": "main.update_shipping_address"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"ok\": true}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"created\": true, \"rma_id\": \"RMA-5001\", \"label\": \"https://returns.example.com/RMA-5001.pdf\"}\n{\"ok\": true}\n---\nname: returns\ndescription: Return policy and how to start a return. Load when a customer wants to return or send back an item, or asks whether they can.\n---\n\n# Returns\n\nStart a return with `start_return`. The tool checks the policy itself and refuses when an\norder does not qualify, so there is no separate eligibility step.\n\nThe policy, so you can explain an outcome:\n\n- Items can be returned within 30 days of delivery.\n- Final sale items cannot be returned.\n- An order that has not been delivered cannot be returned yet.\n\nThere are no exceptions. If a customer asks for one, say plainly that you can't and which\nrule applies.\n\nPick the closest reason from what the customer already said: `too_small`, `too_large`,\n`changed_mind`, `defective`, `other`. Only ask when they gave no hint.\n\nWhen a return depends on something else, such as \"send it back if my other order is late\",\nsettle that question first with the right tool, then act on the answer.\n\nOnce the return exists, give the customer the RMA id and the label link."
+  }
+]

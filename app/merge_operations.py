@@ -9,6 +9,7 @@ import copy
 import hashlib
 import json
 import logging
+import re
 import sqlite3
 import subprocess
 import time
@@ -150,6 +151,80 @@ def _action(code: str, message: str) -> dict[str, str]:
     return {"code": code, "message": _text(message, code)}
 
 
+def _test_gate_recovery(test_gate: dict[str, Any]) -> tuple[dict[str, str], dict[str, Any]]:
+    """Diagnose structured gate evidence; FAILED operations only replay their receipt."""
+    reason = str(test_gate.get("reason") or "unknown")
+    batches = test_gate.get("batches") or []
+    reasons = [reason]
+    if batches and reason in {
+        "batch_failed", "batch_inconclusive", "batch_skipped",
+    }:
+        reasons = sorted({
+            str(batch.get("reason") or "unknown")
+            for batch in batches if batch.get("status") != "passed"
+        }) or [reason]
+    interpreter = str(test_gate.get("interpreter") or "")
+    details = {
+        "reason": reason,
+        "blocking_reasons": reasons,
+        "interpreter": interpreter,
+        "retry_operation": "new",
+    }
+    selected = f"selected Python {interpreter}" if interpreter else "selected project Python"
+    if test_gate["status"] == "failed":
+        mutation_failed = (test_gate.get("mutation_gate") or {}).get("status") == "failed"
+        code = "FIX_TESTS_THEN_RETRY"
+        message = (
+            "Fix the changed tests so they fail when the worker source change is rolled back."
+            if mutation_failed else "Fix the failing merge-gate tests."
+        )
+    elif any(item in reasons for item in ("pytest_unavailable", "pytest_timeout_unavailable")):
+        code = "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"
+        details["required_packages"] = ["pytest", "pytest-timeout"]
+        message = (
+            f"The {selected} needs pytest and an enabled pytest-timeout plugin. "
+            "Repair test dependencies/plugin loading in that interpreter's environment; "
+            "check PYTEST_DISABLE_PLUGIN_AUTOLOAD, PYTEST_ADDOPTS and plugin exclusions. "
+            "Verify with that Python's -m pytest --help that --timeout and --timeout-method "
+            "are available. The per-node timeout remains required."
+        )
+    elif any(item in reasons for item in ("not_found", "os_error")):
+        code = "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"
+        message = (
+            f"Inspect the OS error and repair the {selected}, its executable permissions "
+            "and the worktree path before running the gate again."
+        )
+    elif "pytest_usage_error" in reasons:
+        code = "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"
+        message = (
+            f"Inspect pytest's usage error from the {selected}; repair project pytest "
+            "configuration, arguments or plugin loading before running the gate again."
+        )
+    elif reasons == ["timeout"]:
+        code = "TEST_GATE_UNFINISHED"
+        message = (
+            "The gate exhausted its elapsed time budget without reporting a red test. "
+            "Inspect verified and unreached tests before another attempt; repeated budget "
+            "exhaustion needs an explicit decision about the mapped subset and gate budget."
+        )
+    elif test_gate["status"] == "skipped" or any(item in reasons for item in (
+        "no_diff", "no_mapped_tests", "no_tests_after_deselect",
+    )):
+        code = "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"
+        message = (
+            "The required mapped gate did not verify tests. Inspect target-relative diff, "
+            "test mapping and deselection; restore runnable coverage before another attempt."
+        )
+    else:
+        code = "INSPECT_TEST_GATE_THEN_NEW_OPERATION"
+        message = "Inspect the gate's structured reasons and diagnostics before another attempt."
+    return _action(
+        code,
+        message + " Start a new merge with a new operation_id (or omit it) after addressing "
+        "the cause. Reusing this operation_id only returns the saved terminal result.",
+    ), details
+
+
 # Инструкция без разрешённого действия не выполняется: чужой оркестратор смержил руками
 # не по недисциплинированности, а потому что «do not merge manually» не называло выхода.
 _RESOLVE_HINT = (
@@ -242,6 +317,16 @@ def normalize_request(
 
 def request_hash(request: dict[str, Any]) -> str:
     return _hash(request)
+
+
+def acceptance_input_error(expected_head: str, acceptance_note: str) -> str:
+    """Validate a new acceptance; persisted operations keep their replay contract."""
+    if not re.fullmatch(r"[0-9a-fA-F]{40}", expected_head.strip()):
+        return "expected_head must be the full 40-character SHA from worker_wip"
+    note = acceptance_note.strip()
+    if len(note) < 15 or note.casefold() in {"placeholder", "-", "tbd"}:
+        return "acceptance_note must contain a meaningful acceptance decision of at least 15 characters"
+    return ""
 
 
 def _operation_id(value: str) -> str:
@@ -1511,6 +1596,8 @@ def normalize_merge_result(
             "worker_head": raw.get("worker_head") or None,
             "conflicts": conflicts,
             "commits_merged": int(raw.get("commits_merged") or 0),
+            "diff_insertions": raw.get("diff_insertions"),
+            "diff_excluded_insertions": raw.get("diff_excluded_insertions"),
             # Класс дрейфа личности и запиннённый HEAD: поля ДОБАВЛЯЮТСЯ, старые не меняются,
             # поэтому старый читатель их просто не заметит.
             "head_drift": str(raw.get("head_drift") or "SAME"),
@@ -2073,6 +2160,7 @@ async def _run_operation(operation_id: str) -> None:
                     # Учёт дописывается ПОСЛЕ хвоста выхода: получатель видит `[-400:]`,
                     # то есть конец строки, — сводка в начале до него не доехала бы.
                     progress = describe_progress(test_gate)
+                    next_action, recovery_details = _test_gate_recovery(test_gate)
                     error = _error(
                         code,
                         (
@@ -2083,29 +2171,7 @@ async def _run_operation(operation_id: str) -> None:
                         ),
                         operation_id=operation_id,
                         status=409,
-                        retryable=test_gate["status"] in {INCONCLUSIVE, SKIPPED},
-                    )
-                    # Разные исходы требуют разных действий, и раньше оба получали
-                    # «Fix the failing merge-gate tests» — для незавершённого прогона это
-                    # прямая ложь (чинить нечего), из-за которой #329 смержили руками.
-                    next_action = (
-                        _action(
-                            "FIX_TESTS_THEN_RETRY",
-                            (
-                                "Fix the changed tests so they fail when the worker source "
-                                "change is rolled back, then start a new merge."
-                                if mutation_failed
-                                else "Fix the failing merge-gate tests, then start a new merge."
-                            ),
-                        )
-                        if test_gate["status"] == FAILED
-                        else _action(
-                            "TEST_GATE_UNFINISHED",
-                            "No test was reported red — the gate ran out of its time "
-                            "budget. Do NOT 'fix' tests. Retry the same operation; if it "
-                            "keeps running out, the mapped subset costs more than the "
-                            "gate budget and the merge needs an explicit decision.",
-                        )
+                        details=recovery_details,
                     )
                     result = _base_result(
                         operation_id,
@@ -2247,11 +2313,20 @@ async def _clean_worktree_after_merge(record: dict[str, Any], result: dict[str, 
     from app.worktree_cleanup import clean_worktree
 
     operation_id = record.get("operation_id", "")
+    worktree = ""
     try:
         row = await asyncio.to_thread(get_session, record["session_id"])
         worktree = (row or {}).get("worktree_path") or ""
         target = str((result.get("git") or {}).get("target_branch") or "")
         if worktree:
+            request = record.get("request") or {}
+            if request.get("merge_schema_version") == 2 and request.get("task_outcome") == "continue":
+                from app.hub_workspace import states_for_worktree
+
+                if await asyncio.to_thread(states_for_worktree, worktree):
+                    # The same task still owns its hub copy and conversation.
+                    # Retain input provenance and local/remote recovery data too.
+                    return
             from app.backend_hub import release_for_worktree
 
             try:
@@ -2269,7 +2344,21 @@ async def _clean_worktree_after_merge(record: dict[str, Any], result: dict[str, 
             operation_id, worktree, outcome.get("state"), outcome.get("files"),
             outcome.get("bytes"), outcome.get("reason", ""),
         )
-    except Exception:
+    except Exception as exc:
+        # The terminal result permits worker removal while this optional cleanup
+        # is still running. ENOENT alone can also mean a missing Git executable
+        # or input file: only a separate stat proving the root vanished is normal.
+        if isinstance(exc, FileNotFoundError) and worktree:
+            try:
+                Path(worktree).stat()
+            except FileNotFoundError:
+                logger.info(
+                    "post-merge worktree cleanup operation_id=%s worktree=%s state=skipped reason=removed",
+                    operation_id, worktree,
+                )
+                return
+            except OSError:
+                pass  # Absence is unproven; report the original cleanup failure.
         logger.exception("post-merge worktree cleanup failed operation_id=%s", operation_id)
 
 
@@ -2298,20 +2387,8 @@ def ensure_operation_runner(operation_id: str) -> None:
 
 
 def _head_matches(expected: str, actual: str) -> bool:
-    """Принять сокращённый хеш так же, как его принимает git.
-
-    Агент берёт HEAD из вывода `worker_wip`, где он бывает укорочен, и раньше
-    получал «HEAD воркера отличается» на ТОТ ЖЕ коммит: отказ называл причиной
-    расхождение, которого не было. Семь знаков — граница самого git: короче
-    он и сам отказывается разрешать неоднозначный префикс.
-    """
-    expected = expected.strip().lower()
-    actual = actual.strip().lower()
-    if not expected or not actual:
-        return False
-    if len(expected) < 7:
-        return expected == actual
-    return actual.startswith(expected)
+    """Accept only the full worker_wip identity; old operations replay before this."""
+    return bool(re.fullmatch(r"[0-9a-fA-F]{40}", expected.strip())) and expected.strip().lower() == actual.strip().lower()
 
 
 async def accept_merge_operation(
@@ -2408,6 +2485,21 @@ async def accept_merge_operation(
         }
         return result, status
 
+    # Arbitration and the bounded idle wait keep their precedence over a new
+    # acceptance. Validate before any Git snapshot or admission work starts.
+    input_error = acceptance_input_error(
+        request.get("expected_head", ""), request.get("acceptance_note", ""),
+    )
+    if input_error:
+        return _base_result(
+            canonical_id, "FAILED",
+            error=_error("WORK_ACCEPTANCE_REQUIRED", input_error, operation_id=canonical_id, status=409),
+            next_action=_action(
+                "FIX_ACCEPTANCE_THEN_NEW_OPERATION",
+                "Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.",
+            ),
+        ), 409
+
     phase_durations: dict[str, int] = {}
     snapshot_started = time.perf_counter()
     try:
@@ -2459,10 +2551,9 @@ async def accept_merge_operation(
     if task_run is not None:
         if not accepting_actor:
             return _base_result(canonical_id, "FAILED", error=_error("MERGE_ACCEPTOR_REQUIRED", "An authenticated acceptor is required (orchestrator, owner, or full-cycle parent into its own branch)", operation_id=canonical_id, status=403)), 403
-        if not request.get("expected_head") or not request.get("acceptance_note"):
-            return _base_result(canonical_id, "FAILED", error=_error("WORK_ACCEPTANCE_REQUIRED", "Inspect worker_wip, then provide its exact expected_head and an acceptance_note (including why no review was needed, if absent)", operation_id=canonical_id, status=409)), 409
-        if not _head_matches(request["expected_head"], accepted["worker_head"]):
-            return _base_result(canonical_id, "FAILED", error=_error("WORK_HEAD_CHANGED", f"Worker HEAD is {accepted['worker_head']}, you accepted {request['expected_head']}; inspect the new result", operation_id=canonical_id, status=409)), 409
+    if not _head_matches(request["expected_head"], accepted["worker_head"]):
+        return _base_result(canonical_id, "FAILED", error=_error("WORK_HEAD_CHANGED", f"Worker HEAD is {accepted['worker_head']}, you accepted {request['expected_head']}; inspect the new result", operation_id=canonical_id, status=409)), 409
+    if task_run is not None:
         if task_run["status"] != "requested" or review.get("task_run_id") != task_run["receipt_id"]:
             return _base_result(canonical_id, "FAILED", error=_error("WORK_ASSIGNMENT_CHANGED", "Cannot bind acceptance to the current task and snapshot; inspect worker_wip again", operation_id=canonical_id, status=409)), 409
         accepted["admission"]["acceptance_decision"] = {

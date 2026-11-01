@@ -14,6 +14,7 @@ import datetime as dt
 import html
 import logging
 import math
+from bisect import bisect_right
 from pathlib import Path
 
 
@@ -32,6 +33,13 @@ WINDOW_FALLBACK_MINUTES = {"five_hour": 300, "seven_day": 10080}
 LOCAL_TZ = dt.timezone(dt.timedelta(hours=7))
 RENDER_TIMEOUT_MS = 20_000
 CARD_WIDTH = 900
+HISTORY_HOURS = 168  # usage.js: _SPARK_VIEW_HOURS
+HISTORY_TIMEOUT_SECONDS = 3
+POOL_HISTORY_KEYS = (
+    ("anthropic", "five_hour"), ("anthropic", "seven_day"),
+    ("codex", "primary"), ("codex", "secondary"),
+    ("codex_spark", "primary"), ("grok", "primary"),
+)
 
 P = {
     "bg": "#0a0e17", "panel": "#111827", "border": "#334155",
@@ -193,7 +201,105 @@ def _countdown(reset: dt.datetime, now: dt.datetime) -> str:
 
 # ── сбор данных ───────────────────────────────────────────────────────────────
 
-def collect(usage: dict, *, now: dt.datetime | None = None) -> dict:
+def _finite_number(value) -> float | None:
+    if value is None or isinstance(value, bool) or value == "":
+        return None
+    try:
+        number = float(value)
+        return number if math.isfinite(number) else None
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _new_period(previous: dict, point: dict) -> bool:
+    """usage.js _usagePeriods: reset drift ≤1h belongs to the same window."""
+    before, after = previous["reset"], point["reset"]
+    return (previous["minutes"] != point["minutes"]
+            or bool(before and after and abs((after - before).total_seconds()) > 3600))
+
+
+def collect_history(history: dict, now: dt.datetime) -> dict:
+    """Front's latest longest-window period, with real samples instead of grid carry.
+
+    `sample_ts` retains the stored time when the canonical API resamples a row.
+    Missing windows, gaps and reset boundaries never become connecting lines.
+    """
+    series, observed = {}, {}
+    for row in history.get("rows") or []:
+        providers = row.get("providers")
+        if not isinstance(providers, dict):
+            # Old Claude-only responses, same fallback as usage.js _historyProviders.
+            windows = []
+            for key, minutes in (("five_hour", 300), ("seven_day", 10080)):
+                value = _finite_number(row.get(f"{key}_pct"))
+                reset = row.get(f"{key}_resets_at")
+                if value is not None and (reset or value == 0):
+                    windows.append(dict(id=key, utilization=value,
+                                        window_minutes=minutes, resets_at=reset))
+            providers = {"anthropic": {"windows": windows}}
+        ts = to_utc(row.get("sample_ts") or row.get("ts"))
+        if ts is None or not now - dt.timedelta(hours=HISTORY_HOURS) <= ts <= now:
+            continue
+        present = observed.setdefault(ts, set())
+        for provider_id, provider in providers.items():
+            for window in provider.get("windows") or []:
+                used = _finite_number(window.get("utilization"))
+                minutes = _finite_number(window.get("window_minutes"))
+                if used is None or not 0 <= used <= 100 or minutes is None or minutes <= 0:
+                    continue
+                key = (provider_id, window.get("id"))
+                present.add(key)
+                series.setdefault(key, {})[ts] = dict(
+                    ts=ts, used=used, minutes=minutes, reset=to_utc(window.get("resets_at")),
+                )
+    series = {key: sorted(points.values(), key=lambda p: p["ts"])
+              for key, points in series.items()}
+    anchors = {}
+    for provider_id in {key[0] for key in series}:
+        candidates = [points for key, points in series.items() if key[0] == provider_id]
+        anchor = max(candidates, key=lambda points: points[0]["minutes"])
+        periods = []
+        for point in anchor:
+            if not periods or _new_period(periods[-1][-1], point):
+                periods.append([])
+            periods[-1].append(point)
+        trimmed = []
+        for period in periods:
+            last = period[-1]
+            start = (last["reset"] - dt.timedelta(minutes=last["minutes"])
+                     if last["reset"] else period[0]["ts"])
+            trimmed.append([p for p in period if p["ts"] >= start])
+        # Front requires two points. A lone measurement is still useful as a dot.
+        eligible = [period for period in trimmed if len(period) >= 2]
+        selected = eligible[-1] if eligible else next((p for p in reversed(trimmed) if p), [])
+        if selected:
+            anchors[provider_id] = (selected[0]["ts"], selected[-1]["ts"])
+    step = _finite_number(history.get("step_minutes")) or 5
+    gap = dt.timedelta(minutes=max(1, step) * 1.5)
+    result = {}
+    for key, points in series.items():
+        bounds = anchors.get(key[0])
+        if bounds is None:
+            continue
+        selected = [p for p in points if bounds[0] <= p["ts"] <= bounds[1]]
+        missing = sorted(ts for ts, keys in observed.items() if key not in keys)
+        segments = []
+        for point in selected:
+            previous = segments[-1][-1] if segments else None
+            absent = (previous is not None
+                      and bisect_right(missing, previous["ts"]) < bisect_right(missing, point["ts"]))
+            if (previous is None or point["ts"] - previous["ts"] > gap
+                    or absent or _new_period(previous, point)):
+                segments.append([])
+            segments[-1].append(point)
+        if selected:
+            result[key] = dict(start=bounds[0], end=bounds[1], segments=segments,
+                               last=selected[-1], stale=now - selected[-1]["ts"] > gap)
+    return result
+
+
+def collect(usage: dict, *, now: dt.datetime | None = None,
+            history: dict | None = None) -> dict:
     """Ответ `/api/usage` → всё, что рисует карточка. Ничего не считает про окна недели:
     это работа `_quota_headroom`, отсутствует она — отсутствует и блок недели."""
     now = now or dt.datetime.now(dt.timezone.utc)
@@ -235,6 +341,10 @@ def collect(usage: dict, *, now: dt.datetime | None = None) -> dict:
         pool("Spark · 5 часов", spark.get("primary"), "five_hour"),
         pool("Grok", (usage.get("grok") or {}).get("primary")),
     ]
+    histories = collect_history(history or {}, now)
+    for p, key in zip(pools, POOL_HISTORY_KEYS):
+        p["history"] = histories.get(key)
+        p["history_unavailable"] = bool(history and history.get("unavailable"))
 
     head = usage.get("quota_headroom")
     week = None
@@ -303,11 +413,67 @@ body {{ width:{CARD_WIDTH}px; background:{P['bg']}; color:{P['ink']}; padding:40
 .pool .mark {{ position:absolute; top:-4px; bottom:-4px; width:4px; background:{P['ink']};
   opacity:.9; }}
 .pool .bot {{ display:flex; justify-content:space-between; margin-top:9px; font-size:29px;
-  gap:16px; white-space:nowrap; }}
+  gap:6px 16px; flex-wrap:wrap; white-space:nowrap; }}
 .pool .rs {{ color:{P['faint']}; }}
 .pool .nm, .pool .vl {{ white-space:nowrap; }}
 .nodata {{ font-size:29px; color:{P['faint']}; font-style:italic; margin-top:6px; }}
+.history {{ margin-top:12px; }}
+.history-note {{ font-size:22px; color:{P['soft']}; margin:8px 0; }}
+.history svg {{ display:block; width:100%; height:146px; }}
 """
+
+
+def _history_html(pool: dict) -> str:
+    data = pool.get("history")
+    if not data:
+        note = "история недоступна" if pool.get("history_unavailable") else "истории нет"
+        return f'<div class="history-note">{note}</div>'
+    start, end = data["start"], data["end"]
+    span = max(1, (end - start).total_seconds())
+    left, right, top, bottom = 62, 806, 10, 108
+    x = lambda point: left + (point["ts"] - start).total_seconds() / span * (right - left)
+    y = lambda value: bottom - value / 100 * (bottom - top)
+    parts = [f'<svg viewBox="0 0 820 146" role="img" aria-label="История расхода, проценты">']
+    for value in (0, 50, 100):
+        parts.append(f'<line x1="{left}" x2="{right}" y1="{y(value):.1f}" '
+                     f'y2="{y(value):.1f}" stroke="{P["border"]}"/>'
+                     f'<text x="52" y="{y(value) + 7:.1f}" text-anchor="end" '
+                     f'fill="{P["faint"]}" font-size="20">{value}%</text>')
+    for segment in data["segments"]:
+        if len(segment) >= 2:
+            coords = " ".join(f'{x(p):.1f},{y(p["used"]):.1f}' for p in segment)
+            parts.append(f'<polyline points="{coords}" fill="none" stroke="{P["alt"]}" '
+                         'stroke-width="3" stroke-linejoin="round"/>')
+        # Ideal pace needs real reset metadata; its absence is not 0% elapsed.
+        ideal = []
+        for point in segment:
+            if point["reset"] is None:
+                if len(ideal) >= 2:
+                    parts.append(_ideal_line(ideal))
+                ideal = []
+                continue
+            elapsed = 100 - (point["reset"] - point["ts"]).total_seconds() / (point["minutes"] * 60) * 100
+            ideal.append(f'{x(point):.1f},{y(max(0, min(100, elapsed))):.1f}')
+        if len(ideal) >= 2:
+            parts.append(_ideal_line(ideal))
+        for point in segment:
+            parts.append(f'<circle cx="{x(point):.1f}" cy="{y(point["used"]):.1f}" '
+                         f'r="3" fill="{P["alt"]}"/>')
+    for when, at, align in ((start, left, "start"), (end, right, "end")):
+        label = when.astimezone(LOCAL_TZ).strftime("%d.%m %H:%M")
+        parts.append(f'<text x="{at}" y="140" text-anchor="{align}" '
+                     f'fill="{P["soft"]}" font-size="21">{label}</text>')
+    parts.append('</svg>')
+    last = data["last"]
+    stamp = last["ts"].astimezone(LOCAL_TZ).strftime("%d.%m %H:%M")
+    status = " · устарело" if data["stale"] else ""
+    note = f'История · последнее {last["used"]:.1f}% в {stamp}{status}'
+    return f'<div class="history"><div class="history-note">{note}</div>{"".join(parts)}</div>'
+
+
+def _ideal_line(coords: list[str]) -> str:
+    return (f'<polyline points="{" ".join(coords)}" fill="none" stroke="{P["faint"]}" '
+            'stroke-width="2" stroke-dasharray="6 5"/>')
 
 
 def _pools_html(pools: list[dict]) -> str:
@@ -317,7 +483,7 @@ def _pools_html(pools: list[dict]) -> str:
         if p["used"] is None:
             rows.append(
                 f'<div class="pool"><div class="top"><span class="nm">{name}</span></div>'
-                f'<div class="nodata">нет данных — сервис не ответил</div></div>'
+                f'<div class="nodata">нет данных — сервис не ответил</div>{_history_html(p)}</div>'
             )
             continue
         used, elapsed = p["used"], p["elapsed"]
@@ -332,7 +498,7 @@ def _pools_html(pools: list[dict]) -> str:
             f'<div class="tr"><div class="fl" style="width:{max(0.0, min(100.0, used)):.1f}%;'
             f'background:{p["color"]}"></div>{mark}</div>'
             f'<div class="bot"><span style="color:{p["color"]}">{html.escape(p["pace"])}</span>'
-            f'<span class="rs">{html.escape(p["reset"])}</span></div></div>'
+            f'<span class="rs">{html.escape(p["reset"])}</span></div>{_history_html(p)}</div>'
         )
     return f'<div class="pools">{"".join(rows)}</div>'
 
@@ -375,21 +541,35 @@ def build_html(data: dict) -> str:
         )
     return (
         f"<!doctype html><meta charset='utf-8'><style>{_css()}</style><body>"
-        f'<div class="head">ЛИМИТЫ · {stamp}</div>{top}{_pools_html(data["pools"])}'
+        f'<div class="head">ЛИМИТЫ · {stamp} · UTC+7</div>{top}'
+        f'<div class="history-note">История · последний период каждого провайдера · до 7 суток<br>'
+        f'━ расход, % · ┄ прошло окна, % · разрывы: нет снимков / сброс</div>'
+        f'{_pools_html(data["pools"])}'
         f"</body>"
     )
 
 
-async def render_limits_card(usage: dict, *, now: dt.datetime | None = None) -> str:
+async def render_limits_card(usage: dict, *, now: dt.datetime | None = None,
+                             history: dict | None = None) -> str:
     """HTML → PNG. Путь к файлу. Кидает наружу — вызывающий откатывается на текст."""
     from playwright.async_api import async_playwright
 
     from app.charts import new_chart_path, prune_charts
 
     global _renderer_lock, _renderer_loop, _renderer_playwright, _renderer_browser
+    if history is None:
+        from app.routes.system import usage_history_data
+
+        try:
+            history = await asyncio.wait_for(
+                asyncio.to_thread(usage_history_data, HISTORY_HOURS), HISTORY_TIMEOUT_SECONDS,
+            )
+        except Exception as error:
+            logger.warning("limits history unavailable: %s", type(error).__name__)
+            history = {"unavailable": True}
     path = new_chart_path()
     html_path = path.with_suffix(".html")
-    html_path.write_text(build_html(collect(usage, now=now)), encoding="utf-8")
+    html_path.write_text(build_html(collect(usage, now=now, history=history)), encoding="utf-8")
     try:
         loop = asyncio.get_running_loop()
         if _renderer_loop is not None and _renderer_loop is not loop:

@@ -1,0 +1,37 @@
+[
+  {
+    "role": "user",
+    "content": "I'd like to return my toaster, order 5003."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'agent': 'returns', 'brief': \"I'd like to return my toaster, order 5003.\\n\\nSpecialist notes so far:\\n\"}",
+    "name": "router.delegate"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5003'}",
+    "name": "returns.get_order"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order_id\": \"5003\", \"customer_id\": \"C-1002\", \"sku\": \"SKU-TOAST-4\", \"item\": \"Slot Toaster\", \"status\": \"delivered\", \"delivered_on\": \"2026-08-10\", \"tracking_id\": \"TRK-77003\", \"final_sale\": false}"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5003'}",
+    "name": "returns.check_return_eligibility"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"eligible\": false, \"reason\": \"Delivered 52 days ago. The return window is 30 days.\"}"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order_id\": \"5003\", \"customer_id\": \"C-1002\", \"sku\": \"SKU-TOAST-4\", \"item\": \"Slot Toaster\", \"status\": \"delivered\", \"delivered_on\": \"2026-08-10\", \"tracking_id\": \"TRK-77003\", \"final_sale\": false}\n{\"eligible\": false, \"reason\": \"Delivered 52 days ago. The return window is 30 days.\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"order_id\": \"5003\", \"customer_id\": \"C-1002\", \"sku\": \"SKU-TOAST-4\", \"item\": \"Slot Toaster\", \"status\": \"delivered\", \"delivered_on\": \"2026-08-10\", \"tracking_id\": \"TRK-77003\", \"final_sale\": false}\n{\"eligible\": false, \"reason\": \"Delivered 52 days ago. The return window is 30 days.\"}"
+  }
+]

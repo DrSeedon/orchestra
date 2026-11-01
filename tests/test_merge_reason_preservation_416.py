@@ -94,8 +94,7 @@ def test_t2_dirty_target_path_files_and_action_reach_merge_caller(
     (worker_path / "worker.txt").write_text("worker payload\n")
     _git(worker_path, "add", "worker.txt")
     _git(worker_path, "commit", "-m", "#416: worker payload")
-    dirty_file = repo / ".orchestra" / "tasks" / "49" / "research.md"
-    dirty_file.parent.mkdir(parents=True)
+    dirty_file = repo / "worker.txt"
     dirty_file.write_text("untracked target WIP\n")
     target_before = _git(repo, "rev-parse", "main").stdout.strip()
 
@@ -105,7 +104,7 @@ def test_t2_dirty_target_path_files_and_action_reach_merge_caller(
 
     # The first assertion isolates the workspace message from normalization.
     assert str(repo.resolve()) in raw["error"]
-    assert ".orchestra/tasks/49/" in raw["error"]
+    assert "worker.txt" in raw["error"]
     normalized = operations.normalize_merge_result(
         "t2-operation",
         raw,
@@ -124,9 +123,60 @@ def test_t2_dirty_target_path_files_and_action_reach_merge_caller(
     assert normalized["next_action"]["code"] == "CLEAN_TARGET_THEN_NEW_OPERATION"
     assert delivered.isError is True
     assert str(repo.resolve()) in text
-    assert ".orchestra/tasks/49/" in text
+    assert "worker.txt" in text
     assert "Clean the target worktree, then start a new merge operation." in text
     assert "verify the worker branch" not in text
     assert "merge produced no new commits" not in text
     assert dirty_file.read_text() == "untracked target WIP\n"
     assert _git(repo, "rev-parse", "main").stdout.strip() == target_before
+
+
+def test_t2_unrelated_dirty_target_allows_merge_and_preserves_file(
+    tmp_path, monkeypatch,
+):
+    import app.mcp_stdio as mcp
+    import app.merge_operations as operations
+    import app.workspace as workspace
+
+    repo = _make_repo(tmp_path)
+    worktree_root = tmp_path / "worktrees"
+    worktree_root.mkdir()
+    monkeypatch.setattr(workspace, "WORKTREE_ROOT", worktree_root)
+    worker = workspace.create_worktree(
+        str(repo), "reason-worker", task_id="416", base_branch="main",
+    )
+    worker_path = Path(worker.path)
+    (worker_path / "worker.txt").write_text("worker payload\n")
+    _git(worker_path, "add", "worker.txt")
+    _git(worker_path, "commit", "-m", "#416: worker payload")
+    dirty_file = repo / ".orchestra" / "tasks" / "49" / "research.md"
+    dirty_file.parent.mkdir(parents=True)
+    dirty_file.write_text("untracked target WIP\n")
+    status_before = _git(repo, "status", "--porcelain").stdout
+    target_before = _git(repo, "rev-parse", "main").stdout.strip()
+
+    raw = workspace.merge_worktree_to_main(
+        worker.path, str(repo), target_branch="main", waive_diff_budget=True,
+    )
+    normalized = operations.normalize_merge_result(
+        "t2-unrelated-operation", raw,
+        operations.normalize_request(
+            name="reason-worker", scope=str(repo), target="main",
+            waive_diff_budget=True,
+        ),
+    )
+    delivered = mcp._merge_tool_result(normalized)
+
+    assert raw["ok"] is True, raw
+    assert raw["target_before"] == target_before
+    assert raw["target_after"] != target_before
+    assert raw["commits_merged"] == 1
+    assert normalized["operation_state"] == "SUCCEEDED"
+    assert delivered.isError is False
+    assert (repo / "worker.txt").read_text() == "worker payload\n"
+    assert _git(repo, "show", "main:worker.txt").stdout == "worker payload\n"
+    assert dirty_file.read_text() == "untracked target WIP\n"
+    assert _git(repo, "status", "--porcelain").stdout == status_before
+    assert ".orchestra/tasks/49/research.md" not in _git(
+        repo, "ls-tree", "-r", "--name-only", "main",
+    ).stdout.splitlines()

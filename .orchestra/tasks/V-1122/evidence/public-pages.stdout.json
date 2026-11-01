@@ -1,0 +1,202 @@
+[
+  {
+    "url": "https://openai.com/business/plugins/sentinelx/",
+    "retrieved_utc": "2026-10-29T09:23:04.219779+00:00",
+    "error": "HTTPError",
+    "status": 403
+  },
+  {
+    "url": "https://chatgpt.com/plugins/plugin_asdk_app_69f63e01766881919640f03b5e7912a5",
+    "retrieved_utc": "2026-10-29T09:23:04.222007+00:00",
+    "error": "HTTPError",
+    "status": 403
+  },
+  {
+    "url": "https://sentinelx.app/",
+    "retrieved_utc": "2026-10-29T09:23:04.225427+00:00",
+    "status": 200,
+    "final_url": "https://sentinelx.app/",
+    "bytes": 60754,
+    "sha256": "ebdbc220be6cf3e9df6fbc1d3f96747c0ab94b1878d5ebd23b3168c27aa5ab86",
+    "title": "SentinelX MCP — install & operate your servers from an AIYour host connects out to the SentinelX hub over one WebSocket; your assistant connects to the same hub through its MCP con",
+    "directory_links": [
+      "https://chatgpt.com/plugins/plugin_asdk_app_69f63e01766881919640f03b5e7912a5"
+    ]
+  },
+  {
+    "url": "https://sentinelx.app/privacy",
+    "retrieved_utc": "2026-10-29T09:23:04.231935+00:00",
+    "status": 200,
+    "final_url": "https://sentinelx.app/privacy",
+    "bytes": 23842,
+    "sha256": "1fb2f9561afecd65c54ede9a7d7cf18276f8209d2787122bd063ccc6e60e1cd3",
+    "title": "Privacy Policy — SentinelX MCP",
+    "directory_links": []
+  },
+  {
+    "url": "https://sentinelx.app/terms",
+    "retrieved_utc": "2026-10-29T09:23:04.374364+00:00",
+    "status": 200,
+    "final_url": "https://sentinelx.app/terms",
+    "bytes": 22018,
+    "sha256": "ec5a299aa1b78ef35b4f9b8691207a96b0f17e4b15a2525be058cc701291c33c",
+    "title": "Terms of Service — SentinelX MCP",
+    "directory_links": []
+  },
+  {
+    "url": "https://sentinelx.app/plans",
+    "retrieved_utc": "2026-10-29T09:23:04.518266+00:00",
+    "status": 200,
+    "final_url": "https://sentinelx.app/plans",
+    "bytes": 26687,
+    "sha256": "ca3b88adf0551ef765f9106951593eb16400430c5716f09fde5fa7cca042b8f3",
+    "title": "Pricing — SentinelX MCP",
+    "directory_links": []
+  },
+  {
+    "url": "https://sentinelx.app/troubleshooting",
+    "retrieved_utc": "2026-10-29T09:23:05.180103+00:00",
+    "status": 200,
+    "final_url": "https://sentinelx.app/troubleshooting",
+    "bytes": 34500,
+    "sha256": "1c9dab2169c912659e78b327e32c1c32287fe634c848353bcf2329f84c0b3748",
+    "title": "Troubleshooting — SentinelX MCP",
+    "directory_links": []
+  },
+  {
+    "url": "https://developers.openai.com/plugins/quickstart",
+    "retrieved_utc": "2026-10-29T09:23:05.237301+00:00",
+    "status": 200,
+    "final_url": "https://developers.openai.com/plugins/quickstart",
+    "bytes": 361608,
+    "sha256": "6cb1c8077fe35032fb8058d6fb25cd62aaceb55d3c4f18653aa4ede3248ea189",
+    "title": "Quickstart – Plugins | OpenAI Developers",
+    "directory_links": []
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/guides/custom-mcp-server",
+    "retrieved_utc": "2026-10-29T09:23:05.294197+00:00",
+    "status": 200,
+    "final_url": "https://developers.openai.com/api/docs/guides/custom-mcp-server",
+    "bytes": 371866,
+    "sha256": "196a30339a33edbe5083c6b3fcde211e3243684646381ef6d2645dc51ce986d4",
+    "title": "Add custom MCP server | OpenAI API",
+    "directory_links": []
+  },
+  {
+    "url": "https://developers.openai.com/plugins/build/auth",
+    "retrieved_utc": "2026-10-29T09:23:05.447292+00:00",
+    "status": 200,
+    "final_url": "https://developers.openai.com/plugins/build/auth",
+    "bytes": 499813,
+    "sha256": "f8bfdfb582d2244b75114aca71dec3451e78474b65f2791eab9a4127b7012cea",
+    "title": "Authentication – Plugins | OpenAI Developers",
+    "directory_links": []
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/guides/secure-mcp-tunnels",
+    "retrieved_utc": "2026-10-29T09:23:05.573249+00:00",
+    "status": 200,
+    "final_url": "https://developers.openai.com/api/docs/guides/secure-mcp-tunnels",
+    "bytes": 445573,
+    "sha256": "55dda4e0cd007166c7d32fc39a38c63d99371fe1531565f9e35c1321ba781e85",
+    "title": "Secure MCP Tunnel | OpenAI API",
+    "directory_links": []
+  },
+  {
+    "url": "https://learn.chatgpt.com/docs/enterprise/work-admin-faq",
+    "retrieved_utc": "2026-10-29T09:23:06.062879+00:00",
+    "status": 200,
+    "final_url": "https://learn.chatgpt.com/docs/enterprise/work-admin-faq",
+    "bytes": 476575,
+    "sha256": "b858eea86092bfe4fd2edfbeae632f053a761c938af0e3f1d1a1a9353e4c5399",
+    "title": "ChatGPT Work admin FAQ | ChatGPT Learn",
+    "directory_links": []
+  },
+  {
+    "url": "https://learn.chatgpt.com/docs/pricing",
+    "retrieved_utc": "2026-10-29T09:23:06.133317+00:00",
+    "status": 200,
+    "final_url": "https://learn.chatgpt.com/docs/pricing",
+    "bytes": 718503,
+    "sha256": "87aae51bf3eba4d2846ee220692bcaca6caeb20eebdfd277b226125eae95b078",
+    "title": "Pricing | ChatGPT Learn",
+    "directory_links": []
+  },
+  {
+    "url": "https://learn.chatgpt.com/docs/models",
+    "retrieved_utc": "2026-10-29T09:23:06.182506+00:00",
+    "status": 200,
+    "final_url": "https://learn.chatgpt.com/docs/models",
+    "bytes": 618347,
+    "sha256": "ce99185779acec66901ef9dea4f7686b01e5871e009ce548338e633bc03f2fda",
+    "title": "Models | ChatGPT Learn",
+    "directory_links": []
+  },
+  {
+    "url": "https://learn.chatgpt.com/docs/sign-in-with-chatgpt",
+    "retrieved_utc": "2026-10-29T09:23:06.195553+00:00",
+    "status": 200,
+    "final_url": "https://learn.chatgpt.com/docs/sign-in-with-chatgpt",
+    "bytes": 411797,
+    "sha256": "320e4577e7f13e9ce2461d4b60310c0d90296d5cc023e73515c7e648c443399d",
+    "title": "Sign in with ChatGPT | ChatGPT Learn",
+    "directory_links": []
+  },
+  {
+    "url": "https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt",
+    "retrieved_utc": "2026-10-29T09:23:06.625494+00:00",
+    "error": "HTTPError",
+    "status": 403
+  },
+  {
+    "url": "https://opencode.ai/docs/providers",
+    "retrieved_utc": "2026-10-29T09:23:06.675927+00:00",
+    "status": 200,
+    "final_url": "https://opencode.ai/docs/providers",
+    "bytes": 369789,
+    "sha256": "750b5c3f52a4016f9866ef0b2ad72bf46e2893b8bc0c1efb23ed3c170e0d475e",
+    "title": "Providers | OpenCode",
+    "directory_links": []
+  },
+  {
+    "url": "https://opencode.ai/docs/en/mcp-servers",
+    "retrieved_utc": "2026-10-29T09:23:06.747881+00:00",
+    "status": 200,
+    "final_url": "https://opencode.ai/docs/en/mcp-servers",
+    "bytes": 119359,
+    "sha256": "566c5969bf05bb8c6d17d498d9cac678f440dd545cc15a4738705cfcc67d986c",
+    "title": "MCP servers | OpenCode",
+    "directory_links": []
+  },
+  {
+    "url": "https://aiget.tech/en/terms",
+    "retrieved_utc": "2026-10-29T09:23:06.815799+00:00",
+    "status": 200,
+    "final_url": "https://aiget.tech/en/terms",
+    "bytes": 42823,
+    "sha256": "725c01a0b928e38bb1b85e43d926d86def71a69cc4fb90261f8ca16d5a4f13fa",
+    "title": "Terms of service · AIGet",
+    "directory_links": []
+  },
+  {
+    "url": "https://sentinelx.ai/",
+    "retrieved_utc": "2026-10-29T09:23:06.824956+00:00",
+    "status": 200,
+    "final_url": "https://sentinelx.ai/",
+    "bytes": 101099,
+    "sha256": "7cab53344ab3eae582733c5dfce6861241f5c71e67802ed152f8fe825d0fe9ef",
+    "title": "SentinelX | The Consequence Boundary Company™",
+    "directory_links": []
+  },
+  {
+    "url": "https://chromewebstore.google.com/detail/sentinel-x/cjoolacicinabmgfnbnllhagabgbeghc",
+    "retrieved_utc": "2026-10-29T09:23:07.242865+00:00",
+    "status": 200,
+    "final_url": "https://chromewebstore.google.com/detail/sentinel-x/cjoolacicinabmgfnbnllhagabgbeghc?ucbcb=1",
+    "bytes": 687249,
+    "sha256": "6409fca8d1ed2e2a81d0bd67c16aba1caf4e2f2c7c3c19af10c007b35474d90e",
+    "title": "Sentinel x - Chrome Web Store",
+    "directory_links": []
+  }
+]

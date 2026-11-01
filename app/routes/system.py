@@ -529,8 +529,23 @@ async def list_models(response: Response):
         if spec.price_output is not None:
             entry["price_output"] = spec.price_output
         models.append(entry)
+    from app.pipeline import get_role
+    from app.models import resolve_model
+    from yaml import YAMLError
+
+    preferred = None
+    try:
+        orchestrator = get_role("default", "orchestrator")
+        if orchestrator is not None and orchestrator.is_orchestrator:
+            preferred = resolve_model(orchestrator.model)
+    except (ValueError, OSError, YAMLError):
+        # A broken/missing manifest must not remove the model catalog itself.
+        logger.warning("Default orchestrator model unavailable from pipeline")
     return {
         "models": models,
+        "default_orchestrator_model": (
+            preferred if any(model["id"] == preferred for model in models) else None
+        ),
         "provider_metadata": provider_metadata_payload(),
         "proxy_connected": is_proxy_connected(),
     }
@@ -764,12 +779,18 @@ def _normalize_codex_window(window: dict | None) -> dict | None:
         return None
     used = window.get("usedPercent")
     duration = window.get("windowDurationMins")
-    if not isinstance(used, (int, float)) or not isinstance(duration, int) or duration <= 0:
+    if (isinstance(used, bool) or not isinstance(used, (int, float))
+            or not math.isfinite(used) or used < 0 or isinstance(duration, bool)
+            or not isinstance(duration, int) or duration <= 0):
         return None
     resets_at = window.get("resetsAt")
     reset_iso = None
-    if isinstance(resets_at, (int, float)) and resets_at > 0:
-        reset_iso = datetime.fromtimestamp(resets_at, timezone.utc).isoformat().replace("+00:00", "Z")
+    if (not isinstance(resets_at, bool) and isinstance(resets_at, (int, float))
+            and math.isfinite(resets_at) and resets_at > 0):
+        try:
+            reset_iso = datetime.fromtimestamp(resets_at, timezone.utc).isoformat().replace("+00:00", "Z")
+        except (ValueError, OSError, OverflowError):
+            pass  # Optional malformed reset does not discard otherwise known usage.
     utilization = max(0, min(100, used))
     return {
         "utilization": int(utilization) if float(utilization).is_integer() else utilization,
@@ -1692,6 +1713,11 @@ HISTORY_FINE_HOURS = 48
 
 @router.get("/api/usage/history")
 async def usage_history(hours: int = 24, step_minutes: int = 0, until: str = ""):
+    """History snapshots with grid resolution, rows and the oldest stored timestamp."""
+    return usage_history_data(hours, step_minutes, until)
+
+
+def usage_history_data(hours: int = 24, step_minutes: int = 0, until: str = ""):
     """История снимков: {step_minutes, rows, oldest_ts}.
 
     step_minutes — шаг сетки в прореженной части ответа. Фронт по нему решает,
@@ -1989,7 +2015,7 @@ async def build_quota_map() -> dict:
                 "gated": decision.gated,
                 # Порог теперь свойство ПОЛОСЫ, а не бакета: Sol идёт по кривой, Claude
                 # по прямой, и обе живут в одном пуле Codex/Anthropic соответственно.
-                "curved": decision.lane in policy.curved_lanes,
+                "curved": decision.lane == "claude" and decision.lane in policy.curved_lanes,
                 "limit_pct": decision.limit_pct,
                 "headroom_pp": (
                     None
@@ -2292,7 +2318,8 @@ async def build_quota_map() -> dict:
             "override_until": gate_override_expiry(),
         },
         "rule_history": db.quota_policy_history_for_window(
-            now - 84 * 60 * 60, now + 84 * 60 * 60,
+            min([now - 84 * 60 * 60, *(meta["start"] for meta in bucket_meta.values())]),
+            now + 84 * 60 * 60,
         ),
         "buckets": buckets,
         "outside_policy": outside_policy,
@@ -2768,7 +2795,7 @@ def _record_restart_outcome(outcome: dict) -> None:
     for session_id in outcome["cut_ids"]:
         add_log(session_id, ts, "system",
                 f"{summary}. Твой ход прерван; сессия восстановится после запуска, "
-                "автоматического повтора самого хода нет.")
+                "получит уведомление и продолжит задачу с проверкой результатов действий.")
 
 
 async def _record_restart_outcome_bounded(outcome: dict) -> dict | None:

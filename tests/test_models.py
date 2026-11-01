@@ -4,9 +4,32 @@ from app.models import (
     ALIASES, BACKENDS, CONTEXT_LIMITS, DEFAULT_MODEL,
     MODELS, RETIRED_SELECTABLE_MODEL_IDS, SELECTABLE_MODEL_SPECS,
     TOKEN_PRICES, ensure_spawn_allowed,
-    get_model_flags, get_model_spec, resolve_model,
+    get_model_flags, get_model_spec, hub_alternative_hint, resolve_model,
 )
 from app.routes import sessions as sessmod
+
+
+@pytest.mark.parametrize("model", [None, "claude-opus-5-5[1m]", "gpt-6.1-sol", "sonnet", "sol"])
+def test_hub_alternative_hint_is_available_for_native_subscription_routes(model, monkeypatch):
+    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
+
+    hint = hub_alternative_hint(model)
+
+    assert hint
+
+
+@pytest.mark.parametrize("model", [None, "claude-opus-5-5[1m]", "gpt-6.1-sol"])
+def test_hub_alternative_hint_is_empty_when_unconfigured(model, monkeypatch):
+    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: "not configured")
+
+    assert hub_alternative_hint(model) == ""
+
+
+@pytest.mark.parametrize("model", ["hubsol", "hubsonnet", "grok", "missing-model"])
+def test_hub_alternative_hint_is_empty_for_other_runtimes_and_unknown_models(model, monkeypatch):
+    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
+
+    assert hub_alternative_hint(model) == ""
 
 
 @pytest.mark.parametrize(
@@ -57,7 +80,7 @@ def test_selectable_models_match_the_curated_catalog():
         "claude-opus-5-5[1m]", "claude-sonnet-5-5[1m]", "gpt-6-luna",
         "gpt-5.3-codex-spark", "grok-4.6", "claude-opus-4-6[1m]",
         "claude-haiku-5-5", "claude-fable-5-1[1m]", "gpt-6-astra",
-        "gpt-6.1-sol", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
+        "gpt-6.1-sol", "gpt-6.1-terra", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
         "GigaChat-2-Pro", "GigaChat-3-Lightning", "GigaChat-3-Pro",
         "hub-claude-haiku-5-5", "hub-claude-sonnet-5-5", "hub-claude-opus-5-5",
         "hub-gpt-6-luna", "hub-gpt-6.1-sol", "hub-grok-4.7",
@@ -104,7 +127,7 @@ def test_claude_cache_rates_and_prompt_tier_are_registry_data():
     assert TOKEN_PRICES["claude-haiku-5-5"]["prompt_over_threshold_multiplier"] == 5.0
 
 
-@pytest.mark.parametrize("model_id", ["gpt-6-astra", "gpt-6.1-sol"])
+@pytest.mark.parametrize("model_id", ["gpt-6-astra", "gpt-6.1-sol", "gpt-6.1-terra"])
 def test_astra_and_sol_are_manual_only_even_if_stored_flags_allow_agents(model_id, monkeypatch):
     monkeypatch.setattr(
         "app.models._load_model_flags",

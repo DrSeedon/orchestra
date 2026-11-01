@@ -1,0 +1,8 @@
+Source: https://vercel.com/blog/state-of-agent-skills
+Published: 2026-09-25; authors: Amelia Charles, Andrew Qu, Jonathan Hefner.
+Factual notes by Orchestra; original HTML fingerprint in retrieval.json.
+The headline is one million skills and nearly 280 million installs in seven months; the figure caption covers the January 2026 launch through August.
+The methodology counts distinct registry listings for catalog totals and aggregate registry counters for installs.
+Install counts do not establish distinct people or separate independent decisions. Functional/industry classification describes a sample.
+The source says figures can be revised as data and methodology evolve.
+The inspected article does not publish the complete raw event dataset, exact duplicate/reinstall/bot handling algorithm, or an outcome-quality experiment. These missing details prevent independent reproduction from this article alone.

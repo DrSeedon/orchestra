@@ -1,0 +1,27 @@
+{
+  "id": "P40",
+  "package": "couponkit",
+  "prompt": "Customers want to use more than one coupon on one cart. Please add a command for this. It runs as `python -m couponkit.stack CART OUTPUT_FILE CODE [CODE ...] [--settings FILE]`. CART is a cart file as for `python -m couponkit.cli`, and --settings is the same settings file that the cli reads. The coupons come from the coupon file named in the settings.\n\nAdd a new setting max_discount_percent: the largest total discount on a cart, as a percent of the subtotal. Its default is 50, and a settings file can set it to another whole number from 0 to 100. When the value is outside 0 to 100, reading the settings must fail with an error that a caller can catch.\n\nThe rules: the limit is max_discount_percent percent of the subtotal, rounded to two digits after the point, halves up. The command goes through the codes in the given order, and the discount so far starts at zero. A code is rejected with the reason \"repeated\" when the same code came earlier in the list (codes are not case-sensitive), else with \"minimum\" when the subtotal is below the minimum of the coupon, else with \"limit\" when the discount so far already equals the limit. Otherwise the coupon is used: a percent coupon gives that percent of the subtotal, rounded to two digits after the point, halves up, and an amount coupon gives its amount. When the discount so far plus this discount would be above the limit, the coupon gives only the rest up to the limit. The total is the subtotal less the discount.\n\nThe command writes OUTPUT_FILE as JSON with five keys. \"subtotal\", \"discount\" (the total discount) and \"total\" are text with two digits after the point, for example \"72.70\". \"applied\" lists the coupons used, in order, as {\"code\": ..., \"discount\": ...} with the discount of that coupon in the same form. \"rejected\" lists the coupons not used, in order, as {\"code\": ..., \"reason\": ...}. Codes are written in upper case.\n\nWhen a code is not in the coupon file, when the cart file, the coupon file or the settings file cannot be read, or when max_discount_percent is not from 0 to 100, the command tells the user what is wrong, exits with status 2 and does not write OUTPUT_FILE. In all other cases it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "MONEY",
+      "doc_side": "left"
+    },
+    {
+      "id": "D2",
+      "type": "CONFIG",
+      "doc_side": "right"
+    },
+    {
+      "id": "D3",
+      "type": "EXC",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "TFILE",
+      "doc_side": "right"
+    }
+  ]
+}

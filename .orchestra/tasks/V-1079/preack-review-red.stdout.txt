@@ -1,0 +1,268 @@
+FF.FF.                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter[False-eof] _
+
+h = <tests.test_codex_compact_state.Harness object at 0x7ed365a33ad0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ed3678240b0>
+transport = 'eof', reverse = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    @pytest.mark.parametrize("reverse", [False, True])
+    async def test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter(h, monkeypatch, transport, reverse):
+        # C/T before ACK must not turn EOF into either success or an ACK timeout.
+        # A long compact deadline makes the short independent observation window
+        # distinguish transport wakeup from expiration of the operation's budget.
+        monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", 5)
+        task, _request = await h.begin()
+        c, t = compact(), terminal()
+        await h.deliver(start(), *([t, c] if reverse else [c, t]))
+        assert not task.done()
+        process_wait_started = asyncio.Event()
+        h.exit.clear()
+    
+        async def pending_process_exit():
+            process_wait_started.set()
+            return await h.exit.wait()
+    
+        h.backend._proc.wait = pending_process_exit
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pre-ACK pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        if transport != "disconnect":
+            await asyncio.wait_for(process_wait_started.wait(), 0.5)
+        done, _ = await asyncio.wait({task}, timeout=0.15)
+>       assert task in done, "transport closure left the compact ACK waiter pending"
+E       AssertionError: transport closure left the compact ACK waiter pending
+E       assert <Task pending name='Task-4' coro=<CodexBackend.compact_context() running at /home/<runtime-user-redacted>/orc...c0cf928d6d148da/app/backend_jsonrpc.py:137> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>> in set()
+
+tests/test_codex_compact_state.py:833: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_codex:backend_codex.py:1221 Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+--------------------------- Captured stderr teardown ---------------------------
+Codex compact state {"compacted": true, "elapsed_seconds": 0.252, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+---------------------------- Captured log teardown -----------------------------
+INFO     app.backend_codex:backend_codex.py:1221 Codex compact state {"compacted": true, "elapsed_seconds": 0.252, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+_ test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter[False-read_error] _
+
+h = <tests.test_codex_compact_state.Harness object at 0x7ed365869ca0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ed368a83d70>
+transport = 'read_error', reverse = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    @pytest.mark.parametrize("reverse", [False, True])
+    async def test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter(h, monkeypatch, transport, reverse):
+        # C/T before ACK must not turn EOF into either success or an ACK timeout.
+        # A long compact deadline makes the short independent observation window
+        # distinguish transport wakeup from expiration of the operation's budget.
+        monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", 5)
+        task, _request = await h.begin()
+        c, t = compact(), terminal()
+        await h.deliver(start(), *([t, c] if reverse else [c, t]))
+        assert not task.done()
+        process_wait_started = asyncio.Event()
+        h.exit.clear()
+    
+        async def pending_process_exit():
+            process_wait_started.set()
+            return await h.exit.wait()
+    
+        h.backend._proc.wait = pending_process_exit
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pre-ACK pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        if transport != "disconnect":
+            await asyncio.wait_for(process_wait_started.wait(), 0.5)
+        done, _ = await asyncio.wait({task}, timeout=0.15)
+>       assert task in done, "transport closure left the compact ACK waiter pending"
+E       AssertionError: transport closure left the compact ACK waiter pending
+E       assert <Task pending name='Task-13' coro=<CodexBackend.compact_context() running at /home/<runtime-user-redacted>/or...c0cf928d6d148da/app/backend_jsonrpc.py:137> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>> in set()
+
+tests/test_codex_compact_state.py:833: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Codex app-server reader failed: synthetic pre-ACK pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1301, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 99, in observe
+    raw = await original()
+          ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pre-ACK pipe failure
+Codex compact state {"compacted": true, "elapsed_seconds": 0.003, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+------------------------------ Captured log call -------------------------------
+ERROR    app.backend_codex:backend_codex.py:1384 Codex app-server reader failed: synthetic pre-ACK pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1301, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 99, in observe
+    raw = await original()
+          ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pre-ACK pipe failure
+INFO     app.backend_codex:backend_codex.py:1221 Codex compact state {"compacted": true, "elapsed_seconds": 0.003, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+--------------------------- Captured stderr teardown ---------------------------
+Codex compact state {"compacted": true, "elapsed_seconds": 0.175, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+---------------------------- Captured log teardown -----------------------------
+INFO     app.backend_codex:backend_codex.py:1221 Codex compact state {"compacted": true, "elapsed_seconds": 0.175, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+_ test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter[True-eof] _
+
+h = <tests.test_codex_compact_state.Harness object at 0x7ed365a46f90>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ed365a58980>
+transport = 'eof', reverse = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    @pytest.mark.parametrize("reverse", [False, True])
+    async def test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter(h, monkeypatch, transport, reverse):
+        # C/T before ACK must not turn EOF into either success or an ACK timeout.
+        # A long compact deadline makes the short independent observation window
+        # distinguish transport wakeup from expiration of the operation's budget.
+        monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", 5)
+        task, _request = await h.begin()
+        c, t = compact(), terminal()
+        await h.deliver(start(), *([t, c] if reverse else [c, t]))
+        assert not task.done()
+        process_wait_started = asyncio.Event()
+        h.exit.clear()
+    
+        async def pending_process_exit():
+            process_wait_started.set()
+            return await h.exit.wait()
+    
+        h.backend._proc.wait = pending_process_exit
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pre-ACK pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        if transport != "disconnect":
+            await asyncio.wait_for(process_wait_started.wait(), 0.5)
+        done, _ = await asyncio.wait({task}, timeout=0.15)
+>       assert task in done, "transport closure left the compact ACK waiter pending"
+E       AssertionError: transport closure left the compact ACK waiter pending
+E       assert <Task pending name='Task-30' coro=<CodexBackend.compact_context() running at /home/<runtime-user-redacted>/or...c0cf928d6d148da/app/backend_jsonrpc.py:137> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>> in set()
+
+tests/test_codex_compact_state.py:833: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_codex:backend_codex.py:1221 Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+--------------------------- Captured stderr teardown ---------------------------
+Codex compact state {"compacted": true, "elapsed_seconds": 0.185, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+---------------------------- Captured log teardown -----------------------------
+INFO     app.backend_codex:backend_codex.py:1221 Codex compact state {"compacted": true, "elapsed_seconds": 0.185, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+_ test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter[True-read_error] _
+
+h = <tests.test_codex_compact_state.Harness object at 0x7ed3658ab560>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ed36586f110>
+transport = 'read_error', reverse = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
+    @pytest.mark.parametrize("reverse", [False, True])
+    async def test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter(h, monkeypatch, transport, reverse):
+        # C/T before ACK must not turn EOF into either success or an ACK timeout.
+        # A long compact deadline makes the short independent observation window
+        # distinguish transport wakeup from expiration of the operation's budget.
+        monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", 5)
+        task, _request = await h.begin()
+        c, t = compact(), terminal()
+        await h.deliver(start(), *([t, c] if reverse else [c, t]))
+        assert not task.done()
+        process_wait_started = asyncio.Event()
+        h.exit.clear()
+    
+        async def pending_process_exit():
+            process_wait_started.set()
+            return await h.exit.wait()
+    
+        h.backend._proc.wait = pending_process_exit
+        if transport == "eof":
+            h.stream.feed_eof()
+        elif transport == "read_error":
+            h.stream.set_exception(OSError("synthetic pre-ACK pipe failure"))
+        else:
+            h.backend.teardown_owned_pipes = AsyncMock()
+            await h.backend._finalize_disconnect()
+        if transport != "disconnect":
+            await asyncio.wait_for(process_wait_started.wait(), 0.5)
+        done, _ = await asyncio.wait({task}, timeout=0.15)
+>       assert task in done, "transport closure left the compact ACK waiter pending"
+E       AssertionError: transport closure left the compact ACK waiter pending
+E       assert <Task pending name='Task-39' coro=<CodexBackend.compact_context() running at /home/<runtime-user-redacted>/or...c0cf928d6d148da/app/backend_jsonrpc.py:137> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>> in set()
+
+tests/test_codex_compact_state.py:833: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Codex app-server reader failed: synthetic pre-ACK pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1301, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 99, in observe
+    raw = await original()
+          ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pre-ACK pipe failure
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+------------------------------ Captured log call -------------------------------
+ERROR    app.backend_codex:backend_codex.py:1384 Codex app-server reader failed: synthetic pre-ACK pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1301, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 99, in observe
+    raw = await original()
+          ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pre-ACK pipe failure
+INFO     app.backend_codex:backend_codex.py:1221 Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+--------------------------- Captured stderr teardown ---------------------------
+Codex compact state {"compacted": true, "elapsed_seconds": 0.183, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+---------------------------- Captured log teardown -----------------------------
+INFO     app.backend_codex:backend_codex.py:1221 Codex compact state {"compacted": true, "elapsed_seconds": 0.183, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+=========================== short test summary info ============================
+FAILED tests/test_codex_compact_state.py::test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter[False-eof]
+FAILED tests/test_codex_compact_state.py::test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter[False-read_error]
+FAILED tests/test_codex_compact_state.py::test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter[True-eof]
+FAILED tests/test_codex_compact_state.py::test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter[True-read_error]
+4 failed, 2 passed, 86 deselected in 4.13s

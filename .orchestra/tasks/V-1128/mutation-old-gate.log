@@ -1,0 +1,267 @@
+......F.................FFFFFFFFFFFF...FFFFF....FF....                   [100%]
+=================================== FAILURES ===================================
+_____ test_policy_exemption_depends_only_on_orchestrator_kind[True-codex] ______
+tests/test_codex_quota_gate_1121.py:293: in test_policy_exemption_depends_only_on_orchestrator_kind
+    assert gate.session_requires_quota(runtime, is_orchestrator=is_orch) is not is_orch
+E   AssertionError: assert True is not True
+E    +  where True = <function session_requires_quota at 0x759f616f3420>('codex', is_orchestrator=True)
+E    +    where <function session_requires_quota at 0x759f616f3420> = gate.session_requires_quota
+__________ test_codex_turn_admission_from_every_origin[True-90-user] ___________
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 90% — utilization 90% is above the line limit 22.44% (norm 13.34% + tolerance 9.1 pp).
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+__________ test_codex_turn_admission_from_every_origin[True-90-agent] __________
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 90% — utilization 90% is above the line limit 22.44% (norm 13.34% + tolerance 9.1 pp).
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+_____ test_codex_turn_admission_from_every_origin[True-90-background_task] _____
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 90% — utilization 90% is above the line limit 22.44% (norm 13.34% + tolerance 9.1 pp).
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+________ test_codex_turn_admission_from_every_origin[True-90-platform] _________
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 90% — utilization 90% is above the line limit 22.44% (norm 13.34% + tolerance 9.1 pp).
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+_________ test_codex_turn_admission_from_every_origin[True-90-system] __________
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 90% — utilization 90% is above the line limit 22.44% (norm 13.34% + tolerance 9.1 pp).
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+_________ test_codex_turn_admission_from_every_origin[True-90-unknown] _________
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 90% — utilization 90% is above the line limit 22.44% (norm 13.34% + tolerance 9.1 pp).
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+__________ test_codex_turn_admission_from_every_origin[True-99-user] ___________
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+__________ test_codex_turn_admission_from_every_origin[True-99-agent] __________
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+_____ test_codex_turn_admission_from_every_origin[True-99-background_task] _____
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+________ test_codex_turn_admission_from_every_origin[True-99-platform] _________
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+_________ test_codex_turn_admission_from_every_origin[True-99-system] __________
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+_________ test_codex_turn_admission_from_every_origin[True-99-unknown] _________
+tests/test_codex_quota_gate_1121.py:305: in test_codex_turn_admission_from_every_origin
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+_____ test_creation_planned_first_turn_exempts_only_orchestrators[True-0] ______
+tests/test_codex_quota_gate_1121.py:428: in test_creation_planned_first_turn_exempts_only_orchestrators
+    admission.assert_not_awaited()
+/usr/lib/python3.12/unittest/mock.py:2400: in assert_not_awaited
+    raise AssertionError(msg)
+E   AssertionError: Expected mock to not have been awaited. Awaited 1 times.
+_____ test_creation_planned_first_turn_exempts_only_orchestrators[True-90] _____
+tests/test_codex_quota_gate_1121.py:422: in test_creation_planned_first_turn_exempts_only_orchestrators
+    await create()
+tests/test_codex_quota_gate_1121.py:410: in create
+    return await manager.create_session(
+app/manager.py:639: in create_session
+    return await self._create_session_locked(
+app/manager.py:778: in _create_session_locked
+    require_worker_admission(await get_worker_admission(model))
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 90% — utilization 90% is above the line limit 22.44% (norm 13.34% + tolerance 9.1 pp).
+
+During handling of the above exception, another exception occurred:
+tests/test_codex_quota_gate_1121.py:421: in test_creation_planned_first_turn_exempts_only_orchestrators
+    with pytest.raises(RuntimeError, match="creation reached runtime capacity"):
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'creation reached runtime capacity'
+E     Actual message: "Rule 'worker_quota_admission': New worker turn blocked: codex quota is 90% — utilization 90% is above the line limit 22.44% (norm 13.34% + tolerance 9.1 pp)."
+_____ test_creation_planned_first_turn_exempts_only_orchestrators[True-99] _____
+tests/test_codex_quota_gate_1121.py:422: in test_creation_planned_first_turn_exempts_only_orchestrators
+    await create()
+tests/test_codex_quota_gate_1121.py:410: in create
+    return await manager.create_session(
+app/manager.py:639: in create_session
+    return await self._create_session_locked(
+app/manager.py:778: in _create_session_locked
+    require_worker_admission(await get_worker_admission(model))
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+
+During handling of the above exception, another exception occurred:
+tests/test_codex_quota_gate_1121.py:421: in test_creation_planned_first_turn_exempts_only_orchestrators
+    with pytest.raises(RuntimeError, match="creation reached runtime capacity"):
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'creation reached runtime capacity'
+E     Actual message: "Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'."
+__ test_all_orchestrator_runtimes_skip_blocked_policy[send-codex-gpt-6.1-sol] __
+tests/test_codex_quota_gate_1121.py:497: in test_all_orchestrator_runtimes_skip_blocked_policy
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+_ test_all_orchestrator_runtimes_skip_blocked_policy[send-codex-retired-codex-model] _
+tests/test_codex_quota_gate_1121.py:497: in test_all_orchestrator_runtimes_skip_blocked_policy
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+_ test_all_orchestrator_runtimes_skip_blocked_policy[pending-codex-gpt-6.1-sol] _
+tests/test_codex_quota_gate_1121.py:497: in test_all_orchestrator_runtimes_skip_blocked_policy
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+_ test_all_orchestrator_runtimes_skip_blocked_policy[pending-codex-retired-codex-model] _
+tests/test_codex_quota_gate_1121.py:497: in test_all_orchestrator_runtimes_skip_blocked_policy
+    await session.preflight_delivery_admission()
+app/session.py:1187: in preflight_delivery_admission
+    require_worker_admission(decision)
+app/quota_gate.py:1289: in require_worker_admission
+    raise QuotaGateError(decision)
+E   app.quota_gate.QuotaGateError: Rule 'worker_quota_admission': New worker turn blocked: codex quota is 99% — utilization 99% is at or above the hard stop 99% for lane 'sol'.
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:976 codex_connect_stage worker=local-quota stage=quota_gate duration=0.000s
+=========================== short test summary info ============================
+FAILED tests/test_codex_quota_gate_1121.py::test_policy_exemption_depends_only_on_orchestrator_kind[True-codex]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-90-user]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-90-agent]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-90-background_task]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-90-platform]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-90-system]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-90-unknown]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-99-user]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-99-agent]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-99-background_task]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-99-platform]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-99-system]
+FAILED tests/test_codex_quota_gate_1121.py::test_codex_turn_admission_from_every_origin[True-99-unknown]
+FAILED tests/test_codex_quota_gate_1121.py::test_creation_planned_first_turn_exempts_only_orchestrators[True-0]
+FAILED tests/test_codex_quota_gate_1121.py::test_creation_planned_first_turn_exempts_only_orchestrators[True-90]
+FAILED tests/test_codex_quota_gate_1121.py::test_creation_planned_first_turn_exempts_only_orchestrators[True-99]
+FAILED tests/test_codex_quota_gate_1121.py::test_all_orchestrator_runtimes_skip_blocked_policy[send-codex-gpt-6.1-sol]
+FAILED tests/test_codex_quota_gate_1121.py::test_all_orchestrator_runtimes_skip_blocked_policy[send-codex-retired-codex-model]
+FAILED tests/test_codex_quota_gate_1121.py::test_all_orchestrator_runtimes_skip_blocked_policy[pending-codex-gpt-6.1-sol]
+FAILED tests/test_codex_quota_gate_1121.py::test_all_orchestrator_runtimes_skip_blocked_policy[pending-codex-retired-codex-model]
+20 failed, 34 passed, 42 deselected in 6.94s
+Mutation old-gate: pytest exit=1; TESTS_FAILED is expected

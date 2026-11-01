@@ -25,10 +25,23 @@ def db(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def mgr_mock():
+def mgr_mock(monkeypatch, db):
     m = MagicMock()
     sess = MagicMock()
     sess.id = "s-1"
+    sess.name = "w1"
+    sess.scope = "/s"
+    sess.task_id = ""
+    sess.branch = ""
+    sess.needs_switch = False
+    from app.db import save_session
+    save_session({
+        "id": sess.id, "name": sess.name, "scope": sess.scope, "cwd": sess.scope,
+        "model": "claude-opus-5-5[1m]", "system_prompt": "", "status": "idle",
+        "session_id": None, "cost_usd": 0, "worktree_path": "", "branch": "",
+        "is_orchestrator": False, "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": None,
+    })
     sess.send = AsyncMock()
     m.ensure_loaded = AsyncMock(return_value=sess)
     m.ensure_loaded_any = AsyncMock(return_value=sess)
@@ -41,6 +54,24 @@ def mgr_mock():
         await sess.send(message)
 
     m.send = AsyncMock(side_effect=deliver)
+
+    async def deliver_receipt(session_id, message, *, delivery, target_generation, provenance):
+        await delivery.before_submit()
+        await deliver(session_id, message, provenance=provenance)
+        await delivery.mark_submitted("fake-cron-turn")
+
+    m.send_message_delivery = AsyncMock(side_effect=deliver_receipt)
+    from app import message_deliveries, report_holds
+    accept = message_deliveries.accept_message_delivery
+
+    async def accept_and_dispatch(**kwargs):
+        result = await accept(**kwargs)
+        await message_deliveries.run_target_message_deliveries("s-1", manager=m)
+        return result
+
+    monkeypatch.setattr(message_deliveries, "ensure_target_runner", lambda target: None)
+    monkeypatch.setattr(report_holds, "ensure_runner", lambda *args: None)
+    monkeypatch.setattr(message_deliveries, "accept_message_delivery", accept_and_dispatch)
     return m, sess
 
 
@@ -238,9 +269,9 @@ class TestFireCron:
             "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
         })
         await mgr._fire_cron("c1", "ping", "w1", "/s")
-        m.send.assert_awaited_once()
-        assert m.send.await_args.args == ("s-1", "[Cron job fired] ping")
-        provenance = m.send.await_args.kwargs["provenance"]
+        m.send_message_delivery.assert_awaited_once()
+        assert m.send_message_delivery.await_args.args == ("s-1", "[Cron job fired] ping")
+        provenance = m.send_message_delivery.await_args.kwargs["provenance"]
         assert provenance == MessageProvenance(
             origin="background_task", senders=("c1",), subtype="cron", ref="c1",
         )
@@ -301,7 +332,8 @@ class TestRunCron:
         mgr = BgJobManager()
         fired = {"n": 0}
 
-        async def fake_fire(job_id, message, target_name, target_scope):
+        async def fake_fire(job_id, message, target_name, target_scope, *, fire_at):
+            assert fire_at.second == 0
             fired["n"] += 1
             if fired["n"] >= 2:
                 # simulate cancellation arriving — _run_cron must swallow it cleanly

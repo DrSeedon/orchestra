@@ -1,0 +1,6 @@
+Partial source-method checks: 5 passed (session/manager surroundings substituted)
+Mutation: removing replacement cleanup -> 1 expected assertion failure
+Mutation: restoring worktree-only sweep -> 1 expected assertion failure
+Mutation: removing hub-to-local cleanup -> 1 expected assertion failure
+Mutation: restoring path-only manager snapshot -> 1 expected assertion failure
+Imported app resolves to this checkout: True

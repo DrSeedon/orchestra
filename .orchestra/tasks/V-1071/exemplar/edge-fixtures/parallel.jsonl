@@ -1,0 +1,4 @@
+{"trace_id": "fixture-0", "agent": "reader_a", "ts": 0, "duration_ms": 1000, "fixture_dependency": "none"}
+{"trace_id": "fixture-0", "agent": "reader_b", "ts": 0.1, "duration_ms": 1000, "fixture_dependency": "none"}
+{"trace_id": "fixture-1", "agent": "reader_a", "ts": 0, "duration_ms": 1000, "fixture_dependency": "none"}
+{"trace_id": "fixture-1", "agent": "reader_b", "ts": 0.1, "duration_ms": 1000, "fixture_dependency": "none"}

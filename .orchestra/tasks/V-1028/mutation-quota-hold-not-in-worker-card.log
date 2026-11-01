@@ -1,0 +1,83 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_worker_card_and_status_detail_display_quota_hold_as_text _________
+
+    def test_worker_card_and_status_detail_display_quota_hold_as_text():
+        root = Path(__file__).resolve().parents[1]
+        app = (root / "app/static/js/app.js").read_text()
+        utils = (root / "app/static/js/utils.js").read_text()
+        helpers = utils[utils.index("function _runtimeStatusDetail("):utils.index("// Client task/payment")]
+        card = app[app.index("function createAgentItem("):app.index("function _applyLiveAgentStatus(")]
+        script = r'''
+    const assert = require('assert/strict');
+    const code = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+    class Element {
+        constructor() { this.children=[]; this.dataset={}; this.style={}; }
+        append(...nodes) { this.children.push(...nodes); }
+        appendChild(node) { this.children.push(node); return node; }
+        addEventListener() {}
+    }
+    const document = {createElement() { return new Element(); }};
+    const selectedAgent = 'another-worker';
+    const _roleIcons = {}, _STATUS_ICON = {idle:'○'}, _STATUS_TITLE = {idle:'idle'};
+    function T(text, args={}) {
+        for (const [key, value] of Object.entries(args)) text = text.replaceAll('{'+key+'}', value);
+        return text;
+    }
+    function _cachePill() { return null; }
+    function modelBadge() { return new Element(); }
+    function _modelReasonBadge() { return null; }
+    function isHubModel() { return false; }
+    eval(code.helpers);
+    eval(code.card);
+    const hold = {parent_name:'<img src=x onerror=alert(1)>', reason:'<script>bad()</script>', hint:'hubsol'};
+    const worker = {name:'worker', status:'idle', report_quota_hold:hold};
+    function warning(item) { return item.children[1].children.find(n => n.className?.includes('agent-report-hold')); }
+    const mark = warning(createAgentItem(worker));
+    assert.ok(mark);
+    assert.ok(mark.textContent.includes('Report held by quota gate'));
+    assert.ok(mark.textContent.includes(hold.parent_name));
+    assert.equal(mark.innerHTML, undefined);
+    assert.ok(mark.title.includes(hold.reason));
+    assert.ok(_runtimeStatusDetail(worker).includes(hold.parent_name));
+    assert.equal(warning(createAgentItem({name:'worker',status:'idle'})), undefined);
+    assert.equal(_runtimeStatusDetail({}), '');
+    '''
+        result = subprocess.run(
+            [shutil.which("node"), "-e", script], input=json.dumps(dict(helpers=helpers, card=card)),
+            text=True, capture_output=True, timeout=15,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: node:internal/assert/utils:77
+E             throw err;
+E             ^
+E         
+E         AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+E         
+E           assert.ok(mark)
+E         
+E             at [eval]:27:8
+E             at runScriptInThisContext (node:internal/vm:209:10)
+E             at node:internal/process/execution:446:12
+E             at [eval]-wrapper:6:24
+E             at runScriptInContext (node:internal/process/execution:444:60)
+E             at evalFunction (node:internal/process/execution:279:30)
+E             at evalTypeScript (node:internal/process/execution:291:3)
+E             at node:internal/main/eval_string:74:3 {
+E           generatedMessage: true,
+E           code: 'ERR_ASSERTION',
+E           actual: undefined,
+E           expected: true,
+E           operator: '==',
+E           diff: 'simple'
+E         }
+E         
+E         Node.js v22.23.3
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/node', '-e', "\nconst assert = require('assert/strict');\nconst code = JSON.parse(req...RR_ASSERTION',\n  actual: undefined,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v22.23.3\n").returncode
+
+tests/test_v1028_report_hold_frontend.py:54: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v1028_report_hold_frontend.py::test_worker_card_and_status_detail_display_quota_hold_as_text
+1 failed in 3.74s

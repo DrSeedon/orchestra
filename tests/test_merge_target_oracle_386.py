@@ -733,6 +733,8 @@ async def test_t386_t1_public_operation_pins_target_and_task_oracle_before_runne
         name="worker-386",
         scope="/scope",
         target=requested_target,
+        expected_head=git_graph["candidate_sha"],
+        acceptance_note="Accepted the candidate; target oracle checks the result.",
     )
 
     assert status == 202
@@ -765,6 +767,8 @@ async def test_t386_t1_public_operation_pins_target_and_task_oracle_before_runne
         name="worker-386",
         scope="/scope",
         target=requested_target,
+        expected_head=git_graph["candidate_sha"],
+        acceptance_note="Accepted the candidate; target oracle checks the result.",
     )
     assert replay_status == 202
     # Идемпотентность приёма означает «вернулась ТА ЖЕ операция», а не «совпал живой счётчик».
@@ -829,6 +833,8 @@ async def test_t386_t1_malformed_task_oracle_metadata_refuses_before_runner(
         name="worker-386",
         scope="/scope",
         target="integration",
+        expected_head=git_graph["candidate_sha"],
+        acceptance_note="Accepted the candidate; target oracle checks the result.",
     )
 
     assert status == 409

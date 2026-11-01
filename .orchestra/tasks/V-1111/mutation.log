@@ -1,0 +1,82 @@
+FFFF.............F                                                       [100%]
+=================================== FAILURES ===================================
+_______________ test_bash_terminated_result_is_noise[Terminated] _______________
+
+message = 'Terminated'
+
+    @pytest.mark.parametrize("message", ["Terminated", "Terminated ", "Terminated\n", " \tTerminated\r\n"])
+    def test_bash_terminated_result_is_noise(message):
+        event = dict(_event(message, source="logs"), type="tool_result", tool_name="Bash")
+        candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+>       assert candidates == []
+               ^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_error_watch.py:714: AssertionError
+______________ test_bash_terminated_result_is_noise[Terminated ] _______________
+
+message = 'Terminated '
+
+    @pytest.mark.parametrize("message", ["Terminated", "Terminated ", "Terminated\n", " \tTerminated\r\n"])
+    def test_bash_terminated_result_is_noise(message):
+        event = dict(_event(message, source="logs"), type="tool_result", tool_name="Bash")
+        candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+>       assert candidates == []
+               ^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_error_watch.py:714: AssertionError
+______________ test_bash_terminated_result_is_noise[Terminated\n] ______________
+
+message = 'Terminated\n'
+
+    @pytest.mark.parametrize("message", ["Terminated", "Terminated ", "Terminated\n", " \tTerminated\r\n"])
+    def test_bash_terminated_result_is_noise(message):
+        event = dict(_event(message, source="logs"), type="tool_result", tool_name="Bash")
+        candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+>       assert candidates == []
+               ^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_error_watch.py:714: AssertionError
+___________ test_bash_terminated_result_is_noise[ \tTerminated\r\n] ____________
+
+message = ' \tTerminated\r\n'
+
+    @pytest.mark.parametrize("message", ["Terminated", "Terminated ", "Terminated\n", " \tTerminated\r\n"])
+    def test_bash_terminated_result_is_noise(message):
+        event = dict(_event(message, source="logs"), type="tool_result", tool_name="Bash")
+        candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+>       assert candidates == []
+               ^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_error_watch.py:714: AssertionError
+______ test_bash_terminated_scan_reports_noise_separately_from_other_tool ______
+
+hub_finish_db = PosixPath('<hub-workspace>/.orchestra/tasks/V-1111/tmp/mutation/test_bash_terminated_scan_repo0/orchestra.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75dfed06b5f0>
+capsys = <_pytest.capture.CaptureFixture object at 0x75dfed069040>
+
+    def test_bash_terminated_scan_reports_noise_separately_from_other_tool(
+        hub_finish_db, monkeypatch, capsys,
+    ):
+        now = datetime.now(timezone.utc)
+        _insert_error_rows(hub_finish_db, [("tool_result", "Terminated\n", "Bash", 1)] * 10, now)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+        args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=10, dry_run=True)
+        assert watch.scan(args) == 0
+        output = json.loads(capsys.readouterr().out)
+>       assert output["signals"] == []
+               ^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_error_watch.py:755: AssertionError
+=========================== short test summary info ============================
+FAILED .orchestra/tasks/V-1111/isolated_checks.py::test_bash_terminated_result_is_noise[Terminated]
+FAILED .orchestra/tasks/V-1111/isolated_checks.py::test_bash_terminated_result_is_noise[Terminated ]
+FAILED .orchestra/tasks/V-1111/isolated_checks.py::test_bash_terminated_result_is_noise[Terminated\n]
+FAILED .orchestra/tasks/V-1111/isolated_checks.py::test_bash_terminated_result_is_noise[ \tTerminated\r\n]
+FAILED .orchestra/tasks/V-1111/isolated_checks.py::test_bash_terminated_scan_reports_noise_separately_from_other_tool
+5 failed, 13 passed in 0.16s

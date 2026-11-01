@@ -1,0 +1,27 @@
+{
+  "id": "P14",
+  "package": "loandesk",
+  "prompt": "Add overdue notices to the loan desk. It runs as `python -m loandesk.notices DATA_DIR DAY OUTPUT`. DATA_DIR is a branch data folder in the layout the desk already loads (members.csv, copies.csv, loans.csv and settings.txt, which may be left out). DAY is the date the notices are made for, written as YYYY-MM-DD.\n\nEach active loan gets at most one notice. A loan that is overdue on DAY by final_notice_days days or more gets a final notice. A loan that is overdue by fewer days gets an overdue notice. A loan that is due on DAY or within the 3 days after DAY gets a reminder. Other loans and returned loans get no notice. The three notice levels (final, overdue and reminder) are a small fixed set, and other code should be able to refer to each level by name.\n\nfinal_notice_days is a new branch setting with a default of 14. A branch can set it in settings.txt like the other settings. If it is less than 1, working out the notices must fail with an error that a caller can catch.\n\nOUTPUT is a CSV file with the header `member,name,barcode,due,notice,fine` and one row per notice, ordered by member id and then by barcode. name is the name of the member, due is the due date as YYYY-MM-DD, notice is final, overdue or reminder, and fine is the fine the member would pay if the copy came back on DAY, with exactly two digits after the point (0.00 for a reminder). If there are no notices, OUTPUT has only the header line.\n\nThe command exits with status 2 and does not write OUTPUT if DAY is not a valid date, if the data folder cannot be loaded, or if final_notice_days is less than 1. Otherwise it exits with status 0.\n\nAdd tests for the new feature. Give every new public function a docstring that describes its parameters and return value.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "ENUM",
+      "doc_side": "left"
+    },
+    {
+      "id": "D2",
+      "type": "CONFIG",
+      "doc_side": "left"
+    },
+    {
+      "id": "D3",
+      "type": "EXC",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "DOCSTR",
+      "doc_side": "left"
+    }
+  ]
+}

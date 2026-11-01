@@ -4,6 +4,7 @@ import asyncio
 import itertools
 import json
 import logging
+import os
 import re
 import sqlite3
 import shutil
@@ -19,10 +20,10 @@ from typing import Awaitable, Callable, Optional
 from app.task_refs import task_ref as public_task_ref
 from app.session import AgentSession, AgentStatus
 from app.tool_scoping import parse_disabled_tools
-from app.session_state import ACTIVE_SESSION_STATUSES
+from app.session_state import ACTIVE_SESSION_STATUSES, platform_interruption_notice
 from app.events import InjectedMessage, MessageProvenance
 from app.kb_index import kb_index_block
-from app import temp_rules
+from app import private_folder, temp_rules
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
     prompt_template_hash, inject_skills_to_worktree,
@@ -35,7 +36,7 @@ from app.workspace import (
     create_worktree, discard_prepared_worktree, remove_worktree,
     parse_owned_dirs,
     validate_repo_root, resolve_base_branch as resolve_git_base_branch,
-    repo_root,
+    repo_root, preflight_worktree_layout,
 )
 from app.models import (
     COMPAT_MODEL_SPECS,
@@ -480,7 +481,8 @@ def restart_notice_text(row: dict) -> str:
     """
     text = (
         "[system] Orchestra server restarted while your turn was running. "
-        "Commands running inside the turn were stopped; background jobs created with "
+        + platform_interruption_notice("Orchestra restart", row.get("task_id") or "")
+        + " Commands running inside the turn may have been stopped; background jobs created with "
         "bg_create keep running and report as usual. Continue your task from where you "
         "stopped: check files and external action outcomes first and do not blindly repeat "
         "the last operation."
@@ -535,7 +537,17 @@ class SessionManager:
 
     def end_drain(self) -> None:
         """Открыть приём обратно. Нужен тестам и отменённому рестарту."""
+        was_draining = self.draining
         self.draining = False
+        if was_draining:
+            try:
+                from app.message_deliveries import resume_queued_message_deliveries
+
+                resume_queued_message_deliveries()
+            except Exception as error:
+                # Admission must reopen even if optional queue metadata is
+                # unavailable. Accepted payloads remain with their durable owner.
+                logger.warning("message delivery wake after drain aborted failed: %s", err_text(error))
 
     def get_session_lock(self, session_id: str) -> asyncio.Lock:
         if session_id not in self._session_locks:
@@ -595,9 +607,12 @@ class SessionManager:
             new_overlay = None
         else:
             new_overlay = self._without_ownership_prompt(session.prompt_overlay) + new_ownership
+        # Scope is the parent's routing namespace, which may own a different Git
+        # repository. Existing workers without a recorded worktree still have their
+        # own checkout in cwd; do not load/refuse memory from the parent's project.
         prompt = refresh_worker_memory(
             prompt, session.name, session.role, session.scope,
-            session.worktree_path or "",
+            session.worktree_path or session.cwd,
             allow_absent_project=True,
         )
         return prompt, new_overlay
@@ -678,7 +693,7 @@ class SessionManager:
         # created from the dashboard (orchestrators, manual sessions) — by the
         # `dashboard` level. Internal routes never pass through here.
         if parent_name:
-            ensure_spawn_allowed(model)
+            ensure_spawn_allowed(model, model_reason=model_reason)
         else:
             ensure_dashboard_visible(model)
         if not Path(cwd).is_dir():
@@ -755,9 +770,15 @@ class SessionManager:
         parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
         validate_spawn(pipeline, parent_role, role if explicit_role else "")
 
-        # Гейт наших подписок здесь НЕ отказывает (V-678): первое задание принимается durable-доставкой и,
-        # если гейт закрыт, ждёт его в `WAITING_QUOTA` (app/quota_queue.py). Раньше спавн
-        # отбивался 429, и оркестратор ставил таймер «повтори спавн».
+        # Idle creation is a control action; gate only a planned initial turn.
+        # Refuse before allocating a task, session or worktree (V-1036).
+        # Delivery still rechecks admission if the gate closes after creation.
+        from app.quota_gate import session_requires_quota
+
+        if planned_initial_turn and session_requires_quota(backend_for_model(model), is_orchestrator=is_orch):
+            from app.quota_gate import get_worker_admission, require_worker_admission
+
+            require_worker_admission(await get_worker_admission(model))
 
         from app.hub_pool import require_hub_capacity
 
@@ -768,6 +789,10 @@ class SessionManager:
         if use_worktree and repo_path:
             base_branch = self._resolve_base_branch(
                 base_branch, pipeline, role, parent_name, scope, repo_path,
+            )
+            await asyncio.to_thread(
+                preflight_worktree_layout, repo_path, name, task_id, base_branch,
+                allocating_task=planned_initial_turn and not task_id and not is_orch,
             )
 
         task_identity = None
@@ -848,6 +873,9 @@ class SessionManager:
                     _skills = None
                 if bt == "claude" and _skills and _skills != "all":
                     await asyncio.to_thread(inject_skills_to_worktree, _skills, wt.path)
+
+            else:
+                await asyncio.to_thread(private_folder.ensure_main_private, session.cwd)
 
             try:
                 await asyncio.to_thread(
@@ -1137,22 +1165,33 @@ class SessionManager:
         if not session:
             raise KeyError(f"session not found: {session_id}")
 
+        def check_generation() -> None:
+            current_generation = (
+                f"session={session.id}|task={getattr(session, 'task_id', '')}|"
+                f"branch={getattr(session, 'branch', '')}|"
+                f"needs_switch={int(bool(getattr(session, 'needs_switch', False)))}"
+            )
+            if current_generation != target_generation:
+                from app.message_deliveries import TargetTaskChangedError
+
+                raise TargetTaskChangedError(
+                    "target task generation changed before delivery"
+                )
+
         async def deliver() -> None:
             async with self.get_session_lock(session_id):
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
-                current_generation = (
-                    f"session={session.id}|task={getattr(session, 'task_id', '')}|"
-                    f"branch={getattr(session, 'branch', '')}|"
-                    f"needs_switch={int(bool(getattr(session, 'needs_switch', False)))}"
-                )
-                if current_generation != target_generation:
-                    from app.message_deliveries import TargetTaskChangedError
+                check_generation()
+                from app.session import _refuse_if_draining
 
-                    raise TargetTaskChangedError(
-                        "target task generation changed before delivery"
-                    )
+                _refuse_if_draining(session)
+                from app.limit_wake import is_codex_wake_ref, validate_codex_wake
+
+                if provenance.subtype == "limit_wake" and is_codex_wake_ref(provenance.ref):
+                    validate_codex_wake(session, provenance.ref)
                 await self._auto_switch_before_delivery(session)
+                check_generation()
                 await session.send(
                     message, delivery=delivery, provenance=provenance,
                 )
@@ -2079,6 +2118,9 @@ class SessionManager:
                     m = _TASK_BRANCH_RE.match(actual_branch)
                     db_task_id = next(group for group in m.groups() if group) if m else ""
 
+        if not (wt_path and Path(wt_path).is_dir()):
+            await asyncio.to_thread(private_folder.ensure_main_private, cwd)
+
         current_prompt, prompt_overlay = self.assemble_prompt(
             pipeline=pipeline, role=role, scope=db_row["scope"], is_orch=is_orch,
             name=db_row["name"], owned_dirs=db_row.get("owned_dirs"),
@@ -2283,6 +2325,7 @@ class SessionManager:
     def list_sessions(self, scope: str | None = None) -> list[dict]:
         from app.db import get_last_turn_map
         from app.message_deliveries import targets_with_uncertain_delivery
+        from app.report_holds import status_map
         result = []
         seen = set()
         for s in self.sessions.values():
@@ -2302,10 +2345,13 @@ class SessionManager:
         # Cache-timer metadata is runtime-derived; Codex exposes only an approximate window.
         turn_map = get_last_turn_map()
         uncertain_targets = targets_with_uncertain_delivery()
+        report_holds = status_map()
         for r in result:
             r.setdefault("runtime_connection", "not_loaded")
             if r["id"] in uncertain_targets:
                 r["delivery_uncertain"] = True
+            if r["id"] in report_holds:
+                r["report_quota_hold"] = report_holds[r["id"]]
             r["last_turn_ts"] = turn_map.get(r["id"])
             r.update(cache_policy_for_runtime(runtime_for_record(r)))
             lifecycle = self.lifecycle_quarantine(r)
@@ -2424,8 +2470,22 @@ class SessionManager:
             # 'running' — не успел (SIGKILL/OOM). Оба означают одно: ход прерван
             # рестартом. Читать только 'running' значило будить лишь тех, кого
             # застал аварийный путь (#160).
+            # Capture before resetting statuses, in the same transaction. Loading
+            # and the staggered wake-up both await; another crash there must not
+            # turn a cut turn into a permanently idle session (V-1057).
+            c.execute(
+                "INSERT OR IGNORE INTO restart_cut_turns(session_id) "
+                "SELECT id FROM sessions WHERE status IN ('running', 'interrupted')"
+            )
+            # Archived/terminal agents and agents now waiting on their own bg job
+            # must not be revived by an obligation from an earlier startup.
+            c.execute(
+                "DELETE FROM restart_cut_turns WHERE session_id IN "
+                "(SELECT id FROM sessions WHERE status NOT IN ('running', 'interrupted', 'idle'))"
+            )
             was_running_rows = [dict(r) for r in c.execute(
-                "SELECT * FROM sessions WHERE status IN ('running', 'interrupted')"
+                "SELECT * FROM sessions WHERE id IN "
+                "(SELECT session_id FROM restart_cut_turns)"
             ).fetchall()]
             was_running = {r["id"] for r in was_running_rows}
             was_waiting = {r["id"] for r in c.execute(
@@ -2436,7 +2496,7 @@ class SessionManager:
             resumable = [dict(r) for r in c.execute(
                 "SELECT * FROM sessions WHERE (session_id IS NOT NULL "
                 "AND status IN ('running', 'interrupted', 'idle', 'waiting')) "
-                "OR status IN ('running', 'interrupted')"
+                "OR id IN (SELECT session_id FROM restart_cut_turns)"
             ).fetchall()]
             c.execute("UPDATE sessions SET status='idle' "
                       "WHERE status IN ('running', 'interrupted', 'waiting')")
@@ -2469,6 +2529,7 @@ class SessionManager:
                             session.status = AgentStatus.WAITING
                             session._persist()
                     elif row["id"] in was_running:
+                        session._restart_cut_pending = True
                         spawn_supervised(
                             self._inject_restart_notice(session, row),
                             f"уведомление о рестарте для {session.name}",
@@ -2481,24 +2542,33 @@ class SessionManager:
         # made orchestrators intervene while the worker was already continuing (V-919).
         # The continued turn reports its own end; only a turn that cannot continue is
         # signalled here.
-        self._signal_restart_cut_turns(not_continued)
+        if self._signal_restart_cut_turns(not_continued) and not_continued:
+            from app.db import acknowledge_restart_cut_turns
+            acknowledge_restart_cut_turns([row["id"] for row in not_continued])
 
     @staticmethod
-    def _signal_restart_cut_turns(rows: list[dict]) -> None:
+    def _signal_restart_cut_turns(rows: list[dict]) -> bool:
         if not rows:
-            return
+            return True
         from app import turn_signals
         try:
             turn_signals.record_interrupted_by_restart(rows)
+            return True
         except Exception as error:
             logger.error("turn signals for restart-interrupted turns failed: %s: %s",
                          type(error).__name__, error)
+            return False
 
     async def _inject_restart_notice(self, session: AgentSession, row: dict) -> None:
+        from app.db import acknowledge_restart_cut_turns
         import random
         # Random stagger: if N agents resume simultaneously they'd all hit the SDK
         # concurrently and cause a connection storm; spread them over 15s
         await asyncio.sleep(3 + random.uniform(0, 12))
+        if getattr(session, "_manually_interrupted", False) is True:
+            acknowledge_restart_cut_turns([session.id])
+            session._restart_cut_pending = False
+            return
         try:
             provenance = MessageProvenance(
                 origin="system", senders=("system",), subtype="restart",
@@ -2506,10 +2576,17 @@ class SessionManager:
             await self.send(
                 session.id, restart_notice_text(row), provenance=provenance,
             )
+            # The new running/finished state must reach disk before dropping the
+            # recovery obligation. Cancellation keeps it pending for next startup.
+            await session._drain_persist()
+            acknowledge_restart_cut_turns([session.id])
+            session._restart_cut_pending = False
             logger.info(f"Restart notice injected: {session.name}")
         except Exception as e:
             logger.warning(f"Failed to inject restart notice to {session.name}: {e}")
-            self._signal_restart_cut_turns([row])
+            if self._signal_restart_cut_turns([row]):
+                acknowledge_restart_cut_turns([session.id])
+                session._restart_cut_pending = False
 
     async def _periodic_worktree_cleanup(self) -> None:
         WT_CLEANUP_INTERVAL = 24 * 3600
@@ -2534,14 +2611,22 @@ class SessionManager:
 
 
     async def _periodic_hub_sweep(self) -> None:
-        """Release hub workspaces of vanished workers and hub debris without a local record (V-1008)."""
+        """Release superseded/vanished workers' hub workspaces and unrecorded debris."""
         from app.backend_hub import sweep_orphans
 
         await asyncio.sleep(120)
         while True:
             try:
                 rows = await asyncio.to_thread(get_all_sessions)   # archived rows are excluded
-                live = {r["worktree_path"] for r in rows if r.get("worktree_path")}
+                live = {os.path.realpath(r["worktree_path"]): r.get("session_id") or ""
+                        for r in rows if r.get("worktree_path")}
+                # A first hub turn owns its workspace before its turn_end persists the id.
+                # Read loaded sessions after the DB snapshot, without yielding before the sweep.
+                for session in self.sessions.values():
+                    worktree = os.path.realpath(session.worktree_path) if session.worktree_path else ""
+                    if worktree in live:
+                        live[worktree] = (
+                            getattr(session._backend, "session_id", None) or session.session_id or "")
                 report = await sweep_orphans(live)
                 if report["released"] or report["remote_dirs"] or report["projects"] or report["errors"]:
                     logger.info("hub sweep: %s", report)

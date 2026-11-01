@@ -1,0 +1,63 @@
+[Publication-redacted evidence: remote installation prefixes are shown as /remote/workspace; derived installation slugs/account labels are neutralized. Source-relative paths, synthetic test suffixes and actual results are preserved.]
+
+.........................F..                                             [100%]
+=================================== FAILURES ===================================
+______ test_merge_worker_continue_retains_task_and_uploads_original_again ______
+
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-2/test_merge_worker_continue_ret0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73686fd355b0>
+
+    @pytest.mark.asyncio
+    async def test_merge_worker_continue_retains_task_and_uploads_original_again(tmp_path, monkeypatch):
+        from tests.test_task_tracker_integration import (
+            _init_db, _make_git_scope, _save_worker, _prepare_merge,
+        )
+        from tests.task_seeds import create_task as seed_task
+        from app import tm, db
+        from app.routes.sessions import execute_merge_session
+        from app.merge_operations import _clean_worktree_after_merge
+        _init_db()
+        repo = _make_git_scope(monkeypatch, tmp_path)
+        monkeypatch.setattr(hw, 'STATE_DIR', tmp_path / 'hub-state')
+        monkeypatch.setattr(hw, 'known_secret_values', lambda extra=None: [])
+        with tm._conn() as conn:
+            tm.ensure_project(conn, 'project', scope=str(repo))
+            task = seed_task(conn, 'project', 'Input-only hub workflow', par_number=42, status='in_progress')
+            conn.execute('UPDATE tm_tasks SET worker_session_id=? WHERE id=?', ('hub-input-worker', task['id']))
+        wt = workspace.create_worktree(str(repo), 'hub-input-worker', task_id='42')
+        root = Path(wt.path)
+        (root / INPUT).parent.mkdir()
+        (root / INPUT).write_text(RAW)
+        def edit(remote):
+            assert (remote / INPUT).read_text() == RAW
+            (remote / 'output.txt').write_text('derived from preserved source\n')
+        backend, ssh, mc = _backend(root, tmp_path, monkeypatch, edit)
+        monkeypatch.setattr('app.backend_hub.MultiCodeClient.from_env', lambda: _Entering(mc))
+        await _turn(backend, 'create output')
+        state = backend._state
+        head = git(root, 'rev-parse', 'HEAD').strip()
+        _save_worker(session_id='hub-input-worker', task_id='42', scope=str(repo),
+                     worktree_path=wt.path, branch=wt.branch)
+        found = _prepare_merge(monkeypatch, session_id='hub-input-worker', scope=str(repo))
+        result = await execute_merge_session(
+            session_id=found.id, expected_name=found.name, expected_scope=str(repo),
+            expected_branch=found.branch, expected_head=head,
+            req={'scope': str(repo), 'task_outcome': 'continue', 'merge_schema_version': 2,
+                 'expected_head': head, 'acceptance_note': 'Verified outputs and read-only input preservation.'},
+        )
+        assert result['ok'], result
+        assert result['task_outcome'] == 'continue'
+        assert db.get_session(found.id)['task_id'] == '42'
+>       assert not db.get_session(found.id)['needs_switch']
+E       assert not 1
+
+tests/test_hub_inputs_v1062.py:252: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-2/test_merge_worker_continue_ret0/worktrees/remote-workspace/hub-input-worker reset to main (5221b399)
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:288 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-2/test_merge_worker_continue_ret0/worktrees/remote-workspace/hub-input-worker reset to main (5221b399)
+=========================== short test summary info ============================
+FAILED tests/test_hub_inputs_v1062.py::test_merge_worker_continue_retains_task_and_uploads_original_again
+1 failed, 27 passed in 58.80s

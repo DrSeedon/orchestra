@@ -1,0 +1,76 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_reports_only_linked_branch_is_optional_and_untouched ___________
+
+linked_repo = (PosixPath('/remote/workspace/.orchestra/tasks/V-106...rchestra/tasks/V-1069/tmp/pytest-of-worker/pytest-3/test_reports_only_linked_branc0/worker'))
+
+    def test_reports_only_linked_branch_is_optional_and_untouched(linked_repo):
+        base, worktree = linked_repo
+        before = snapshot(base), snapshot(worktree)
+>       assert refresh(base, worktree) == "ROLE"
+               ^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_optional_worker_memory_v1069.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_optional_worker_memory_v1069.py:54: in refresh
+    return refresh_worker_memory(
+app/prompting.py:249: in refresh_worker_memory
+    mem = load_worker_memory(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'w', role = 'worker'
+scope = '/remote/workspace/.orchestra/tasks/V-1069/tmp/pytest-of-worker/pytest-3/test_reports_only_linked_branc0/source'
+repository_path = '/remote/workspace/.orchestra/tasks/V-1069/tmp/pytest-of-worker/pytest-3/test_reports_only_linked_branc0/worker'
+allow_absent_project = True, allow_missing_layout = False
+
+    def load_worker_memory(
+        name: str,
+        role: str,
+        scope: str,
+        repository_path: str = "",
+        allow_absent_project: bool = False,
+        allow_missing_layout: bool = False,
+    ) -> str:
+        """Load persistent memory from .orchestra/workers/{name}.md or {role}.md.
+    
+        Agents keep concise personal observations here; the file survives kill/respawn/compact
+        and is re-read whenever the prompt is (re)assembled. A worker can belong to a
+        repository below its parent's scope, so its repository checkout takes precedence.
+        """
+        base = Path(repository_path or scope)
+        layout_file = base / ".orchestra" / "layout.json"
+        if not layout_file.is_file() and repository_path:
+            # Resume, auto-switch and the first message all assemble the prompt here, so this
+            # is the one place a worker branch left behind by its base's migration catches up.
+            from app.orchestra_layout import LayoutMigrationError, migrate_worker_worktree
+            try:
+                migrate_worker_worktree(base)
+            except LayoutMigrationError as error:
+                if not allow_missing_layout:
+                    raise
+                logger.warning(
+                    "worker memory skipped for %s: project layout is unavailable (%s)",
+                    base, error,
+                )
+        if not layout_file.is_file():
+            if not allow_missing_layout:
+                if allow_absent_project:
+                    from app.orchestra_layout import _base_checkout
+    
+                    # A linked branch can contain task outputs over a source-only base.
+                    # Do not skip missing memory if either checkout has managed state.
+                    if not any(_has_worker_memory_project_state(root) for root in (
+                        base, _base_checkout(base),
+                    )):
+                        return ""
+                from app.orchestra_layout import LayoutMigrationError
+>               raise LayoutMigrationError(
+                    "ORCHESTRA_LAYOUT_MISSING", base, ".orchestra/layout.json is missing"
+                )
+E               app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/remote/workspace/.orchestra/tasks/V-1069/tmp/pytest-of-worker/pytest-3/test_reports_only_linked_branc0/source; repair: /remote/workspace/.venv/bin/python3 /remote/workspace/scripts/migrate_orchestra_layout.py --repair /remote/workspace/.orchestra/tasks/V-1069/tmp/pytest-of-worker/pytest-3/test_reports_only_linked_branc0/source
+
+app/prompting.py:208: LayoutMigrationError
+=========================== short test summary info ============================
+FAILED tests/test_optional_worker_memory_v1069.py::test_reports_only_linked_branch_is_optional_and_untouched
+1 failed in 2.92s
+Former condition pytest exit: 1; expected one failing regression

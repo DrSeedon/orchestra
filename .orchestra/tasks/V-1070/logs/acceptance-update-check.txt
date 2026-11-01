@@ -1,0 +1,9 @@
+baseline_artifact_manifest_sha256 5d60b50cb1dad8e18591b0e0ecca88ad147e205a2d392cf5d09a84da2f175bbc
+PASS: prior existing artifacts unchanged except report.md/method.md: method.md, report.md
+PASS: raw runner/boundary logs, numeric results, samples and prior experiment stdout unchanged
+PASS: baseline product source hashes unchanged
+PASS: exact Rapid version, copied-source provenance, complete license snapshots and hashes checked
+PASS: generic hub caveat, code/documentation license separation and relative links checked
+PASS: canonical provider-shape scan of 58 text artifacts; no private credential stores accessed
+No new inference, installs, vision experiments or product tests; previous 24-test PASS preserved.
+RESEARCH DONE: both narrow research amendments verified.

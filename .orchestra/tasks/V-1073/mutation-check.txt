@@ -1,0 +1,445 @@
+
+filename protection control: pass
+............                                                             [100%]
+12 passed in 4.88s
+exit=0, expected=0
+
+filename protection mutant: hw._company_path = lambda rel: False
+FF.FFFFFFFFF                                                             [100%]
+=================================== FAILURES ===================================
+_ test_private_filename_never_in_initial_manifest_or_archive[narrow-COMPANY-DATA.md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in0/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in0')
+rel = 'COMPANY-DATA.md', ownership = 'narrow'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'COMPANY-DATA.md' not in {'COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', 'README.md': 'bc8caf864191c4bd...cff4a5fe7fdf7edc8', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...}
+E        +  where {'COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', 'README.md': 'bc8caf864191c4bd...cff4a5fe7fdf7edc8', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...} = UploadPlan(manifest={'COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', 'README.md...6deacfbc7560e4240054a8ad82eb02fe25a95064257e07084bcacb85'}, skipped=[], total_bytes=146, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+_ test_private_filename_never_in_initial_manifest_or_archive[narrow-company-data.md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in1/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in1')
+rel = 'company-data.md', ownership = 'narrow'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'company-data.md' not in {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...a6945fd35cdb77ee2', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...}
+E        +  where {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...a6945fd35cdb77ee2', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...} = UploadPlan(manifest={'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a8...6deacfbc7560e4240054a8ad82eb02fe25a95064257e07084bcacb85'}, skipped=[], total_bytes=146, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+_ test_private_filename_never_in_initial_manifest_or_archive[narrow-src/deep/CoMpAnY-DaTa.Md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in3/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in3')
+rel = 'src/deep/CoMpAnY-DaTa.Md', ownership = 'narrow'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'src/deep/CoMpAnY-DaTa.Md' not in {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...1147536a5670b7c2bb', 'public-company-data.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...}
+E        +  where {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...1147536a5670b7c2bb', 'public-company-data.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...} = UploadPlan(manifest={'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a8...6deacfbc7560e4240054a8ad82eb02fe25a95064257e07084bcacb85'}, skipped=[], total_bytes=146, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+_ test_private_filename_never_in_initial_manifest_or_archive[exact-COMPANY-DATA.md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in4/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in4')
+rel = 'COMPANY-DATA.md', ownership = 'exact'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'COMPANY-DATA.md' not in {'COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', 'README.md': 'bc8caf864191c4bd...cff4a5fe7fdf7edc8', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...}
+E        +  where {'COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', 'README.md': 'bc8caf864191c4bd...cff4a5fe7fdf7edc8', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...} = UploadPlan(manifest={'COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', 'README.md...4191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb'}, skipped=[], total_bytes=141, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+_ test_private_filename_never_in_initial_manifest_or_archive[exact-company-data.md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in5/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in5')
+rel = 'company-data.md', ownership = 'exact'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'company-data.md' not in {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...a6945fd35cdb77ee2', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...}
+E        +  where {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...a6945fd35cdb77ee2', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...} = UploadPlan(manifest={'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a8...4191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb'}, skipped=[], total_bytes=141, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+_ test_private_filename_never_in_initial_manifest_or_archive[exact-docs/COMPANY-DATA.md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in6/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in6')
+rel = 'docs/COMPANY-DATA.md', ownership = 'exact'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'docs/COMPANY-DATA.md' not in {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...db1147536a5670b7c2bb', 'docs/COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', ...}
+E        +  where {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...db1147536a5670b7c2bb', 'docs/COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', ...} = UploadPlan(manifest={'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a8...4191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb'}, skipped=[], total_bytes=141, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+_ test_private_filename_never_in_initial_manifest_or_archive[exact-src/deep/CoMpAnY-DaTa.Md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in7/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in7')
+rel = 'src/deep/CoMpAnY-DaTa.Md', ownership = 'exact'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'src/deep/CoMpAnY-DaTa.Md' not in {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...1147536a5670b7c2bb', 'public-company-data.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...}
+E        +  where {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...1147536a5670b7c2bb', 'public-company-data.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...} = UploadPlan(manifest={'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a8...82c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2'}, skipped=[], total_bytes=141, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+_ test_private_filename_never_in_initial_manifest_or_archive[whole-COMPANY-DATA.md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in8/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in8')
+rel = 'COMPANY-DATA.md', ownership = 'whole'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'COMPANY-DATA.md' not in {'COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', 'README.md': 'bc8caf864191c4bd...cff4a5fe7fdf7edc8', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...}
+E        +  where {'COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', 'README.md': 'bc8caf864191c4bd...cff4a5fe7fdf7edc8', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...} = UploadPlan(manifest={'COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', 'README.md...6deacfbc7560e4240054a8ad82eb02fe25a95064257e07084bcacb85'}, skipped=[], total_bytes=146, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+_ test_private_filename_never_in_initial_manifest_or_archive[whole-company-data.md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in9/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in9')
+rel = 'company-data.md', ownership = 'whole'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'company-data.md' not in {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...a6945fd35cdb77ee2', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...}
+E        +  where {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...a6945fd35cdb77ee2', 'company-data.md.example': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...} = UploadPlan(manifest={'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a8...6deacfbc7560e4240054a8ad82eb02fe25a95064257e07084bcacb85'}, skipped=[], total_bytes=146, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+_ test_private_filename_never_in_initial_manifest_or_archive[whole-docs/COMPANY-DATA.md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in10/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in10')
+rel = 'docs/COMPANY-DATA.md', ownership = 'whole'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'docs/COMPANY-DATA.md' not in {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...db1147536a5670b7c2bb', 'docs/COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', ...}
+E        +  where {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...db1147536a5670b7c2bb', 'docs/COMPANY-DATA.md': 'cb1aeab082c98e0836410d93c1d8554ba964347efc4a85da6945fd35cdb77ee2', ...} = UploadPlan(manifest={'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a8...6deacfbc7560e4240054a8ad82eb02fe25a95064257e07084bcacb85'}, skipped=[], total_bytes=146, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+_ test_private_filename_never_in_initial_manifest_or_archive[whole-src/deep/CoMpAnY-DaTa.Md] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in11/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-9/test_private_filename_never_in11')
+rel = 'src/deep/CoMpAnY-DaTa.Md', ownership = 'whole'
+
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    @pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
+    def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+        original = _write(repo, rel)
+        public = {"README.md", "company-data.md.example", "public-company-data.md"}
+        for name in public:
+            _write(repo, name, "public documentation\n")
+        paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
+        plan = hw.plan_upload(repo, paths, known=[])
+>       assert rel not in plan.manifest
+E       AssertionError: assert 'src/deep/CoMpAnY-DaTa.Md' not in {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...1147536a5670b7c2bb', 'public-company-data.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...}
+E        +  where {'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a894022d1a082987b87ade...1147536a5670b7c2bb', 'public-company-data.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', ...} = UploadPlan(manifest={'README.md': 'bc8caf864191c4bdddd6e73340ff637dd10d36b14ea5db1147536a5670b7c2bb', 'calc.py': 'e1a8...6deacfbc7560e4240054a8ad82eb02fe25a95064257e07084bcacb85'}, skipped=[], total_bytes=146, new_paths=[], materialized=[]).manifest
+
+tests/test_hub_file_policy_v1073.py:37: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[narrow-COMPANY-DATA.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[narrow-company-data.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[narrow-src/deep/CoMpAnY-DaTa.Md]
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[exact-COMPANY-DATA.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[exact-company-data.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[exact-docs/COMPANY-DATA.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[exact-src/deep/CoMpAnY-DaTa.Md]
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[whole-COMPANY-DATA.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[whole-company-data.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[whole-docs/COMPANY-DATA.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_private_filename_never_in_initial_manifest_or_archive[whole-src/deep/CoMpAnY-DaTa.Md]
+11 failed, 1 passed in 5.01s
+exit=1, expected=1
+
+retained history protection control: pass
+...                                                                      [100%]
+3 passed in 4.04s
+exit=0, expected=0
+
+retained history protection mutant: hw.WorkspaceState.assert_file_policy = lambda self: None; hw.assert_file_policy = lambda *paths: None
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+____ test_stale_history_blocks_turn_even_when_remote_file_is_gone[manifest] ____
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-11/test_stale_history_blocks_turn0/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-11/test_stale_history_blocks_turn0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71e61711c380>
+history = 'manifest'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("history", ["manifest", "input_manifest", "hub_made"])
+    async def test_stale_history_blocks_turn_even_when_remote_file_is_gone(repo, tmp_path, monkeypatch, history):
+        backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
+        assert (await _turn(backend, "public first turn"))[-1].metadata["ok"]
+        state = backend._state
+        rel = "old/CoMpAnY-DaTa.Md"
+        target = getattr(state, history)
+        if isinstance(target, list):
+            target.append(rel)
+        else:
+            target[rel] = "historical-synthetic-digest"
+        state.save()
+        before = state.path().read_bytes()
+        mc.calls.clear()
+        events = await _turn(backend, "continue")
+>       assert not events[-1].metadata["ok"]
+E       assert not True
+
+tests/test_hub_file_policy_v1073.py:151: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:290 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_ test_stale_history_blocks_turn_even_when_remote_file_is_gone[input_manifest] _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-11/test_stale_history_blocks_turn1/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-11/test_stale_history_blocks_turn1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71e615576b70>
+history = 'input_manifest'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("history", ["manifest", "input_manifest", "hub_made"])
+    async def test_stale_history_blocks_turn_even_when_remote_file_is_gone(repo, tmp_path, monkeypatch, history):
+        backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
+        assert (await _turn(backend, "public first turn"))[-1].metadata["ok"]
+        state = backend._state
+        rel = "old/CoMpAnY-DaTa.Md"
+        target = getattr(state, history)
+        if isinstance(target, list):
+            target.append(rel)
+        else:
+            target[rel] = "historical-synthetic-digest"
+        state.save()
+        before = state.path().read_bytes()
+        mc.calls.clear()
+        events = await _turn(backend, "continue")
+>       assert not events[-1].metadata["ok"]
+E       assert not True
+
+tests/test_hub_file_policy_v1073.py:151: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:290 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+____ test_stale_history_blocks_turn_even_when_remote_file_is_gone[hub_made] ____
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-11/test_stale_history_blocks_turn2/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-11/test_stale_history_blocks_turn2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71e61711c740>
+history = 'hub_made'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("history", ["manifest", "input_manifest", "hub_made"])
+    async def test_stale_history_blocks_turn_even_when_remote_file_is_gone(repo, tmp_path, monkeypatch, history):
+        backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
+        assert (await _turn(backend, "public first turn"))[-1].metadata["ok"]
+        state = backend._state
+        rel = "old/CoMpAnY-DaTa.Md"
+        target = getattr(state, history)
+        if isinstance(target, list):
+            target.append(rel)
+        else:
+            target[rel] = "historical-synthetic-digest"
+        state.save()
+        before = state.path().read_bytes()
+        mc.calls.clear()
+        events = await _turn(backend, "continue")
+>       assert not events[-1].metadata["ok"]
+E       assert not True
+
+tests/test_hub_file_policy_v1073.py:151: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:290 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+=========================== short test summary info ============================
+FAILED tests/test_hub_file_policy_v1073.py::test_stale_history_blocks_turn_even_when_remote_file_is_gone[manifest]
+FAILED tests/test_hub_file_policy_v1073.py::test_stale_history_blocks_turn_even_when_remote_file_is_gone[input_manifest]
+FAILED tests/test_hub_file_policy_v1073.py::test_stale_history_blocks_turn_even_when_remote_file_is_gone[hub_made]
+3 failed in 4.78s
+exit=1, expected=1
+
+remote name-only protection control: pass
+....                                                                     [100%]
+4 passed in 3.13s
+exit=0, expected=0
+
+remote name-only protection mutant: hw.HubSsh.assert_file_policy = AsyncMock()
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_name_only_remote_check_uses_actual_shell_on_synthetic_files[COMPANY-DATA.md] _
+
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-13/test_name_only_remote_check_us0')
+rel = 'COMPANY-DATA.md'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    async def test_name_only_remote_check_uses_actual_shell_on_synthetic_files(tmp_path, rel):
+        ssh = FakeSsh(tmp_path)
+        remote = tmp_path / hw.WorkspaceState.new_id()
+        await ssh.assert_file_policy(str(remote))  # missing first-upload copy is allowed
+        remote.mkdir()
+        _write(remote, "README.md", "public\n")
+        await ssh.assert_file_policy(str(remote))
+        original = _write(remote, rel)
+>       with pytest.raises(hw.HubFilePolicyError) as error:
+E       Failed: DID NOT RAISE <class 'app.hub_workspace.HubFilePolicyError'>
+
+tests/test_hub_file_policy_v1073.py:232: Failed
+_ test_name_only_remote_check_uses_actual_shell_on_synthetic_files[company-data.md] _
+
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-13/test_name_only_remote_check_us1')
+rel = 'company-data.md'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    async def test_name_only_remote_check_uses_actual_shell_on_synthetic_files(tmp_path, rel):
+        ssh = FakeSsh(tmp_path)
+        remote = tmp_path / hw.WorkspaceState.new_id()
+        await ssh.assert_file_policy(str(remote))  # missing first-upload copy is allowed
+        remote.mkdir()
+        _write(remote, "README.md", "public\n")
+        await ssh.assert_file_policy(str(remote))
+        original = _write(remote, rel)
+>       with pytest.raises(hw.HubFilePolicyError) as error:
+E       Failed: DID NOT RAISE <class 'app.hub_workspace.HubFilePolicyError'>
+
+tests/test_hub_file_policy_v1073.py:232: Failed
+_ test_name_only_remote_check_uses_actual_shell_on_synthetic_files[docs/COMPANY-DATA.md] _
+
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-13/test_name_only_remote_check_us2')
+rel = 'docs/COMPANY-DATA.md'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    async def test_name_only_remote_check_uses_actual_shell_on_synthetic_files(tmp_path, rel):
+        ssh = FakeSsh(tmp_path)
+        remote = tmp_path / hw.WorkspaceState.new_id()
+        await ssh.assert_file_policy(str(remote))  # missing first-upload copy is allowed
+        remote.mkdir()
+        _write(remote, "README.md", "public\n")
+        await ssh.assert_file_policy(str(remote))
+        original = _write(remote, rel)
+>       with pytest.raises(hw.HubFilePolicyError) as error:
+E       Failed: DID NOT RAISE <class 'app.hub_workspace.HubFilePolicyError'>
+
+tests/test_hub_file_policy_v1073.py:232: Failed
+_ test_name_only_remote_check_uses_actual_shell_on_synthetic_files[src/deep/CoMpAnY-DaTa.Md] _
+
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-13/test_name_only_remote_check_us3')
+rel = 'src/deep/CoMpAnY-DaTa.Md'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("rel", PRIVATE_PATHS)
+    async def test_name_only_remote_check_uses_actual_shell_on_synthetic_files(tmp_path, rel):
+        ssh = FakeSsh(tmp_path)
+        remote = tmp_path / hw.WorkspaceState.new_id()
+        await ssh.assert_file_policy(str(remote))  # missing first-upload copy is allowed
+        remote.mkdir()
+        _write(remote, "README.md", "public\n")
+        await ssh.assert_file_policy(str(remote))
+        original = _write(remote, rel)
+>       with pytest.raises(hw.HubFilePolicyError) as error:
+E       Failed: DID NOT RAISE <class 'app.hub_workspace.HubFilePolicyError'>
+
+tests/test_hub_file_policy_v1073.py:232: Failed
+=========================== short test summary info ============================
+FAILED tests/test_hub_file_policy_v1073.py::test_name_only_remote_check_uses_actual_shell_on_synthetic_files[COMPANY-DATA.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_name_only_remote_check_uses_actual_shell_on_synthetic_files[company-data.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_name_only_remote_check_uses_actual_shell_on_synthetic_files[docs/COMPANY-DATA.md]
+FAILED tests/test_hub_file_policy_v1073.py::test_name_only_remote_check_uses_actual_shell_on_synthetic_files[src/deep/CoMpAnY-DaTa.Md]
+4 failed in 2.98s
+exit=1, expected=1
+
+All three controls passed; all three mutants failed regression assertions.

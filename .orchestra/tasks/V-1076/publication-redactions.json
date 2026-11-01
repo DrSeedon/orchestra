@@ -1,0 +1,40 @@
+{
+  "reason": "Public copies redact host publication-list literals only; complete verbatim originals retained in private task folder. Line counts unchanged. Test results and synthetic protocol sequences unchanged.",
+  "files": [
+    {
+      "path": "import-baseline.stdout.txt",
+      "private_sha256": "93ed9bffbeb033a816fbf688c56bfb0486aaad88aae332a783fd1680bc075b9c",
+      "public_sha256": "2db195e00f8f77ebfe431d5e3aa875939d2b8ee980732fc777e1ccc0a508aa80"
+    },
+    {
+      "path": "probe-40.stdout.txt",
+      "private_sha256": "b61abef5b0b193e48737878e0a3511f949a43a086bbcb3199d4145228e8f7195",
+      "public_sha256": "5d9976f6da7b01e6c89be73a4ac721e411b274e4271c8ede3b4ae0ea29d0e172"
+    },
+    {
+      "path": "probe-43.stdout.txt",
+      "private_sha256": "9f75afa6794f0d44a9b9fea950015a1393b42d8cbe92ce71e56827fbaca3592a",
+      "public_sha256": "14c1a7d2c177bf66d73ae19d21476f650df8bb4b7dc0d7000fc102885e121f2f"
+    },
+    {
+      "path": "probe-initial-harness-error.stdout.txt",
+      "private_sha256": "b08eb97f0c22cff0a0085f75846625dcd63222c38b84358931198b5a322aa383",
+      "public_sha256": "6f4ad322b466f580ac6f44dca5c5e566822f49c9bea2146f37976c0c01ef63f3"
+    },
+    {
+      "path": "probe.stdout.txt",
+      "private_sha256": "d1072e78a21d82d807e6f44faa895dc91a8aa527cc494d477b8a8b7ee652ae40",
+      "public_sha256": "fc1a84e1c01a710e3fc8f6031a905da95f164943910115d128e4ebe2f69a7730"
+    },
+    {
+      "path": "report.md",
+      "private_sha256": "de5d799dc0db81fd721951371c30dafe9a1c55536b9da6571d525a3c6cd5b09d",
+      "public_sha256": "b4e2822cd377a1278afb2d4ef98b088ae9a6496c1032016446bcf2dcaf7f0f0e"
+    },
+    {
+      "path": "runner-setup.stdout.txt",
+      "private_sha256": "a277fa2abcbdd9d7ef6c8c01e3683fb96f14ee7a975ecc4a4425b25488e57571",
+      "public_sha256": "b43135310643c6ccf2db4ad0dc50bd6f57e926224f77c180b9d9e373714def83"
+    }
+  ]
+}

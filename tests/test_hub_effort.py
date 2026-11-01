@@ -1,9 +1,11 @@
 """V-1025: pipeline effort survives the hub boundary; all hub calls are fake."""
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
 from app.backend_hub import HubBackend
+from app import hub_workspace as hw
 from app.pipeline import get_role, resolve_effort
 
 
@@ -35,8 +37,10 @@ def setup(effort="high", **kwargs):
     backend = HubBackend("hub-gpt-6.1-sol", ".", effort=effort, **kwargs)
     hub = Hub()
     backend._mc = hub
-    state = SimpleNamespace(thread_id="", project_id="project", ws_id="workspace", save=lambda: None)
+    state = hw.WorkspaceState("workspace", ".", "/synthetic/copy", project_id="project")
+    state.save = lambda: None
     backend._state = state
+    backend._ssh = SimpleNamespace(assert_file_policy=AsyncMock())
     return backend, hub, state
 
 

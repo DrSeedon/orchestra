@@ -1,0 +1,26 @@
+{
+  ".orchestra/workers/Orchestra-orchestrator.md": {
+    "bytes": 42431,
+    "sha256": "e15b6a11428833de376712f489aaa4776c520f46962cbe769afafa48cda12163"
+  },
+  "AGENTS.md": {
+    "bytes": 16356,
+    "sha256": "f486fc0d7618c28cc0db1807f838a9014334792f526bc78270cfce6a70cb6ce4"
+  },
+  ".orchestra/pipelines/default/prompts/modules/knowledge.md": {
+    "bytes": 5674,
+    "sha256": "ce2d5957025132a9bbf1cbe93a453db8b5b92af73f1956d79d1f16b38d09031b"
+  },
+  ".orchestra/pipelines/default/prompts/modules/model-routing.md": {
+    "bytes": 11448,
+    "sha256": "0c85d90a052b15ae2ea1998e363269c229709f4bb0680485ff39539baf237838"
+  },
+  ".orchestra/kb/prompt-engineering.md": {
+    "bytes": 27913,
+    "sha256": "38352bedb6ded7453a0dda84d2fee3abe2fbabdce9ded6f2b391b712bec1e544"
+  },
+  ".orchestra/kb/models-and-quotas.md": {
+    "bytes": 95641,
+    "sha256": "465a1c049299b1bda280a64d861e6a21f2ecbf12b099c4ac7735480845739a8f"
+  }
+}

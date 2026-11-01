@@ -271,6 +271,12 @@
   ]
  ],
  [
+  "/api/pending-deliveries",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/pipelines",
   [
    "GET"

@@ -1,0 +1,4 @@
+$ test -x "$HOME/.local/share/orchestra/tools/uv/0.11.28/bin/uv" && provisioned-uv --version
+uv 0.11.28 (x86_64-unknown-linux-gnu)
+$ test -x .venv/bin/python
+MISSING: .venv/bin/python

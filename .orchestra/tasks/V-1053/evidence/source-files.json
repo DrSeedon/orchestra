@@ -1,0 +1,202 @@
+[
+  {
+    "path": "LICENSE",
+    "sha256": "1c7a8c82f6ec71b11f34d6e7cf4d6a4f25099d1c008e0c6927eba97922adb70a",
+    "bytes": 1066
+  },
+  {
+    "path": "README.md",
+    "sha256": "7e455950b3b3d0565b2089d4a4a2352307f792cb0b074ff842360eb1636a1e77",
+    "bytes": 20804
+  },
+  {
+    "path": "go.mod",
+    "sha256": "c5a0fd1f5e148a5546c62e62044687591c91de747332f762d1864e1d928cbc4f",
+    "bytes": 1396
+  },
+  {
+    "path": "install.sh",
+    "sha256": "4a041e051b796b5bf6ca1493a502bd662a3fb47017c0c90bbef362cea69dd0af",
+    "bytes": 2654
+  },
+  {
+    "path": "CONTRIBUTING.md",
+    "sha256": "64c381ea62c0bf5a24716715a6a3580bd2e09e3ab7a5ff687b5df0cbbb2df30a",
+    "bytes": 1563
+  },
+  {
+    "path": "cmd/tour/main.go",
+    "sha256": "baa06b2d5376c7e6f1fd316fcc680e97db0b6de2a86d6e9328124120eb22d191",
+    "bytes": 7905
+  },
+  {
+    "path": "internal/generate/generate.go",
+    "sha256": "def6d479f82330f9d671f1afd960989b88f73bb26f7f1bface5557f13e905478",
+    "bytes": 9361
+  },
+  {
+    "path": "internal/generate/workspace.go",
+    "sha256": "b8113ac117f41f8dc85b9d3daab5e89cb0f2502dbdb8a15089ec641511fe5440",
+    "bytes": 3534
+  },
+  {
+    "path": "internal/generate/claude.go",
+    "sha256": "d081b841efa0b276db3886bf7f27aadb1e3af96dfc97e9d11201d22596546a45",
+    "bytes": 3589
+  },
+  {
+    "path": "internal/generate/codex.go",
+    "sha256": "3a552c149c715894b83b223858ae036eb72ae363eb8b97099993790e19da4f77",
+    "bytes": 13248
+  },
+  {
+    "path": "internal/generate/ask.go",
+    "sha256": "edcd966daee9bcf10862fd6f349a332ea59a52526aa986ac38b179fb6981cd1b",
+    "bytes": 3045
+  },
+  {
+    "path": "internal/git/git.go",
+    "sha256": "b5dbc587c14552a7ffbb9acf0c52ac32e65f01947bd1830d7f543b49fac6bd1f",
+    "bytes": 9828
+  },
+  {
+    "path": "internal/git/worktree.go",
+    "sha256": "65b37c997f88bfdaa1ecac1427c586eb6a063b9345fb6ce39b915bf2eda9e056",
+    "bytes": 3414
+  },
+  {
+    "path": "internal/render/check.go",
+    "sha256": "8efb7c011e4ac5542c059b9f0866a0f66472049a7a12e2c6b80807e40e6a60ea",
+    "bytes": 2947
+  },
+  {
+    "path": "internal/render/blocks.go",
+    "sha256": "dbb5e2512c2ab3037e91ec064a8d1b5888a7c2c15ce728c8fc6f9d5d616dba05",
+    "bytes": 17792
+  },
+  {
+    "path": "internal/tour/tour.go",
+    "sha256": "83957bc2a6499e287e067a635ff8ff91897b662caf621f1b28b697f2b040766a",
+    "bytes": 10408
+  },
+  {
+    "path": "internal/ui/viewer.go",
+    "sha256": "a3a1f5a6c4ccd034b10147d6165dbf2578e05c85a3dfccadb6c82a91b824a4c6",
+    "bytes": 3824
+  },
+  {
+    "path": "internal/ui/app.go",
+    "sha256": "a4ba11eae80edbc424210c08f651fa2f4c95dcf1ea8a1d1e42d7baf4940162d0",
+    "bytes": 10690
+  },
+  {
+    "path": "internal/config/config.go",
+    "sha256": "cba7f63a991fd3fdc250f68eeb8408a89b8e7a011ed2c01614fa00a653ebacea",
+    "bytes": 1292
+  },
+  {
+    "path": "experiments/generate/README.md",
+    "sha256": "1508bc9e0fc588df8229cd33ff5a14f8d15e31de3fa7e7752b7f796c797354ff",
+    "bytes": 43855
+  },
+  {
+    "path": "internal/generate/prompts/fix-output.md",
+    "sha256": "272071375ab80edd0ca2f3fa179e828e7a8048cf9bec76716c4b7f7f1b2751ab",
+    "bytes": 175
+  },
+  {
+    "path": "internal/generate/prompts/ask.md",
+    "sha256": "55d7276922ae6288e017dbdbc1369e5e8153f03d94e25050e51ae39b542babcd",
+    "bytes": 1849
+  },
+  {
+    "path": "internal/generate/prompts/output-C.md",
+    "sha256": "53cb953e5f1d1a6fb07c6925f67d34c4394e91636dc1ecfce6808177ce6a444d",
+    "bytes": 436
+  },
+  {
+    "path": "internal/generate/prompts/ask-output.md",
+    "sha256": "047ba42b8b6d4bee50b5bec75322d99d65d4d83f9d4a9aaf1c332dfc3caf05d1",
+    "bytes": 540
+  },
+  {
+    "path": "internal/generate/prompts/planC.md",
+    "sha256": "96f9115fb2b495865a53ef97a1abe66eaf2aa0c0fd9ba7037cfccfca0745488d",
+    "bytes": 3129
+  },
+  {
+    "path": "internal/generate/prompts/format.md",
+    "sha256": "c5b5ed8cbb9a8acf732734af61b1fd784fdcb06b1c0029f57001f1cfb69514e2",
+    "bytes": 7367
+  },
+  {
+    "path": "internal/generate/prompts/common.md",
+    "sha256": "7bc01c58e1126305b59962e2976199bef3160c3a92c8a698096d9cd1b47f1ef4",
+    "bytes": 7310
+  },
+  {
+    "path": "internal/generate/prompts/fix.md",
+    "sha256": "f31f582db0849a27b5bafca35f9c60b877aa81116bbe8cefa2e012f32bab4f5d",
+    "bytes": 779
+  },
+  {
+    "path": "internal/generate/lessons/README.md",
+    "sha256": "e9d48d72857bc2ec7ac5053c6ef50de009f506274e46bb63ff8af22beac2df54",
+    "bytes": 13677
+  },
+  {
+    "path": "internal/generate/lessons/5-scale.md",
+    "sha256": "841bccd59cfb33d660a13d1afe43c6d1c338af825506ab94f2e4b498eb51bfe2",
+    "bytes": 2856
+  },
+  {
+    "path": "internal/generate/lessons/7-tests.md",
+    "sha256": "40b5d3d34f012a6120bc0e026c7fef8b981a5df93cae604f89b3fde40ac8d38f",
+    "bytes": 3058
+  },
+  {
+    "path": "internal/generate/lessons/reading.md",
+    "sha256": "6fefc1609b806d2524d9ddf3fc1241a471b9149c83558af78e5f57fdb69b5434",
+    "bytes": 5283
+  },
+  {
+    "path": "internal/generate/lessons/2-failure.md",
+    "sha256": "cc4f7939c5d7910842b9f90d36cfba7a6447d3ec15d3ae454c2c911c86cb7e8d",
+    "bytes": 7141
+  },
+  {
+    "path": "internal/generate/lessons/8-ai.md",
+    "sha256": "93c9cc683fc6bc8a37328ffc467528e8b6a0fbac3e738c5ea4868f1441b519e2",
+    "bytes": 3976
+  },
+  {
+    "path": "internal/generate/lessons/judgment.md",
+    "sha256": "4f129adb9d638958da82945331997945db268f1aae26d69de8f74fc55adda5df",
+    "bytes": 10245
+  },
+  {
+    "path": "internal/generate/lessons/4-trust.md",
+    "sha256": "584b8ac54a362d879c81e6cc19200e3e822bbf772d53f8c5d6652ba8cf804ea8",
+    "bytes": 5576
+  },
+  {
+    "path": "internal/generate/lessons/6-design.md",
+    "sha256": "6a1e8b488b45c510f7930b85b7efca5d235f8b9d863f7eb0f8588149bdfc01f8",
+    "bytes": 8043
+  },
+  {
+    "path": "internal/generate/lessons/1-promises.md",
+    "sha256": "7374bfc7248b4cc9a115e1f7888ce0012794426489e88851671d1f658b229d52",
+    "bytes": 5190
+  },
+  {
+    "path": "internal/generate/lessons/teaching.md",
+    "sha256": "7168c5e8a33ec83ffd7166dd5ddfc2765ab7af656eb132e8b5bb82b406861b86",
+    "bytes": 3162
+  },
+  {
+    "path": "internal/generate/lessons/3-operations.md",
+    "sha256": "7ddda0ac9ed46a7bf6d130b8830765d15e8da5f2c447c170fe292989fd7d10ab",
+    "bytes": 7775
+  }
+]
