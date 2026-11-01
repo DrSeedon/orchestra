@@ -1,0 +1,7 @@
+Imported app.error_watch: <WORKTREE>/app/error_watch.py
+ISOLATED: stub DB_PATH and identity mask_secrets; repository conftest disabled
+........................................................................ [ 32%]
+........................................................................ [ 64%]
+........................................................................ [ 96%]
+........                                                                 [100%]
+224 passed, 16 deselected in 2.88s

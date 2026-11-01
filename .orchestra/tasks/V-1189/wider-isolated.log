@@ -1,0 +1,144 @@
+Imported app.error_watch: <WORKTREE>/app/error_watch.py
+ISOLATED: stub DB_PATH and identity mask_secrets; repository conftest disabled
+........................................................................ [ 30%]
+........................................................................ [ 61%]
+........................................................................ [ 91%]
+EEEEEEEEEEEEEE....E.                                                     [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_hub_finish_db_provenance_separates_identical_command_errors_at_threshold _
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row0] ___
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row1] ___
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row2] ___
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row3] ___
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row4] ___
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row5] ___
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row6] ___
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row7] ___
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row8] ___
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row9] ___
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row10] __
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row11] __
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+__ ERROR at setup of test_only_exact_synthetic_hub_finish_row_is_noise[row12] __
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+_ ERROR at setup of test_hub_finish_scan_reports_noise_and_preserves_real_post_fix_recurrence _
+
+    @pytest.fixture
+    def hub_finish_row():
+>       from app.hub_activity import HubActivityStream
+E       ModuleNotFoundError: No module named 'app.hub_activity'
+
+tests/test_error_watch.py:1098: ModuleNotFoundError
+=========================== short test summary info ============================
+ERROR tests/test_error_watch.py::test_hub_finish_db_provenance_separates_identical_command_errors_at_threshold
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row0]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row1]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row2]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row3]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row4]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row5]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row6]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row7]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row8]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row9]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row10]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row11]
+ERROR tests/test_error_watch.py::test_only_exact_synthetic_hub_finish_row_is_noise[row12]
+ERROR tests/test_error_watch.py::test_hub_finish_scan_reports_noise_and_preserves_real_post_fix_recurrence
+221 passed, 1 deselected, 15 errors in 7.39s

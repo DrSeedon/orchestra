@@ -1,0 +1,279 @@
+Imported app.error_watch: <WORKTREE>/app/error_watch.py
+ISOLATED: stub DB_PATH and identity mask_secrets; repository conftest disabled
+SIMULATED BEFORE: original chaining filter and order-sensitive connector signatures
+.F.F.F.F..........FFF..........FFFF                                      [100%]
+=================================== FAILURES ===================================
+_ test_v1189_only_standalone_chaining_lines_are_noise[journalctl--The above exception was the direct cause of the following exception:] _
+
+line = 'The above exception was the direct cause of the following exception:'
+prefix = '', source = 'journalctl'
+
+    @pytest.mark.parametrize("line", _V1189_CHAIN_LINES)
+    @pytest.mark.parametrize("prefix", ["", "ERROR:app.transport:"])
+    @pytest.mark.parametrize("source", ["journalctl", "logs"])
+    def test_v1189_only_standalone_chaining_lines_are_noise(line, prefix, source):
+        message = "  " + prefix + line + "\n"
+        events = [_event(message, i, source=source) for i in range(2)]
+        before = [dict(event) for event in events]
+        signature = watch.normalize_signature(message)
+>       assert watch.classify_noise(signature) == "traceback chaining line"
+E       AssertionError: assert None == 'traceback chaining line'
+E        +  where None = <function classify_noise at 0x77ad56e06700>('The above exception was the direct cause of the following exception:')
+E        +    where <function classify_noise at 0x77ad56e06700> = watch.classify_noise
+
+tests/test_error_watch.py:64: AssertionError
+_ test_v1189_only_standalone_chaining_lines_are_noise[journalctl-ERROR:app.transport:-The above exception was the direct cause of the following exception:] _
+
+line = 'The above exception was the direct cause of the following exception:'
+prefix = 'ERROR:app.transport:', source = 'journalctl'
+
+    @pytest.mark.parametrize("line", _V1189_CHAIN_LINES)
+    @pytest.mark.parametrize("prefix", ["", "ERROR:app.transport:"])
+    @pytest.mark.parametrize("source", ["journalctl", "logs"])
+    def test_v1189_only_standalone_chaining_lines_are_noise(line, prefix, source):
+        message = "  " + prefix + line + "\n"
+        events = [_event(message, i, source=source) for i in range(2)]
+        before = [dict(event) for event in events]
+        signature = watch.normalize_signature(message)
+>       assert watch.classify_noise(signature) == "traceback chaining line"
+E       AssertionError: assert None == 'traceback chaining line'
+E        +  where None = <function classify_noise at 0x77ad56e06700>('The above exception was the direct cause of the following exception:')
+E        +    where <function classify_noise at 0x77ad56e06700> = watch.classify_noise
+
+tests/test_error_watch.py:64: AssertionError
+_ test_v1189_only_standalone_chaining_lines_are_noise[logs--The above exception was the direct cause of the following exception:] _
+
+line = 'The above exception was the direct cause of the following exception:'
+prefix = '', source = 'logs'
+
+    @pytest.mark.parametrize("line", _V1189_CHAIN_LINES)
+    @pytest.mark.parametrize("prefix", ["", "ERROR:app.transport:"])
+    @pytest.mark.parametrize("source", ["journalctl", "logs"])
+    def test_v1189_only_standalone_chaining_lines_are_noise(line, prefix, source):
+        message = "  " + prefix + line + "\n"
+        events = [_event(message, i, source=source) for i in range(2)]
+        before = [dict(event) for event in events]
+        signature = watch.normalize_signature(message)
+>       assert watch.classify_noise(signature) == "traceback chaining line"
+E       AssertionError: assert None == 'traceback chaining line'
+E        +  where None = <function classify_noise at 0x77ad56e06700>('The above exception was the direct cause of the following exception:')
+E        +    where <function classify_noise at 0x77ad56e06700> = watch.classify_noise
+
+tests/test_error_watch.py:64: AssertionError
+_ test_v1189_only_standalone_chaining_lines_are_noise[logs-ERROR:app.transport:-The above exception was the direct cause of the following exception:] _
+
+line = 'The above exception was the direct cause of the following exception:'
+prefix = 'ERROR:app.transport:', source = 'logs'
+
+    @pytest.mark.parametrize("line", _V1189_CHAIN_LINES)
+    @pytest.mark.parametrize("prefix", ["", "ERROR:app.transport:"])
+    @pytest.mark.parametrize("source", ["journalctl", "logs"])
+    def test_v1189_only_standalone_chaining_lines_are_noise(line, prefix, source):
+        message = "  " + prefix + line + "\n"
+        events = [_event(message, i, source=source) for i in range(2)]
+        before = [dict(event) for event in events]
+        signature = watch.normalize_signature(message)
+>       assert watch.classify_noise(signature) == "traceback chaining line"
+E       AssertionError: assert None == 'traceback chaining line'
+E        +  where None = <function classify_noise at 0x77ad56e06700>('The above exception was the direct cause of the following exception:')
+E        +    where <function classify_noise at 0x77ad56e06700> = watch.classify_noise
+
+tests/test_error_watch.py:64: AssertionError
+________ test_v1189_connector_address_order_is_canonical_and_idempotent ________
+
+    def test_v1189_connector_address_order_is_canonical_and_idempotent():
+        ipv6_address = "[Errno 111] Connect call failed ('2001:db8::1', 443, 0, 0)"
+        messages = [_v1189_connector(*causes) for causes in permutations((
+            _V1189_IPV4, _V1189_IPV6, ipv6_address,
+        ))]
+        signatures = {watch.normalize_signature(message) for message in messages}
+>       assert len(signatures) == 1
+E       assert 6 == 1
+E        +  where 6 = len({"aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host upstream.example.invalid:<N> ssl:default [Mul...e, [Errno <N>] Connect call failed ('<N>:db8::<N>', <N>, <N>, <N>), [Errno <N>] Connect call failed ('<N>.<N>', <N>)]"})
+
+tests/test_error_watch.py:98: AssertionError
+_ test_v1189_mixed_order_connector_failures_reach_threshold_and_recur[journalctl] _
+
+source = 'journalctl'
+
+    @pytest.mark.parametrize("source", ["journalctl", "logs"])
+    def test_v1189_mixed_order_connector_failures_reach_threshold_and_recur(source):
+        left = _v1189_connector(_V1189_IPV4, _V1189_IPV6)
+        right = _v1189_connector(_V1189_IPV6, _V1189_IPV4)
+        events = [_event(message, i, source=source) for i, message in enumerate([left, right] * 2)]
+        signature = watch.normalize_signature(left)
+        # Either order alone is below threshold; their shared cause is actionable.
+        assert watch.aggregate(events[:2], datetime.now(timezone.utc), threshold=4) == ([], [])
+        candidates, noise = watch.aggregate(events, datetime.now(timezone.utc), threshold=4)
+>       assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 4)]
+E       assert [] == [('aiohttp.cl...achable]', 4)]
+E         
+E         Right contains one more item: ("aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host upstream.example.invalid:<N> ssl:default [Multiple exceptions: [Errno <N>] Connect call failed ('<N>.<N>', <N>), [Errno <N>] Network is unreachable]", 4)
+E         Use -v to get more diff
+
+tests/test_error_watch.py:115: AssertionError
+__ test_v1189_mixed_order_connector_failures_reach_threshold_and_recur[logs] ___
+
+source = 'logs'
+
+    @pytest.mark.parametrize("source", ["journalctl", "logs"])
+    def test_v1189_mixed_order_connector_failures_reach_threshold_and_recur(source):
+        left = _v1189_connector(_V1189_IPV4, _V1189_IPV6)
+        right = _v1189_connector(_V1189_IPV6, _V1189_IPV4)
+        events = [_event(message, i, source=source) for i, message in enumerate([left, right] * 2)]
+        signature = watch.normalize_signature(left)
+        # Either order alone is below threshold; their shared cause is actionable.
+        assert watch.aggregate(events[:2], datetime.now(timezone.utc), threshold=4) == ([], [])
+        candidates, noise = watch.aggregate(events, datetime.now(timezone.utc), threshold=4)
+>       assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 4)]
+E       assert [] == [('aiohttp.cl...achable]', 4)]
+E         
+E         Right contains one more item: ("aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host upstream.example.invalid:<N> ssl:default [Multiple exceptions: [Errno <N>] Connect call failed ('<N>.<N>', <N>), [Errno <N>] Network is unreachable]", 4)
+E         Use -v to get more diff
+
+tests/test_error_watch.py:115: AssertionError
+__________ test_v1189_journal_collection_keeps_real_connector_failure __________
+
+    def test_v1189_journal_collection_keeps_real_connector_failure():
+        messages = [_V1189_CHAIN_LINES[1], _v1189_connector(_V1189_IPV4, _V1189_IPV6)]
+        timestamp = datetime(2026, 9, 27, 12, 0, tzinfo=timezone.utc)
+        runner = Mock(return_value=SimpleNamespace(stdout="\n".join(
+            json.dumps({"MESSAGE": message, "__REALTIME_TIMESTAMP": int(timestamp.timestamp() * 1_000_000)})
+            for message in messages
+        )))
+        events = watch.collect_journal_events(timestamp, runner=runner)
+        assert [event["message"] for event in events] == messages
+        candidates, noise = watch.aggregate(events, timestamp, threshold=1)
+>       assert [item["signature"] for item in candidates] == [watch.normalize_signature(messages[1])]
+E       assert ['The above e...unreachable]'] == ['aiohttp.cli...unreachable]']
+E         
+E         At index 0 diff: 'The above exception was the direct cause of the following exception:' != "aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host upstream.example.invalid:<N> ssl:default [Multiple exceptions: [Errno <N>] Connect call failed ('<N>.<N>', <N>), [Errno <N>] Network is unreachable]"
+E         Left contains one more item: "aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host upstream.example.invalid:<N> ssl:default [Multiple exceptions: [Errno <N>] Connect call failed ('<N>.<N>', <N>), [Errno <N>] Network is unreachable]"
+E         Use -v to get more diff
+
+tests/test_error_watch.py:181: AssertionError
+_____ test_v1189_real_aiohttp_exception_format_and_python_chain_without_io _____
+
+    def test_v1189_real_aiohttp_exception_format_and_python_chain_without_io():
+        from aiohttp import ClientConnectorError
+    
+        key = SimpleNamespace(host="upstream.example.invalid", port=443, ssl=True)
+        messages = []
+        for causes in [(_V1189_IPV4, _V1189_IPV6), (_V1189_IPV6, _V1189_IPV4)]:
+            try:
+                try:
+                    raise OSError(111, "Multiple exceptions: " + ", ".join(causes))
+                except OSError as cause:
+                    raise ClientConnectorError(key, cause) from cause
+            except ClientConnectorError as error:
+                rendered = traceback.format_exception(error)
+                assert any(line.strip() == _V1189_CHAIN_LINES[1] for line in rendered)
+                messages.append(traceback.format_exception_only(error)[0].strip())
+        assert messages == [
+            _v1189_connector(_V1189_IPV4, _V1189_IPV6),
+            _v1189_connector(_V1189_IPV6, _V1189_IPV4),
+        ]
+        candidates, noise = watch.aggregate(
+            [_event(message, i) for i, message in enumerate(messages)],
+            datetime.now(timezone.utc), threshold=2,
+        )
+>       assert len(candidates) == 1 and candidates[0]["count"] == 2
+E       assert (0 == 1)
+E        +  where 0 = len([])
+
+tests/test_error_watch.py:208: AssertionError
+_________ test_v1189_scan_preserves_legacy_fix_and_alert_state[False] __________
+
+already_alerted = False
+tmp_path = PosixPath('<WORKTREE>/.orchestra/tasks/V-1189/tmp/isolated-pytest/test_v1189_scan_preserves_lega0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77ad55c0ab40>
+capsys = <_pytest.capture.CaptureFixture object at 0x77ad55c0b890>
+scan_reports = <Mock id='131586351741168'>
+
+    @pytest.mark.parametrize("already_alerted", [False, True])
+    def test_v1189_scan_preserves_legacy_fix_and_alert_state(
+        already_alerted, tmp_path, monkeypatch, capsys, scan_reports,
+    ):
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        left = _v1189_connector(_V1189_IPV4, _V1189_IPV6)
+        right = _v1189_connector(_V1189_IPV6, _V1189_IPV4)
+        events = [
+            dict(_event(message, source="logs"), ts=(started + timedelta(seconds=i)).isoformat())
+            for i, message in enumerate([left, right] * 2 + [_V1189_CHAIN_LINES[1]] * 4)
+        ]
+        signature = watch.normalize_signature(left)
+        legacy = _v1189_legacy_connector_signature()
+        fix = dict(task="V-1189", commit="synthetic", started_at=started.isoformat(), window_hours=168)
+        state_path = tmp_path / "error_watch.json"
+        watch._write_state(state_path, {
+            "alerts": {legacy: {"first_alerted": started.isoformat(), "count": 4}} if already_alerted else {},
+            "fixes": {legacy: dict(fix), _V1189_CHAIN_LINES[1]: dict(fix)},
+        })
+        monkeypatch.setattr(watch, "collect_db_events", lambda *_: events)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+        args = SimpleNamespace(db=str(tmp_path / "synthetic.db"), window_hours=168, threshold=4, dry_run=False)
+        assert watch.scan(args) == 0
+        capsys.readouterr()
+        signals, verdicts = scan_reports.call_args.args
+>       assert [item["signature"] for item in signals] == ([] if already_alerted else [signature])
+E       assert ['The above e...g exception:'] == ['aiohttp.cli...unreachable]']
+E         
+E         At index 0 diff: 'The above exception was the direct cause of the following exception:' != "aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host upstream.example.invalid:<N> ssl:default [Multiple exceptions: [Errno <N>] Connect call failed ('<N>.<N>', <N>), [Errno <N>] Network is unreachable]"
+E         Use -v to get more diff
+
+tests/test_error_watch.py:238: AssertionError
+__________ test_v1189_scan_preserves_legacy_fix_and_alert_state[True] __________
+
+already_alerted = True
+tmp_path = PosixPath('<WORKTREE>/.orchestra/tasks/V-1189/tmp/isolated-pytest/test_v1189_scan_preserves_lega1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77ad55c0b290>
+capsys = <_pytest.capture.CaptureFixture object at 0x77ad55c0bd70>
+scan_reports = <Mock id='131586351738096'>
+
+    @pytest.mark.parametrize("already_alerted", [False, True])
+    def test_v1189_scan_preserves_legacy_fix_and_alert_state(
+        already_alerted, tmp_path, monkeypatch, capsys, scan_reports,
+    ):
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        left = _v1189_connector(_V1189_IPV4, _V1189_IPV6)
+        right = _v1189_connector(_V1189_IPV6, _V1189_IPV4)
+        events = [
+            dict(_event(message, source="logs"), ts=(started + timedelta(seconds=i)).isoformat())
+            for i, message in enumerate([left, right] * 2 + [_V1189_CHAIN_LINES[1]] * 4)
+        ]
+        signature = watch.normalize_signature(left)
+        legacy = _v1189_legacy_connector_signature()
+        fix = dict(task="V-1189", commit="synthetic", started_at=started.isoformat(), window_hours=168)
+        state_path = tmp_path / "error_watch.json"
+        watch._write_state(state_path, {
+            "alerts": {legacy: {"first_alerted": started.isoformat(), "count": 4}} if already_alerted else {},
+            "fixes": {legacy: dict(fix), _V1189_CHAIN_LINES[1]: dict(fix)},
+        })
+        monkeypatch.setattr(watch, "collect_db_events", lambda *_: events)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+        args = SimpleNamespace(db=str(tmp_path / "synthetic.db"), window_hours=168, threshold=4, dry_run=False)
+        assert watch.scan(args) == 0
+        capsys.readouterr()
+        signals, verdicts = scan_reports.call_args.args
+>       assert [item["signature"] for item in signals] == ([] if already_alerted else [signature])
+E       AssertionError: assert ['The above e...g exception:'] == []
+E         
+E         Left contains one more item: 'The above exception was the direct cause of the following exception:'
+E         Use -v to get more diff
+
+tests/test_error_watch.py:238: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_error_watch.py::test_v1189_only_standalone_chaining_lines_are_noise[journalctl--The above exception was the direct cause of the following exception:]
+FAILED tests/test_error_watch.py::test_v1189_only_standalone_chaining_lines_are_noise[journalctl-ERROR:app.transport:-The above exception was the direct cause of the following exception:]
+FAILED tests/test_error_watch.py::test_v1189_only_standalone_chaining_lines_are_noise[logs--The above exception was the direct cause of the following exception:]
+FAILED tests/test_error_watch.py::test_v1189_only_standalone_chaining_lines_are_noise[logs-ERROR:app.transport:-The above exception was the direct cause of the following exception:]
+FAILED tests/test_error_watch.py::test_v1189_connector_address_order_is_canonical_and_idempotent
+FAILED tests/test_error_watch.py::test_v1189_mixed_order_connector_failures_reach_threshold_and_recur[journalctl]
+FAILED tests/test_error_watch.py::test_v1189_mixed_order_connector_failures_reach_threshold_and_recur[logs]
+FAILED tests/test_error_watch.py::test_v1189_journal_collection_keeps_real_connector_failure
+FAILED tests/test_error_watch.py::test_v1189_real_aiohttp_exception_format_and_python_chain_without_io
+FAILED tests/test_error_watch.py::test_v1189_scan_preserves_legacy_fix_and_alert_state[False]
+FAILED tests/test_error_watch.py::test_v1189_scan_preserves_legacy_fix_and_alert_state[True]
+11 failed, 24 passed, 205 deselected in 1.75s

@@ -55,6 +55,10 @@ _MERGE_EXPECTED_HEAD_REFUSAL = re.compile(
     r"Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, "
     r"then start a new operation\.\Z", re.I,
 )
+_TRACEBACK_CHAINING_LINE = re.compile(
+    r"\A(?:During handling of the above exception, another exception occurred:|"
+    r"The above exception was the direct cause of the following exception:)\Z", re.I,
+)
 _NOISE = (
     ("hub provider limit", _HUB_PROVIDER_LIMIT),
     ("hub credential guard refusal", _HUB_CREDENTIAL_REFUSAL),
@@ -90,7 +94,7 @@ _NOISE = (
     # uvicorn cuts open SSE connections on every service restart; the chained-traceback
     # line carries no cause of its own — the real exception is logged as a separate line.
     ("restart graceful-shutdown timeout", re.compile(r"Cancel (?:\d+|<N>) running task\(s\), timeout graceful shutdown exceeded", re.I)),
-    ("traceback chaining line", re.compile(r"^During handling of the above exception, another exception occurred:$", re.I)),
+    ("traceback chaining line", _TRACEBACK_CHAINING_LINE),
 )
 _KNOWN_SERIES = {
     _PYTEST_SIGNATURE: {"baseline": 10, "tasks": ("V-783",)},
@@ -122,6 +126,20 @@ _HUB_EXCEPTION = re.compile(r"\b([A-Za-z_]\w*(?:Error|Timeout|Exception))\b")
 _SUCCESSFUL_HTTP_ACCESS_LOG = re.compile(
     r'INFO:\s+\S+\s+-\s+"\S+\s+\S+\s+HTTP/\d(?:\.\d)?"\s+2\d\d\s+OK',
 )
+# Applied after numeric normalization. Commas inside address tuples are not
+# separators; only complete errno entries in a ClientConnectorError are sorted.
+_CONNECTOR_MULTIPLE_ERRORS = re.compile(
+    r"(\bClientConnectorError: [^\[\]\n]*\[Multiple exceptions: )"
+    r"(\[Errno <N>\] [^\[\]\n]+(?:, \[Errno <N>\] [^\[\]\n]+)+)(\])",
+)
+
+
+def _canonicalize_connector_errors(value: str) -> str:
+    def canonical(match: re.Match) -> str:
+        causes = re.split(r", (?=\[Errno <N>\] )", match.group(2))
+        return match.group(1) + ", ".join(sorted(causes)) + match.group(3)
+
+    return _CONNECTOR_MULTIPLE_ERRORS.sub(canonical, value)
 
 
 def normalize_signature(message: str) -> str:
@@ -158,6 +176,7 @@ def normalize_signature(message: str) -> str:
     value = _SESSION.sub("[SESSION]", value)
     value = re.sub(r"\bproject=[A-Za-z0-9_.-]+", "project=<PROJECT>", value, flags=re.I)
     value = _NUMBER.sub("<N>", value)
+    value = _canonicalize_connector_errors(value)
     return " ".join(value.split())[:1000]
 
 
@@ -330,6 +349,8 @@ def aggregate(events: list[dict], now: datetime, *, threshold=DEFAULT_THRESHOLD)
 
 
 def post_fix_verdict(events: list[dict], signature: str, started_at: datetime, window_hours: int) -> dict:
+    # Stored pre-canonicalization signatures still identify the same failure.
+    signature = _canonicalize_connector_errors(signature)
     matches = [
         event for event in events
         if (event_signature := normalize_signature(event["message"])) == signature
@@ -337,6 +358,7 @@ def post_fix_verdict(events: list[dict], signature: str, started_at: datetime, w
         and not _CODEX_QUOTA_REFUSAL.fullmatch(event_signature)
         and not _PROVIDER_CAPACITY_REFUSAL.fullmatch(event_signature)
         and not _MERGE_EXPECTED_HEAD_REFUSAL.fullmatch(event_signature)
+        and not _TRACEBACK_CHAINING_LINE.fullmatch(event_signature)
         and (signature != _PYTEST_SIGNATURE or event.get("scope") == _ORCHESTRA_SCOPE)
         and (parsed := _parse_ts(event["ts"])) and parsed >= started_at
     ]
@@ -445,7 +467,13 @@ def scan(args) -> int:
     }
     known_state.update(known_counts)
     active = {item["signature"] for item in candidates + noise}
-    state["alerts"] = {key: value for key, value in state.get("alerts", {}).items() if key in active}
+    state["alerts"] = {
+        canonical: value for key, value in state.get("alerts", {}).items()
+        if (canonical := _canonicalize_connector_errors(key)) in active
+    }
+    canonical_fixes = {
+        _canonicalize_connector_errors(key): fix for key, fix in state.get("fixes", {}).items()
+    }
     signals = []
     for item in candidates:
         key = item["signature"]
@@ -460,7 +488,7 @@ def scan(args) -> int:
         if key in state["alerts"]:
             continue
         refs = _existing_refs(key)
-        fix = state.get("fixes", {}).get(key)
+        fix = canonical_fixes.get(key)
         reference = fix if fix else ({"known": refs} if refs else {"known": {"tasks": []}})
         item["known"] = reference
         signals.append(item)
