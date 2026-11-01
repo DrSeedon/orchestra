@@ -477,6 +477,60 @@ class TestCronCommand:
         assert "ALERT: item 42" in row["last_output"]
 
     @pytest.mark.asyncio
+    async def test_hub_idle_error_on_stderr_matches_even_with_nonzero_exit(
+        self, db, mgr_mock, monkeypatch,
+    ):
+        import app.bg_jobs as module
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        session.parent_name = "parent-orchestrator"
+        session.last_task_sender = ""
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("cron-command-hub-idle-error", datetime.now(timezone.utc)))
+        proc = self._proc(error=b"HUB_IDLE_ERROR: RuntimeError\n", returncode=2)
+        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(return_value=proc))
+        monkeypatch.setattr(module, "_kill_proc", AsyncMock())
+
+        async def communicate(process):
+            return process.output, process.error
+
+        monkeypatch.setattr(module, "_communicate_cron_command", communicate)
+
+        await mgr._fire_cron_command(
+            "cron-command-hub-idle-error",
+            "python monitor.py",
+            "HUB_IDLE",
+            "process matching HUB_IDLE output",
+            "w1",
+            "/s",
+        )
+
+        sent = session.send.await_args.args[0]
+        assert "HUB_IDLE_ERROR" in sent
+        assert "exit code 2" in sent
+
+
+@pytest.mark.asyncio
+async def test_managed_cron_process_inherits_db_path(monkeypatch):
+    import app.bg_jobs as module
+    from app.bg_jobs import BgJobManager
+
+    monkeypatch.setenv("ORCHESTRA_DB_PATH", "/synthetic/orchestra.sqlite")
+    proc = object()
+    spawn = AsyncMock(return_value=proc)
+    monkeypatch.setattr(module, "_spawn_bg_process", spawn)
+
+    managed = await BgJobManager()._spawn_managed_process(
+        "synthetic-cron", "true", shell=True,
+    )
+
+    assert managed is proc
+    assert spawn.await_args.kwargs["env"]["ORCHESTRA_DB_PATH"] == "/synthetic/orchestra.sqlite"
+
+    @pytest.mark.asyncio
     async def test_empty_output_never_wakes_even_if_regex_matches_empty(
         self, db, mgr_mock, monkeypatch,
     ):
