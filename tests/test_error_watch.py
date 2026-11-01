@@ -681,6 +681,185 @@ def test_http_failures_and_access_lines_with_traceback_stay_actionable():
     assert any("Traceback" in item["signature"] and "RuntimeError" in item["signature"] for item in candidates)
 
 
+_V1191_HTTP_ACCESS = 'INFO:     192.0.2.1:52000 - "GET /api/search?query=failed HTTP/1.1" 200 OK'
+_V1191_HTTP_SIGNATURE = 'INFO: <N>.<N>:<N> - "GET <PATH> HTTP/<N>" <N> OK'
+
+
+@pytest.fixture
+def v1191_journal_scan(hub_finish_db, monkeypatch):
+    # Exercise real journal JSON parsing, filtering, normalization and scan. Only
+    # the subprocess boundary is replaced; DB and state are synthetic local files.
+    rows = []
+    collect = watch.collect_journal_events
+    runner = Mock(side_effect=lambda *args, **kwargs: SimpleNamespace(
+        stdout="\n".join(json.dumps(row) for row in rows),
+    ))
+    monkeypatch.setattr(watch, "collect_journal_events", lambda since, scopes: collect(
+        since, scopes, runner=runner,
+    ))
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+    return hub_finish_db, rows, runner
+
+
+def _v1191_access_rows(message, started, count=10):
+    return [
+        {
+            "MESSAGE": message,
+            "__REALTIME_TIMESTAMP": str(int((started + timedelta(seconds=i + 1)).timestamp() * 1_000_000)),
+        }
+        for i in range(count)
+    ]
+
+
+@pytest.mark.parametrize("complete", [False, True])
+@pytest.mark.parametrize("already_reported", [False, True])
+def test_v1191_successful_access_scan_with_legacy_fix_state(
+    complete, already_reported, v1191_journal_scan, capsys, scan_reports,
+):
+    db_path, rows, runner = v1191_journal_scan
+    started = datetime.now(timezone.utc) - timedelta(hours=2 if complete else 1)
+    rows.extend(_v1191_access_rows(_V1191_HTTP_ACCESS, started))
+    assert watch.normalize_signature(_V1191_HTTP_ACCESS) == _V1191_HTTP_SIGNATURE
+    # A normalized signature has lost the HTTP status. It cannot by itself prove success.
+    assert watch.classify_noise(_V1191_HTTP_SIGNATURE) is None
+    fix = {
+        "task": "V-1174", "commit": "example", "started_at": started.isoformat(),
+        "window_hours": 1 if complete else 168,
+    }
+    if already_reported:
+        fix["recurrence_reported"] = True
+    state_path = db_path.parent / "error_watch.json"
+    legacy = {"alerts": {_V1191_HTTP_SIGNATURE: {"count": 12}}, "fixes": {_V1191_HTTP_SIGNATURE: fix}}
+    watch._write_state(state_path, legacy)
+    args = SimpleNamespace(db=str(db_path), window_hours=168, threshold=10, dry_run=True)
+    assert watch.scan(args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["signals"] == []
+    assert output["events_by_source"] == {"journalctl": 10, "logs": 0}
+    assert output["noise_by_class"] == {"successful HTTP access log": 10}
+    assert watch._load_state(state_path) == legacy
+
+    args.dry_run = False
+    assert watch.scan(args) == 0
+    output = capsys.readouterr().out
+    if complete:
+        signals, verdicts = scan_reports.call_args.args
+        assert signals == []
+        assert [(v["signature"], v["task"], v["count"], v["complete"]) for v in verdicts] == [
+            (_V1191_HTTP_SIGNATURE, "V-1174", 0, True),
+        ]
+        assert "не повторилась за окно 1 ч" in output
+    else:
+        assert not scan_reports.called
+        assert output.strip() == "No new error-watch findings"
+    state = watch._load_state(state_path)
+    assert state["fixes"] == {
+        _V1191_HTTP_SIGNATURE: {**fix, **({"completion_reported": True} if complete else {})},
+    }
+    # Reload the persisted flags, then lose the access records from the window.
+    # Neither case should re-alert, reset old flags or remove the fix metadata.
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert watch._load_state(state_path) == state
+    rows.clear()
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert watch._load_state(state_path)["fixes"] == state["fixes"]
+    assert scan_reports.call_count == int(complete)
+    assert runner.call_count == 4
+
+
+@pytest.mark.parametrize("source,message", [
+    ("logs", _V1191_HTTP_ACCESS),
+    ("logs", _V1191_HTTP_SIGNATURE),
+    # Even an inconsistent status/reason line must not be accepted from its
+    # normalized key: 500 OK and 200 OK produce exactly the same signature.
+    ("journalctl", _V1191_HTTP_ACCESS.replace("200 OK", "500 OK")),
+])
+def test_v1191_successful_access_does_not_hide_errors_with_identical_signature(
+    source, message, v1191_journal_scan, capsys, scan_reports,
+):
+    db_path, rows, _ = v1191_journal_scan
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    stamp = started + timedelta(seconds=1)
+    rows.extend(_v1191_access_rows(_V1191_HTTP_ACCESS, started))
+    assert watch.record_fix(SimpleNamespace(
+        db=str(db_path), signature=_V1191_HTTP_ACCESS, task="V-1174", commit="example",
+        started_at=started.isoformat(), window_hours=168,
+    )) == 0
+    capsys.readouterr()
+    args = SimpleNamespace(db=str(db_path), window_hours=168, threshold=10, dry_run=False)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert not scan_reports.called
+
+    # Same normalized key, but a failed HTTP status or explicitly flagged DB
+    # error must still count without counting the ten successful access records.
+    assert watch.normalize_signature(message) == _V1191_HTTP_SIGNATURE
+
+    def insert_errors(count):
+        if source == "journalctl":
+            rows.extend(_v1191_access_rows(message, started + timedelta(seconds=len(rows) + 1), count))
+        else:
+            _insert_error_rows(db_path, [("error", message, None, 1)] * count, stamp)
+
+    insert_errors(1)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert signals == []
+    assert [(v["signature"], v["count"]) for v in verdicts] == [(_V1191_HTTP_SIGNATURE, 1)]
+    state_path = db_path.parent / "error_watch.json"
+    assert watch._load_state(state_path)["fixes"][_V1191_HTTP_SIGNATURE]["recurrence_reported"] is True
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+
+    insert_errors(9)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert [(s["signature"], s["count"]) for s in signals] == [(_V1191_HTTP_SIGNATURE, 10)]
+    assert verdicts == []
+
+
+@pytest.mark.parametrize("message", [
+    _V1191_HTTP_ACCESS.replace("200 OK", "404 Not Found"),
+    _V1191_HTTP_ACCESS.replace("200 OK", "500 Internal Server Error"),
+    _V1191_HTTP_ACCESS + "\nTraceback (most recent call last):\nRuntimeError: downstream failed",
+    "ERROR: request failed while parsing " + _V1191_HTTP_ACCESS,
+    _V1191_HTTP_ACCESS + "; request refused: policy error: denied",
+    _V1191_HTTP_ACCESS.replace("INFO:", "ERROR:"),
+    "request refused: authentication failed",
+])
+def test_v1191_real_http_errors_and_refusals_scan_and_recur(
+    message, v1191_journal_scan, capsys, scan_reports,
+):
+    db_path, rows, _ = v1191_journal_scan
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    rows.extend(_v1191_access_rows(message, started))
+    assert watch.record_fix(SimpleNamespace(
+        db=str(db_path), signature=message, task="http-error-control", commit="example",
+        started_at=started.isoformat(), window_hours=168,
+    )) == 0
+    capsys.readouterr()
+    signature = watch.normalize_signature(message)
+    args = SimpleNamespace(db=str(db_path), window_hours=168, threshold=10, dry_run=False)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert [(s["signature"], s["count"]) for s in signals] == [(signature, 10)]
+    assert [(v["signature"], v["count"], v["complete"]) for v in verdicts] == [(signature, 10, False)]
+    state_path = db_path.parent / "error_watch.json"
+    state = watch._load_state(state_path)
+    assert state["alerts"][signature]["count"] == 10
+    assert state["fixes"][signature]["recurrence_reported"] is True
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+    assert watch._load_state(state_path) == state
+
+
 def test_journal_logger_and_root_handler_lines_count_as_one_event():
     stamp = "2026-09-27T12:00:00+00:00"
     events = [

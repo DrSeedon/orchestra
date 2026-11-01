@@ -29,9 +29,11 @@ _HUB_CREDENTIAL_REFUSAL = re.compile(
 )
 _HUB_UNFINISHED_TOOL_NOISE = "hub unfinished tool closure"
 _BASH_TERMINATED_NOISE = "bash child process termination"
-_EXPECTED_HUB_NOISE = {
+# Only these event classes are excluded from registered-fix observation. In
+# particular, HTTP success requires the raw journal record checked by _event_noise.
+_POST_FIX_EVENT_NOISE = {
     "hub provider limit", "hub credential guard refusal", "hub owned_dirs guard refusal",
-    _HUB_UNFINISHED_TOOL_NOISE,
+    _HUB_UNFINISHED_TOOL_NOISE, "successful HTTP access log",
 }
 # session.py emits only these reset labels and ISO times (or "неизвестно").
 # Accept <N> as well so classification survives numeric signature normalization.
@@ -354,7 +356,7 @@ def post_fix_verdict(events: list[dict], signature: str, started_at: datetime, w
     matches = [
         event for event in events
         if (event_signature := normalize_signature(event["message"])) == signature
-        and _event_noise(event, event_signature) not in _EXPECTED_HUB_NOISE
+        and _event_noise(event, event_signature) not in _POST_FIX_EVENT_NOISE
         and not _CODEX_QUOTA_REFUSAL.fullmatch(event_signature)
         and not _PROVIDER_CAPACITY_REFUSAL.fullmatch(event_signature)
         and not _MERGE_EXPECTED_HEAD_REFUSAL.fullmatch(event_signature)
