@@ -420,6 +420,40 @@ def test_normal_listener_end_is_noise_but_running_failure_is_actionable():
     assert noise == []
 
 
+def test_successful_http_access_lines_triggered_by_error_words_are_noise():
+    events = [
+        _event(
+            f'INFO:     127.0.0.1:{52000 + i} - "GET /api/logs/search?query=failed-{i} '
+            'HTTP/1.1" 200 OK',
+            i,
+        )
+        for i in range(12)
+    ]
+
+    candidates, noise = watch.aggregate(events, datetime.now(timezone.utc), threshold=10)
+
+    assert candidates == []
+    assert [(item["count"], item["noise"]) for item in noise] == [(12, "successful HTTP access log")]
+
+
+def test_http_failures_and_access_lines_with_traceback_stay_actionable():
+    messages = [
+        'INFO:     127.0.0.1:52000 - "GET /api/logs/search?query=failed HTTP/1.1" 404 Not Found',
+        'INFO:     127.0.0.1:52001 - "GET /api/logs/search?query=failed HTTP/1.1" 500 Internal Server Error',
+        'INFO:     127.0.0.1:52002 - "GET /api/logs/search?query=failed HTTP/1.1" 200 OK\n'
+        'Traceback (most recent call last):\nRuntimeError: downstream request failed',
+    ]
+    events = [_event(message, i) for i, message in enumerate(messages)]
+
+    candidates, noise = watch.aggregate(events, datetime.now(timezone.utc), threshold=1)
+
+    assert len(candidates) == 3
+    assert noise == []
+    assert any("Not Found" in item["signature"] for item in candidates)
+    assert any("Internal Server Error" in item["signature"] for item in candidates)
+    assert any("Traceback" in item["signature"] and "RuntimeError" in item["signature"] for item in candidates)
+
+
 def test_journal_logger_and_root_handler_lines_count_as_one_event():
     stamp = "2026-09-27T12:00:00+00:00"
     events = [

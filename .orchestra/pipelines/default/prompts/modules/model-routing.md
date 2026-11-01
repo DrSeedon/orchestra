@@ -9,6 +9,14 @@ on old subscription-pool or Plus-versus-Pro ratios. The reason is to keep local
 orchestration separate from worker capacity and use hub Claude for creative quality.
 Routing policy belongs here, not in personal memory or project AGENTS files.
 
+**Owner decision, 2026-10-31:** our native orchestrator roles default to GPT-6.1 Terra
+with explicit `high` reasoning, to use the owner's chosen model for orchestration.
+The pipeline manifest owns the exact model and effort; an explicit manual model choice
+still takes precedence. This default does not migrate existing sessions or grant native
+Terra worker admission. Apply a manifest containing a new model only after that host's
+running Python registry recognizes it; an offline host must activate the registry with
+the old manifest before receiving the new default.
+
 ### Choose a hub model
 
 - Use `hubsol` as the general worker default, regardless of local quota headroom.
@@ -52,7 +60,7 @@ user and decides instead of repeating collection loops. The reason is to keep or
 capacity for clarification and acceptance without moving protected data off the machine.
 - Pass `model="luna"` and a non-empty `model_reason` naming the protection constraint that
   rules out the hub. The tool refuses without it; safe work still goes to the hub.
-- This admits Luna only. It does not admit native Sol, Astra, Claude, Spark, Grok, Harness
+- This admits Luna only. It does not admit native Terra, Sol, Astra, Claude, Spark, Grok, Harness
   or API-credit work, and it is never an automatic fallback when the hub is unavailable or
   its quota is held; those cases are a blocker or a wait, not a reason to use Luna.
 - Catalog flags, quota admission, role and ownership rules, and runtime readiness apply as
@@ -64,10 +72,11 @@ capacity for clarification and acceptance without moving protected data off the 
   another; do not mass-spawn, retask or kill.
 
 Preserve existing idle native threads and worktrees. Do not delete, migrate, upload,
-or restart them merely to apply this routing decision. The owner selects the local
-Codex orchestrator manually; agent tools do not gain permission to start auxiliary
-native Astra, Sol, Claude, Spark, Grok or Harness workers. Manual model selection and persisted-session recovery keep
-their existing boundaries.
+or restart them merely to apply this routing decision. The default native orchestrator
+model follows the pipeline; the owner may select another model manually. Agent tools do
+not gain permission to start auxiliary native Terra, Astra, Sol, Claude, Spark, Grok or
+Harness workers. Manual model selection and persisted-session recovery keep their existing
+boundaries.
 
 ### Explicit API-credit tasks and workflows
 
