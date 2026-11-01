@@ -6,6 +6,8 @@
 
 ## Unreleased
 
+- **Codex reset waits until 99% weekly usage** (V-1183; `scripts/codex_reset.py`). The active reset policy now redeems at weekly usage >=99%; the existing under-nine-minute expiry trigger, available-credit ordering, idempotency key and five-minute schedule stay unchanged. Offline fake-RPC checks cover 95/98/99/100 and expiry with no real Codex process or consume. The active job runs `~/.cache/canary-scripts/codex_reset.py`, a separate copy; activation is pending merge and uses an atomic same-directory replacement.
+
 - **Successful HTTP access lines are classified as noise by error-watch** (V-1174; `app/error_watch.py`). The journal's broad error-word filter also matches successful GET logs when the URL query contains `failed`, `error` or `traceback`; only a complete standalone 2xx `OK` access line is suppressed. 4xx/5xx records and lines carrying traceback context remain actionable.
 
 - **Native orchestrator roles default to GPT-6.1 Terra High** (V-1156, manifest stage; `pipeline.yaml`, `model-routing.md`). The owner's explicit Terra High choice now resolves for both orchestrator roles and reaches the existing API/UI default-selection path. Explicit manual choices, ordinary hub-worker routing, native manual-only admission and the protected local Luna exception remain intact. This manifest requires Terra in the receiving host's running Python registry; an offline host must bootstrap that registry with the old manifest first. The source change does not migrate stored/live sessions or perform a restart.

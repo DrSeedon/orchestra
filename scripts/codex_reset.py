@@ -16,6 +16,7 @@ import time
 from typing import Any, Callable
 
 WEEK_MINUTES = 7 * 24 * 60
+WEEKLY_RESET_THRESHOLD = 99
 EXPIRY_SECONDS = 9 * 60
 CONSUME_METHOD = "account/rateLimitResetCredit/consume"
 
@@ -81,7 +82,7 @@ def reset(rpc: Any, *, now: Callable = time.time, emit: Callable = print) -> Non
     used, resets = week(before)
     emit(f"week_before {used} {resets}")
     credit = available[0]
-    if not (used >= 95 or credit["expiresAt"] - now() < EXPIRY_SECONDS):
+    if not (used >= WEEKLY_RESET_THRESHOLD or credit["expiresAt"] - now() < EXPIRY_SECONDS):
         emit("no action")
         return
     redeemed = rpc.request(CONSUME_METHOD, {
