@@ -6,7 +6,7 @@
 
 ## Unreleased
 
-- **Codex reset waits until 99% weekly usage** (V-1183; `scripts/codex_reset.py`). The active reset policy now redeems at weekly usage >=99%; the existing under-nine-minute expiry trigger, available-credit ordering, idempotency key and five-minute schedule stay unchanged. Offline fake-RPC checks cover 95/98/99/100 and expiry with no real Codex process or consume. The active job runs `~/.cache/canary-scripts/codex_reset.py`, a separate copy; activation is pending merge and uses an atomic same-directory replacement.
+- **Codex reset waits until 99% weekly usage** (V-1183; `scripts/codex_reset.py`). The active reset policy now redeems at weekly usage >=99%; the existing under-nine-minute expiry trigger, available-credit ordering, idempotency key and five-minute schedule stay unchanged. Offline fake-RPC checks cover 95/98/99/100 and expiry with no real Codex process or consume. After merge, the active job's separate `~/.cache/canary-scripts/codex_reset.py` copy was atomically replaced and hash-verified; its `*/5 * * * *` schedule was unchanged.
 
 - **Successful HTTP access lines are classified as noise by error-watch** (V-1174; `app/error_watch.py`). The journal's broad error-word filter also matches successful GET logs when the URL query contains `failed`, `error` or `traceback`; only a complete standalone 2xx `OK` access line is suppressed. 4xx/5xx records and lines carrying traceback context remain actionable.
 

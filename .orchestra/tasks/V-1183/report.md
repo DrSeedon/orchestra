@@ -53,8 +53,14 @@ PY
 sha256sum /home/kesha/orchestra/scripts/codex_reset.py /home/kesha/.cache/canary-scripts/codex_reset.py
 ```
 
-Require identical post-copy hashes, then confirm the live file contains `WEEKLY_RESET_THRESHOLD = 99`. The copy operation does not run Codex or consume a credit. Activation remains outstanding until the parent performs it after merge.
+Require identical post-copy hashes, then confirm the live file contains `WEEKLY_RESET_THRESHOLD = 99`. The copy operation does not run Codex or consume a credit.
+
+## Activation result — 2026-11-01 07:38 UTC
+
+After merge, verified `/home/kesha/orchestra` was clean `main` at `aceae9016c8585972eeae0eb24459848cb6126a5`. Its source hash was `d0edd16f0b0e3dd2ff2dc8d29517b909a8c81bd291b08aa2f2df50a5f0e3e200`. Before replacement, the live file was owned by `kesha:kesha`, mode `0644`, and had the expected old hash `9cb70a774a8205945f0a3ae71c8ed82ca7a10ba36f431c9f48591e38d82f70c0`. The atomic same-directory replacement succeeded. Afterwards, the source and live-copy hashes both equal `d0edd16f0b0e3dd2ff2dc8d29517b909a8c81bd291b08aa2f2df50a5f0e3e200`; the live file remains `kesha:kesha`, mode `0644`, and contains `WEEKLY_RESET_THRESHOLD = 99` and `used >= WEEKLY_RESET_THRESHOLD`.
+
+Read-only job listing after activation still showed `bg-7d176f2fd9` active at `*/5 * * * *` UTC, with the same command path `/home/kesha/.cache/canary-scripts/codex_reset.py`. No job or schedule was changed. The script was not run: no consume, inference, account read, or credit spend occurred. Orchestra was not restarted.
 
 ## Limitations
 
-The tests establish policy behavior through the script's fake RPC, not against Codex app-server or a real account. The live copy remains at the old threshold until the post-merge atomic replacement is run. No inference or credit consumption was performed.
+The tests establish policy behavior through the script's fake RPC, not against Codex app-server or a real account. Activation confirms file contents and job command configuration; no live RPC was used to test the new threshold. No inference or credit consumption was performed.
