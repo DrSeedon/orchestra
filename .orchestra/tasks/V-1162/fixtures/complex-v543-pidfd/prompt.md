@@ -1,0 +1,3 @@
+# Task C2 — close owned process descriptors on every exit path
+
+Update only `src/process_manager.py`. `run_child(argv, timeout, cancel_event=None)` starts one child process and returns its PID, exit status, and whether timeout/cancellation ended the run. The manager opens an OS pidfd to observe that child. Make sure the child is always terminated/reaped when timeout or cancellation occurs and every pidfd opened by the manager is closed on normal, timeout, and cancellation paths. Do not change the caller API. The fixture is a small Linux process-lifecycle reproduction, not a copy of the historical service tree.

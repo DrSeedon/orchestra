@@ -1,0 +1,198 @@
+{
+  "activation_dependency": "Stage A is merged; live compiled registry activation and one-shot admission grant are still required before any model call.",
+  "dispatch_blocker": "owner grant, live registry activation, and a hard generated-token cap/overshoot boundary are still required",
+  "dispatch_ready": false,
+  "fixture_controls": [
+    {
+      "actual": "RED",
+      "control": "base-red",
+      "expected": "RED",
+      "fixture": "simple-199-t3",
+      "outcome": "PASS",
+      "returncode": 1
+    },
+    {
+      "actual": "GREEN",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "fixture": "simple-199-t3",
+      "outcome": "PASS",
+      "returncode": 0
+    },
+    {
+      "actual": "RED",
+      "control": "base-red",
+      "expected": "RED",
+      "fixture": "simple-201-accounting",
+      "outcome": "PASS",
+      "returncode": 1
+    },
+    {
+      "actual": "GREEN",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "fixture": "simple-201-accounting",
+      "outcome": "PASS",
+      "returncode": 0
+    },
+    {
+      "actual": "RED",
+      "control": "base-red",
+      "expected": "RED",
+      "fixture": "complex-v620-binding",
+      "outcome": "PASS",
+      "returncode": 1
+    },
+    {
+      "actual": "GREEN",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "fixture": "complex-v620-binding",
+      "outcome": "PASS",
+      "returncode": 0
+    },
+    {
+      "actual": "RED",
+      "control": "base-red",
+      "expected": "RED",
+      "fixture": "complex-v543-pidfd",
+      "outcome": "PASS",
+      "returncode": 1
+    },
+    {
+      "actual": "GREEN",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "fixture": "complex-v543-pidfd",
+      "outcome": "PASS",
+      "returncode": 0
+    }
+  ],
+  "fixture_kind": "synthetic sanitized reproductions; no Git history or prior model output in model inputs",
+  "grant": {
+    "allowed_models_efforts": [
+      {
+        "effort": "low",
+        "id": "terra-low",
+        "model": "gpt-6.1-terra"
+      },
+      {
+        "effort": "medium",
+        "id": "terra-medium",
+        "model": "gpt-6.1-terra"
+      },
+      {
+        "effort": "high",
+        "id": "terra-high",
+        "model": "gpt-6.1-terra"
+      },
+      {
+        "effort": "xhigh",
+        "id": "terra-xhigh",
+        "model": "gpt-6.1-terra"
+      },
+      {
+        "effort": "max",
+        "id": "terra-max",
+        "model": "gpt-6.1-terra"
+      },
+      {
+        "effort": "high",
+        "id": "sol-high",
+        "model": "gpt-6.1-sol"
+      },
+      {
+        "effort": "high",
+        "id": "luna-high",
+        "model": "gpt-6-luna"
+      }
+    ],
+    "api_credit_fallback": false,
+    "billing": "subscription",
+    "counting_note": "56 counts task invocations; internal provider turns are separately metered.",
+    "max_concurrency": 1,
+    "max_generated_output_plus_reasoning_tokens": 500000,
+    "max_task_invocations": 56,
+    "max_wall_seconds": 5400,
+    "retry_policy": "none",
+    "task_id": "V-1162"
+  },
+  "history_versions": {
+    "complex-v543-pidfd": "Opus 5.5/Sonnet 5.5, low/medium/high/max; historical reports V-661/V-667/V-670",
+    "complex-v620-binding": "GPT-5.6/GPT-6 and Opus 5.5, high; historical N=1",
+    "simple-199-t3": "GPT-5.6 Luna/Terra/Sol, medium; historical N=1",
+    "simple-201-accounting": "GPT-5.6 Luna/Sol, high; historical N=1; synthetic prices here"
+  },
+  "manifest_sha256": "64ac99c3f6ea62dbf6dfd72cddc0cddc15348b037ada6c73a702e01286ea7b3f",
+  "random_seed": 1162,
+  "randomization": "shuffle eight (fixture,repeat) blocks; independently shuffle seven conditions within each block",
+  "root_artifact_hashes": {
+    "fixtures/README.md": "331a4db88c862253db2e8ab0f5fc1de876594dc2224bea9cbed4f6f9582b98e8",
+    "fixtures/build_manifest.py": "cd6597e43e3923bf8901ba90db1809f091a8ac738a1b8782a9727b07ae6450c9",
+    "fixtures/control-summary.json": "84c48ab7315b5b9886ec5c885637ed94cc2eca44134a84eeb0ea0b78e71bffd1",
+    "fixtures/model-configs.json": "54f638c5f44148e67d63ae0583a60f7d103ca9786cf008714bf18f8fffe053d5",
+    "fixtures/primary-metrics.json": "2b25469f27d86c463d7d2321ca2aee57d58a0ff922c9bc1ca7774bee22448e61",
+    "fixtures/run-order.csv": "58cf8901e6974cd292feb8ab5349f068e15070ce9d1a25e0923901778320956b"
+  },
+  "run_order_sha256": "58cf8901e6974cd292feb8ab5349f068e15070ce9d1a25e0923901778320956b",
+  "task_id": "V-1162",
+  "tasks": [
+    {
+      "complexity": "simple",
+      "hidden_validator_reference_files": {
+        "fixtures/simple-199-t3/oracle/validate.py": "cd820f2576dd9e8445d88b2b7a8a536814a05a8892961698fce4edc07fef167f",
+        "fixtures/simple-199-t3/reference/error_text.py": "92c605ade76d5d3ffec38c4186447d0244508e986ae5c0b5333ed7971ae513c6"
+      },
+      "historical_origin": "#199 T3, GPT-5.6 Luna/Terra/Sol, medium, N=1/model",
+      "id": "simple-199-t3",
+      "model_input_files": {
+        "fixtures/simple-199-t3/prompt.md": "94b09956cb6b7bf33fecb9b583b9b07d0e079db08b17e872e3191ba29d2f8af6",
+        "fixtures/simple-199-t3/seed/src/error_text.py": "17bdf6b716c1c2760e81aa41bf100e65a90d5ef3eadcc3c488b401cce70df9e0"
+      },
+      "validator_semantics": "nested explicit __cause__ chain is included in order; plain output preserved; implicit context excluded"
+    },
+    {
+      "complexity": "simple",
+      "hidden_validator_reference_files": {
+        "fixtures/simple-201-accounting/oracle/validate.py": "cb061752e557f0b546d7feda22e7115c89d993c0fcf04bbf9b04fb3c22191b2f",
+        "fixtures/simple-201-accounting/reference/accounting.py": "f0153920d82a4697ec16b0ffc5f53fc025441469ecedf58dd6f41e37d79dcd7f"
+      },
+      "historical_origin": "#201 paired GPT-5.6 Luna/Sol arms, high, N=1/model; fixture uses synthetic rates",
+      "id": "simple-201-accounting",
+      "model_input_files": {
+        "fixtures/simple-201-accounting/prompt.md": "ff7c7f754003ab30c45f3e1c6ad365ba2ac5196543f3b59093ebfe1cdba3d3a2",
+        "fixtures/simple-201-accounting/seed/src/accounting.py": "4453a4c386b33e9f6050dd3bb04e5ed6f263b73d8ca2002ced6776a5667a95bd"
+      },
+      "validator_semantics": "fresh/cached/write/output channels count once; unpriced fixture model fails visibly"
+    },
+    {
+      "complexity": "complex",
+      "hidden_validator_reference_files": {
+        "fixtures/complex-v620-binding/oracle/validate.py": "109ba4dca37c30a86cf5811a5b52e8d584f8b0e4e862749785bc544c1cbf6e6d",
+        "fixtures/complex-v620-binding/reference/task_binding.py": "0d4491204d8c8aa54d16c5bfb778a78622a6dc59f2c1d27dba0e7abb9e7a7dff"
+      },
+      "historical_origin": "V-620 lifecycle task, GPT-5.6/GPT-6 arms at high, N=1/model; synthetic state + temporary Git",
+      "id": "complex-v620-binding",
+      "model_input_files": {
+        "fixtures/complex-v620-binding/prompt.md": "b66fbf49a2b41264d4b568a90ea1d61e4baf16b61e01ce726b5aaa9d1c9e2d7e",
+        "fixtures/complex-v620-binding/seed/src/task_binding.py": "a7b036e3cf433c5b3bf9391ca2814eeb6ace67949b428dc1835272ff1eb119ff"
+      },
+      "validator_semantics": "clean release/complete, required note, dirty/unmerged fail-closed, atomic rollback, other-worker preservation, ordinary Git complete"
+    },
+    {
+      "complexity": "complex",
+      "hidden_validator_reference_files": {
+        "fixtures/complex-v543-pidfd/oracle/validate.py": "21037168c2a6ce03e977487efaf7df7ee8932b3179fd15e006b4bc6157fcf610",
+        "fixtures/complex-v543-pidfd/reference/process_manager.py": "545dfe59061df78432ead55175484d0ba794b4b08353e2e74f97b9f9953ba23e"
+      },
+      "historical_origin": "V-543 descriptor ownership/cancel paths; reduced synthetic real-pidfd lifecycle fixture",
+      "id": "complex-v543-pidfd",
+      "model_input_files": {
+        "fixtures/complex-v543-pidfd/prompt.md": "4959cbb1af9aa43959cdb34085d5b36876a1a5e27a8295f1ca5bebdc4d1d7bd1",
+        "fixtures/complex-v543-pidfd/seed/src/process_manager.py": "f1508bd5fd329d5b315e2ca990e3c39259c21d4637409bb355831f3cd3f3ebe7"
+      },
+      "validator_semantics": "normal/timeout/cancel runs reap children and return open pidfd count to baseline"
+    }
+  ],
+  "version": 1
+}
