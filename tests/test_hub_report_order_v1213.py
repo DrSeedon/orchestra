@@ -221,7 +221,7 @@ async def test_cancellation_drains_commit_and_reports_interrupted(repo, tmp_path
 @pytest.mark.asyncio
 async def test_invalid_entry_cannot_trap_recovery_or_hide_valid_report(repo, tmp_path, monkeypatch):
     backend, ssh, mc, parent = worker(repo, tmp_path, monkeypatch, [
-        {'tool': 'send_message', 'args': {'message': ''}},
+        {'tool': 'update_progress', 'args': {'percent': 'invalid'}},
         {'tool': 'send_message', 'args': {'message': 'DONE'}},
     ])
     events = await _turn(backend, 'go')

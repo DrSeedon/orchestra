@@ -1568,14 +1568,15 @@ async def test_hub_outbox_runs_allowed_tools_once_and_never_reaches_the_worktree
 
 
 @pytest.mark.asyncio
-async def test_hub_outbox_without_a_link_to_orchestra_is_dropped_and_logged(repo, tmp_path, monkeypatch, caplog):
+async def test_hub_outbox_without_a_link_retains_undelivered_report(repo, tmp_path, monkeypatch):
     backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch,
                                        [{"tool": "send_message", "args": {"message": "hi"}}], _Calls())
     backend._bridge = None
-    with caplog.at_level("WARNING"):
-        events = await _turn(backend, "go")
-    assert "dropped" in events[-2].content and "no Orchestra link" in events[-2].content
-    assert any("no Orchestra link" in r.message for r in caplog.records)
+    events = await _turn(backend, "go")
+    assert events[-1].metadata["ok"] is False
+    assert "no Orchestra link" in "\n".join(e.content for e in events)
+    entries = hw.WorkspaceState.load(backend.session_id).pending_sync["entries"]
+    assert entries[0]["tool"] == "send_message" and entries[0]["_delivery_id"]
     assert not (repo / ob.OUTBOX_NAME).exists()
 
 

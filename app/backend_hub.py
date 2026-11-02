@@ -1053,27 +1053,26 @@ class HubBackend:
                 # Failure keeps the journal and prevents a new upload/provider turn.
                 await ssh.delete_files(state.remote_dir, [OUTBOX_NAME])
             if pending["entries"] and self._bridge is None:
-                pending["dropped"].append(f"{len(pending['entries'])} entries: this worker has no Orchestra link")
-                pending["entries"] = []
-                state.save()
+                raise hw.HubWorkspaceError("hub outbox delivery pending: this worker has no Orchestra link")
             while pending["entries"]:
                 entry = pending["entries"][0]
-                planned = _request_for(entry["tool"], entry["args"], self._bridge.identity())
-                if isinstance(planned, str):
-                    pending["dropped"].append(planned)
-                    pending["entries"].pop(0)
-                    state.save()
-                    continue
                 sent = {**entry, "args": dict(entry["args"])}
                 if entry["tool"] == "send_message":
+                    # Check the original message before context makes even an
+                    # empty/invalid report look deliverable. Keep it for repair.
+                    planned = _request_for(entry["tool"], entry["args"], self._bridge.identity())
+                    if isinstance(planned, str):
+                        raise hw.HubWorkspaceError("hub outbox delivery pending: " + planned)
                     sent["args"]["message"] = context + "\n\nWorker report:\n" + str(entry["args"].get("message", ""))
                 ran = await self._bridge.run(
                     [sent], mark_reported=not self._recovering_sync or bool(self._sync_failure))
-                if ran.dropped:
+                if ran.dropped and (entry["tool"] not in {"update_checklist", "update_progress"}
+                                    or ran.dropped != ran.rejected):
                     # A lost response may already have accepted the report. Retry
                     # its saved delivery_id through the existing durable API owner.
                     raise hw.HubWorkspaceError("hub outbox delivery pending: " + "; ".join(ran.dropped))
                 pending["done"].extend(ran.done)
+                pending["dropped"].extend(ran.dropped)
                 pending["entries"].pop(0)
                 state.save()
             report = OutboxReport(done=pending["done"], dropped=pending["dropped"])
