@@ -36,23 +36,3 @@ rules:
   reason: The owner explicitly paused Claude updates after the subscription-refused update canary and
     reaffirmed continuing Codex updates. No expiry is assumed; the pause remains until his next explicit
     decision.
-- id: rule-63a4418ddd
-  project: '*'
-  mode: permanent
-  targets:
-  - all
-  author: Orchestra-orchestrator
-  created_at: '2026-11-02T17:28:22.108842+00:00'
-  text: 'Owner decision, 2026-11-03 00:27 KRS (2026-11-02 UTC): every Hub worker in every Orchestra project
-    must use hubsol (GPT-6.1 Sol), including creative work, research and existing workers. Hub Opus is
-    forbidden; Hub Sonnet/Haiku and all other Hub model routes are also forbidden. This supersedes prior
-    creative-work permissions and ordinary Hub Claude routing. Do not start or resume a non-Sol Hub turn.
-    Interrupt active non-Sol Hub workers reversibly and preserve sessions, worktrees, journals, archives
-    and pending-delivery IDs; migrate only idle workers through the normal history-preserving change_worker_model
-    route. A privacy hold, ambiguous provider outcome or unavailable Sol capacity is a blocker, never
-    permission to clear guards, reset history, replay a turn, spawn an escape worker or fall back to Claude/native/API.
-    Orchestrator models and the protected-local Luna exception are unchanged. Report concrete migration
-    blockers to Orchestra-orchestrator; do not send acknowledgement-only replies.'
-  reason: 'The owner urgently reported that our Claude usage is exhausting a shared company pool and explicitly
-    ordered: ''вся оркестра хаб воруерв только на сол 6.1 ... Опус нельзя''. Apply immediately across
-    all projects while usage attribution and permanent enforcement are prepared.'
