@@ -95,7 +95,7 @@ def parse_outbox(data: bytes) -> tuple[list[dict], list[str]]:
     return entries, dropped
 
 
-def _request_for(tool: str, args: dict, who: Identity) -> tuple[str, str, dict] | str:
+def _request_for(tool: str, args: dict, who: Identity, *, delivery_id: str = "") -> tuple[str, str, dict] | str:
     """(method, path, body) for an allowed tool, or the reason it cannot run."""
     if tool == "send_message":
         if not who.parent_name:
@@ -106,7 +106,7 @@ def _request_for(tool: str, args: dict, who: Identity) -> tuple[str, str, dict] 
         # `to` is never read: a hub worker may talk to its own parent only.
         return ("POST", f"/api/sessions/{quote(who.parent_name, safe='')}/send", {
             "message": message[:MAX_MESSAGE_CHARS], "sender": who.name, "scope": who.scope,
-            "delivery_id": str(uuid.uuid4())})
+            "delivery_id": delivery_id or str(uuid.uuid4())})
     if tool == "update_progress":
         percent = args.get("percent")
         if isinstance(percent, bool) or not isinstance(percent, (int, float)):
@@ -128,7 +128,8 @@ async def execute(entries: list[dict], who: Identity, call: ApiCall) -> OutboxRe
     report = OutboxReport()
     for entry in entries:
         tool = entry["tool"]
-        planned = _request_for(tool, entry["args"], who)
+        # Only the broker can attach this field: parse_outbox strips unknown keys.
+        planned = _request_for(tool, entry["args"], who, delivery_id=entry.get("_delivery_id", ""))
         if isinstance(planned, str):
             report.dropped.append(planned)
             continue
@@ -188,7 +189,7 @@ class HubBridge:
     def identity(self) -> Identity:
         return self._identity()
 
-    async def run(self, entries: list[dict]) -> OutboxReport:
+    async def run(self, entries: list[dict], *, mark_reported: bool = True) -> OutboxReport:
         who = self._identity()
 
         async def call(method: str, path: str, body: dict) -> object:
@@ -198,6 +199,7 @@ class HubBridge:
                 result = await local_api_call(who, method, path, body)
             if (
                 self._on_parent_report is not None
+                and mark_reported
                 and method == "POST"
                 and path == f"/api/sessions/{quote(who.parent_name, safe='')}/send"
                 and report_receipt_accepted(result)

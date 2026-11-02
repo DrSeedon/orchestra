@@ -551,7 +551,7 @@ async def test_hub_created_virtualenv_is_rejected_and_sibling_is_synced(repo, tm
 
     backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
     events = await _turn(backend, "go")
-    assert events[-1].metadata["ok"] is True
+    assert events[-1].metadata["ok"] is False
     assert not (repo / ".venv-v281").exists()
     assert (repo / "sibling.py").read_text() == "keep = True\n"
     assert "sibling.py" in _git(repo, "show", "--format=", "--name-only", "HEAD")
@@ -634,8 +634,13 @@ async def test_release_removes_hub_project_directory_and_state(repo, tmp_path, m
     await _turn(backend, "noop")
     state = backend._state
     assert state.path().exists() and Path(state.remote_dir).exists()
+    retained = state.path().with_suffix(".sync.tar")
+    interrupted_copy = state.path().with_suffix(".sync.tmp")
+    retained.write_bytes(b"synthetic retained return")
+    interrupted_copy.write_bytes(b"synthetic interrupted copy")
     await hw.release_workspace(state, ssh, mc)
     assert not Path(state.remote_dir).exists() and not state.path().exists()
+    assert not retained.exists() and not interrupted_copy.exists()
     assert ("t3_project_delete", {"projectId": "proj-1", "force": True}) in mc.calls
 
 
@@ -1629,8 +1634,10 @@ async def test_nested_outbox_is_reported_and_never_executed_or_committed(repo, t
     call = _Calls()
     backend._bridge = ob.HubBridge(lambda: _who("boss"), call)
     events = await _turn(backend, "go")
-    assert f"rejected: {rel} (broker outbox file)" in events[-2].content
-    assert "[hub outbox] 1 delivered" in events[-2].content
+    text = next(e.content for e in events if e.type == "text" and "[hub sync]" in e.content)
+    assert events[-1].metadata["ok"] is False
+    assert f"rejected: {rel} (broker outbox file)" in text
+    assert "[hub outbox] 1 delivered" in text
     assert len(call.calls) == 1 and call.calls[0][2]["percent"] == 60
     assert not (repo / rel).exists() and rel not in _git(repo, "ls-files")
     assert rel not in backend._state.manifest

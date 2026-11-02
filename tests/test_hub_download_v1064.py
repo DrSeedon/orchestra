@@ -107,7 +107,7 @@ async def test_large_return_imports_valid_outputs_and_retains_independent_import
         assert "results/large.mp4 (exceeds the size limit)" in message
         assert "transport limit" not in message
         assert remote.name in message and "return archive" in message
-        assert (scratch / "out.tar").stat().st_size > 131072
+        assert not state.path().with_suffix(".sync.tar").exists()
         assert state.turns == hw.WorkspaceState.load(state.ws_id).turns == attempt + 1
         assert (repo / "calc.py").read_bytes() == b"fixed\n"
         assert not (repo / "results").exists()

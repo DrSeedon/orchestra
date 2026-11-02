@@ -1172,6 +1172,7 @@ class WorkspaceState:
     # authorization lives only here, so restart and retry need no setting and cannot reach their ancestry.
     clean_start: bool = False
     clean_start_of: list[str] = field(default_factory=list)
+    pending_sync: dict = field(default_factory=dict)
 
     def assert_file_policy(self) -> None:
         if self.file_policy_blocked:
@@ -1526,6 +1527,8 @@ async def release_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mc
     if errors:
         raise HubWorkspaceError("hub cleanup incomplete: " + "; ".join(errors))
     state.path().unlink(missing_ok=True)
+    state.path().with_suffix(".sync.tar").unlink(missing_ok=True)
+    state.path().with_suffix(".sync.tmp").unlink(missing_ok=True)
 
 
 def local_scratch() -> Path:
