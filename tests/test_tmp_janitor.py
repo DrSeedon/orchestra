@@ -135,12 +135,23 @@ def test_git_repository_or_worktree_goes_to_the_owner(root):
     assert "нужно решение владельца: 2 шт." in lines[0]
 
 
+def _bind(directory: Path, name: str) -> socket.socket:
+    """Bind by a relative name: CI tmp paths exceed the 108-byte AF_UNIX limit."""
+    server = socket.socket(socket.AF_UNIX)
+    here = os.getcwd()
+    os.chdir(directory)
+    try:
+        server.bind(name)
+    finally:
+        os.chdir(here)
+    return server
+
+
 def test_keep_marker_socket_symlink_and_system_names_are_kept(root):
     marked = _tree(root, "marked")
     (marked / janitor.KEEP_MARKER).write_text("")
     sock_dir = _tree(root, "with-socket")
-    server = socket.socket(socket.AF_UNIX)
-    server.bind(str(sock_dir / "s"))
+    server = _bind(sock_dir, "s")
     target = _tree(root / "elsewhere", "target")
     (root / "link").symlink_to(target)
     system = _tree(root, "systemd-private-abc")
@@ -281,8 +292,7 @@ def test_relative_argument_from_a_parent_cwd_is_a_holder(root):
 
 def test_dead_socket_is_a_file_only_with_the_owner_switch(root):
     tree = _tree(root, "pytest-scratch")
-    server = socket.socket(socket.AF_UNIX)
-    server.bind(str(tree / "notify-ready.sock"))
+    server = _bind(tree, f"dead-{os.getpid()}.sock")
     server.close()  # nobody listens any more, the file stays
     args = _args(root, apply=True)
     report = janitor.run(args, now=_later(), refs_source=_no_refs)
@@ -294,8 +304,7 @@ def test_dead_socket_is_a_file_only_with_the_owner_switch(root):
 
 def test_live_socket_keeps_the_tree_even_with_the_owner_switch(root):
     tree = _tree(root, "service")
-    server = socket.socket(socket.AF_UNIX)
-    server.bind(str(tree / "live.sock"))
+    server = _bind(tree, "live.sock")
     server.listen()
     try:
         args = _args(root, apply=True)
@@ -365,3 +374,14 @@ def test_owner_items_are_announced_once_a_week(tmp_path):
     report["owner"] = [{"path": "/tmp/a", "bytes": 1, "newest": 0, "reason": "git"}]
     assert janitor.remember_owner(report, state, now=1000 + 9 * DAY) == 1  # forgotten once gone
     assert janitor.remember_owner(report, None, now=0) is None
+
+
+def test_unreadable_socket_table_keeps_every_socket_tree(root):
+    tree = _tree(root, "unknown")
+    server = _bind(tree, f"gone-{os.getpid()}.sock")
+    server.close()
+    host = janitor.Host(set(), set(), unknown_sockets=True)
+    args = _args(root, apply=True)
+    args.dead_sockets = True
+    report = janitor.run(args, now=_later(), refs_source=_no_refs, host=host)
+    assert tree.exists() and report["deleted"] == []
