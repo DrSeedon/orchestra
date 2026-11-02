@@ -3,6 +3,7 @@ from itertools import permutations
 import json
 from pathlib import Path
 import sqlite3
+import subprocess
 import traceback
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -1551,3 +1552,44 @@ def test_hub_finish_post_fix_observation_completes_without_false_recurrence():
     result = watch.post_fix_verdict([event], "(not finished)", started, 1)
     assert result["count"] == 0
     assert result["complete"] is True
+
+
+@pytest.mark.parametrize("failure", [
+    subprocess.TimeoutExpired(["journalctl"], 45),
+    OSError(28, "No space left on device"),
+])
+def test_ops_scan_failure_wakes_the_orchestrator_instead_of_staying_silent(
+    failure, tmp_path, monkeypatch, capsys,
+):
+    def broken(*_args):
+        raise failure
+
+    monkeypatch.setattr(watch, "collect_db_events", lambda *_: [])
+    monkeypatch.setattr(watch, "collect_journal_events", broken)
+    assert watch.main(["scan", "--db", str(tmp_path / "synthetic.db")]) == 1
+    captured = capsys.readouterr()
+    # bg_jobs matches the pattern against stdout + stderr and sends the last 3000 chars:
+    # the wake line must be the very last line, after the traceback.
+    assert captured.err.rstrip().splitlines()[-1].startswith(
+        f"ERROR-WATCH: scan failed, recurring errors were not checked: {type(failure).__name__}"
+    )
+    assert "Traceback" in captured.err
+
+
+def test_ops_successful_scan_and_record_fix_are_unchanged(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(watch, "collect_db_events", lambda *_: [])
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    assert watch.main(["scan", "--db", str(tmp_path / "synthetic.db")]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.strip() == "No new error-watch findings"
+    assert "ERROR-WATCH" not in captured.out + captured.err
+
+    def full(*_args):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(watch, "_write_state", full)
+    with pytest.raises(OSError):
+        watch.main([
+            "record-fix", "--db", str(tmp_path / "synthetic.db"), "--signature", "x",
+            "--task", "V-1", "--commit", "abc", "--started-at", "2026-11-02T00:00:00+00:00",
+        ])
