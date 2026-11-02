@@ -100,8 +100,8 @@ CODEX_TOKEN_PRICES = {
 }
 
 
-# Codex server-side reasoning effort values. "ultra" (parallel sub-agents) is intentionally
-# excluded: it is a client-side mode, not a plain effort level for a generic worker field.
+# Legacy ordinary-worker/UI values, not the CLI's advertised ReasoningEffort schema.
+# Authorized evals preserve the model-advertised non-empty string unchanged.
 CODEX_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 CODEX_SILENCE_HEARTBEAT_SECONDS = 30
 # One bounded budget, including ACK. Observed explicit compact terminals took
@@ -595,13 +595,21 @@ class CodexBackend(JsonRpcStdioTransport):
                  reasoning_effort: str = "high",
                  is_orchestrator: bool = False,
                  history_import: object | None = None,
-                 validation_profile: bool = False):
+                 validation_profile: bool = False,
+                 evaluation_actor_id: str = ""):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._thread_id: str | None = resume_thread_id
         self._mcp_env: dict[str, str] = mcp_env or {}
         self._mcp_servers: dict = mcp_servers or {}
+        if evaluation_actor_id:
+            if not _SAFE_HOME_KEY.fullmatch(evaluation_actor_id) or not evaluation_actor_id.startswith("eval-"):
+                raise ValueError("invalid managed evaluation actor identity")
+            if is_orchestrator or resume_thread_id or history_import or mcp_servers or mcp_env:
+                raise ValueError("evaluation requires a fresh worker without MCP/history")
+        self._evaluation_actor_id = evaluation_actor_id
+        self._evaluation_stopped = False
         # #224: приватный CODEX_HOME этого агента; готовится лениво в _prepare_codex_home,
         # чтобы конструктор оставался безопасным для вызова без session id.
         self._codex_home: Path | None = None
@@ -614,9 +622,14 @@ class CodexBackend(JsonRpcStdioTransport):
             raise TypeError("history_import must be CodexHistoryImport")
         self._history_import = history_import
         self._validation_profile = validation_profile
-        self.reasoning_effort = (
-            reasoning_effort if reasoning_effort in CODEX_REASONING_EFFORTS else "high"
-        )
+        if evaluation_actor_id:
+            if not isinstance(reasoning_effort, str) or not reasoning_effort.strip():
+                raise ValueError("evaluation effort must be a non-empty advertised string")
+            self.reasoning_effort = reasoning_effort
+        else:
+            self.reasoning_effort = (
+                reasoning_effort if reasoning_effort in CODEX_REASONING_EFFORTS else "high"
+            )
         self._proc: Optional[asyncio.subprocess.Process] = None
         self._reader_task: Optional[asyncio.Task] = None
         self._stderr_task: Optional[asyncio.Task] = None
@@ -950,6 +963,8 @@ class CodexBackend(JsonRpcStdioTransport):
             raise
 
     async def send(self, message: str) -> None:
+        if self._evaluation_actor_id and self._evaluation_stopped:
+            raise RuntimeError("evaluation backend stopped; generation is forbidden")
         if self._teardown_error or not self.is_alive or self._stdout_closed:
             await self.connect()
         if not self._thread_id:
@@ -1000,12 +1015,15 @@ class CodexBackend(JsonRpcStdioTransport):
         early_notifications: list[dict] = []
         self._starting_user_turn = early_notifications
         try:
-            result = await self._request("turn/start", {
+            params = {
                 "threadId": self._thread_id,
                 "input": user_input,
                 "model": self.model,
                 "effort": self.reasoning_effort,
-            })
+            }
+            if self._evaluation_actor_id and self._evaluation_stopped:
+                raise RuntimeError("evaluation backend stopped before turn/start")
+            result = await self._request("turn/start", params)
             turn_id = ((result.get("turn") or {}).get("id"))
             if not turn_id:
                 raise RuntimeError("Codex app-server returned no turn id")
@@ -1398,6 +1416,8 @@ class CodexBackend(JsonRpcStdioTransport):
         self._teardown_error = None
 
     async def disconnect(self) -> None:
+        if self._evaluation_actor_id:
+            self._evaluation_stopped = True
         proc = self._proc
         if proc is None and self._process_group is None:
             return
@@ -2754,6 +2774,8 @@ class CodexBackend(JsonRpcStdioTransport):
         )
 
     def _managed_codex_home_path(self) -> Path | None:
+        if self._evaluation_actor_id:
+            return _CODEX_HOME_ROOT / self._evaluation_actor_id
         if not self._mcp_servers:
             return None
         session_id = (self._mcp_servers.get("orchestra", {}).get("env") or {}).get(

@@ -37,6 +37,10 @@ class AdapterResult:
     cost_unaccounted: bool = False
     error: str = ""
     billing_mode: str = "subscription"
+    usage_known: bool = True
+    reasoning_tokens: int | None = None
+    workspace_path: str = ""
+    model_calls: int | None = None
 
 
 def _nonnegative_int(value: Any, name: str) -> int:
@@ -226,6 +230,7 @@ def _failed(
         cost_unaccounted=True,
         error=reason[:2000],
         billing_mode=billing_mode,
+        usage_known=False,
     )
 
 
@@ -467,7 +472,13 @@ async def run_adapter(
     tools: str = "all", network: bool = True, mcp: bool = True,
     system_prompt: str = "", state_dir: Path | None = None,
     billing_mode: str = "subscription",
+    eval_context: dict | None = None,
+    effort: str = "high",
 ) -> AdapterResult:
+    if eval_context is not None:
+        return await run_eval_adapter(prompt, model=model, effort=effort,
+                                      billing_mode=billing_mode, context=eval_context,
+                                      timeout=timeout)
     from app.models import backend_for_model, ensure_spawn_allowed
 
     runtime = backend_for_model(model)
@@ -509,3 +520,26 @@ async def run_adapter(
             state_dir=state_dir,
         )
     return _failed(runtime, model, f"runtime '{runtime}' has no wf_run one-shot adapter", stop_reason="unsupported")
+
+
+async def run_eval_adapter(prompt: str, *, model: str, effort: str, billing_mode: str,
+                           context: dict, timeout: float) -> AdapterResult:
+    """Ask the server to consume its grant; a caller flag never opens the CLI gate."""
+    import httpx
+
+    if billing_mode != "subscription":
+        return _failed("codex", model, "evaluation requires subscription billing",
+                       stop_reason="eval_refused")
+    headers = {"Authorization": f"Bearer {os.environ.get('INTERNAL_TOKEN', '')}"}
+    base = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888").rstrip("/")
+    try:
+        async with httpx.AsyncClient(timeout=max(0.001, timeout)) as client:
+            response = await client.post(f"{base}/api/bg/eval/dispatch", headers=headers,
+                json={**context, "prompt": prompt, "model": model, "effort": effort})
+            response.raise_for_status()
+            row = response.json()
+            return AdapterResult(**{**row, "usage": Usage(**row["usage"])})
+    except Exception as error:
+        # No retry: the server may already have reserved or dispatched this invocation.
+        return _failed("codex", model, f"{type(error).__name__}: {error}",
+                       stop_reason="outcome_unknown")

@@ -3471,6 +3471,29 @@ async def task_get(par: str, project: str = "") -> str:
 
 
 @mcp.tool()
+async def eval_grant_issue(task_id: str, manifest: dict, expected_hash: str,
+                           approval_ref: str, expires_at: float, token_policy: str,
+                           fixture_inputs: dict[str, str] | None = None,
+                           run_order_csv: str = "") -> str:
+    """Root only: issue one frozen subscription comparison grant after owner approval.
+
+    Does not dispatch. Four frozen synthetic coding fixtures cover every declared
+    runtime-supported Terra/Sol effort once; the legacy comparison remains readable.
+    Maximum 56 task invocations. The caller must accept the experiment's soft
+    token stop and unbounded single-invocation overshoot before issuance.
+    For a frozen file pack, supply only model_input_files content in fixture_inputs
+    and the original run-order.csv bytes as text; hidden oracle/reference files are
+    refused as model inputs. The manifest self-hash excludes manifest_sha256.
+    """
+    result = await _api("POST", "/api/bg/eval/grants", json={
+        "task_id": task_id, "manifest": manifest, "expected_hash": expected_hash,
+        "approval_ref": approval_ref, "expires_at": expires_at, "token_policy": token_policy,
+        "fixture_inputs": fixture_inputs, "run_order_csv": run_order_csv,
+    })
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
 async def dynamic_workflow(
     budget_usd: float,
     max_calls: int,
@@ -3480,8 +3503,16 @@ async def dynamic_workflow(
     tasks: list[dict[str, Any]] | None = None,
     mode: str = "parallel",
     stages: list[dict[str, Any]] | None = None,
+    eval_grant_id: str = "",
+    eval_manifest_hash: str = "",
 ) -> str:
     """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Select each task model through model-routing and pass it explicitly, or inherit an explicit stage model; the implementation still falls back to luna when both omit model. Each task also has an optional JSON schema and billing route (defaults to subscription; set billing='api_credit' only for an explicitly authorized Claude task). Native subscription tasks are refused; hub work requires an ordinary spawn_worker because wf_run has no hub adapter. Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD and see only files committed at `base_commit`. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
+
+    A server-issued eval_grant_id plus eval_manifest_hash is a single-use exception:
+    omit tasks/stages and use budget_usd=0, max_calls<=56, max_concurrency=1. The
+    server supplies the frozen synthetic cohort. This route uses subscription
+    admission, a 90-minute deadline and the explicitly accepted token soft stop;
+    it does not turn virtual USD accounting into a real API charge.
 
     MiroFish example: 50 personas read a page, then each writes a reaction for
     three rounds using all results from the previous round, then one analyst
@@ -3497,7 +3528,14 @@ async def dynamic_workflow(
                          task_id="TASK-ID", repo="/absolute/repository",
                          mode="stages", stages=stages)
     """
-    if stages is not None:
+    if eval_grant_id:
+        if tasks is not None or stages is not None or mode != "parallel":
+            return "Error: evaluation tasks come only from the server's frozen manifest"
+        if (budget_usd != 0 or type(max_calls) is not int or not 1 <= max_calls <= 56
+                or max_concurrency != 1):
+            return "Error: evaluation requires budget_usd=0, 1<=max_calls<=56, max_concurrency=1"
+        spec_payload = {}
+    elif stages is not None:
         if mode != "stages" or tasks is not None:
             return "Error: pass stages with mode='stages' and omit tasks"
         if not stages or len(stages) > 20:
@@ -3594,7 +3632,7 @@ async def dynamic_workflow(
             normalized.append(row)
         spec_payload = {"tasks": normalized, "mode": mode}
     if (not isinstance(budget_usd, (int, float)) or isinstance(budget_usd, bool)
-            or not math.isfinite(budget_usd) or budget_usd <= 0):
+            or not math.isfinite(budget_usd) or (budget_usd < 0 if eval_grant_id else budget_usd <= 0)):
         return "Error: budget_usd must be positive"
     if not isinstance(max_calls, int) or isinstance(max_calls, bool) or max_calls < 1:
         return "Error: max_calls must be a positive integer"
@@ -3612,6 +3650,17 @@ async def dynamic_workflow(
 
     runner_root = Path(__file__).resolve().parents[1]
     run_id = f"{task_id}-{uuid.uuid4().hex[:12]}"
+    if eval_grant_id:
+        bound = await _api("POST", "/api/bg/eval/bind", json={
+            "grant_id": eval_grant_id, "task_id": task_id,
+            "manifest_hash": eval_manifest_hash, "run_id": run_id,
+        })
+        if not isinstance(bound, dict) or bound.get("error") or "tasks" not in bound:
+            return f"Error: evaluation grant bind refused: {bound}"
+        tasks = bound.pop("tasks")
+        if len(tasks) > max_calls:
+            return "Error: frozen evaluation plan exceeds max_calls; grant remains bound, no dispatch queued"
+        spec_payload = {"mode": "eval", "tasks": tasks, "eval_grant": bound}
     spec_payload["dashboard"] = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "task_id": task_id,
@@ -3652,7 +3701,7 @@ async def dynamic_workflow(
         "message": f"Dynamic workflow {run_id} ({total_tasks if stages is not None else len(tasks)} tasks, {mode})",
         "target_name": WORKER_NAME,
         "target_scope": SCOPE,
-        "timeout_seconds": 3600,
+        "timeout_seconds": 5400 if eval_grant_id else 3600,
         "created_by": WORKER_NAME,
     })
     if isinstance(result, dict) and result.get("error"):
