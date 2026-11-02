@@ -56,9 +56,10 @@ class _SpyManager:
     async def ensure_loaded_any(self, name):
         return _FakeSession(name)
 
-    async def send(self, session_id, msg, *, provenance):
+    async def send(self, session_id, msg, *, provenance, **options):
         assert provenance.senders
         self.sent.append((session_id, msg))
+        self.options = options
         self.provenances.append(provenance)
         self.provenances.append(provenance)
 
@@ -107,6 +108,8 @@ def test_release_wake_carries_manifest_not_report_bodies(fanned, spy):
 def test_exception_classes_wake_parent_immediately(fanned, spy, kind):
     _send("c1", kind=kind)
     assert len(spy.sent) == 1, f"класс {kind} обязан пройти мимо барьера"
+    # 02.11: the kind reaches the session, so a Codex orchestrator steers it at once.
+    assert spy.options == {"message_kind": kind}
 
 
 def test_send_payload_without_message_kind_still_works(fanned, spy):

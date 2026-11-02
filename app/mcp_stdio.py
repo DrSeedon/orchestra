@@ -1393,9 +1393,9 @@ def _read_message_file(file_path: str) -> tuple[str, int]:
 
 @mcp.tool()
 async def send_message(
-    to: str, message: str, delivery_id: str = "", file_path: str = "",
+    to: str, message: str, delivery_id: str = "", file_path: str = "", kind: str = "",
 ) -> str:
-    """Send a message to an agent and trigger a turn. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat the same send_message call with the same delivery_id. A quota-blocked message is held durably and sent in order when the gate opens; cancel_message_delivery withdraws it."""
+    """Send a message to an agent and trigger a turn. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat the same send_message call with the same delivery_id. A quota-blocked message is held durably and sent in order when the gate opens; cancel_message_delivery withdraws it. kind: empty, or blocked|out_of_scope|false_premise when you cannot continue without the recipient's decision — a busy orchestrator then reads it at once instead of at its turn end."""
     # A message to oneself wakes a new turn that repeats the same call: the reestr
     # stand's GigaChat orchestrator looped 32 times in 4 minutes (V-636).
     if to.strip() == (WORKER_NAME or ROLE):
@@ -1426,12 +1426,21 @@ async def send_message(
                 message="delivery_id must be a UUID",
                 details={"field": "delivery_id"},
             ) from error
+    kind = kind.strip().casefold() if isinstance(kind, str) else ""
+    if kind and kind not in {"blocked", "out_of_scope", "false_premise"}:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="kind must be empty or blocked|out_of_scope|false_premise",
+            details={"field": "kind"},
+        )
     payload = {
         "message": message,
         "sender": WORKER_NAME or ROLE,
         "scope": SCOPE,
         "delivery_id": delivery_id,
     }
+    if kind:
+        payload["message_kind"] = kind
     try:
         result = await _api("POST", f"/api/sessions/{to}/send", json=payload)
     except ApiToolError as cause:

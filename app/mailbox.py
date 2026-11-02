@@ -162,3 +162,67 @@ def release_claim(ids: list[int]) -> None:
             f"UPDATE mailbox SET claimed_at = NULL WHERE id IN ({placeholders})",
             tuple(ids),
         )
+
+
+# 02.11: агентский и фоновый вход, который ход оркестратора Codex берёт в конце.
+# Копии получения (`direct_message_recovery`) тоже ждут следующего хода и выдаются вместе.
+_TURN_END_HOLD_SQL = """recipient = ? AND scope = ? AND delivered_at IS NULL
+    AND claimed_at IS NULL AND origin IN ('agent', 'background_task')
+    AND json_extract(origin_detail, '$.subtype')
+        IN ('codex_turn_end_hold', 'direct_message_recovery')"""
+
+
+def count_turn_end_holds(recipient: str, scope: str) -> int:
+    with db._conn() as connection:
+        return int(connection.execute(
+            f"SELECT COUNT(*) FROM mailbox WHERE {_TURN_END_HOLD_SQL}",
+            (recipient, scope),
+        ).fetchone()[0])
+
+
+def stale_turn_end_hold_recipients(older_than: float) -> list[tuple[str, str]]:
+    """Recipients with a plain held row older than this: a turn cut without its end
+    (CLI restart, service restart) leaves them for the recovery sweep."""
+    with db._conn() as connection:
+        rows = connection.execute(
+            """SELECT DISTINCT recipient, scope FROM mailbox
+               WHERE delivered_at IS NULL AND claimed_at IS NULL AND created_at <= ?
+                 AND json_extract(origin_detail, '$.subtype') = 'codex_turn_end_hold'""",
+            (time.time() - older_than,),
+        ).fetchall()
+    return [(row["recipient"], row["scope"]) for row in rows]
+
+
+def claim_turn_end_holds(recipient: str, scope: str) -> list[dict]:
+    """Claim only the held rows; steer backups of the running turn stay where they are."""
+    now = time.time()
+    with db._conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        rows = connection.execute(
+            f"""SELECT id, sender, body, origin, origin_detail FROM mailbox
+                WHERE {_TURN_END_HOLD_SQL} ORDER BY id""",
+            (recipient, scope),
+        ).fetchall()
+        if rows:
+            ids = [row["id"] for row in rows]
+            connection.execute(
+                f"UPDATE mailbox SET claimed_at = ? WHERE id IN ({','.join('?' * len(ids))})",
+                (now, *ids),
+            )
+        return [_resource(row) for row in rows]
+
+
+def hold_as_codex_steer_backup(ids: list[int], turn_id: str) -> None:
+    """Held rows steered into a turn become that turn's backups: done on its success,
+    replayed after its failure (`complete_codex_steers` / the turn-end claim)."""
+    if not ids:
+        return
+    with db._conn() as connection:
+        connection.execute(
+            f"""UPDATE mailbox
+                SET origin_detail = json_set(json_set(origin_detail,
+                        '$.subtype', 'codex_steer_backup'), '$.ref', ?),
+                    claimed_at = NULL
+                WHERE id IN ({','.join('?' * len(ids))}) AND delivered_at IS NULL""",
+            (turn_id, *ids),
+        )

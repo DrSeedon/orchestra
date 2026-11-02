@@ -308,6 +308,25 @@ _AUTO_COMPACT_TIMEZONE_DEFAULT = "Asia/Krasnoyarsk"
 _OWNER_DIRECT_MESSAGE_SUBTYPES = frozenset({"dashboard"})
 
 
+def _strip_sender_prefix(message: str, sender: str) -> str:
+    """The mailbox renders `[from:sender]` itself; keep the time prefix."""
+    match = re.match(rf"(\[\d\d:\d\d\] )?\[from:{re.escape(sender)}\] ", message)
+    return f"{match.group(1) or ''}{message[match.end():]}" if match else message
+
+
+def _owner_texts_first(messages: list[str], owner_texts: list[str]) -> list[str]:
+    """Owner messages first, then the rest; each part keeps its arrival order."""
+    remaining = list(owner_texts)
+    owner, rest = [], []
+    for message in messages:
+        if message in remaining:
+            remaining.remove(message)
+            owner.append(message)
+        else:
+            rest.append(message)
+    return owner + rest
+
+
 def _is_owner_direct_message(provenance: MessageProvenance) -> bool:
     return provenance.origin == "user" or (
         provenance.origin == "unknown"
@@ -513,6 +532,10 @@ class AgentSession:
     _last_event: str = field(default="", repr=False)
     _pending_messages: list = field(default_factory=list, repr=False)
     _pending_owner_initiated_turn: bool = field(default=False, repr=False)
+    # Owner texts among `_pending_messages`: the batch puts them first (02.11).
+    _pending_owner_texts: list = field(default_factory=list, repr=False)
+    # Turn whose held agent/background input already has its age escape armed.
+    _turn_end_hold_timer_gen: int = field(default=-1, repr=False)
     _owner_initiated_turn: bool = field(default=False, repr=False)
     _checklist_activity_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
     _checklist_reminder_task: Optional[asyncio.Task] = field(default=None, repr=False)
@@ -706,6 +729,12 @@ class AgentSession:
             }
             self._log("status", f"precompact timer cancelled: {self._precompact_payload(payload)}")
         self._precompact_timer = None
+
+    def _queue_pending(self, message: str, owner_initiated: bool) -> None:
+        self._pending_messages.append(message)
+        self._pending_owner_initiated_turn |= owner_initiated
+        if owner_initiated:
+            self._pending_owner_texts.append(message)
 
     def _note_next_precompact_activity(self) -> None:
         if not self._precompact_timer:
@@ -1219,6 +1248,10 @@ class AgentSession:
         self._did_report = False
         self._report_calls.clear()
         self._owner_initiated_turn = owner_initiated
+        # Only a turn that really starts ends the idle precompact wait; a send that was
+        # queued, deferred or held for a turn end leaves the timer armed.
+        if not compact_ack:
+            self._note_next_precompact_activity()
         self._turns.bump_turn_gen()
         if compact_ack:
             self._compact_ack_gen = self._turn_gen
@@ -1334,6 +1367,7 @@ class AgentSession:
         self, message: str | InjectedMessage, *, provenance: MessageProvenance,
         delivery=None, retry_generation: tuple[int, int] | None = None,
         chat_text: str | None = None, require_submit: bool = False,
+        message_kind: str | None = None,
     ) -> tuple[str, str | None, bool] | None:
         """`chat_text` replaces the chat log of `message`; "" logs no user message.
 
@@ -1343,6 +1377,8 @@ class AgentSession:
         False); None when it was queued, dropped or delivered through a receipt.
         `require_submit` raises `DeliveryDeferred` instead of queueing the text in
         memory, for callers whose copy stays durable until a real submission.
+        `message_kind` is the sender's message class (a worker's escalation is not
+        held for a Codex orchestrator's turn end).
         """
         if isinstance(message, InjectedMessage) and message.provenance != provenance:
             raise ValueError("injected message provenance mismatch")
@@ -1467,7 +1503,6 @@ class AgentSession:
             if provenance.subtype != "server_error_retry":
                 self._session_limit_hit = False
 
-            self._note_next_precompact_activity()
             capabilities = get_runtime(self.backend_type).capabilities
             if (
                 delivery is None
@@ -1510,8 +1545,7 @@ class AgentSession:
                     return
                 if require_submit:
                     raise DeliveryDeferred("context compaction in progress")
-                self._pending_messages.append(message)
-                self._pending_owner_initiated_turn |= owner_initiated
+                self._queue_pending(message, owner_initiated)
                 log_user_message(message)
                 self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
                 return
@@ -1527,6 +1561,16 @@ class AgentSession:
                         )
                     ):
                         return
+                    hold, hold_reason = (None, "") if require_submit else self._turns.turn_end_hold(
+                        provenance, message_kind=getattr(delivery, "message_kind", None),
+                    )
+                    delivery_id = getattr(delivery, "delivery_id", None)
+                    if hold == "hold" and isinstance(delivery_id, str):
+                        from app.message_deliveries import hold_message_delivery_for_turn_end
+
+                        if hold_message_delivery_for_turn_end(delivery_id):
+                            self._turns.note_turn_end_hold(provenance)
+                            return
                     dispatch_started = False
                     try:
                         backend = await self._ensure_backend()
@@ -1534,6 +1578,8 @@ class AgentSession:
                             raise RuntimeError(
                                 "backend is unavailable before provider submission"
                             )
+                        if hold == "flush":
+                            await self._turns.steer_turn_end_holds(backend, hold_reason)
                         injected, fact_keys = self._attach_pending_facts(message)
                         await delivery.before_submit()
                         mark_running_steer = getattr(delivery, "mark_running_steer", None)
@@ -1571,8 +1617,7 @@ class AgentSession:
                     raise DeliveryDeferred("the running turn cannot take this input now")
                 log_user_message(message)
                 if deferred_interrupt:
-                    self._pending_messages.append(message)
-                    self._pending_owner_initiated_turn |= owner_initiated
+                    self._queue_pending(message, owner_initiated)
                     self._log(
                         "status",
                         f"message queued (deferred interrupt pending, "
@@ -1580,13 +1625,37 @@ class AgentSession:
                     )
                     return
                 if not capabilities.mid_turn_inject:
-                    self._pending_messages.append(message)
-                    self._pending_owner_initiated_turn |= owner_initiated
+                    self._queue_pending(message, owner_initiated)
                     self._log("status", f"message queued ({len(self._pending_messages)} pending)")
                     return
+                hold, hold_reason = (None, "") if require_submit else self._turns.turn_end_hold(
+                    provenance, message_kind=message_kind,
+                )
+                if hold == "hold":
+                    from app import mailbox
+
+                    # Every sender: one combined auto-report must not read as one worker's.
+                    sender = ", ".join(provenance.senders)
+                    try:
+                        mailbox.enqueue(
+                            recipient=self.name, scope=self.scope, sender=sender,
+                            body=_strip_sender_prefix(message, sender)
+                            if provenance.origin == "agent" else message,
+                            provenance=MessageProvenance(
+                                origin=provenance.origin, senders=provenance.senders,
+                                subtype="codex_turn_end_hold", ref=provenance.subtype,
+                            ),
+                        )
+                    except Exception as error:
+                        logger.warning(f"[{self.name}] turn-end hold failed, steering: {error}")
+                    else:
+                        self._turns.note_turn_end_hold(provenance)
+                        return
                 mailbox_id = None
                 try:
                     backend = await self._ensure_backend()
+                    if hold == "flush":
+                        await self._turns.steer_turn_end_holds(backend, hold_reason)
                     injected, fact_keys = self._attach_pending_facts(message)
                     turn_id = getattr(backend, "active_turn_id", None)
                     if (
@@ -1631,8 +1700,7 @@ class AgentSession:
                         raise DeliveryDeferred(f"mid-turn inject failed: {e}") from e
                     logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
                     if mailbox_id is None:
-                        self._pending_messages.append(message)
-                        self._pending_owner_initiated_turn |= owner_initiated
+                        self._queue_pending(message, owner_initiated)
                     pending = len(self._pending_messages) + int(mailbox_id is not None)
                     self._log("status", f"inject failed, queued ({pending} pending)")
                     if self.status != AgentStatus.RUNNING and not self._compacting:
@@ -1778,7 +1846,9 @@ class AgentSession:
             provider_accepted = False
             try:
                 if held:
-                    message = self._turns.mailbox_turn_text(held, message)
+                    message = self._turns.mailbox_turn_text(
+                        held, message, message_is_owner=owner_initiated,
+                    )
                 # send() can raise AFTER status=RUNNING and
                 # BEFORE the listen task is created — without this, a failed submit strands the
                 # agent in RUNNING forever (task #97). Reset to IDLE on failure.
@@ -2992,6 +3062,7 @@ class AgentSession:
         # Clear only after the durable acceptance; a failed write retains the batch.
         self._pending_messages.clear()
         self._pending_owner_initiated_turn = False
+        self._pending_owner_texts.clear()
 
     async def _flush_pending(self) -> None:
         # Brief delay: let the just-finished turn fully settle (persist, hibernate schedule)
@@ -3072,7 +3143,9 @@ class AgentSession:
             break
 
         try:
-            msgs = list(self._pending_messages)
+            owner_texts = list(self._pending_owner_texts)
+            self._pending_owner_texts.clear()
+            msgs = _owner_texts_first(self._pending_messages, owner_texts)
             self._pending_messages.clear()
             owner_initiated = self._pending_owner_initiated_turn
             self._pending_owner_initiated_turn = False
@@ -3102,7 +3175,9 @@ class AgentSession:
                 held = self._turns.claim_mailbox_held_after_stop()
                 try:
                     if held:
-                        combined = self._turns.mailbox_turn_text(held, combined)
+                        combined = self._turns.mailbox_turn_text(
+                            held, combined, message_is_owner=owner_initiated,
+                        )
                     combined, fact_keys = self._attach_pending_facts(combined)
                     await backend.send(combined)
                 except BaseException:
@@ -3122,6 +3197,7 @@ class AgentSession:
                 self._log("status", f"drain: {refusal}")
                 self._pending_messages[0:0] = msgs
                 self._pending_owner_initiated_turn |= owner_initiated
+                self._pending_owner_texts[0:0] = owner_texts
                 self.status = AgentStatus.IDLE
                 self._persist()
                 self._turns.publish_turn_finished()
@@ -3132,6 +3208,7 @@ class AgentSession:
                 logger.error(f"[{self.name}] flush pending failed: {e}")
                 self._pending_messages[0:0] = msgs
                 self._pending_owner_initiated_turn |= owner_initiated
+                self._pending_owner_texts[0:0] = owner_texts
                 self.status = AgentStatus.IDLE
                 self._persist()
                 self._turns.publish_turn_finished()

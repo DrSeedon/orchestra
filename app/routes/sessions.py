@@ -1071,7 +1071,13 @@ async def _preflight_or_quota_wait(session_id: str):
 async def send_message(name: str, req: SendRequest, request: Request = None):
     try:
         if req.delivery_id.strip():
-            if not req.wake or req.message_kind is not None or req.after_turn:
+            from app import fan_barrier
+
+            # A worker's escalation kind is the one class a keyed send carries (02.11):
+            # it bypasses a fan barrier and a Codex orchestrator's turn-end hold.
+            if (not req.wake or req.after_turn or (
+                    req.message_kind is not None
+                    and not fan_barrier.is_blocker_kind(req.message_kind))):
                 return JSONResponse(
                     {
                         "ok": False,
@@ -1613,6 +1619,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
         msg = add_user_message_time_prefix(msg)
         await manager.send(
             session.id, msg, provenance=provenance,
+            **({"message_kind": req.message_kind} if req.message_kind else {}),
         )
         pn = session.parent_name or ""
         result = {"ok": True, "parent_name": pn}

@@ -30,7 +30,16 @@ STEER_RECOVERY_RETRY_DELAYS = (1.0, 5.0, 30.0)
 MAILBOX_DEFER_POLLS = 900
 _CHAT_SHOWN_RECOVERY_SUBTYPES = frozenset({
     "direct_message_recovery", "codex_steer_backup", "codex_steer_backup_pending",
+    "codex_turn_end_hold",
 })
+# 02.11 (research: steers stretch a turn from ~15 s to 600-3500 s and delay the owner's
+# reply): a Codex orchestrator's running turn does not take agent and background input
+# (cron included) as steers; the mailbox gives it to the turn end. Escapes keep anything
+# from starving: a worker's escalation kind, a turn this old, or this many waiting rows
+# steer the held block first.
+TURN_END_HOLD_ORIGINS = frozenset({"agent", "background_task"})
+TURN_END_HOLD_MAX_TURN_SECONDS = 600
+TURN_END_HOLD_MAX_WAITING = 8
 
 # Leave room for the CLI's own compaction and any in-flight context growth.
 CRITICAL_AUTO_COMPACT_PCT = 95
@@ -94,6 +103,18 @@ def _render_mailbox(items: list[dict]) -> str:
         f"[from:{m['sender'] or ', '.join(m['provenance'].senders)}] {m['body']}"
         for m in items
     )
+
+
+def _is_owner_row(item: dict) -> bool:
+    from app.session import _is_owner_direct_message
+
+    return _is_owner_direct_message(item["provenance"])
+
+
+def _owner_first(items: list[dict]) -> list[dict]:
+    """Owner rows first, then the rest; each part keeps its arrival order."""
+    return ([m for m in items if _is_owner_row(m)]
+            + [m for m in items if not _is_owner_row(m)])
 
 
 def _mailbox_provenance(queued: list[dict]) -> MessageProvenance:
@@ -794,8 +815,10 @@ class TurnManager:
             else None, False,
         ))
 
-    def mailbox_turn_text(self, held: list[dict], message: str) -> str:
-        """Prefix the starting turn's text with the held rows, oldest first."""
+    def mailbox_turn_text(self, held: list[dict], message: str, *,
+                          message_is_owner: bool = False) -> str:
+        """Prefix the starting turn's text with the held rows: the owner's first, then
+        the rest, each in arrival order; the new message is the newest of its group."""
         s = self.s
         fresh = [
             m for m in held
@@ -803,14 +826,23 @@ class TurnManager:
         ]
         repeated = len(held) - len(fresh)
         if fresh:
-            s._log("user_message", _render_mailbox(fresh),
+            s._log("user_message", _render_mailbox(_owner_first(fresh)),
                    provenance=_mailbox_provenance(held))
         s._log(
             "status",
             f"mailbox: delivering {len(held)} message(s) held since Stop with this turn"
             + (f"; {repeated} from the stopped turn are shown above" if repeated else ""),
         )
-        return f"{_render_mailbox(held)}\n\n{message}"
+        ordered = _owner_first(held)
+        owners = sum(1 for m in held if _is_owner_row(m))
+        parts = [_render_mailbox(ordered[:owners])] if owners else []
+        if message_is_owner:
+            parts.append(message)
+        if ordered[owners:]:
+            parts.append(_render_mailbox(ordered[owners:]))
+        if not message_is_owner:
+            parts.append(message)
+        return "\n\n".join(parts)
 
     def complete_mailbox(self, queued: list[dict], route=None) -> None:
         """Acknowledge exactly the rows that were submitted to the provider."""
@@ -835,6 +867,107 @@ class TurnManager:
                 wake()
         else:
             mailbox.mark_delivered(ids)
+
+    def turn_end_hold(self, provenance: MessageProvenance, *,
+                      message_kind: str | None = None) -> tuple[str | None, str]:
+        """Where a running turn takes this input (02.11): (None, "") steers it as before;
+        ("hold", "") keeps it for the turn end; ("flush", reason) steers the held block
+        first, then this message. Only a Codex orchestrator holds."""
+        s = self.s
+        if (getattr(s, "backend_type", "") != "codex" or not s.is_orchestrator
+                or provenance.origin not in TURN_END_HOLD_ORIGINS):
+            return None, ""
+        from app import fan_barrier, mailbox
+
+        if fan_barrier.is_blocker_kind(message_kind):
+            return "flush", f"worker escalation ({message_kind})"
+        started = getattr(s, "_turn_start", 0) or 0
+        if started and asyncio.get_event_loop().time() - started >= TURN_END_HOLD_MAX_TURN_SECONDS:
+            return "flush", f"turn older than {TURN_END_HOLD_MAX_TURN_SECONDS // 60} min"
+        try:
+            waiting = mailbox.count_turn_end_holds(s.name, s.scope)
+        except Exception as error:
+            logger.warning(f"[{s.name}] turn-end hold unavailable, steering: {error}")
+            return None, ""
+        if waiting >= TURN_END_HOLD_MAX_WAITING:
+            return "flush", f"{waiting + 1} messages waiting"
+        return "hold", ""
+
+    def note_turn_end_hold(self, provenance: MessageProvenance) -> None:
+        """Say why the message waits and make sure the turn's age escape fires."""
+        s = self.s
+        try:
+            from app import mailbox
+
+            waiting = mailbox.count_turn_end_holds(s.name, s.scope)
+        except Exception:
+            waiting = 0
+        s._log(
+            "status",
+            f"message held for the turn end ({provenance.origin}; {waiting} waiting): "
+            "an orchestrator's running turn takes agent and background input when it ends",
+        )
+        if getattr(s, "_turn_end_hold_timer_gen", None) != s._turn_gen:
+            s._turn_end_hold_timer_gen = s._turn_gen
+            s._spawn_bg(self._steer_turn_end_holds_when_turn_ages(s._turn_gen))
+
+    async def _steer_turn_end_holds_when_turn_ages(self, turn_gen: int) -> None:
+        s = self.s
+        started = getattr(s, "_turn_start", 0) or 0
+        if started:
+            age = asyncio.get_event_loop().time() - started
+            await asyncio.sleep(max(0.0, TURN_END_HOLD_MAX_TURN_SECONDS - age))
+        await s._lifecycle_lock.acquire()
+        try:
+            backend = s._backend
+            if (s.status != AgentStatus.RUNNING or s._turn_gen != turn_gen
+                    or s._compacting or backend is None
+                    or getattr(backend, "deferred_interrupt_pending", False) is True):
+                return
+            await self.steer_turn_end_holds(
+                backend, f"turn older than {TURN_END_HOLD_MAX_TURN_SECONDS // 60} min",
+            )
+        finally:
+            s._lifecycle_lock.release()
+
+    async def steer_turn_end_holds(self, backend, reason: str) -> int:
+        """Steer every held row into the running turn as one block; the caller holds the
+        lifecycle lock. A failure leaves the rows for the turn end."""
+        from app import mailbox
+        from app.errtext import err_text as _err
+
+        s = self.s
+        try:
+            held = mailbox.claim_turn_end_holds(s.name, s.scope)
+        except Exception as error:
+            s._log("error", f"mailbox: held messages stay for the turn end: {_err(error)}")
+            return 0
+        if not held:
+            return 0
+        turn_id = getattr(backend, "active_turn_id", None)
+        turn_id = turn_id if isinstance(turn_id, str) and turn_id else None
+        try:
+            await backend.send(_render_mailbox(_owner_first(held)))
+        except BaseException as error:
+            mailbox.release_claim([m["id"] for m in held])
+            if not isinstance(error, Exception):
+                raise
+            s._log("error", f"mailbox: held messages stay for the turn end: {_err(error)}")
+            return 0
+        plain = [m for m in held if m["provenance"].subtype == "codex_turn_end_hold"]
+        receipts = [m for m in held if m not in plain]
+        try:
+            if plain and turn_id:
+                mailbox.hold_as_codex_steer_backup([m["id"] for m in plain], turn_id)
+            elif plain:
+                receipts = held
+            self.complete_mailbox(receipts, ("steer", turn_id, False))
+        except Exception as error:
+            # The turn has the text; an expired claim re-sends it (at least once).
+            s._log("error", f"mailbox: steered held messages not acknowledged: {_err(error)}")
+        s._log("status", f"mailbox: {len(held)} held message(s) steered into the "
+                         f"running turn ({reason})")
+        return len(held)
 
     def _idle_tail(self, live_pct: int, *, allow_auto_report: bool = True) -> None:
         """Обычное завершение простоя. Вынесено, чтобы его можно было доиграть после
@@ -878,8 +1011,8 @@ class TurnManager:
         ]
         repeated = len(queued) - len(fresh)
         try:
-            text = render(queued)
-            chat_text = render(fresh) if repeated else None
+            text = render(_owner_first(queued))
+            chat_text = render(_owner_first(fresh)) if repeated else None
             if repeated:
                 s._log(
                     "status",
