@@ -1,0 +1,18 @@
+V-1202 v3: offline shell arithmetic/document checks; no fixture/guard execution
+uv 0.11.28 (x86_64-unknown-linux-gnu)
+PASS: orchestration t+s+l=5+5+1 -> 11 arms, 121/242 cells for 1/2 repeats
+PASS: orchestration t+s+l=4+4+4 -> 12 arms, 132/264 cells for 1/2 repeats
+PASS: orchestration t+s+l=5+5+5 -> 15 arms, 165/330 cells for 1/2 repeats
+PASS: orchestration t+s+l=6+6+6 -> 18 arms, 198/396 cells for 1/2 repeats
+PASS: coding 10 arms -> 20F two-repeat cells; pilot 40 calls/400k/79m20s
+PASS: coding 12 arms x 4 fixtures fails old resource envelope; must resize
+PASS: full orchestration with >5 arms (one repeat), or >=3 arms (two repeats), exceeds 56 invocations at K=1
+PASS: unapproved stage-2 candidate 396 calls/4M/13h; envelope 3.96M/12h12m; K=2 needs 792 calls
+PASS: 15 arms: two repeats 330/3.3M/10h11m; one repeat 165/1.65M/5h08m30s
+PASS: standalone stage-2 pilots: 15 arms x3 ->45/450k/88m30s; 18 arms x2 ->36/360k/72m
+PASS: shared-cap two-stage pilots 35/350k/70m10s and 42/420k/83m (conditional K/B/D/H)
+PASS: report includes runtime-effort, stage order, private-data and no-budget-reset constraints
+CONFIRMED: no .git/scripts/tests/app/.venv; pytest, fixture/guard tests UNRUN (source missing)
+No model/provider calls, no installs, no Python interpreter substituted; no imported app path
+PASS: eight original root input SHA-256 hashes unchanged; only task artifacts edited
+PASS: known secret-form scan returned no matches; private case content neither requested nor received
