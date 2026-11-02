@@ -693,7 +693,8 @@ class HubBackend:
             state.save()
         if not state.project_id:
             project = await mc.tool_call("t3_project_create", {
-                "title": f"orchestra {state.ws_id}", "workspaceRoot": state.remote_dir})
+                "title": self._worker_title() or f"orchestra {state.ws_id}",
+                "workspaceRoot": state.remote_dir})
             state.project_id = project["id"] if isinstance(project, dict) else ""
             if not state.project_id:
                 raise hw.HubWorkspaceError("hub project registration returned no id")
@@ -727,6 +728,12 @@ class HubBackend:
         task = _branch_task_ref(self.cwd).lstrip("#")
         who = self._bridge.identity() if self._bridge is not None else None
         return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None)
+
+    def _worker_title(self) -> str | None:
+        """Visible label only: storage and resume keep their unique workspace identity."""
+        who = self._bridge.identity() if self._bridge is not None else None
+        name = (getattr(who, "name", "") or "").strip()
+        return f"hub-{name}" if name else None
 
     async def _wire_message(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
         known = hw.known_secret_values([getattr(mc, "_token", "")])
@@ -776,7 +783,7 @@ class HubBackend:
                 return sent["runId"]
         wire = await self._wire_message(mc, state, prompt)
         launched = await mc.tool_call("t3_thread_launch", {
-            "title": f"{state.ws_id}", "projectId": state.project_id, "message": wire,
+            "title": self._worker_title() or state.ws_id, "projectId": state.project_id, "message": wire,
             "runtimeMode": "full-access",
             "modelSelection": selection,
         })
