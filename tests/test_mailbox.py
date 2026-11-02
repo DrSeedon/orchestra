@@ -56,7 +56,7 @@ class _SpyManager:
     async def ensure_loaded_any(self, name):
         return _FakeSession(name)
 
-    async def send(self, session_id, msg, *, provenance):
+    async def send(self, session_id, msg, *, provenance, **_options):
         assert provenance.senders
         self.sent.append((session_id, msg))
 
@@ -209,7 +209,7 @@ class _S:
         # падение было про двойника, а не про поведение.
         self.logged.append((kind, text))
 
-    async def send(self, message: str, *, provenance) -> None:
+    async def send(self, message: str, *, provenance, **_options) -> None:
         assert provenance.origin == "agent"
         if self.send_raises:
             raise RuntimeError("инъекция не удалась")
@@ -261,6 +261,8 @@ def test_t3_empty_mailbox_keeps_todays_behaviour(db, monkeypatch):
     assert reported == [1], (
         "при пустом ящике авто-отчёт не сработал — правка задела обычный путь"
     )
+    for coro in s.spawned:
+        coro.close()
 
 
 def test_t3_undelivered_survives_a_dropped_continuation(db, monkeypatch):
@@ -373,7 +375,7 @@ def test_impl3_escalates_to_normal_delivery_when_continuation_fails(db, monkeypa
     delivered = []
 
     class _Mgr:
-        async def send(self, session_id, msg, *, provenance):
+        async def send(self, session_id, msg, *, provenance, **_options):
             assert provenance.senders
             delivered.append((session_id, msg))
 

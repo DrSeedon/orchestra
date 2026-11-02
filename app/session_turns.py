@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from app.db import turn_usage_add
 from app.usage_contract import DeferredContext
 from app.events import AgentEvent, MessageProvenance
-from app.session_state import AgentStatus
+from app.session_state import AgentStatus, DeliveryDeferred
 from app.turn_markers import is_successful_silent_turn
 
 if TYPE_CHECKING:
@@ -25,6 +25,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger("app.session")
 
 PRICE_MAY_BE_UNDERSTATED_MARKER = "[price_may_be_understated]"
+STEER_RECOVERY_RETRY_DELAYS = (1.0, 5.0, 30.0)
+# One-second checks for a deferred mailbox batch, beyond the 660 s compact budget.
+MAILBOX_DEFER_POLLS = 900
+_CHAT_SHOWN_RECOVERY_SUBTYPES = frozenset({
+    "direct_message_recovery", "codex_steer_backup", "codex_steer_backup_pending",
+})
 
 # Leave room for the CLI's own compaction and any in-flight context growth.
 CRITICAL_AUTO_COMPACT_PCT = 95
@@ -392,21 +398,7 @@ class TurnManager:
                     f"{type(error).__name__}: {error}"
                 )
         if not ok and event_id:
-            from app import message_deliveries
-
-            try:
-                recovered = message_deliveries.requeue_failed_turn(s.id, event_id)
-            except Exception as error:
-                logger.warning(
-                    f"[{s.name}] failed-turn steer recovery unavailable: "
-                    f"{type(error).__name__}: {error}"
-                )
-                recovered = 0
-            if recovered:
-                s._log(
-                    "status",
-                    f"steered messages waiting for next turn: {recovered}",
-                )
+            self.recover_failed_turn_steers(event_id)
         try:
             quota_snapshot = _cached_quota_snapshot(s.backend_type, s.model)
         except Exception as error:
@@ -579,6 +571,52 @@ class TurnManager:
         if server_error_retry is not None:
             s._spawn_bg(s._retry_after_server_error(*server_error_retry))
 
+    def recover_failed_turn_steers(self, turn_id: str) -> int:
+        """Requeue steers of a turn that ended without success; idempotent.
+
+        A failure before the recovery intent is durable retries in-process; one
+        after it is finished by the delivery sweeper.
+        """
+        from app import message_deliveries
+
+        s = self.s
+        try:
+            recovered = message_deliveries.requeue_failed_turn(s.id, turn_id)
+        except Exception as error:
+            logger.warning(
+                f"[{s.name}] failed-turn steer recovery unavailable, retrying: "
+                f"{type(error).__name__}: {error}"
+            )
+            s._spawn_bg(self._retry_steer_recovery(turn_id))
+            return 0
+        if recovered:
+            s._log("status", f"steered messages waiting for next turn: {recovered}")
+        return recovered
+
+    async def _retry_steer_recovery(self, turn_id: str) -> None:
+        from app import message_deliveries
+
+        s = self.s
+        for delay in STEER_RECOVERY_RETRY_DELAYS:
+            await asyncio.sleep(delay)
+            try:
+                recovered = await asyncio.to_thread(
+                    message_deliveries.requeue_failed_turn, s.id, turn_id,
+                )
+            except Exception as error:
+                logger.warning(
+                    f"[{s.name}] failed-turn steer recovery retry failed: "
+                    f"{type(error).__name__}: {error}"
+                )
+                continue
+            if recovered:
+                s._log("status", f"steered messages waiting for next turn: {recovered}")
+                wake = getattr(s, "_wake_durable_message_deliveries", None)
+                if callable(wake):
+                    wake()
+            return
+        s._log("error", "steered messages of the failed turn could not be requeued")
+
     def finish_turn_status(self) -> None:
         """Set IDLE or WAITING based on bg jobs, then persist."""
         s = self.s
@@ -678,11 +716,28 @@ class TurnManager:
             if m["provenance"].subtype == "direct_message_recovery"
             and m["provenance"].ref
         ]
-        try:
-            text = "\n\n".join(
+        def render(items: list[dict]) -> str:
+            return "\n\n".join(
                 f"[from:{m['sender'] or ', '.join(m['provenance'].senders)}] {m['body']}"
-                for m in queued
+                for m in items
             )
+
+        # Recovery copies repeat input the chat already shows (logged at steer or
+        # receipt preparation); the model still receives them, the chat does not.
+        fresh = [
+            m for m in queued
+            if m["provenance"].subtype not in _CHAT_SHOWN_RECOVERY_SUBTYPES
+        ]
+        repeated = len(queued) - len(fresh)
+        try:
+            text = render(queued)
+            chat_text = render(fresh) if repeated else None
+            if repeated:
+                s._log(
+                    "status",
+                    f"mailbox: re-sending {repeated} message(s) from the interrupted "
+                    "turn; they are shown above",
+                )
             origins = {m["provenance"].origin for m in queued}
             senders = tuple(dict.fromkeys(
                 sender
@@ -695,13 +750,21 @@ class TurnManager:
                 subtype="mailbox" if len(origins) == 1 else "mailbox_mixed",
                 ref=f"mailbox:{ids[0]}-{ids[-1]}",
             )
-            await s.send(text, provenance=provenance)
+            # Rows stay claimed, not delivered, until the text is really submitted:
+            # an in-memory queue would lose them with the process.
+            extra = {"require_submit": True}
+            if chat_text is not None:
+                extra["chat_text"] = chat_text
+            route = await s.send(text, provenance=provenance, **extra)
         except asyncio.CancelledError:
             # `CancelledError` НЕ наследует `Exception` (3.8+): без отдельной ветки
             # отмена задачи оставляла бы строки под арендой до её протухания
             # (находка раунда 3 ревью реализации).
             mailbox.release_claim(ids)
             raise
+        except DeliveryDeferred as deferred:
+            self._defer_mailbox(ids, deferred)
+            return
         except Exception as exc:
             # Возвращаем строки в ящик и ДОИГРЫВАЕМ обычный хвост простоя. Без этого
             # сессия оставалась бы без авто-отчёта и без гибернации, а сообщения —
@@ -715,7 +778,10 @@ class TurnManager:
             # не случиться никогда, и сообщения залягут (F3 ревью реализации).
             try:
                 from app.deps import manager as _mgr
-                await _mgr.send(s.id, text, provenance=provenance)
+                route = await _mgr.send(s.id, text, provenance=provenance, **extra)
+            except DeliveryDeferred as deferred:
+                self._defer_mailbox(ids, deferred)
+                return
             except Exception as esc:
                 s._log("error", f"mailbox: эскалация тоже не удалась, {len(queued)} "
                                 f"ждут в ящике: {err_text(esc)}")
@@ -725,7 +791,7 @@ class TurnManager:
                 from app import message_deliveries
 
                 message_deliveries.complete_recovered_mailbox_delivery(
-                    ids, recovered_delivery_ids,
+                    ids, recovered_delivery_ids, route=route,
                 )
                 wake = getattr(s, "_wake_durable_message_deliveries", None)
                 if callable(wake):
@@ -737,13 +803,38 @@ class TurnManager:
             from app import message_deliveries
 
             message_deliveries.complete_recovered_mailbox_delivery(
-                ids, recovered_delivery_ids,
+                ids, recovered_delivery_ids, route=route,
             )
             wake = getattr(s, "_wake_durable_message_deliveries", None)
             if callable(wake):
                 wake()
         else:
             mailbox.mark_delivered(ids)
+
+    def _defer_mailbox(self, ids: list[int], reason: BaseException) -> None:
+        """Return the rows to the mailbox and deliver them once the session is free."""
+        from app import mailbox
+
+        mailbox.release_claim(ids)
+        self.s._log("status", f"mailbox: {len(ids)} kept for after this step ({reason})")
+        self.s._spawn_bg(self._deliver_mailbox_when_free())
+
+    async def _deliver_mailbox_when_free(self) -> None:
+        # A running turn claims the rows itself when it ends; compaction has no turn
+        # end, so this waiter covers it. Dying with the process loses nothing: the
+        # rows are still in the mailbox for the next turn end.
+        from app import mailbox
+
+        s = self.s
+        for _ in range(MAILBOX_DEFER_POLLS):
+            await asyncio.sleep(1)
+            if (s._compacting or getattr(s, "_overflow_compact_scheduled", False)
+                    or s.status == AgentStatus.RUNNING):
+                continue
+            queued = mailbox.claim(s.name, s.scope)
+            if queued:
+                await self._deliver_mailbox(queued)
+            return
 
     def schedule_context_compaction(self, live_pct: int) -> None:
         """Run both automatic compaction decisions from one validated context."""

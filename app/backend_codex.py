@@ -2604,7 +2604,11 @@ class CodexBackend(JsonRpcStdioTransport):
     def _locate_rollout(self) -> Path | None:
         if not self._thread_id:
             return None
-        if self._rollout_path is None or not self._rollout_path.exists():
+        try:
+            known = self._rollout_path is not None and self._rollout_path.exists()
+        except OSError:
+            known = False
+        if not known:
             # #224: os.environ здесь — окружение РОДИТЕЛЬСКОГО процесса Orchestra, а
             # дочерний env отдаётся только в create_subprocess_exec. Спрашивать надо
             # собственный каталог бэкенда, иначе rollout не находится и учёт токенов с
@@ -2617,7 +2621,11 @@ class CodexBackend(JsonRpcStdioTransport):
                 matches = []
             if not matches:
                 return None
-            self._rollout_path = max(matches, key=lambda p: p.stat().st_mtime)
+            try:
+                self._rollout_path = max(matches, key=lambda p: p.stat().st_mtime)
+            except OSError:
+                # A rollout disappearing between glob and stat is not a usable baseline.
+                return None
         return self._rollout_path
 
     def _runtime_context(self) -> dict[str, int] | None:

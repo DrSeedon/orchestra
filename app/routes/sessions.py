@@ -1895,8 +1895,13 @@ async def restart_cli(name: str, req: ScopeRequest):
             session._turn_start_cancel_gen += 1
             session._manually_interrupted = True
             session._cancel_precompact_timer("restart_cli")
+            # The killed CLI may have dropped steers it had not yet added to the
+            # turn, and the cancelled listener publishes no failed terminal event.
+            cut_turn = getattr(session._backend, "active_turn_id", None)
             await session._disconnect_backend()
             settled = await message_deliveries.recover_message_deliveries(target_session_id=session.id)
+            if isinstance(cut_turn, str) and cut_turn:
+                session._turns.recover_failed_turn_steers(cut_turn)
             session.status = AgentStatus.IDLE
             session._persist()
         if session._pending_messages:

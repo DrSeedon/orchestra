@@ -7,6 +7,10 @@ import status/timeouts without importing the session module (no cycles).
 from enum import Enum
 
 
+class DeliveryDeferred(RuntimeError):
+    """`AgentSession.send(require_submit=True)` could not submit now and queued nothing."""
+
+
 class AgentStatus(str, Enum):
     IDLE = "idle"
     RUNNING = "running"

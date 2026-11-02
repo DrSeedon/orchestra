@@ -944,70 +944,182 @@ def _is_cron_delivery(row, provenance: MessageProvenance | None = None) -> bool:
     )
 
 
+_STEER_RECOVERY_PENDING = "steer_recovery_pending:"
+_STEER_RECOVERY_DONE = "steer_recovery:"
+
+
 def requeue_failed_turn(target_session_id: str, provider_ref: str) -> int:
-    """Move steers from a failed turn into the durable after-turn mailbox.
+    """Move steers from a failed turn into the durable after-turn mailbox, once.
 
     The mailbox insert and receipt transition share one SQLite transaction, so a
-    repeated terminal event cannot create duplicate recovery messages.
+    repeated terminal event cannot create duplicate recovery messages. A durable
+    pending marker is committed first: if that transaction fails, the sweeper
+    retries it (`retry_pending_steer_recoveries`) without another terminal event.
+    The done marker keeps a later repeat from requeuing receipts that a
+    redelivery has already returned to SUBMITTED under the same turn reference.
     """
     if not provider_ref:
         return 0
-    now = time.time()
-    stored_ref = f"{_STEERED_PROVIDER_REF_PREFIX}{provider_ref}"
+    with db._conn() as connection:
+        if connection.execute(
+            """SELECT 1 FROM message_deliveries
+               WHERE target_session_id=? AND provider_ref=? AND state='SUBMITTED'
+               LIMIT 1""",
+            (target_session_id, f"{_STEERED_PROVIDER_REF_PREFIX}{provider_ref}"),
+        ).fetchone() is None:
+            return 0
+        connection.execute(
+            "INSERT OR IGNORE INTO kv(key, value) VALUES (?, ?)",
+            (f"{_STEER_RECOVERY_PENDING}{target_session_id}:{provider_ref}", _now()),
+        )
+    return _complete_steer_recovery(target_session_id, provider_ref)
+
+
+def _complete_steer_recovery(target_session_id: str, provider_ref: str) -> int:
+    key = f"{target_session_id}:{provider_ref}"
     with db._conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
+        done = connection.execute(
+            "SELECT 1 FROM kv WHERE key=?", (f"{_STEER_RECOVERY_DONE}{key}",),
+        ).fetchone()
+        requeued = 0 if done else _requeue_failed_turn(
+            connection, target_session_id, provider_ref,
+        )
+        connection.execute(
+            "INSERT OR IGNORE INTO kv(key, value) VALUES (?, ?)",
+            (f"{_STEER_RECOVERY_DONE}{key}", _now()),
+        )
+        connection.execute(
+            "DELETE FROM kv WHERE key=?", (f"{_STEER_RECOVERY_PENDING}{key}",),
+        )
+        return requeued
+
+
+def requeue_cut_turn_steers(target_session_id: str) -> int:
+    """Startup recovery for a turn that an Orchestra death cut before its terminal.
+
+    Only a session the boot found mid-turn is passed in. Its steered receipts
+    after its last logged turn end are candidates because steers are accepted
+    only while a turn runs, and no recovery intent was written for that turn.
+    If a successful turn's asynchronous terminal log was lost, its receipts can
+    also fall after this cutoff and be redelivered. Recovery is at-least-once;
+    duplicates are possible. Turns already recovered are skipped by the done marker.
+    """
+    with db._conn() as connection:
+        # The event time, not the row id: log rows are written by a thread pool, so
+        # an older turn's end can get a higher id than a newer one.
+        last_end_ts = connection.execute(
+            "SELECT MAX(ts) FROM logs WHERE session_id=? AND type='status' "
+            "AND content LIKE 'turn ended%'",
+            (target_session_id,),
+        ).fetchone()
         rows = connection.execute(
-            """SELECT * FROM message_deliveries
-               WHERE target_session_id=? AND provider_ref=? AND state='SUBMITTED'
-               ORDER BY accept_seq""",
-            (target_session_id, stored_ref),
+            """SELECT provider_ref, updated_at FROM message_deliveries
+               WHERE target_session_id=? AND state='SUBMITTED' AND provider_ref LIKE ?""",
+            (target_session_id, f"{_STEERED_PROVIDER_REF_PREFIX}%"),
         ).fetchall()
-        for row in rows:
-            provenance = MessageProvenance.from_storage(
-                row["origin"], row["origin_detail"],
+    def instant(stamp: str) -> datetime:
+        value = datetime.fromisoformat(stamp)
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+    since = instant(last_end_ts[0]) if last_end_ts and last_end_ts[0] else None
+    turns = []
+    for row in rows:
+        if since is not None and instant(row["updated_at"]) <= since:
+            continue
+        turn = row["provider_ref"][len(_STEERED_PROVIDER_REF_PREFIX):]
+        if turn not in turns:
+            turns.append(turn)
+    return sum(requeue_failed_turn(target_session_id, turn) for turn in turns)
+
+
+def retry_pending_steer_recoveries() -> int:
+    """Finish recoveries whose transaction failed after their intent was committed."""
+    with db._conn() as connection:
+        keys = [row[0] for row in connection.execute(
+            "SELECT key FROM kv WHERE key LIKE ? ORDER BY value",
+            (f"{_STEER_RECOVERY_PENDING}%",),
+        )]
+    requeued = 0
+    for key in keys:
+        target_session_id, _, provider_ref = key[len(_STEER_RECOVERY_PENDING):].partition(":")
+        try:
+            requeued += _complete_steer_recovery(target_session_id, provider_ref)
+        except Exception as error:
+            logger.warning(
+                "steer recovery %s:%s still pending: %s",
+                target_session_id, provider_ref, err_text(error),
             )
-            if _is_cron_delivery(row, provenance):
-                # Keep cron's captured generation and rendered body under the
-                # durable runner's gate. The legacy name-keyed mailbox loses both.
-                connection.execute(
-                    """UPDATE message_deliveries
-                       SET state='PREPARING', provider_ref=NULL, updated_at=?
-                       WHERE delivery_id=? AND state='SUBMITTED'""",
-                    (_now(), row["delivery_id"]),
-                )
-                continue
-            sender = row["source_name"] or ", ".join(provenance.senders)
-            connection.execute(
-                """INSERT INTO mailbox (
-                       recipient, scope, sender, body, origin, origin_detail,
-                       created_at
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    row["target_name"], row["target_scope"], sender,
-                    row["message"], row["origin"],
-                    json.dumps({
-                        "senders": [sender],
-                        "subtype": "direct_message_recovery",
-                        "ref": row["delivery_id"],
-                    }, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
-                    now,
-                ),
-            )
+    return requeued
+
+
+def _requeue_failed_turn(connection, target_session_id: str, provider_ref: str) -> int:
+    now = time.time()
+    stored_ref = f"{_STEERED_PROVIDER_REF_PREFIX}{provider_ref}"
+    rows = connection.execute(
+        """SELECT * FROM message_deliveries
+           WHERE target_session_id=? AND provider_ref=? AND state='SUBMITTED'
+           ORDER BY accept_seq""",
+        (target_session_id, stored_ref),
+    ).fetchall()
+    for row in rows:
+        provenance = MessageProvenance.from_storage(
+            row["origin"], row["origin_detail"],
+        )
+        if _is_cron_delivery(row, provenance):
+            # Keep cron's captured generation and rendered body under the
+            # durable runner's gate. The legacy name-keyed mailbox loses both.
             connection.execute(
                 """UPDATE message_deliveries
-                   SET state='WAITING_NEXT_TURN', updated_at=?
+                   SET state='PREPARING', provider_ref=NULL, updated_at=?
                    WHERE delivery_id=? AND state='SUBMITTED'""",
-                (now, row["delivery_id"]),
+                (_now(), row["delivery_id"]),
             )
-        return len(rows)
+            continue
+        sender = row["source_name"] or ", ".join(provenance.senders)
+        connection.execute(
+            """INSERT INTO mailbox (
+                   recipient, scope, sender, body, origin, origin_detail,
+                   created_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                row["target_name"], row["target_scope"], sender,
+                row["message"], row["origin"],
+                json.dumps({
+                    "senders": [sender],
+                    "subtype": "direct_message_recovery",
+                    "ref": row["delivery_id"],
+                }, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                now,
+            ),
+        )
+        connection.execute(
+            """UPDATE message_deliveries
+               SET state='WAITING_NEXT_TURN', updated_at=?
+               WHERE delivery_id=? AND state='SUBMITTED'""",
+            (now, row["delivery_id"]),
+        )
+    return len(rows)
 
 
 def complete_recovered_mailbox_delivery(
-    mailbox_ids: list[int], delivery_ids: list[str],
+    mailbox_ids: list[int], delivery_ids: list[str], *, route=None,
 ) -> None:
-    """Commit mailbox acknowledgement and recovered receipt completion together."""
+    """Commit mailbox acknowledgement and recovered receipt completion together.
+
+    `route` is `AgentSession.send`'s result for the redelivery. The receipt then
+    names the turn that carries it now: a steer without its own backup copy keeps
+    `steered:<turn>`, so the next failure of that turn requeues it again; the
+    initial input of a turn, or a steer whose backup owns recovery, is the plain
+    turn. An unknown route stores no turn instead of the previous, finished one.
+    """
     if not mailbox_ids:
         return
+    kind, turn, backed_up = route if route else (None, None, False)
+    provider_ref = None
+    if turn:
+        steered = kind == "steer" and not backed_up
+        provider_ref = f"{_STEERED_PROVIDER_REF_PREFIX}{turn}" if steered else turn
     mailbox_placeholders = ",".join("?" * len(mailbox_ids))
     with db._conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
@@ -1018,10 +1130,11 @@ def complete_recovered_mailbox_delivery(
         if delivery_ids:
             placeholders = ",".join("?" * len(delivery_ids))
             connection.execute(
-                f"""UPDATE message_deliveries SET state='SUBMITTED', updated_at=?
+                f"""UPDATE message_deliveries
+                    SET state='SUBMITTED', provider_ref=?, updated_at=?
                     WHERE delivery_id IN ({placeholders})
                       AND state='WAITING_NEXT_TURN'""",
-                (datetime.now(timezone.utc).isoformat(), *delivery_ids),
+                (provider_ref, datetime.now(timezone.utc).isoformat(), *delivery_ids),
             )
 
 
@@ -1457,7 +1570,14 @@ async def _wake_idle_waiting_targets(manager) -> int:
         session = manager.sessions.get(row["target_session_id"])
         if session is None:
             session = await manager.ensure_loaded_by_id(row["target_session_id"])
-        if session is None or session.status != AgentStatus.IDLE or session._compacting:
+        # WAITING is a finished turn with background jobs still running; like IDLE it
+        # starts a new turn on input. Skipping it held recovered steers until the
+        # jobs ended or a manual CLI restart reset the status to IDLE.
+        if (
+            session is None
+            or session.status not in (AgentStatus.IDLE, AgentStatus.WAITING)
+            or session._compacting
+        ):
             continue
         queued = mailbox.claim(session.name, session.scope)
         if not queued:
@@ -1495,7 +1615,11 @@ def _warn_long_stuck() -> int:
 async def sweep_stuck_deliveries(manager=None) -> dict:
     if manager is None:
         from app.deps import manager as manager
-    result = {"archived": 0, "woken": 0, "runners": 0, "warned": 0, "notices": 0}
+    result = {
+        "archived": 0, "woken": 0, "runners": 0, "warned": 0, "notices": 0,
+        "recovered": 0,
+    }
+    result["recovered"] = await asyncio.to_thread(retry_pending_steer_recoveries)
     result["archived"] = await asyncio.to_thread(fail_deliveries_to_archived_targets)
     result["woken"] = await _wake_idle_waiting_targets(manager)
     with db._conn() as connection:

@@ -1114,22 +1114,22 @@ class SessionManager:
 
     async def send(
         self, session_id: str, message: str | InjectedMessage, *,
-        provenance: MessageProvenance,
-    ) -> None:
+        provenance: MessageProvenance, **send_options,
+    ):
         session = self.sessions.get(session_id)
         if not session:
             raise KeyError(f"session not found: {session_id}")
 
-        async def deliver() -> None:
+        async def deliver():
             async with self.get_session_lock(session_id):
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
                 await self._auto_switch_before_delivery(session)
-                await session.send(message, provenance=provenance)
+                return await session.send(message, provenance=provenance, **send_options)
 
         delivery_task = asyncio.create_task(deliver())
         await _wait_owned_task(delivery_task)
-        delivery_task.result()
+        return delivery_task.result()
 
     async def send_initial_delivery(
         self, session_id: str, message: str, *, delivery,
@@ -2500,6 +2500,14 @@ class SessionManager:
             ).fetchall()]
             c.execute("UPDATE sessions SET status='idle' "
                       "WHERE status IN ('running', 'interrupted', 'waiting')")
+
+        # V-1160: a death before the cut turn's recovery intent left its steers SUBMITTED.
+        from app.message_deliveries import requeue_cut_turn_steers
+        for row in was_running_rows:
+            try:
+                await asyncio.to_thread(requeue_cut_turn_steers, row["id"])
+            except Exception as error:
+                logger.error("cut-turn steer recovery failed for %s: %s", row["name"], error)
 
         # R1: load orchestrators first — workers need their parent_name resolved,
         # and the orchestrator's on_idle callback registered before workers resume

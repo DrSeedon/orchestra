@@ -110,7 +110,7 @@ async def test_sweep_wakes_idle_target_blocked_by_waiting_next_turn(stuck_db):
         def _spawn_bg(self, coro):
             return asyncio.ensure_future(coro)
 
-        async def send(self, text, *, provenance):
+        async def send(self, text, *, provenance, chat_text=None, **_options):
             sent.append(text)
 
     session = Session()

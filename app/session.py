@@ -56,8 +56,8 @@ from app.session_cost import CostTracker
 from app.session_hibernate import HibernateManager
 from app.stall_signals import describe_event, watch_turn_start
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
-    AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER, empty_context,
-    platform_interruption_notice,
+    AgentStatus, DeliveryDeferred, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER,
+    empty_context, platform_interruption_notice,
 )
 from app.session_turns import (
     CRITICAL_AUTO_COMPACT_PCT,
@@ -1326,13 +1326,32 @@ class AgentSession:
     async def send(
         self, message: str | InjectedMessage, *, provenance: MessageProvenance,
         delivery=None, retry_generation: tuple[int, int] | None = None,
-    ) -> None:
+        chat_text: str | None = None, require_submit: bool = False,
+    ) -> tuple[str, str | None, bool] | None:
+        """`chat_text` replaces the chat log of `message`; "" logs no user message.
+
+        Redelivered copies of input that the chat already shows use it, so one
+        owner message does not reappear as new input. Returns where a
+        non-receipt message went: ("steer", turn, has_backup) or ("turn", turn,
+        False); None when it was queued, dropped or delivered through a receipt.
+        `require_submit` raises `DeliveryDeferred` instead of queueing the text in
+        memory, for callers whose copy stays durable until a real submission.
+        """
         if isinstance(message, InjectedMessage) and message.provenance != provenance:
             raise ValueError("injected message provenance mismatch")
         owner_initiated = _is_owner_direct_message(provenance)
         message_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
         message = message.text if isinstance(message, InjectedMessage) else message
         original_user_message = message
+
+        def log_user_message(text: str) -> None:
+            if chat_text is not None:
+                text = chat_text
+            if text:
+                self._log(
+                    "user_message", text, event_id=message_event_id,
+                    provenance=provenance,
+                )
         history_user_message = original_user_message
         if delivery is not None:
             persisted_user_message = getattr(delivery, "history_user_message", None)
@@ -1472,12 +1491,11 @@ class AgentSession:
             if self._compacting or self._overflow_compact_scheduled:
                 if delivery is not None and allow_running_delivery:
                     return
+                if require_submit:
+                    raise DeliveryDeferred("context compaction in progress")
                 self._pending_messages.append(message)
                 self._pending_owner_initiated_turn |= owner_initiated
-                self._log(
-                    "user_message", message, event_id=message_event_id,
-                    provenance=provenance,
-                )
+                log_user_message(message)
                 self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
                 return
             if self.status == AgentStatus.RUNNING:
@@ -1527,15 +1545,15 @@ class AgentSession:
                             await delivery.mark_unknown(error)
                         raise
 
-                self._log(
-                    "user_message", message, event_id=message_event_id,
-                    provenance=provenance,
-                )
-                if (
+                deferred_interrupt = (
                     self.backend_type == "codex"
                     and self._backend is not None
                     and getattr(self._backend, "deferred_interrupt_pending", False) is True
-                ):
+                )
+                if require_submit and (deferred_interrupt or not capabilities.mid_turn_inject):
+                    raise DeliveryDeferred("the running turn cannot take this input now")
+                log_user_message(message)
+                if deferred_interrupt:
                     self._pending_messages.append(message)
                     self._pending_owner_initiated_turn |= owner_initiated
                     self._log(
@@ -1587,8 +1605,13 @@ class AgentSession:
                     self._ack_pending_facts(fact_keys)
                     if self.backend_type == "codex":
                         self._log("status", "message steered into active Codex turn")
-                    return
+                    return (
+                        "steer", turn_id if isinstance(turn_id, str) and turn_id else None,
+                        mailbox_id is not None,
+                    )
                 except Exception as e:
+                    if require_submit and mailbox_id is None:
+                        raise DeliveryDeferred(f"mid-turn inject failed: {e}") from e
                     logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
                     if mailbox_id is None:
                         self._pending_messages.append(message)
@@ -1610,10 +1633,7 @@ class AgentSession:
             self.progress_pct = 0
             self.progress_status = ""
             if delivery is None:
-                self._log(
-                    "user_message", message, event_id=message_event_id,
-                    provenance=provenance,
-                )
+                log_user_message(message)
 
             did_inject = False
             pending_th = ""
@@ -1806,6 +1826,9 @@ class AgentSession:
                     self._turn_event_loop()
                 )
                 self._listen_task.add_done_callback(self._on_task_done)
+            if delivery is None:
+                started = getattr(backend, "active_turn_id", None)
+                return ("turn", started if isinstance(started, str) and started else None, False)
         finally:
             self._lifecycle_lock.release()
 

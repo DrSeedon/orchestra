@@ -148,7 +148,7 @@ async def test_review_mailbox_preserves_durable_mixed_provenance(tmp_path, monke
     captured = []
 
     class Session:
-        async def send(self, text, *, provenance):
+        async def send(self, text, *, provenance, **_options):
             captured.append((text, provenance))
 
     await TurnManager(Session())._deliver_mailbox(queued)
