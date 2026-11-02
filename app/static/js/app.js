@@ -3303,8 +3303,6 @@ function createAgentItem(s) {
     const pill = _cachePill(s);
     if (pill) meta.appendChild(pill);
     meta.appendChild(modelBadge(s.model || ''));
-    const modelReason = _modelReasonBadge(s.model_reason);
-    if (modelReason) meta.appendChild(modelReason);
     if (isHubModel(s.model)) meta.appendChild(hubBadge());
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');

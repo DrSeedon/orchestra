@@ -7,6 +7,7 @@
 ## Unreleased
 
 - **Codex in-place switches use the runtime's retained context window** (V-1201; `app/session.py`, `app/backend_codex.py`). The switch preflight now shares Codex's fallback-transition rule, so a Terra→Sol retarget is not rejected by the stale 258400-token catalog fallback when the active Codex thread has a larger runtime-reported window that the backend will preserve. A genuinely narrower target still fails before retarget or persistence, retaining the source model and session.
+- **Agent list cards omit the gray model-reason text** (V-1199; `app/static/js/app.js`). Names, statuses, model/Hub badges, indicators and actions stay in place, with no description placeholder. Stored descriptions and model reasons are unchanged; the selected agent's Info panel still shows them. JS only; no live data or service restart.
 
 - **Successful HTTP access records no longer trigger false post-fix recurrences** (V-1191; `app/error_watch.py`). Registered-fix observation now excludes the same complete raw journal 2xx `OK` access records already classified as noise by V-1174. Legacy normalized fix keys and notification flags remain intact; HTTP failures, surrounding error/traceback context, refusals and explicitly flagged DB errors sharing the access signature still count. Synthetic checks exercise journal collection, scan, state reload and observation completion. The partial worker copy lacks `app.db`, `app.secret_mask` and `app.hub_activity`; full-checkout validation remains required. No live data, deployment, resets or restart.
 
