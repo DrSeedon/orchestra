@@ -14,6 +14,16 @@ The process cwd and clean main checkout establish that PID `1763313` started fro
 
 Frozen coding-v2 manifest hash remains `96f396629caa8348ae923d103b7742afc1171e16d98e4fbd34d0b1a882a9f9c2`; manifest file SHA-256 `cc382e0e8ecd636bc1bc774cd1a71047ff0e4749cce63b61d195509377a352b2`; run-order hash `d8e8d01bfa62502a5a20c32e753df8487870d1a6c4fe4907d467912eba208f42`. The hashes are unchanged and `dispatch_ready=false`. Actual grants, inference, provider/account calls: **0**. Verbatim/private evidence: `.orchestra/private/V-1170/post-restart-20261102/`.
 
+## V-1234 final-source host acceptance (2026-11-02)
+
+The final source candidate is `c7fd77dc4dc642e582fd2f2ce798e8b40bfb0f20`, clean in its author worktree. Compared with the pinned `9eb264dfa9e89bb1dec329fe95fdecd4848be694`, only `.orchestra/tasks/V-1234/stage.md` changed; product and test bytes are identical. QA used an isolated full tracked source archive at `/var/tmp/orchestra-v1170-v1234-sourceqa-c7fd77dc4dc642e582fd2f2ce798e8b40bfb0f20/repo` (567,428,344 bytes); the author branch/worktree was not modified. Exact production/test SHA-256: `app/backend_codex.py` `3aef3de42c1fa89bdf370e963c44ab7b34127d37ce20e831fcdeb9b743c4a446`; `tests/test_backend_codex.py` `330b4bc06dff71bee8687ecc25c4c4a69d4203ca8a26422990610d594bd1d2d8`; `tests/test_eval_admission.py` `1cc2069e9f08255cc0af595f28c28464873e27768deed154b03f8c2cba7bc929`.
+
+The mapped command covered eval admission, Codex backend/home, session, route surface, quota, dynamic workflow and MCP stdio tests: **778 passed, 0 failed, 0 skipped** in 34.97 s. `scripts/check_instruction_contract.py` passed; CLAUDE.md was a symlink to AGENTS.md. App imported from the isolated snapshot at `/var/tmp/orchestra-v1170-v1234-sourceqa-c7fd77dc4dc642e582fd2f2ce798e8b40bfb0f20/repo/app/__init__.py`.
+
+The committed `test_apps_override_is_eval_only_and_written_before_startup` passed all six cases at baseline. Mutating only the eval setting from `features.apps=false` to `true` produced **3 intended failures / 3 ordinary-path passes** at the committed assertion that eval config keeps apps false; `app/backend_codex.py` was restored to exact SHA-256 `3aef3de42c1fa89bdf370e963c44ab7b34127d37ce20e831fcdeb9b743c4a446`. The source worker's earlier copy reported 124 passes but could not run instruction/eval checks due missing prerequisites; this host snapshot supplied those checks. The one full suite was not run; host testing had no skips or incomplete attempts. No grant, CLI app-server, provider/account request, inference, service write, merge or push occurred.
+
+Raw output, mutation script/receipt, instruction contract and import evidence are private at `.orchestra/private/V-1170/v1234-sourceqa-20261102/`.
+
 ## Executive summary
 
 - The QA candidate integrates current main `ae76920655d19c64cbbd006dfebc0138ccee1008` and V-1166 source HEAD `8b74515cfb54471a88d5d9496cee5f01fa94b65d` by graph merges. Before this receipt edit, HEAD was `235d3a81b2d02f0db2d57a8e77efe8b5caecfb06`; prior WIP `0379e057bbcad11ad26fe5a2f79bdca45dd4f750` remains reachable. QA is local to `task-V-1170/local-ops`; no main merge, push, deployment or activation.
