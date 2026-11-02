@@ -64,7 +64,68 @@ def offline(monkeypatch):
     monkeypatch.setattr(asyncio, "create_subprocess_exec", forbidden)
     monkeypatch.setattr(asyncio, "create_subprocess_shell", forbidden)
     monkeypatch.setattr(sqlite3, "connect", forbidden)
-    monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", 0.06)
+    # Lifecycle assertions use the harness's independent 0.5s watchdogs, not a
+    # compact performance budget. Deadline oracles opt into controlled time.
+    monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", None)
+
+
+class CompactClock:
+    """Opt into the real asyncio deadline with explicitly controlled loop time."""
+
+    def __init__(self, monkeypatch):
+        self.monkeypatch = monkeypatch
+        self.active = False
+
+    def start(self, seconds=0.06):
+        assert not self.active
+        self.loop = asyncio.get_running_loop()
+        self.real_time = self.loop.time
+        self.previous_budget = source.CODEX_COMPACT_TIMEOUT_SECONDS
+        self.now = self.real_time()
+        self.budget = seconds
+        self.active = True
+        self.monkeypatch.setattr(self.loop, "time", lambda: self.now)
+        self.monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", seconds)
+
+    def stop(self):
+        if self.active:
+            self.monkeypatch.setattr(self.loop, "time", self.real_time)
+            self.monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", self.previous_budget)
+            self.active = False
+
+    def advance(self, seconds):
+        assert self.active
+        self.now += seconds
+
+    async def expire(self, harness):
+        self.advance(self.budget)
+        await harness.deliver()
+        assert harness.backend.compact_diagnostics["outcome"] == "timeout"
+        # Recovery uses ordinary lifecycle timing again (including deferred
+        # session callbacks). Do not freeze unrelated sleeps/watchdogs forever.
+        self.stop()
+
+
+@pytest.fixture
+def compact_clock(monkeypatch, offline):
+    clock = CompactClock(monkeypatch)
+    try:
+        yield clock
+    finally:
+        clock.stop()
+
+
+@pytest.fixture(params=[0, 0.11], ids=["no-delay", "scheduler-pause"])
+def pause_before_ack(request, monkeypatch):
+    async def pause():
+        # Move the underlying monotonic clock as if the host descheduled us.
+        # Explicit CompactClock deadlines stay fixed; lifecycle tests must not
+        # acquire an accidental 60ms deadline. No real sleep/provider call.
+        clock = source.time.monotonic
+        monkeypatch.setattr(source.time, "monotonic", lambda: clock() + request.param)
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+    return pause
 
 
 class Pipe:
@@ -208,8 +269,9 @@ async def test_failed_beats_retry_hint_and_retains_cause(h, retry):
 
 
 @pytest.mark.asyncio
-async def test_retryable_error_can_recover(h):
+async def test_retryable_error_can_recover(h, pause_before_ack):
     task, request = await h.begin()
+    await pause_before_ack()
     await h.ack(request)
     await h.deliver(start(), error(True), compact(), terminal())
     assert (await h.result(task))["ok"]
@@ -272,13 +334,17 @@ async def test_foreign_events_cannot_complete_or_contaminate(h, foreign):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
 @pytest.mark.parametrize("cancel", [False, True])
-async def test_timeout_cancel_retains_owner_and_reconciles(h, stage, cancel):
+async def test_timeout_cancel_retains_owner_and_reconciles(h, compact_clock, stage, cancel):
+    if not cancel:
+        compact_clock.start()
     task, request = await h.begin()
     if stage != "ack":
         await h.ack(request)
     await h.deliver(start(), *([compact()] if stage == "terminal" else []))
     if cancel:
         task.cancel()
+    else:
+        await compact_clock.expire(h)
     with pytest.raises(asyncio.CancelledError if cancel else TimeoutError):
         await h.result(task)
     with pytest.raises(RuntimeError, match="already in progress|unresolved"):
@@ -288,7 +354,12 @@ async def test_timeout_cancel_retains_owner_and_reconciles(h, stage, cancel):
     diagnostics = h.backend.compact_diagnostics
     assert diagnostics["outcome"] == ("cancelled" if cancel else "timeout")
     assert diagnostics["remote_outcome"] == "unknown"
-    assert "stage" in diagnostics and "operation" in diagnostics
+    assert diagnostics["stage"] == {
+        "ack": "request acknowledgement",
+        "completion": "completion notification",
+        "terminal": "turn lifecycle",
+    }[stage]
+    assert "operation" in diagnostics
     await h.deliver(compact(), terminal())
     assert not h.backend.compact_pending
     assert h.backend.compact_diagnostics["late"] is True
@@ -313,8 +384,7 @@ async def test_transport_failure_wakes_every_stage_without_waiting_process(
 ):
     # This oracle must be woken by transport failure, never the compact deadline.
     # The independent asyncio.wait below bounds a broken wakeup; timeout/cancel
-    # behavior keeps its real short deadline in the dedicated tests above.
-    monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", None)
+    # behavior uses explicitly controlled deadlines in the dedicated tests above.
     task, request = await h.begin()
     if stage != "ack":
         await h.ack(request)
@@ -385,7 +455,7 @@ async def test_missing_start_does_not_report_success(h):
     task, request = await h.begin()
     await h.ack(request)
     await h.deliver(compact(), terminal())
-    with pytest.raises((RuntimeError, TimeoutError)):
+    with pytest.raises(RuntimeError, match="without a preceding turn/started"):
         await h.result(task)
 
 
@@ -412,9 +482,11 @@ async def test_ordinary_user_turn_and_auto_compaction_are_supported(h):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("late_before_ack", [False, True])
-async def test_ordinary_send_recovers_while_unresolved_with_early_events(h, late_before_ack):
+async def test_ordinary_send_recovers_while_unresolved_with_early_events(h, compact_clock, late_before_ack):
+    compact_clock.start()
     first, request = await h.begin()
     await h.ack(request)
+    await compact_clock.expire(h)
     with pytest.raises(TimeoutError):
         await h.result(first)
     send = h.task(h.backend.send("ordinary recovery message"))
@@ -437,8 +509,9 @@ async def test_ordinary_send_recovers_while_unresolved_with_early_events(h, late
 
 
 @pytest.mark.asyncio
-async def test_native_interrupt_uses_compact_turn(h):
+async def test_native_interrupt_uses_compact_turn(h, pause_before_ack):
     task, request = await h.begin()
+    await pause_before_ack()
     await h.ack(request)
     await h.deliver(start())
     interrupt = h.task(h.backend.interrupt())
@@ -470,11 +543,14 @@ def make_session(h):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("outcome", ["success", "failed", "timeout", "cancel"])
-async def test_session_compact_path_and_hibernate(h, outcome):
+async def test_session_compact_path_and_hibernate(h, compact_clock, pause_before_ack, outcome):
+    if outcome == "timeout":
+        compact_clock.start()
     s = make_session(h)
     h.backend._hibernate_safe = True
     task = h.task(s.compact())
     request = await h.request("thread/compact/start")
+    await pause_before_ack()
     await h.ack(request)
     await h.deliver(start())
     assert (await s.hibernate_now())["reason"] == "compacting"
@@ -482,6 +558,8 @@ async def test_session_compact_path_and_hibernate(h, outcome):
         await h.deliver(event("thread/tokenUsage/updated", turnId=TURN,
                               tokenUsage={"last": {"totalTokens": 1234}, "modelContextWindow": 100000}),
                         compact(), terminal("completed" if outcome == "success" else "failed"))
+    elif outcome == "timeout":
+        await compact_clock.expire(h)
     if outcome == "cancel":
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -489,6 +567,9 @@ async def test_session_compact_path_and_hibernate(h, outcome):
     else:
         result = await h.result(task)
         assert result["ok"] == (outcome == "success")
+        if outcome == "timeout":
+            assert result["compact_diagnostics"]["outcome"] == "timeout"
+            assert result["compact_diagnostics"]["stage"] == "completion notification"
     assert not s._compacting
     assert s._last_context["total_tokens"] == (1234 if outcome == "success" else 70000)
     s._wake_durable_message_deliveries.assert_called_once()
@@ -544,9 +625,11 @@ async def test_foreign_started_cannot_supply_own_lifecycle(h):
 
 
 @pytest.mark.asyncio
-async def test_no_ack_despite_completed_protocol_still_times_out(h):
+async def test_no_ack_despite_completed_protocol_still_times_out(h, compact_clock):
+    compact_clock.start()
     task, _ = await h.begin()
     await h.deliver(start(), compact(), terminal())
+    await compact_clock.expire(h)
     with pytest.raises(TimeoutError, match="request acknowledgement") as observed:
         await h.result(task)
     assert observed.value.compact_diagnostics["remote_outcome"] == "completed"
@@ -554,10 +637,12 @@ async def test_no_ack_despite_completed_protocol_still_times_out(h):
 
 
 @pytest.mark.asyncio
-async def test_completed_terminal_without_compaction_allows_safe_retry(h):
+async def test_completed_terminal_without_compaction_allows_safe_retry(h, compact_clock):
+    compact_clock.start()
     task, request = await h.begin()
     await h.ack(request)
     await h.deliver(start(), terminal())
+    await compact_clock.expire(h)
     with pytest.raises(TimeoutError, match="completion notification"):
         await h.result(task)
     assert not h.backend.compact_pending
@@ -596,13 +681,15 @@ async def test_duplicate_item_id_cannot_supply_new_compaction_evidence(h):
 
 
 @pytest.mark.asyncio
-async def test_invalid_json_is_diagnosed_without_false_success(h):
+async def test_invalid_json_is_diagnosed_without_false_success(h, compact_clock):
+    compact_clock.start()
     task, request = await h.begin()
     await h.ack(request)
     await h.deliver(start())
     h.stream.feed_data(b"{invalid compact record}\n")
     await h.deliver(terminal())
-    with pytest.raises(TimeoutError):
+    await compact_clock.expire(h)
+    with pytest.raises(TimeoutError, match="completion notification"):
         await h.result(task)
     assert h.backend.compact_diagnostics["ignored"]["invalid_json"] == 1
 
@@ -670,11 +757,13 @@ async def test_session_interrupt_does_not_disconnect_unknown_compact(h, started)
 
 
 @pytest.mark.asyncio
-async def test_session_actual_send_and_listener_proceed_after_compact_timeout(h, monkeypatch):
+async def test_session_actual_send_and_listener_proceed_after_compact_timeout(h, compact_clock, monkeypatch):
+    compact_clock.start()
     s = make_session(h)
     task = h.task(s.compact())
     request = await h.request("thread/compact/start")
     await h.ack(request)
+    await compact_clock.expire(h)
     assert not (await h.result(task))["ok"]
     s._activate_backend_tasks = Mock()
     s._refresh_runtime_context = AsyncMock()
@@ -703,25 +792,46 @@ async def test_session_actual_send_and_listener_proceed_after_compact_timeout(h,
 
 
 @pytest.mark.asyncio
-async def test_one_deadline_includes_ack_and_completion(h, monkeypatch):
-    monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", 0.2)
+@pytest.mark.parametrize("completion_delay", [0.07, 0.12])
+async def test_one_deadline_includes_ack_and_completion(h, compact_clock, completion_delay):
+    compact_clock.start(0.2)
+    loop = asyncio.get_running_loop()
     task, request = await h.begin()
-    ready = asyncio.Event()
-    handle = asyncio.get_running_loop().call_later(0.12, ready.set)
+
+    # Keep real JSONL/ACK handling, but advance only this loop's clock. Wall-clock
+    # scheduling of the test's continuation must not decide the deadline oracle.
+    compact_clock.advance(0.12)
+    await h.ack(request)
+    await h.deliver(start())
+    too_late = asyncio.Event()
+    completion = loop.call_later(completion_delay, too_late.set)
     try:
-        await ready.wait()
-        await h.ack(request)
-        await h.deliver(start())
-        too_late = asyncio.Event()
-        completion = asyncio.get_running_loop().call_later(0.12, too_late.set)
-        try:
+        if completion_delay < 0.08:
+            compact_clock.advance(completion_delay)
+            await h.deliver(compact(), terminal())
+            assert too_late.is_set()
+            assert (await h.result(task))["ok"]
+        else:
+            compact_clock.advance(0.07)
+            await h.deliver()
+            assert not task.done(), "compact must retain the remaining shared budget"
+            assert not too_late.is_set()
+            # Cross the shared 0.20 deadline while still before completion at
+            # 0.24. A fresh 0.20 budget after ACK would incorrectly stay pending.
+            compact_clock.advance(0.02)
+            await h.deliver()
+            assert task.done(), "ACK must not reset the compact deadline"
             with pytest.raises(TimeoutError, match="completion notification"):
                 await h.result(task)
             assert not too_late.is_set()
-        finally:
-            completion.cancel()
+
+            # Late native success still reconciles the detached owner.
+            compact_clock.advance(0.03)
+            await h.deliver(compact(), terminal())
+            assert too_late.is_set()
+            assert not h.backend.compact_pending
     finally:
-        handle.cancel()
+        completion.cancel()
 
 
 @pytest.mark.asyncio
@@ -789,7 +899,8 @@ async def test_legacy_failure_without_started_is_not_hidden_by_timeout(h, method
 
 
 @pytest.mark.asyncio
-async def test_session_queued_delivery_reaches_actual_listener_after_timeout(h, monkeypatch):
+async def test_session_queued_delivery_reaches_actual_listener_after_timeout(h, compact_clock, monkeypatch):
+    compact_clock.start()
     s = make_session(h)
     # Admission is covered by the existing session suite; this isolates queue release.
     s._is_orchestrator = True
@@ -800,6 +911,7 @@ async def test_session_queued_delivery_reaches_actual_listener_after_timeout(h, 
     task = h.task(s.compact())
     request = await h.request("thread/compact/start")
     await h.ack(request)
+    await compact_clock.expire(h)
     assert not (await h.result(task))["ok"]
     request = await h.request("turn/start")
     await h.deliver(start("queued-user"))
@@ -818,11 +930,13 @@ async def test_session_queued_delivery_reaches_actual_listener_after_timeout(h, 
 
 
 @pytest.mark.asyncio
-async def test_unresolved_compact_preserves_manual_interrupt_of_ordinary_running_turn(h):
+async def test_unresolved_compact_preserves_manual_interrupt_of_ordinary_running_turn(h, compact_clock):
+    compact_clock.start()
     s = make_session(h)
     task = h.task(s.compact())
     request = await h.request("thread/compact/start")
     await h.ack(request)
+    await compact_clock.expire(h)
     assert not (await h.result(task))["ok"]
     s.status = AgentStatus.RUNNING
     h.backend._active_turn_id = "ordinary-turn"
@@ -837,11 +951,10 @@ async def test_unresolved_compact_preserves_manual_interrupt_of_ordinary_running
 @pytest.mark.asyncio
 @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
 @pytest.mark.parametrize("reverse", [False, True])
-async def test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter(h, monkeypatch, transport, reverse):
+async def test_preack_completed_lifecycle_transport_failure_wakes_ack_waiter(h, transport, reverse):
     # C/T before ACK must not turn EOF into either success or an ACK timeout.
-    # A long compact deadline makes the short independent observation window
-    # distinguish transport wakeup from expiration of the operation's budget.
-    monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", 5)
+    # Only transport closure may wake this waiter; the harness's independent
+    # observation window bounds a missing wakeup, not the operation's budget.
     task, _request = await h.begin()
     c, t = compact(), terminal()
     await h.deliver(start(), *([t, c] if reverse else [c, t]))
