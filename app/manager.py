@@ -45,6 +45,7 @@ from app.models import (
     cache_policy_for_runtime,
     ensure_dashboard_visible,
     ensure_spawn_allowed,
+    ensure_hub_worker_allowed,
     get_model_spec,
     resolve_model,
     runtime_for_record,
@@ -1124,6 +1125,7 @@ class SessionManager:
             async with self.get_session_lock(session_id):
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
+                ensure_hub_worker_allowed(session.model)
                 await self._auto_switch_before_delivery(session)
                 return await session.send(message, provenance=provenance, **send_options)
 
@@ -1145,6 +1147,7 @@ class SessionManager:
             async with self.get_session_lock(session_id):
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
+                ensure_hub_worker_allowed(session.model)
                 await self._auto_switch_before_delivery(session)
                 await session.send(
                     message, delivery=delivery, provenance=provenance,
@@ -1190,6 +1193,7 @@ class SessionManager:
 
                 if provenance.subtype == "limit_wake" and is_codex_wake_ref(provenance.ref):
                     validate_codex_wake(session, provenance.ref)
+                ensure_hub_worker_allowed(session.model)
                 await self._auto_switch_before_delivery(session)
                 check_generation()
                 await session.send(
@@ -1208,6 +1212,7 @@ class SessionManager:
             session = self._hydrate_row(row) if row else None
         if session is None:
             raise KeyError(f"session not found: {session_id}")
+        ensure_hub_worker_allowed(session.model)
         await self._auto_switch_before_delivery(session)
         await session.preflight_delivery_admission()
 
@@ -2273,7 +2278,7 @@ class SessionManager:
             message = (
                 f"[from:{worker.name}] New worker turn blocked by the quota line; "
                 f"{retained_count} queued message(s) retained. {error} "
-                "Luna and Spark are outside the line. "
+                "Hub workers must use hubsol; if Sol is unavailable, report the blocker or wait. "
                 "Stop and model change remain available."
             )
             parent = None

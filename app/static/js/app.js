@@ -2852,9 +2852,11 @@ function _showHistoryTransfer(transfer) {
 }
 
 function _modelReasonForSelection(model) {
-    if (!model.startsWith('hub-claude-')) return '';
-    const reason = window.prompt(T('Why does this task need Claude?'));
-    return reason?.trim() || null;
+    if (model.startsWith('hub-') && model !== 'hub-gpt-6.1-sol') {
+        window.alert(T('Hub workers require hubsol (GPT-6.1 Sol). If Sol is unavailable, wait or report the blocker; no fallback.'));
+        return null;
+    }
+    return '';
 }
 
 function _modelReasonBadge(reason) {

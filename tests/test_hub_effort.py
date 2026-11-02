@@ -58,9 +58,9 @@ async def test_launch_carries_effort():
 async def test_configure_carries_effort_and_reuses_catalog():
     backend, hub, state = setup()
     await backend._start(hub, state, "task")
-    await backend.retarget_model("hub-gpt-6-luna")
+    await backend.retarget_model("hub-gpt-6.1-sol")
     assert hub.calls[-1] == ("t3_thread_configure", {"threadId": "thread", "modelSelection": {
-        "instanceId": "codex", "model": "gpt-6-luna", "options": {"reasoningEffort": "high"}}})
+        "instanceId": "codex", "model": "gpt-6.1-sol", "options": {"reasoningEffort": "high"}}})
     assert sum(name == "orchestrator_capabilities" for name, _ in hub.calls) == 1
 
 
@@ -82,8 +82,10 @@ async def test_unknown_effort_refused_before_mutation(configure):
 async def test_value_is_validated_against_target_model():
     backend, hub, state = setup("ultra")
     await backend._start(hub, state, "task")
-    with pytest.raises(ValueError, match="gpt-6-luna.*ultra.*allowed values: low, medium, high$"):
-        await backend.retarget_model("hub-gpt-6-luna")
+    backend._effort_options = None
+    hub.catalog["providers"][0]["models"][0]["options"][0]["options"].pop()
+    with pytest.raises(ValueError, match="gpt-6.1-sol.*ultra.*allowed values: low, medium, high$"):
+        await backend.retarget_model("hub-gpt-6.1-sol")
     assert backend.model == "hub-gpt-6.1-sol" and state.thread_id == "thread"
 
 
@@ -100,18 +102,20 @@ async def test_missing_advertised_option_is_an_error():
 async def test_no_effort_omits_options_on_launch_and_configure():
     backend, hub, state = setup(None)
     await backend._start(hub, state, "task")
-    await backend.retarget_model("hub-gpt-6-luna")
+    await backend.retarget_model("hub-gpt-6.1-sol")
     assert [name for name, _ in hub.calls] == ["t3_thread_launch", "t3_thread_configure"]
     assert all("options" not in args["modelSelection"] for _, args in hub.calls)
 
 
 @pytest.mark.asyncio
-async def test_retarget_resolves_target_policy_and_claude_option():
+async def test_retarget_refuses_claude_without_changing_effort():
     backend, hub, state = setup(pipeline="default", role="worker")
     await backend._start(hub, state, "task")
-    await backend.retarget_model("hub-claude-opus-5-5")
-    assert hub.calls[-1][1]["modelSelection"]["options"] == {"effort": "medium"}
-    assert backend._effort == "medium"
+    before = list(hub.calls)
+    with pytest.raises(ValueError, match="hub_workers_require_sol"):
+        await backend.retarget_model("hub-claude-opus-5-5")
+    assert hub.calls == before
+    assert backend._effort == "high"
     await backend.retarget_model("hub-gpt-6.1-sol")
     assert hub.calls[-1][1]["modelSelection"]["options"] == {"reasoningEffort": "high"}
 
@@ -140,8 +144,8 @@ async def test_resumed_thread_receives_current_effort_before_send():
 @pytest.mark.asyncio
 async def test_no_effort_no_thread_retarget_needs_no_connection():
     backend = HubBackend("hub-gpt-6.1-sol", ".")
-    await backend.retarget_model("hub-gpt-6-luna")
-    assert backend.model == "hub-gpt-6-luna" and backend._mc is None
+    await backend.retarget_model("hub-gpt-6.1-sol")
+    assert backend.model == "hub-gpt-6.1-sol" and backend._mc is None
 
 
 def test_factory_keeps_effort_and_policy_context():

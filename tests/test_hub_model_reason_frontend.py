@@ -8,7 +8,7 @@ import pytest
 from playwright.sync_api import Browser
 
 
-def test_reason_stays_in_info_only_and_claude_selection_requires_input():
+def test_reason_stays_in_info_only_and_non_sol_selection_is_refused():
     node = shutil.which('node')
     if not node:
         pytest.skip('node unavailable')
@@ -25,16 +25,15 @@ const document = {
     createElement() { return {style:{}, dataset:{}}; },
     getElementById() { return null; },
 };
-const window = { prompt() { throw Error('Unexpected prompt for Sol or own models'); } };
+const alerts = [];
+const window = { alert(message) { alerts.push(message); }, prompt() { throw Error('No reason may admit a forbidden hub model'); } };
 eval(parts.helpers);
 assert.equal(_modelReasonForSelection('hub-gpt-6.1-sol'), '');
 assert.equal(_modelReasonForSelection('claude-sonnet-5-5[1m]'), '');
-window.prompt = () => null;
-assert.equal(_modelReasonForSelection('hub-claude-sonnet-5-5'), null);
-window.prompt = () => '   ';
-assert.equal(_modelReasonForSelection('hub-claude-opus-5-5'), null);
-window.prompt = () => '  Creative scene direction  ';
-assert.equal(_modelReasonForSelection('hub-claude-haiku-5-5'), 'Creative scene direction');
+for (const model of ['hub-claude-sonnet-5-5', 'hub-claude-opus-5-5', 'hub-claude-haiku-5-5', 'hub-gpt-6-luna', 'hub-grok-4.7']) {
+    assert.equal(_modelReasonForSelection(model), null);
+}
+assert.equal(alerts.length, 5);
 const reason = '<img src=x onerror=alert(1)> creative direction';
 const badge = _modelReasonBadge(reason);
 assert.equal(badge.textContent, reason);

@@ -237,7 +237,7 @@ async def test_unknown_quota_admits_the_spawn_and_the_following_send(mgr, monkey
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("model,provider,alternative", [
-    ("hubsol", "codex", "hubsonnet"), ("hubsonnet", "claude", "hubsol"),
+    ("hubsol", "codex", "hubsol"),
 ])
 @pytest.mark.parametrize("usable", [0, 1])
 async def test_hub_spawn_checks_provider_pool_before_session_creation(
@@ -265,19 +265,19 @@ async def test_hub_model_change_checks_target_pool_before_mutation(monkeypatch, 
     from app import hub_pool
     from app.session import AgentSession
 
-    session = AgentSession(id="worker-id", name="worker", scope="/s", cwd="/s", model="hub-gpt-6.1-sol", backend_type="hub")
+    session = AgentSession(id="worker-id", name="worker", scope="/s", cwd="/s", model="hub-claude-sonnet-5-5", backend_type="hub")
     change = AsyncMock(return_value={"ok": True, "changed": True})
     monkeypatch.setattr(session, "_change_model_in_place_locked", change)
 
     async def pool(**kwargs):
-        return {"available": True, "providers": {"claude": {
+        return {"available": True, "providers": {"codex": {
             "accounts": 4, "usable": usable, "threshold_pct": 100}}}
     monkeypatch.setattr(hub_pool, "get_hub_pool", pool)
-    result = await session.change_model("hub-claude-sonnet-5-5", model_reason="Visual judgment")
+    result = await session.change_model("hub-gpt-6.1-sol")
     assert result["ok"] is bool(usable)
     if usable:
         change.assert_awaited_once()
     else:
         change.assert_not_awaited()
         assert "model='hubsol'" in result["error"]
-        assert session.model == "hub-gpt-6.1-sol"
+        assert session.model == "hub-claude-sonnet-5-5"

@@ -376,7 +376,8 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
     """V-1056: changing a model is control; delivery must use the new pool's gate.
 
     Use the real quota/hub decision functions. Only telemetry and the provider
-    submission are fake, so switching hub providers cannot evade a closed pool.
+    submission are fake. Sol is rechecked on delivery; a forbidden hub model must
+    refuse before mutation and preserve the existing held receipt.
     """
     from app import hub_pool, initial_deliveries, quota_gate, quota_queue
     from app.models import resolve_model
@@ -445,6 +446,17 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
         TARGET_NAME, {"scope": SCOPE, "model": new_model, "via": "mcp",
                       "model_reason": "Creative task on the new hub route"},
     )
+    if not admitted:
+        # V-1240: reject before loading/mutation/release, preserving the held receipt.
+        assert response.status_code == 409
+        assert 'hub_workers_require_sol' in response.body.decode()
+        assert worker.model == resolve_model('hubluna')
+        assert env.db.get_session(worker.id)['model'] == resolve_model('hubluna')
+        assert state() == 'WAITING_QUOTA'
+        assert env.manager.delivered == []
+        assert capacity['checks'] == 0 and checked == []
+        return
+
     await worker._drain_persist()
     await _drain()
 
@@ -456,12 +468,6 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
     assert state() == ("SUBMITTED" if admitted else "WAITING_QUOTA")
     assert env.manager.delivered == ([expected_message] if admitted else [])
 
-    if not admitted:
-        # Recovery uses the saved new model and the same durable delivery identity.
-        capacity["claude_usable"] = 1
-        assert await quota_queue.release_waiting() == 1
-        await _drain()
-        assert state() == "SUBMITTED"
     assert await quota_queue.release_waiting() == 0
     await _drain()
     assert env.manager.delivered == [expected_message]

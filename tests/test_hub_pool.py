@@ -173,9 +173,9 @@ def test_unready_accounts_do_not_count(monkeypatch, extra):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("model,provider,other", [
     ("hubsonnet", "claude", "hubsol"), ("hubopus", "claude", "hubsol"),
-    ("hubsol", "codex", "hubsonnet"),
+    ("hubsol", "codex", "hubsol"),
 ])
-async def test_admission_checks_the_whole_pool_and_suggests_other_provider(monkeypatch, model, provider, other):
+async def test_admission_checks_the_whole_pool_and_suggests_only_sol(monkeypatch, model, provider, other):
     from app.quota_gate import get_worker_admission, require_worker_admission, QuotaGateError
 
     accounts = [_account(100, 20), _account(30, 100)]
@@ -222,9 +222,9 @@ async def test_session_preflight_refuses_new_turn_on_exhausted_hub_pool(monkeypa
     from app.session import AgentSession
     from app.quota_gate import QuotaGateError
 
-    _pool(monkeypatch, [_account(100, 20)], [_account()])
+    _pool(monkeypatch, [_account()], [_account(100, 20)])
     session = AgentSession(id="worker-id", name="worker", scope="/s", cwd="/s",
-                           model="hub-claude-sonnet-5-5", backend_type="hub")
+                           model="hub-gpt-6.1-sol", backend_type="hub")
     with pytest.raises(QuotaGateError, match="model='hubsol'"):
         await session.preflight_delivery_admission()
     assert _FakeHub.calls == 1
@@ -276,7 +276,7 @@ async def test_accounts_without_windows_stay_unknown_and_are_not_admitted(monkey
     if headroom:
         assert await hub_pool.require_hub_capacity("hubsol") is None
     else:
-        with pytest.raises(QuotaGateError, match="model='hubsonnet'") as caught:
+        with pytest.raises(QuotaGateError, match="model='hubsol'") as caught:
             await hub_pool.require_hub_capacity("hubsol")
         assert caught.value.decision.state == "blocked"
 

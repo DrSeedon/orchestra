@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app import agentic_compact, temp_rules
 from app.events import AgentEvent, InjectedMessage, MessageProvenance
-from app.models import backend_for_model, get_model_spec
+from app.models import backend_for_model, get_model_spec, ensure_hub_worker_allowed
 from app.prompting import (
     codex_project_doc_preflight, inject_skills_to_worktree,
     inject_skills_to_worktree_report, is_orchestrator_role,
@@ -1180,11 +1180,17 @@ class AgentSession:
 
     async def preflight_delivery_admission(self) -> None:
         """Check a new direct delivery before its durable receipt is accepted."""
+        ensure_hub_worker_allowed(self.model)
         decision = None
         admitted_model = ""
         admitted_stop_gen = -1
         while True:
             await self._lifecycle_lock.acquire()
+            try:
+                ensure_hub_worker_allowed(self.model)
+            except BaseException:
+                self._lifecycle_lock.release()
+                raise
             writer_error = self.codex_writer_error()
             if writer_error is not None:
                 self._lifecycle_lock.release()
@@ -1411,6 +1417,11 @@ class AgentSession:
 
         while True:
             await self._lifecycle_lock.acquire()
+            try:
+                ensure_hub_worker_allowed(self.model)
+            except BaseException:
+                self._lifecycle_lock.release()
+                raise
             codex_limit_wake = False
             if provenance.subtype == "limit_wake":
                 from app.limit_wake import is_codex_wake_ref
@@ -2361,6 +2372,7 @@ class AgentSession:
         activate: bool = True,
         _allow_codex_oversize_retry: bool = True,
     ):
+        ensure_hub_worker_allowed(self.model)
         if self._backend is not None:
             if not force_fresh:
                 if self._runtime_error:
@@ -2591,6 +2603,7 @@ class AgentSession:
     MAX_CONSECUTIVE_FAILURES = 5
 
     async def _reconnect_backend(self) -> None:
+        ensure_hub_worker_allowed(self.model)
         backend = self._backend
         if backend is None:
             raise RuntimeError("backend is unavailable for reconnect")
@@ -3079,6 +3092,11 @@ class AgentSession:
             if not self._pending_messages:
                 self._lifecycle_lock.release()
                 return
+            try:
+                ensure_hub_worker_allowed(self.model)
+            except BaseException:
+                self._lifecycle_lock.release()
+                raise
             if not session_requires_quota(self.backend_type, is_orchestrator=self.is_orchestrator):
                 break
             if decision is None:
@@ -4288,7 +4306,7 @@ class AgentSession:
         return pending[1] if pending and pending[0] == self.model else self.model_reason
 
     async def change_model(self, new_model: str, model_reason: str = "") -> dict:
-        from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
+        from app.models import validate_model_reason, HUB_SOL_ONLY_RULE
 
         async with self._lifecycle_lock:
             if self._compacting:
@@ -4296,7 +4314,7 @@ class AgentSession:
             try:
                 reason = validate_model_reason(new_model, model_reason)
             except ValueError as exc:
-                return {"ok": False, "error": str(exc), "error_code": HUB_CLAUDE_REASON_RULE}
+                return {"ok": False, "error": str(exc), "error_code": HUB_SOL_ONLY_RULE}
             self._pending_model_reason = (new_model, reason)
             try:
                 result = await self._change_model_locked(new_model)
@@ -4466,6 +4484,7 @@ class AgentSession:
         attempts: list[dict],
     ) -> None:
         """Resolve one unfinished switch without guessing or replaying a user turn."""
+        ensure_hub_worker_allowed(self.model)
         handoff_id = str(handoff.get("handoff_id") or "")
         status = str(handoff.get("status") or "")
         source = {

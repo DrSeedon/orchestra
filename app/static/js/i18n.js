@@ -396,7 +396,7 @@
     'left': 'осталось',
     'Reset credits': 'Кредиты сброса',
     'Model reason': 'Причина выбора модели',
-    'Why does this task need Claude?': 'Почему этой задаче нужен Claude?',
+    'Hub workers require hubsol (GPT-6.1 Sol). If Sol is unavailable, wait or report the blocker; no fallback.': 'Хаб-воркеры допускаются только на hubsol (GPT-6.1 Sol). Если Sol недоступен, ждите или сообщите о блокировке; замены запрещены.',
     'Other': 'Прочее',
     'Change model': 'Сменить модель',
     'Current model': 'Текущая модель',

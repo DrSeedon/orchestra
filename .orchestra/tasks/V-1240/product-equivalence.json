@@ -1,0 +1,82 @@
+{
+  "baseline_ref": "06f3 (as identified by Orchestra-orchestrator; Git metadata is not supplied in this copy)",
+  "product_files": [
+    {
+      "path": "app/models.py",
+      "sha256": "b745ff54a695407e87509b0987827b65b2cf75dae309f3ec29a8d3a3e1cf9ab6"
+    },
+    {
+      "path": "app/session.py",
+      "sha256": "4ead81ed7309518e9b8092a343a8324bef5ba799948a9148ae1938662a11b636"
+    },
+    {
+      "path": "app/manager.py",
+      "sha256": "266ce57e67205e3196faa85863b4ff33c29561a141fdb5f5391259b16d64367d"
+    },
+    {
+      "path": "app/backend_hub.py",
+      "sha256": "236695fb26137750717996d417cf5760d17a932427195c4bc96ca20095520ae0"
+    },
+    {
+      "path": "app/hub_pool.py",
+      "sha256": "aacb9d8690b01de4e9cca0a3d93571a5ce2aa85c4398299da699e721464003be"
+    },
+    {
+      "path": "app/report_holds.py",
+      "sha256": "dc60cb6ff1758ce761c9bae1446ae5fc19c11c7acfe0837e7b6de806dd5cc2a2"
+    },
+    {
+      "path": "app/routes/sessions.py",
+      "sha256": "df3fdaede7ceb8a3ff33d22a73f1ef167826e345148058083c3826c52e0a1877"
+    },
+    {
+      "path": "app/mcp_stdio.py",
+      "sha256": "45f428bbfefcaa1a88e1111dd7c12fee4994f9d46e38492117de4cda6266cd6a"
+    },
+    {
+      "path": "app/static/js/app.js",
+      "sha256": "4b83b28dfda71cb1116869c863596f6f48ce14cbb4d1e1ec7cd6317afbaa8a7a"
+    },
+    {
+      "path": "app/static/js/i18n.js",
+      "sha256": "c98a095e65f3f11d5e6af7c88dae9fb7da5660bd3090f08b3c11a5b9a12f4a29"
+    },
+    {
+      "path": ".orchestra/pipelines/default/pipeline.yaml",
+      "sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/model-routing.md",
+      "sha256": "11f1eb940f5308637bcc478fbae80acd00d605ca4198b4dbd0f0a05aab077475"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "cd3d11be5cf01b0d3f245e75ff1b0163cc0646eeeb53f3a47c97aa10034f57b0"
+    }
+  ],
+  "unchanged_count": 13,
+  "test_delta": [
+    {
+      "path": "tests/test_manager.py",
+      "before_sha256": "4a124d183975393a31814ef0ba977130a0f7b237ed80ace67d086931fd3e38bd",
+      "after_sha256": "8e6ba83eeab95c91e01bb0e2aa33d46bb58b2e92f74102d844fa71c79204ab65",
+      "insertions": 0,
+      "deletions": 2
+    },
+    {
+      "path": "tests/test_hub_model_reason_frontend.py",
+      "before_sha256": "039fe916e853575301ec60ded6f9759ada36ecbd35f590af6968cf834f526fb9",
+      "after_sha256": "fc28bfb5684c955e724b48cb3c26c8393a2af42cb0314c7d86231cbe37b6f55b",
+      "insertions": 0,
+      "deletions": 1
+    }
+  ],
+  "source_head": "broker import receipt pending; no local .git",
+  "product_manifest_sha256": "952f1cfc6ef125d7e83057df9d302c8c42a0a6a11e0842327a86a919fbdfe9b0",
+  "focused_tests": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 4.94
+  }
+}

@@ -91,7 +91,7 @@ def test_worker_and_explicit_ad_hoc_request_keep_existing_defaults(manifest, tmp
 
     monkeypatch.setattr(pipeline, "get_role", no_manifest_lookup)
     worker = CreateSessionRequest(name="worker", cwd=str(tmp_path), pipeline="default", role="worker")
-    assert worker.model == "claude-sonnet-5-5[1m]"
+    assert worker.model == "hub-gpt-6.1-sol"
     explicit = CreateSessionRequest(name="explicit", cwd=str(tmp_path), is_orchestrator=True, model="sol")
     assert explicit.model == "gpt-6.1-sol"
     with pytest.raises(ValueError, match="repo_path required"):

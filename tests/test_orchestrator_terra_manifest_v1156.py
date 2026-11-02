@@ -69,16 +69,16 @@ def test_manual_explicit_model_overrides_real_terra_default(role_name, selected,
 
 def test_worker_defaults_and_native_admission_do_not_follow_orchestrator_default(monkeypatch, tmp_path):
     config = pipeline.load_pipeline("default")
-    assert models.resolve_model(config.defaults.model) == "claude-opus-5-5[1m]"
+    assert models.resolve_model(config.defaults.model) == "hub-gpt-6.1-sol"
     for name, expected in [
-        ("worker", "claude-sonnet-5-5[1m]"), ("full-cycle", "claude-sonnet-5-5[1m]"),
-        ("reducer", "gpt-6-luna"),
+        ("worker", "hub-gpt-6.1-sol"), ("full-cycle", "hub-gpt-6.1-sol"),
+        ("reducer", "hub-gpt-6.1-sol"),
     ]:
         role = pipeline.get_role("default", name)
         assert not role.is_orchestrator
         assert models.resolve_model(role.model) == expected
     worker = CreateSessionRequest(name="worker", cwd=str(tmp_path), pipeline="default", role="worker")
-    assert worker.model == "claude-sonnet-5-5[1m]"
+    assert worker.model == "hub-gpt-6.1-sol"
     assert models.resolve_model("sol") == models.resolve_model("codex") == "gpt-6.1-sol"
     monkeypatch.setattr(models, "_load_model_flags", lambda: {
         model: {"dashboard": True, "agents": True} for model in models.MODELS

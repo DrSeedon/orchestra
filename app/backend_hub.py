@@ -28,6 +28,7 @@ from app import hub_workspace as hw
 from app.hub_activity import HubActivityStream
 from app.hub_outbox import OUTBOX_NAME, OutboxReport, parse_outbox, _request_for
 from app.events import AgentEvent
+from app.models import ensure_hub_worker_allowed
 from app.multicode_client import MultiCodeClient, MultiCodeError, _last_assistant_text
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
@@ -286,6 +287,7 @@ class HubBackend:
         return self._state.ws_id if self._state else self._resume
 
     async def connect(self) -> None:
+        ensure_hub_worker_allowed(self.model)
         problem = hub_configured()
         if problem:
             raise RuntimeError(problem)
@@ -331,6 +333,7 @@ class HubBackend:
         return selection
 
     async def send(self, message: str) -> None:
+        ensure_hub_worker_allowed(self.model)
         if self._ssh is None:
             raise RuntimeError("HubBackend not connected")
         if not self._turn_active:
@@ -360,6 +363,7 @@ class HubBackend:
         next turn opens a new thread and says so, instead of failing the switch."""
         if model not in HUB_MODELS:
             raise ValueError(f"unknown hub model '{model}'")
+        ensure_hub_worker_allowed(model)
         if self._turn_active:
             raise RuntimeError("cannot retarget a hub worker while a turn is active")
         if self._state is not None:
@@ -413,6 +417,7 @@ class HubBackend:
             self._mc = None
 
     async def reconnect(self) -> None:
+        ensure_hub_worker_allowed(self.model)
         await self.disconnect()
         await self.connect()
 
@@ -421,6 +426,7 @@ class HubBackend:
     async def events(self) -> AsyncIterator[AgentEvent]:
         if not self._turn_active or self._pending is None or self._ssh is None:
             return
+        ensure_hub_worker_allowed(self.model)
         message, self._pending = self._pending, None
         self._turn_started = time.perf_counter()
         ok, stop_reason, detail = True, "end_turn", ""
@@ -440,7 +446,8 @@ class HubBackend:
                 from app.hub_pool import alternative_model, provider_for_model
 
                 detail = (f"Hub {provider_for_model(self.model) or 'provider'} {limit}; "
-                          f"use model='{alternative_model(self.model)}'")
+                          f"use model='{alternative_model(self.model)}' only; "
+                          "if Sol is unavailable, report the blocker or wait (no fallback)")
                 if self._bridge is not None:
                     try:
                         report = await self._bridge.run([
@@ -462,6 +469,7 @@ class HubBackend:
         from app.hub_pool import require_hub_capacity
         from app.quota_gate import QuotaGateError
 
+        ensure_hub_worker_allowed(self.model)
         # Check retained evidence before replacing a released record or cleaning
         # up an older workspace. A new thread must not erase the incident trail.
         options = hw.project_options(self._scope)
@@ -759,6 +767,7 @@ class HubBackend:
         )
 
     async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
+        ensure_hub_worker_allowed(self.model)
         # A reconstructed backend can resume a thread created with an older effort.
         selection = await self._model_selection(mc, self.model, self._effort)
         if state.thread_id:

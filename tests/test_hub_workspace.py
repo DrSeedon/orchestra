@@ -341,7 +341,7 @@ def _backend(repo, tmp_path, monkeypatch, edit):
     monkeypatch.setenv("MULTICODE_MCP_TOKEN", FakeMc._token)
     # the broker uploads only what the worker owns; the helper owns the fixture's top-level entries
     owned = sorted(p.name for p in Path(repo).iterdir() if p.name != ".git")
-    backend = backend_hub.HubBackend("hub-claude-haiku-5-5", str(repo), paths=owned)
+    backend = backend_hub.HubBackend("hub-gpt-6.1-sol", str(repo), paths=owned)
     mc = FakeMc(edit)
 
     async def client():
@@ -669,7 +669,7 @@ def test_hub_models_resolve_and_spawn_needs_configuration(monkeypatch):
                 "MULTICODE_HUB_SSH", "MULTICODE_HUB_SSH_KEY"):
         monkeypatch.delenv(key, raising=False)
     with pytest.raises(ValueError, match="MULTICODE_MCP_BASE"):
-        models.ensure_spawn_allowed("hub-claude-sonnet-5-5")
+        models.ensure_spawn_allowed("hub-gpt-6.1-sol")
 
 
 @pytest.mark.asyncio
@@ -707,7 +707,7 @@ async def test_real_agent_session_drives_a_hub_turn_like_any_runtime(repo, tmp_p
 
     session = AgentSession(
         id="hub-sess", name="hubw", scope=str(repo), cwd=str(repo),
-        model="hub-claude-sonnet-5-5", system_prompt="x", role="worker",
+        model="hub-gpt-6.1-sol", system_prompt="x", role="worker",
         backend_type="hub", owned_dirs=["calc.py"], created_at=datetime.now(timezone.utc),
     )
     await session.start("fix add()", provenance=MessageProvenance(origin="user", senders=("user",)))
@@ -873,7 +873,7 @@ def test_quota_hold_names_the_hub_alternative(monkeypatch):
                        "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
         monkeypatch.setenv(key, value)
     assert "model='hubsol'" in hub_alternative_hint("luna")
-    assert "model='hubsonnet'" in hub_alternative_hint("opus")
+    assert "model='hubsol'" in hub_alternative_hint("opus")
     assert hub_alternative_hint("grok") == ""
     monkeypatch.delenv("MULTICODE_HUB_SSH")
     assert hub_alternative_hint("opus") == ""
@@ -1241,7 +1241,7 @@ async def test_persistent_project_copy_is_reused_and_only_the_delta_is_sent(repo
     assert sorted(sent[0]) == ["calc.py", "src/keep.txt"]            # the first worker uploads everything
     (repo / "extra.txt").write_text("new\n")                         # the repo moved on before worker 2
     (repo / "calc.py").write_text("def add(a, b):\n    return a * b\n")
-    second = backend_hub.HubBackend("hub-claude-haiku-5-5", str(repo), scope=str(repo))
+    second = backend_hub.HubBackend("hub-gpt-6.1-sol", str(repo), scope=str(repo))
     second._client = first._client
     await _turn(second, "two")
     assert sent[1] == ["calc.py", "extra.txt"]                        # only what changed vs the warm copy
@@ -1277,10 +1277,14 @@ async def test_hub_model_change_reconfigures_the_thread_or_says_it_started_a_new
     monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
     backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
     await _turn(backend, "one")
-    await backend.retarget_model("hub-claude-opus-5-5")
-    assert backend.model == "hub-claude-opus-5-5" and backend._state.thread_id == "thr-1"
+    before = list(mc.calls)
+    with pytest.raises(ValueError, match="hub_workers_require_sol"):
+        await backend.retarget_model("hub-claude-opus-5-5")
+    assert mc.calls == before
+    assert backend.model == "hub-gpt-6.1-sol" and backend._state.thread_id == "thr-1"
+    await backend.retarget_model("hub-gpt-6.1-sol")
     assert ("t3_thread_configure", {"threadId": "thr-1", "modelSelection": {
-        "instanceId": "claudeAgent", "model": "claude-opus-5-5"}}) in mc.calls
+        "instanceId": "codex", "model": "gpt-6.1-sol"}}) in mc.calls
 
     async def refuse(name, args):
         if name == "t3_thread_configure":
@@ -1318,7 +1322,7 @@ def test_session_hands_owned_dirs_and_scope_to_the_hub_backend(monkeypatch):
     for key, value in {"MULTICODE_MCP_BASE": "http://x", "MULTICODE_MCP_TOKEN": "t",
                        "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
         monkeypatch.setenv(key, value)
-    session = AgentSession(id="i", name="w", scope="/p/big", cwd="/p/big/wt", model="hub-claude-haiku-5-5",
+    session = AgentSession(id="i", name="w", scope="/p/big", cwd="/p/big/wt", model="hub-gpt-6.1-sol",
                            system_prompt="x", role="worker", owned_dirs=["src", "docs"],
                            created_at=datetime.now(timezone.utc))
     backend = session._make_backend()
@@ -1365,7 +1369,7 @@ def test_the_session_hands_its_live_owned_dirs_to_the_hub_backend(monkeypatch):
     for key, value in {"MULTICODE_MCP_BASE": "http://x", "MULTICODE_MCP_TOKEN": "t",
                        "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
         monkeypatch.setenv(key, value)
-    session = AgentSession(id="i", name="w", scope="/p/big", cwd="/p/big/wt", model="hub-claude-haiku-5-5",
+    session = AgentSession(id="i", name="w", scope="/p/big", cwd="/p/big/wt", model="hub-gpt-6.1-sol",
                            system_prompt="x", role="worker", owned_dirs=["a"],
                            created_at=datetime.now(timezone.utc))
     backend = session._make_backend()
@@ -1736,7 +1740,7 @@ def test_the_session_gives_the_hub_backend_its_identity_and_bridge(monkeypatch):
     for key, value in {"MULTICODE_MCP_BASE": "http://x", "MULTICODE_MCP_TOKEN": "t",
                        "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
         monkeypatch.setenv(key, value)
-    session = AgentSession(id="i-1", name="w1", scope="/p/big", cwd="/p/big/wt", model="hub-claude-haiku-5-5",
+    session = AgentSession(id="i-1", name="w1", scope="/p/big", cwd="/p/big/wt", model="hub-gpt-6.1-sol",
                            system_prompt="x", role="worker", parent_name="orch-9",
                            created_at=datetime.now(timezone.utc))
     backend = session._make_backend()
@@ -1985,7 +1989,7 @@ def test_a_refused_scope_uploads_nothing_through_the_backend(repo, tmp_path, mon
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("model,alternative", [
-    ("hub-claude-sonnet-5-5", "hubsol"), ("hub-gpt-6.1-sol", "hubsonnet"),
+    ("hub-gpt-6.1-sol", "hubsol"),
 ])
 @pytest.mark.parametrize("source", ["reply", "status", "exception"])
 async def test_provider_limit_fails_turn_and_notifies_exact_parent(
@@ -2038,7 +2042,7 @@ async def test_pool_refusal_prevents_upload_and_new_hub_turn(repo, tmp_path, mon
     backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
 
     async def pool(**kwargs):
-        return {"available": True, "providers": {"claude": {
+        return {"available": True, "providers": {"codex": {
             "usable": 0, "accounts": 10, "threshold_pct": 100}}}
     monkeypatch.setattr(hub_pool, "get_hub_pool", pool)
     events = await _turn(backend, "go")

@@ -1132,20 +1132,20 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None,
                        model_reason: str = "") -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the general default; choose hubsonnet/hubopus for creative work. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Every hub worker must use hubsol (GPT-6.1 Sol), including creative and research work; other hub models are forbidden even with model_reason. Protected local luna retains its reason requirement. If Sol is unavailable, report the blocker or wait; no native or API fallback. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
             message="model is required; choose it by the <model-routing> block in your prompt",
             details={"field": "model"},
         )
-    from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
+    from app.models import validate_model_reason, HUB_SOL_ONLY_RULE
 
     try:
         model_reason = validate_model_reason(model, model_reason)
     except ValueError as exc:
-        raise ApiToolError(code=HUB_CLAUDE_REASON_RULE, message=str(exc),
-                           details={"field": "model_reason"}) from exc
+        raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
+                           details={"field": "model"}) from exc
     scope = SCOPE or repo_path
     body = {
         "name": name, "scope": scope, "cwd": repo_path,
@@ -2440,14 +2440,14 @@ async def change_worker_model(name: str, model: str, model_reason: str = "") -> 
     """Change an idle worker's model while preserving its dialog. Within one runtime the
     native session continues. Between Claude and Codex, recent chat history is handed off
     (chat_history_v1); a refused transfer returns an error. Refused while the worker is
-    running or compacting. Hub Claude requires model_reason naming why this task needs Claude; hubsol is the general default; choose hubsonnet/hubopus for creative work."""
-    from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
+    running or compacting. Every hub worker must use hubsol (GPT-6.1 Sol), including creative and research work; other hub models are forbidden even with model_reason. Protected local luna retains its reason requirement. No native or API fallback."""
+    from app.models import validate_model_reason, HUB_SOL_ONLY_RULE
 
     try:
         model_reason = validate_model_reason(model, model_reason)
     except ValueError as exc:
-        raise ApiToolError(code=HUB_CLAUDE_REASON_RULE, message=str(exc),
-                           details={"field": "model_reason"}) from exc
+        raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
+                           details={"field": "model"}) from exc
     body = {"scope": SCOPE, "model": model, "via": "mcp"}
     if model_reason:
         body["model_reason"] = model_reason

@@ -1,0 +1,46 @@
+# V-1240 implementation notes
+
+Owner brief: decision 2026-11-02 17:27 UTC, clarified 17:29 UTC: all hub workers across scopes use GPT-6.1 Sol. No creative/research exception. Do not change native orchestrators, protected local Luna or effort defaults.
+
+Production roots inspected: manager.create_session; routes.sessions.change_model; AgentSession.send/preflight_delivery_admission/_flush_pending/_ensure_backend/_reconnect_backend; HubBackend.connect/send/events/_run_turn/_start/retarget_model/reconnect. Existing models.ensure_spawn_allowed owns routing, separate from quota and capacity. The shared pure models.ensure_hub_worker_allowed check closes persisted-worker bypasses without new state. Alias `hub` intentionally keeps its historical Claude meaning and is refused; silently remapping it to Sol would hide a forbidden request.
+
+Observed defect: old routing admitted every Hub model and later delivery/recovery never rechecked that policy. Capacity hints suggested hubsonnet after Sol exhaustion. Worker and full-cycle manifest defaults still named native Sonnet; reducer named native Luna without a protection reason. Those model defaults now name Sol; all effort maps are unchanged.
+
+This copy has no Git metadata and no .orchestra/kb/README.md or rules-model-defaults.md. Do not fabricate or overwrite omitted files. The English canonical model-routing module records the permanent decision. Platform imports and commits changed files on task-V-1240/enforce-hub-sol; worker must not commit/push. The separate privacy-held fix-hub-workspace-recovery is untouched.
+
+Initial test collection failed because pytest reserves parameter name request. Renamed the new parameter to model_request; no assertion or acceptance contract changed.
+
+First targeted run: 280 passed, 7 failed. Five failures exposed dashboard model-change admission occurring after loading the worker; moved the same canonical guard before dashboard/MCP branching. One new recovery test constructed a generation with empty branch while the real loaded row had None; derive it from the loaded row. One updated effort test retained its obsolete Luna result assertion after changing the request to Sol; corrected the expected model. Ten mock-coroutine warnings belonged to the five dashboard failures. Initial logs retained under raw/.
+
+Targeted run after fixes: 288 passed, 4 browser tests deselected (53.88 s). Instruction contract is RED in the supplied copy: CLAUDE.md is absent; the script requires its AGENTS.md symlink. Do not create an omitted read-only repository contract file or weaken the script. Full-checkout contract must be rerun by root. Root AGENTS.md remains unchanged, 16349 bytes (<16384). Missing KB index/default rules are also reported as copy limitations rather than invented replacements.
+
+Also align the generic pipeline fallback and CreateSessionRequest worker default to Sol; explicit native orchestrator role defaults and manual native selections keep precedence, and all effort maps remain byte-for-byte unchanged.
+
+Mutation proof: replaced only the canonical non-Sol rejection condition with False (restored old hub allowance). The committed admission test produced 22 intended DID NOT RAISE failures; after source restoration the same 22 cases passed. Before/restored SHA-256 both fb1aa0bf6fc70f2bb3b81933548fb2abdb8f5143edae0b718a64d5691ecbb2ca. mutation-proof.json and repeatable mutation.py retain the exact node/command and hashes. No provider calls.
+
+Mapped + docs run: 977 passed, 5 failed, 4 deselected (112.82 s). Two updateable tests: the single-flight fake Session lacked the real mandatory model attribute, and reducer-default assertion still expected Luna. Updated the fake to admitted Sol and the reducer assertion to the new Sol default. Three source-contract checks cannot run in this supplied copy: missing Git historical objects (2 checks) and missing CLAUDE.md/KB index (1 check). Those frozen assertions remain untouched. No other mapped failures. Backend capacity diagnostics now explicitly say wait/report rather than merely suggesting the already selected Sol alias.
+
+Risk review before final: the shared fake HubBackend fixture in test_hub_workspace still used Haiku. Updated successful workspace/scope/privacy fixture routes to Sol so tests continue reaching their intended guards instead of stopping at the new model refusal. The explicit Opus switch now asserts refusal with no remote call before testing allowed Sol retarget; capacity tests use the permitted Sol route and wait/no-fallback diagnostics. This is a test-fixture routing update, not a change to app/hub_workspace.py or the privacy-held recovery fix. Additional offline scope/file-policy, ownership/switch, queue and routing regressions follow the mapped run.
+
+Final core mapped/docs-fixture run: 979 passed, 4 browser tests deselected (171.65 s). The subsequent runtime changes are only a quota-notice hint (remove old Luna/Spark suggestion; name Sol and wait) and a routing docstring clarification. The notice's existing behavior test now asserts Sol/wait and no native hint; it is rerun separately. Permanent owner-decision and guard behavior remain unchanged.
+
+Additional risk run: 302 passed, 3 failed, 2 subtests passed (159.45 s). The workspace refusal fixture still exhausted the Claude pool after its permitted route moved to Sol; changed its exhausted provider to Codex, preserving the zero-upload assertion. Two held-queue model-change tests still expected Hub Sonnet admission; their forbidden branch now asserts 409 hub_workers_require_sol, zero capacity/dispatch calls, unchanged persisted old model and WAITING_QUOTA receipt. The allowed Sol branch still exercises real release/capacity admission. No production queue/recovery code changed.
+
+Final focused repair run: 135 passed (11.27 s), including the complete new routing test file, full quota_wait_queue suite, exhausted-Sol/no-upload case and quota notices. All 302 previously passing additional regressions remain unaffected by the test-only fixture/expectation repairs. Final mutation repeated after docstring clarification: 22 intended failures (5.59 s), 22 restored passes (4.85 s); the final source hash is in mutation-proof.json.
+
+Correction to the earlier environment description: all three test_knowledge_instruction_source failures actually stop at Git commands with exit 128 (this copy has no .git). Missing CLAUDE.md/KB assets are additional copy omissions, not reached by those three failures. The direct instruction-contract command independently fails on the absent CLAUDE.md symlink.
+
+Final review: Python changes parse, no disabled mutation remains, no app/hub_workspace.py/queue/schema/service/auth/environment/lockfile changes. New task artifacts are checked with the canonical shape masker without reading secret inventories; ignored raw logs and final source bytes have SHA-256 inventories. Exact Git diff/HEAD and import commit are unavailable inside the deliberately Git-free copy; root owns their verification after platform import.
+
+
+## Accepted-product follow-up: test core, never wording
+
+Orchestra-orchestrator reports product acceptance and independent V-1243 host evidence on exact06f3: 1153 passed/4 browser deselected; instruction contract, three Git/source checks and pipeline PASS. Independent mutation: 22 intended red, 16 positive pass, restored 38 pass. These are relayed host results and remain labelled exact06f3. They supersede the earlier copy-only acceptance blockers, without rewriting old raw evidence.
+
+Authorized final delta: remove two newly added quota-notice wording assertions from test_manager.py and one alert-wording assertion from the offline frontend Node test. Exact delta +0/-3 across two tests, no replacement anchors. Delivery/queue/recipient assertions, forbidden return nulls, five alerts, allowed Sol/native selections, safe reason display, stable rule codes and all admission/provider-zero/queue checks remain. Production, manifest, routing, effort and CHANGELOG bytes were not edited.
+
+Focused checks only: both quota-notice tests and the offline Node selection/display test, 3 passed in 4.94 s. Broker uv 0.11.28 with --frozen/default .venv; NOTIFY_SOCKET unset, offline fakes, nice=10/oom_score_adj=1000. No 979/full-suite or mutation rerun, no providers/model review. Resource preflight left ample host/cgroup headroom.
+
+Baseline source manifest verified before edits, then copied to source-hashes-06f3.sha256; source-hashes.sha256 updates only the two test digests. Product equivalence is 13/13 unchanged hashes (including all runtime, manifests, routing and CHANGELOG); product-equivalence.json and test-only-delta.patch capture it. Exact06f3 identity is supplied by the orchestrator; this copy cannot independently resolve Git objects. The final source HEAD comes from the broker import/commit receipt after the turn, never from an invented local SHA. Branch remains task-V-1240/enforce-hub-sol.
+
+Public artifact review covers task notes/report/manifests/proofs/patches, excluding private raw: no foreign host/user paths and no secret-shape changes. Existing raw evidence is retained unchanged; only the new focused-run log is added. Root owns private preservation/archive of raw before publishing task artifacts.

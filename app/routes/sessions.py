@@ -41,7 +41,7 @@ from app.deps import manager
 from app.backend_codex import CodexWriterConflictError
 from app.errtext import err_text
 from app.events import MessageProvenance
-from app.models import ensure_dashboard_visible, ensure_spawn_allowed, resolve_model, MODELS
+from app.models import ensure_dashboard_visible, ensure_spawn_allowed, ensure_hub_worker_allowed, resolve_model, MODELS
 from app.manager import LifecycleQuarantineError
 from app.quota_gate import QuotaGateError
 from app.routes.errors import keyed_auth_required
@@ -258,7 +258,7 @@ def _unlanded_work(session, worktree_path: str) -> dict:
 class CreateSessionRequest(BaseModel):
     name: str
     cwd: str
-    model: str = "claude-sonnet-5-5[1m]"
+    model: str = "hub-gpt-6.1-sol"
     scope: Optional[str] = None
     system_prompt: str = ""
     use_worktree: bool = False
@@ -2066,6 +2066,7 @@ async def change_model(name: str, req: dict):
     if new_model not in MODELS:
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
     try:
+        ensure_hub_worker_allowed(new_model)
         if via == "mcp":
             ensure_spawn_allowed(new_model, model_reason=req.get("model_reason") or "")
         else:

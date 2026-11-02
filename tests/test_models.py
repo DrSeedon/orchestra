@@ -153,9 +153,9 @@ def test_retired_models_keep_explicit_session_compatibility_without_becoming_sel
             resolve_model(model_id)
 
 
-def test_reducer_role_uses_the_selectable_luna_model():
+def test_reducer_role_uses_the_only_admitted_hub_model():
     from app.pipeline import load_pipeline
 
     role = load_pipeline("default").roles["reducer"]
-    assert role.model == "gpt-6-luna"
-    assert resolve_model(role.model) == "gpt-6-luna"
+    assert role.model == "hub-gpt-6.1-sol"
+    assert resolve_model(role.model) == "hub-gpt-6.1-sol"

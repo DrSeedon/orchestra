@@ -136,19 +136,19 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     # and back through the platform broker; nothing is billed to our subscriptions.
     ModelSpec(
         id="hub-claude-haiku-5-5", name="Hub: Haiku 5.5",
-        runtime="hub", provider="multicode",
+        runtime="hub", provider="multicode", default_agents=False,
     ),
     ModelSpec(
         id="hub-claude-sonnet-5-5", name="Hub: Sonnet 5.5",
-        runtime="hub", provider="multicode",
+        runtime="hub", provider="multicode", default_agents=False,
     ),
     ModelSpec(
         id="hub-claude-opus-5-5", name="Hub: Opus 5.5",
-        runtime="hub", provider="multicode",
+        runtime="hub", provider="multicode", default_agents=False,
     ),
     ModelSpec(
         id="hub-gpt-6-luna", name="Hub: GPT-6 Luna",
-        runtime="hub", provider="multicode",
+        runtime="hub", provider="multicode", default_agents=False,
     ),
     # Sol on the hub pool is not our Codex pool: the owner allowed it for agents (22.10.2026),
     # while MANUAL_ONLY_MODEL_IDS keeps refusing the plain gpt-6.1-sol of our own subscription.
@@ -158,7 +158,7 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     ),
     ModelSpec(
         id="hub-grok-4.7", name="Hub: Grok 4.7",
-        runtime="hub", provider="multicode",
+        runtime="hub", provider="multicode", default_agents=False,
     ),
     ModelSpec(
         id="GigaChat-2", name="GigaChat 2",
@@ -690,13 +690,38 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
             return ""
         if runtime not in ("claude", "codex"):
             return ""
-    return ("The MultiCode hub pool has its own quota: spawn the worker with model='hubsol' "
-            "for general work instead of waiting. Choose model='hubsonnet' or model='hubopus' "
-            "for creative work, with a non-empty model_reason describing the task.")
+    return ("The MultiCode hub pool has its own quota: spawn the worker with model='hubsol'. "
+            "It is the only permitted hub worker model, including creative and research work. "
+            "If Sol is unavailable, report the blocker or wait; no model or API fallback.")
 
 
 AGENT_HUB_ROUTE_RULE = "agent_workers_require_hub"
 LOCAL_LUNA_MODEL = "gpt-6-luna"
+HUB_SOL_ONLY_RULE = "hub_workers_require_sol"
+HUB_SOL_MODEL = "hub-gpt-6.1-sol"
+
+
+def ensure_hub_worker_allowed(model: str) -> None:
+    """Canonical hub routing admission, including old rows and backend recovery.
+
+    Owner decision 2026-11-02 17:27 UTC, clarified 17:29 UTC: every hub worker
+    in every scope uses GPT-6.1 Sol, including creative/research work. Catalog
+    flags and task reasons cannot restore another hub route. Native routing,
+    manual native orchestrators and protected local Luna keep their own guards.
+    This pure check never rewrites a model, thread, queue or recovery latch.
+    """
+    normalized = model.lower().strip()
+    model_id = ALIASES.get(normalized, model.strip())
+    spec = get_model_spec(model_id)
+    if spec.runtime == "hub" and model_id != HUB_SOL_MODEL:
+        raise ValueError(
+            f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
+            "use model='hubsol' (GPT-6.1 Sol), including creative and research work. "
+            "model_reason and catalog flags do not grant an exception. If Sol is at "
+            "capacity or unavailable, report the blocker or wait; do not fall back to "
+            "Claude, another hub model, native workers or API credits. Existing work "
+            "and history are retained; model changes require explicit action."
+        )
 
 
 def ensure_spawn_allowed(
@@ -705,8 +730,9 @@ def ensure_spawn_allowed(
     """Gate agent dispatch; explicit Claude API-credit tasks retain their own admission.
 
     Owner routing decision, 2026-10-29: ordinary workers use the hub. This is
-    independent of stored catalog flags and does not change manual selection or
-    persisted-session recovery. Billing is supplied only by opt-in eval callers;
+    independent of stored catalog flags and keeps native manual selection intact.
+    The Sol-only guard also applies before persisted hub recovery submits work.
+    Billing is supplied only by opt-in eval callers;
     worker spawn and agent model changes use the subscription default.
 
     Owner decision, 2026-10-31: the one native exception is local GPT-6 Luna for
@@ -714,6 +740,7 @@ def ensure_spawn_allowed(
     non-empty model_reason naming the protection constraint; every other native
     route stays refused and the catalog flag, quota and role guards still apply.
     """
+    ensure_hub_worker_allowed(model_id)
     spec = get_model_spec(model_id)
     if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
         raise ValueError("billing must be 'subscription' or 'api_credit'")
@@ -725,8 +752,8 @@ def ensure_spawn_allowed(
     ):
         raise ValueError(
             f"{AGENT_HUB_ROUTE_RULE}: model '{model_id}' is disabled for agents on "
-            "subscription routes; use hubsol for general work or hubsonnet/hubopus "
-            "for creative work. The only native route is model='luna' for protected "
+            "subscription routes; use hubsol for all hub work. The only native route "
+            "is model='luna' for protected "
             "work that cannot safely go to the hub, with a non-empty model_reason "
             "naming the protection constraint. If neither is possible (or this process "
             "predates the route and needs the owner's idle restart), report the "
@@ -1102,18 +1129,8 @@ def runtime_for_record(record: dict) -> str:
     return "unknown"
 
 
-HUB_CLAUDE_REASON_RULE = "hub_claude_reason_required"
-
-
-def requires_model_reason(model: str) -> bool:
-    """Hub Claude requires task metadata, including for routine creative work."""
-    try:
-        return resolve_model(model).startswith("hub-claude-")
-    except (ValueError, AttributeError):
-        return False  # Model validity belongs to the existing model admission checks.
-
-
 def validate_model_reason(model: str, reason: str = "") -> str:
+    ensure_hub_worker_allowed(model)
     try:
         local_luna = resolve_model(model) == LOCAL_LUNA_MODEL
     except (ValueError, AttributeError):
@@ -1122,10 +1139,4 @@ def validate_model_reason(model: str, reason: str = "") -> str:
         # Optional metadata here: ensure_spawn_allowed refuses an agent route without
         # it, while manual selection keeps working without a reason.
         return reason.strip() if isinstance(reason, str) else ""
-    if not requires_model_reason(model):
-        return ""
-    if not isinstance(reason, str) or not reason.strip():
-        raise ValueError(
-            f"{HUB_CLAUDE_REASON_RULE}: hub Claude requires a non-empty model_reason "
-            "describing the task; choose hubsonnet or hubopus for creative work")
-    return reason.strip()
+    return ""

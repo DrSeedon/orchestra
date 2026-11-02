@@ -1,0 +1,22 @@
+{
+  "test": "tests/test_hub_sol_only_v1240.py::test_all_non_sol_hub_requests_refuse_even_with_old_enabled_flags",
+  "command": [
+    "run",
+    "--frozen",
+    "python",
+    "-m",
+    "pytest",
+    "tests/test_hub_sol_only_v1240.py::test_all_non_sol_hub_requests_refuse_even_with_old_enabled_flags",
+    "-q",
+    "--tb=short"
+  ],
+  "mutation": "remove the non-Sol hub refusal branch (old hub allowance)",
+  "before_sha256": "b745ff54a695407e87509b0987827b65b2cf75dae309f3ec29a8d3a3e1cf9ab6",
+  "mutant_sha256": "39f9ea07d4f90675ff53c1d095244daf67db805a1e9f69a894f7c2b8082040f5",
+  "restored_sha256": "b745ff54a695407e87509b0987827b65b2cf75dae309f3ec29a8d3a3e1cf9ab6",
+  "mutation_exit": 1,
+  "control_exit": 0,
+  "intended_failure": "DID NOT RAISE",
+  "mutation_summary": "22 failed in 5.59s",
+  "restored_summary": "22 passed in 4.85s"
+}
