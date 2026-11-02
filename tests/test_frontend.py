@@ -599,19 +599,6 @@ def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result
         "function updateAgentInfo", 1,
     )[0]
 
-    assert "server state packet" in helper
-    assert "bounded fallback packet" in helper
-    assert "native provider thread resumed after total-context preflight" in helper
-    assert "dialog switch blocked; source retained" in helper
-    assert "transfer.mode === 'native_in_place'" in helper
-    assert "transfer.mode === 'chat_history_v1'" in helper
-    assert "raw snapshot remains operator-only and untrusted" in helper
-    assert "_showHistoryTransfer(resp.history_transfer);" in picker
-    assert "body.error_code" in picker
-
-    reason_helper = source.split("function _modelReasonForSelection", 1)[1].split(
-        "function _modelReasonBadge", 1,
-    )[0]
     page = dashboard_browser.new_page()
     try:
         page.set_content("<button id='anchor'>Models</button><span id='ai-model'></span>")
@@ -626,15 +613,18 @@ def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result
                 return reason;
             };
             window.requests = [];
+            window.transfers = [];
+            window.addChatEntry = (type, text) => window.transfers.push({type, text});
             window.api = async (url, options) => {
                 window.requests.push({url, method: options.method, body: JSON.parse(options.body)});
-                return {};
+                return {history_transfer: {mode: 'native_in_place'}};
             };
-            window._showHistoryTransfer = () => {};
-            window.loadSessions = () => {};
+            window.sessionReloads = 0;
+            window.loadSessions = () => { window.sessionReloads++; };
         }""", {"model": target_model, "reason": reason})
+        page.add_script_tag(path=str(Path(__file__).parent.parent / "app/static/js/theme.js"))
         page.add_script_tag(content=(
-            "function _modelReasonForSelection" + reason_helper
+            "function _historyTransferMessage" + helper
             + "async function _showModelPicker" + picker
         ))
         page.evaluate("_showModelPicker('picker-worker', 'claude-opus-5-5', $('#anchor'))")
@@ -647,6 +637,10 @@ def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result
             "method": "POST",
             "body": expected_body,
         }]
+        assert page.evaluate("window.transfers.map(entry => entry.type)") == ["status"]
+        assert page.locator("#ai-model").inner_text() == target_model
+        assert page.evaluate("window.sessionReloads") == 1
+        assert page.locator("#model-picker-dd").count() == 0
     finally:
         page.close()
 

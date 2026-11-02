@@ -173,17 +173,21 @@ def test_picker_tracks_automatic_default_but_keeps_explicit_user_selection():
     if not node:
         pytest.skip("node required for offline selector behavior")
     source = (Path(__file__).resolve().parents[1] / "app/static/js/app.js").read_text()
+    visibility = source[source.index("function _isModelChoiceHidden("):source.index("\nconst _MODEL_PICKER_GROUPS")]
     function = source[source.index("function _renderModels(data) {"):source.index("\nasync function _loadModelsNow()")]
     script = r'''
 let _MODELS = [], _modelsLoaded = false;
 const handlers = [];
-const select = {value: '', dataset: {}, options: [],
+// Match HTMLSelectElement: assigning an absent option clears the selection.
+const select = {_value: '', dataset: {}, options: [],
+ get value() { return this._value; },
+ set value(value) { this._value = this.options.some(opt => opt.value === value) ? value : ''; },
  set innerHTML(value) { this.options = []; this.value = ''; },
  addEventListener(type, fn) { if (type === 'change') handlers.push(fn); },
  appendChild(opt) { this.options.push(opt); if (this.options.length === 1) this.value = opt.value; }};
 const $ = () => select, document = {createElement: () => ({})};
 const _updateProxyStatus = () => {};
-''' + function + r'''
+''' + visibility + function + r'''
 const models = ['fable', 'opus', 'terra', 'sol'].map(id => ({id, name:id}));
 function render(preferred, items=models) { _renderModels({models:items,default_orchestrator_model:preferred}); return select.value; }
 const initial = render('opus');
@@ -194,12 +198,52 @@ const removed = render('terra', models.filter(model => model.id !== 'sol'));
 const returned = render('terra');
 const hidden = render(null, models.filter(model => model.id !== 'terra'));
 _renderModels({models}); const legacy = select.value;
-console.log(JSON.stringify({initial,automaticChanged,explicitPreserved,removed,returned,hidden,legacy,listeners:handlers.length}));
+const hiddenModels = [
+ {id: 'GigaChat-2-Max', name: 'GigaChat 2 Max', provider: 'gigachat'},
+ {id: 'renamed-model', name: 'Renamed', provider: 'gigachat'},
+ {id: 'gIgAcHaT-legacy', name: 'Legacy', provider: 'unknown'},
+];
+const catalog = [...models, ...hiddenModels];
+function state(preferred, items=catalog) {
+ const value = render(preferred, items);
+ return {value, saved: select.dataset.userSelectedModel ?? null};
+}
+const hiddenDefault = state('GigaChat-2-Max');
+const visibleChoices = select.options.map(opt => opt.value);
+const hiddenIdDefault = state('gIgAcHaT-legacy');
+select.dataset.userSelectedModel = 'GigaChat-2-Max';
+const hiddenExplicit = state('terra');
+select.dataset.userSelectedModel = 'renamed-model';
+const hiddenProviderExplicit = state('opus');
+select.value = 'sol'; handlers.forEach(fn => fn());
+const visibleExplicit = state('GigaChat-2-Max');
+const becameHidden = state('terra', catalog.map(model => model.id === 'sol' ? {...model, provider: 'gigachat'} : model));
+const becameVisible = state('terra');
+select.dataset.userSelectedModel = 'GigaChat-2-Max';
+const noVisibleChoices = state('GigaChat-2-Max', hiddenModels);
+const emptyOptions = select.options.map(opt => opt.value);
+const retainedCatalog = _MODELS.map(model => model.id);
+const recovered = state('opus');
+console.log(JSON.stringify({initial,automaticChanged,explicitPreserved,removed,returned,hidden,legacy,
+ hiddenDefault,hiddenIdDefault,visibleChoices,hiddenExplicit,hiddenProviderExplicit,visibleExplicit,
+ becameHidden,becameVisible,noVisibleChoices,emptyOptions,retainedCatalog,recovered,listeners:handlers.length}));
 '''
     result = subprocess.run([node, "-e", script], check=True, capture_output=True, text=True, timeout=10)
     assert json.loads(result.stdout) == {
         "initial": "opus", "automaticChanged": "terra", "explicitPreserved": "sol",
         "removed": "terra", "returned": "terra", "hidden": "fable", "legacy": "fable", "listeners": 1,
+        "hiddenDefault": {"value": "fable", "saved": None},
+        "hiddenIdDefault": {"value": "fable", "saved": None},
+        "visibleChoices": ["fable", "opus", "terra", "sol"],
+        "hiddenExplicit": {"value": "terra", "saved": None},
+        "hiddenProviderExplicit": {"value": "opus", "saved": None},
+        "visibleExplicit": {"value": "sol", "saved": "sol"},
+        "becameHidden": {"value": "terra", "saved": None},
+        "becameVisible": {"value": "terra", "saved": None},
+        "noVisibleChoices": {"value": "", "saved": None},
+        "emptyOptions": [],
+        "retainedCatalog": ["GigaChat-2-Max", "renamed-model", "gIgAcHaT-legacy"],
+        "recovered": {"value": "opus", "saved": None},
     }
 
 

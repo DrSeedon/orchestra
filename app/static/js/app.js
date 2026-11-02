@@ -1352,19 +1352,19 @@ function _renderModels(data) {
             });
             select.dataset.modelSelectionBound = 'true';
         }
+        const choices = models.filter(model => !_isModelChoiceHidden(model));
         const selected = select.dataset.userSelectedModel;
-        const explicit = models.some(model => model.id === selected);
+        const explicit = choices.some(model => model.id === selected);
         if (!explicit) delete select.dataset.userSelectedModel;
         select.innerHTML = '';
-        for (const m of models) {
-            if (_isModelChoiceHidden(m)) continue;
+        for (const m of choices) {
             const opt = document.createElement('option');
             opt.value = m.id;
             opt.textContent = `${m.name} (${m.id})`;
             select.appendChild(opt);
         }
         const preferred = explicit ? selected : data.default_orchestrator_model;
-        if (models.some(model => model.id === preferred)) select.value = preferred;
+        if (choices.some(model => model.id === preferred)) select.value = preferred;
     }
     _updateProxyStatus(data.proxy_connected);
 }

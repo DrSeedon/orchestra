@@ -184,6 +184,81 @@ def test_reason_prompt_still_required_for_hub_claude(browser):
         page.close()
 
 
-def test_new_orchestrator_selector_skips_gigachat_but_keeps_catalog():
-    assert "if (_isModelChoiceHidden(m)) continue;" in SOURCE.split("function _renderModels(", 1)[1].split("async function _loadModelsNow", 1)[0]
-    assert "_MODELS = models.map" in SOURCE.split("function _renderModels(", 1)[1][:200]
+def _open_orchestrator_selector(browser):
+    page = browser.new_page()
+    page.set_content("<select id='orch-model'></select>")
+    page.evaluate("""() => {
+        window.$ = selector => document.querySelector(selector);
+        window._updateProxyStatus = () => {};
+    }""")
+    visibility = SOURCE[SOURCE.index("function _isModelChoiceHidden("):SOURCE.index("\nconst _MODEL_PICKER_GROUPS")]
+    renderer = SOURCE[SOURCE.index("function _renderModels("):SOURCE.index("\nasync function _loadModelsNow()")]
+    page.add_script_tag(content="let _MODELS = [], _modelsLoaded = false;\n" + visibility + renderer)
+    return page
+
+
+@pytest.mark.parametrize("preferred,selected,expected", [
+    ("gpt-6.1-sol", None, "gpt-6.1-sol"),
+    ("GigaChat-2-Max", None, "claude-opus-5-5[1m]"),
+    (None, None, "claude-opus-5-5[1m]"),
+    ("removed-model", None, "claude-opus-5-5[1m]"),
+    ("gpt-6.1-sol", "claude-sonnet-5-5[1m]", "claude-sonnet-5-5[1m]"),
+    ("gpt-6.1-sol", "GigaChat-2-Max", "gpt-6.1-sol"),
+    ("gpt-6.1-sol", "removed-model", "gpt-6.1-sol"),
+    ("GigaChat-2-Max", "claude-sonnet-5-5[1m]", "claude-sonnet-5-5[1m]"),
+])
+def test_new_orchestrator_selector_skips_gigachat_but_keeps_catalog(browser, preferred, selected, expected):
+    page = _open_orchestrator_selector(browser)
+    # Both provider metadata and case-insensitive ids must hide choices.
+    catalog = CATALOG + [
+        {"id": "renamed-model", "name": "Renamed", "provider": "gigachat"},
+        {"id": "gIgAcHaT-legacy", "name": "Legacy", "provider": "unknown"},
+    ]
+    try:
+        page.evaluate("""({catalog, preferred, selected}) => {
+            if (selected) $('#orch-model').dataset.userSelectedModel = selected;
+            _renderModels({models: catalog, default_orchestrator_model: preferred});
+        }""", {"catalog": catalog, "preferred": preferred, "selected": selected})
+        offered = page.locator("#orch-model option").evaluate_all("options => options.map(o => o.value)")
+        assert offered == [m["id"] for m in CATALOG if m.get("provider") != "gigachat"]
+        assert page.locator("#orch-model").input_value() == expected
+        assert page.evaluate("_MODELS") == [{**m, "label": m["name"]} for m in catalog]
+        saved = page.locator("#orch-model").get_attribute("data-user-selected-model")
+        assert saved == (selected if selected in offered else None)
+    finally:
+        page.close()
+
+
+def test_orchestrator_selector_recovers_when_explicit_choice_becomes_hidden(browser):
+    page = _open_orchestrator_selector(browser)
+    try:
+        page.evaluate("catalog => _renderModels({models: catalog})", CATALOG)
+        page.locator("#orch-model").select_option("gpt-6.1-sol")
+        assert page.locator("#orch-model").get_attribute("data-user-selected-model") == "gpt-6.1-sol"
+        hidden = [{**m, "provider": "gigachat"} if m["id"] == "gpt-6.1-sol" else m for m in CATALOG]
+        page.evaluate("catalog => _renderModels({models: catalog, default_orchestrator_model: 'claude-sonnet-5-5[1m]'})", hidden)
+        assert page.locator("#orch-model").input_value() == "claude-sonnet-5-5[1m]"
+        assert page.locator("#orch-model").get_attribute("data-user-selected-model") is None
+        page.evaluate("catalog => _renderModels({models: catalog, default_orchestrator_model: 'claude-sonnet-5-5[1m]'})", CATALOG)
+        assert page.locator("#orch-model").input_value() == "claude-sonnet-5-5[1m]"
+    finally:
+        page.close()
+
+
+def test_orchestrator_selector_handles_catalog_without_visible_choices(browser):
+    page = _open_orchestrator_selector(browser)
+    try:
+        page.evaluate("catalog => _renderModels({models: catalog})", CATALOG)
+        page.locator("#orch-model").select_option("gpt-6.1-sol")
+        page.evaluate("""() => _renderModels({
+            models: [{id: 'GigaChat-2-Max', name: 'GigaChat 2 Max', provider: 'gigachat'}],
+            default_orchestrator_model: 'GigaChat-2-Max',
+        })""")
+        assert page.locator("#orch-model option").count() == 0
+        assert page.locator("#orch-model").input_value() == ""
+        assert page.locator("#orch-model").get_attribute("data-user-selected-model") is None
+        assert page.evaluate("_MODELS.map(m => m.id)") == ["GigaChat-2-Max"]
+        page.evaluate("catalog => _renderModels({models: catalog, default_orchestrator_model: 'claude-sonnet-5-5[1m]'})", CATALOG)
+        assert page.locator("#orch-model").input_value() == "claude-sonnet-5-5[1m]"
+    finally:
+        page.close()
