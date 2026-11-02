@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><title>V-1226 narrow harness</title>
+<style>body{margin:0;display:flex}iframe{flex:none;width:390px;height:844px;border:0}#out{display:none}</style>
+<iframe src="task-card.html?v=before"></iframe><iframe src="task-card.html?v=after"></iframe>
+<pre id="out"></pre>
+<script>onload=()=>{document.getElementById('out').textContent=[...document.querySelectorAll('iframe')].map(f=>JSON.stringify({innerWidth:f.contentWindow.innerWidth,clientWidth:f.getBoundingClientRect().width,check:JSON.parse(f.contentDocument.body.dataset.check)})).join('\n')}</script>
