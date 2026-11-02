@@ -364,7 +364,7 @@ async def test_managed_backend_uses_worker_identity_and_exact_effort(bound, monk
             seen["prompt"] = prompt
         async def _request(self, method, params):
             if method == "mcpServerStatus/list":
-                return {"data": []}
+                return {"data": [], "nextCursor": None}
             if method == "account/read":
                 assert params == {"refreshToken": False}
                 return {"account": {"type": "chatgpt"}, "requiresOpenaiAuth": True}
@@ -953,7 +953,12 @@ async def test_blocked_managed_backend_stops_locally_and_never_dispatches_remain
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("runtime_mcp", [{"data": [{"name": "orchestra"}]}, {}, {"data": [], "nextCursor": "more"}])
+@pytest.mark.parametrize("runtime_mcp", [
+    {"data": [{"name": "orchestra"}], "nextCursor": None},
+    {"data": [{"name": "codex_apps"}], "nextCursor": None},
+    {"data": [{"name": "unknown"}], "nextCursor": None},
+    {}, {"data": [], "nextCursor": "more"},
+])
 async def test_runtime_mcp_registry_must_be_confirmed_empty(bound, monkeypatch, runtime_mcp):
     from app import backend_codex
     sends = []

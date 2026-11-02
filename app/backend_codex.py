@@ -2908,6 +2908,9 @@ class CodexBackend(JsonRpcStdioTransport):
         if carried:
             parts.append(carried)
         parts.append(self._trusted_project_toml())
+        if self._evaluation_actor_id:
+            # Built-in apps register MCP servers even without caller-supplied MCP.
+            parts.append("[features]\napps = false")
         parts.append("[features.sleep_tool]\nenabled = false")
         servers = self._mcp_servers_toml()
         if servers:

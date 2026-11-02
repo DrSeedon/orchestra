@@ -380,6 +380,84 @@ def test_mcp_config_supports_url_only_servers():
     assert data["mcp_servers"]["remote"]["url"] == "https://example/sse"
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("evaluation", [False, True], ids=["ordinary", "eval"])
+@pytest.mark.parametrize("base_apps", [None, True, False], ids=["default", "enabled", "disabled"])
+async def test_apps_override_is_eval_only_and_written_before_startup(
+    tmp_path, monkeypatch, evaluation, base_apps,
+):
+    import tomllib
+    from pathlib import Path
+    import app.backend_codex as module
+
+    base = tmp_path / "base"
+    base.mkdir()
+    base_text = (
+        "project_doc_max_bytes = 12345\nmodel_context_window = 200000\n"
+        "model_auto_compact_token_limit = 150000\n"
+        "[mcp_servers.inherited]\ncommand = '/bin/false'\n"
+        "[features.sleep_tool]\nenabled = true\n"
+    )
+    if base_apps is not None:
+        base_text += f"[features]\napps = {str(base_apps).lower()}\n"
+    (base / "config.toml").write_text(base_text)
+    monkeypatch.setattr(module, "_base_codex_home", lambda: base)
+    servers = {} if evaluation else {"orchestra": {
+        "command": "/bin/true", "enabled_tools": [],
+        "env": {"ORCHESTRA_SESSION_ID": "ordinary-apps-test"},
+    }}
+    backend = CodexBackend(
+        model="gpt-6.1-sol", cwd=str(tmp_path), mcp_servers=servers,
+        evaluation_actor_id="eval-apps-test" if evaluation else "",
+    )
+    home = backend._managed_codex_home_path()
+    home.mkdir(parents=True)
+    # A stale managed config is rewritten before the next startup.
+    (home / "config.toml").write_text("[features]\napps = true\n")
+    stages = []
+
+    def check_config(stage):
+        config = tomllib.loads((home / "config.toml").read_text())
+        if evaluation:
+            assert config["features"]["apps"] is False
+        else:
+            assert "apps" not in config["features"]
+        assert config["features"]["sleep_tool"] == {"enabled": False}
+        assert config["project_doc_max_bytes"] == 12345
+        assert config["model_context_window"] == 200000
+        assert config["model_auto_compact_token_limit"] == 150000
+        assert set(config.get("mcp_servers", {})) == set(servers)
+        if not evaluation:
+            assert config["mcp_servers"]["orchestra"]["enabled_tools"] == []
+        assert (base / "config.toml").read_text() == base_text
+        stages.append(stage)
+
+    async def spawn(*args, **kwargs):
+        assert Path(kwargs["env"]["CODEX_HOME"]) == home
+        check_config("spawn")
+        return _FakeProcess()
+
+    async def request(method, params):
+        check_config(method)
+        if method == "thread/start":
+            return {"thread": {"id": "apps-test-thread"}}
+        assert method == "initialize"
+        return {}
+
+    monkeypatch.setattr(module.RuntimeProcessGroup, "create", lambda **kwargs: (None, "offline fake"))
+    monkeypatch.setattr(module.asyncio, "create_subprocess_exec", AsyncMock(side_effect=spawn))
+    backend._verify_history_version = AsyncMock()
+    backend._read_stdout = AsyncMock()
+    backend._drain_stderr = AsyncMock()
+    backend._notify = AsyncMock()
+    backend._request = AsyncMock(side_effect=request)
+    try:
+        await backend.connect()
+        assert stages == ["spawn", "initialize", "thread/start"]
+    finally:
+        await backend.disconnect()
+
+
 def test_mcp_config_empty_when_no_servers():
     assert CodexBackend(model="gpt-5.6-sol", cwd="/tmp")._mcp_config_args() == []
 
