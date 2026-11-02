@@ -507,7 +507,11 @@ class HubSsh:
         ]
 
     async def run(self, remote: str, *, stdin: Path | None = None, stdout: Path | None = None,
-                  timeout: float = 600, max_out: int = MAX_TOTAL_BYTES * 2) -> bytes:
+                  timeout: float = 600, max_out: int | None = MAX_TOTAL_BYTES * 2) -> bytes:
+        # Only file-backed output may be unlimited; command replies still use
+        # the existing buffered contract. Return archives never live in RAM.
+        if max_out is None and stdout is None:
+            raise ValueError("unlimited hub output requires a destination file")
         with _Open(stdin, "rb") as fin, _Open(stdout, "wb") as fout:
             proc = await asyncio.create_subprocess_exec(
                 *self._argv(remote),
@@ -517,22 +521,32 @@ class HubSsh:
             )
 
             async def download() -> bytes:
-                # Bound the temporary file while receiving, not after an unlimited write.
-                # One extra byte distinguishes an exact-limit archive from an overflow.
                 received = 0
-                while chunk := await proc.stdout.read(min(65536, max_out - received + 1)):
+                while chunk := await proc.stdout.read(
+                        65536 if max_out is None else min(65536, max_out - received + 1)):
                     received += len(chunk)
-                    if received > max_out:
+                    if max_out is not None and received > max_out:
                         raise HubWorkspaceError(
                             f"hub workspace download exceeds the size limit: received at least "
                             f"{received} bytes, limit {max_out} bytes (transfer stopped)")
                     fout.write(chunk)
                 return b""
 
+            async def drain(pipe, *, keep: int = 0) -> bytes:
+                # Drain even discarded diagnostics so SSH cannot block on stderr.
+                # Also used after a failed write/cancellation: communicate() would
+                # buffer the rest of a potentially unlimited archive in memory.
+                saved = bytearray()
+                while chunk := await pipe.read(65536):
+                    if keep:
+                        saved.extend(chunk)
+                        del saved[:-keep]  # preserve the final remote error, not just its prefix
+                return bytes(saved)
+
             readers = []
             try:
                 if fout:
-                    readers = [asyncio.create_task(download()), asyncio.create_task(proc.stderr.read()),
+                    readers = [asyncio.create_task(download()), asyncio.create_task(drain(proc.stderr, keep=65536)),
                                asyncio.create_task(proc.wait())]
                     out, err, _ = await asyncio.wait_for(asyncio.gather(*readers), timeout)
                 else:
@@ -545,7 +559,7 @@ class HubSsh:
                     reader.cancel()
                 await asyncio.gather(*readers, return_exceptions=True)
                 if fout:
-                    await proc.communicate()
+                    await asyncio.gather(drain(proc.stdout), drain(proc.stderr), proc.wait())
                 else:
                     await proc.wait()
                 if isinstance(exc, asyncio.TimeoutError):
@@ -553,7 +567,7 @@ class HubSsh:
                 raise
         if proc.returncode != 0:
             raise HubWorkspaceError(_ssh_failure(remote, proc.returncode, out, err, stdout is not None))
-        if stdout is not None and stdout.stat().st_size > max_out:
+        if stdout is not None and max_out is not None and stdout.stat().st_size > max_out:
             raise HubWorkspaceError(
                 f"hub workspace download exceeds the size limit: received {stdout.stat().st_size} "
                 f"bytes, limit {max_out} bytes")
@@ -659,7 +673,8 @@ class HubSsh:
         finally:
             listing.unlink(missing_ok=True)
 
-    async def get(self, remote_dir: str, out: Path) -> None:
+    async def get(self, remote_dir: str, out: Path, *,
+                  max_out: int | None = MAX_TOTAL_BYTES * 2) -> None:
         _check_remote(remote_dir)
         # GNU tar's unanchored exclusions match these exact path components at
         # every depth. Do not consult .gitignore or exclude arbitrary output names.
@@ -669,7 +684,7 @@ class HubSsh:
         try:
             await self.run(
                 f"tar -cf - -C {shlex.quote(remote_dir)} --no-anchored {excludes} "
-                "--exclude-tag=pyvenv.cfg .", stdout=out, max_out=MAX_TOTAL_BYTES * 2)
+                "--exclude-tag=pyvenv.cfg .", stdout=out, max_out=max_out)
         except HubWorkspaceError as exc:
             raise HubWorkspaceError(
                 f"{exc}; retained workspace {os.path.basename(remote_dir)} for sync-back retry") from exc
@@ -831,6 +846,17 @@ def _member_path(name: str) -> str | None:
     return rel
 
 
+def _snapshot_members(archive: tarfile.TarFile):
+    """Walk a disk-backed snapshot without caching every TarInfo (Python 3.12).
+
+    Call next() directly: the normal iterator/getmembers retains all headers.
+    Keep only the metadata selected by validation, never the archive's payload.
+    """
+    while member := archive.next():
+        archive.members.clear()
+        yield member
+
+
 def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
                   known: list[str] | None = None,
                   inputs: dict[str, str] | None = None) -> SyncResult:
@@ -847,14 +873,14 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
     # is never evidence of an intentional deletion, including in legacy records.
     seen.update(rel for rel in manifest if (blocked_reason(rel) or "").startswith("directory"))
     total = 0
-    pending: list[tuple[str, bytes, int]] = []
+    pending: list[tuple[str, tarfile.TarInfo, str]] = []
     with tarfile.open(tar_path, "r:") as archive:
         # Inspect names first: pyvenv.cfg can follow its siblings in a tar snapshot.
         # Match directory boundaries, independent of the environment's chosen name.
-        venvs = {str(Path(rel).parent) for member in archive.getmembers()
+        venvs = {str(Path(rel).parent) for member in _snapshot_members(archive)
                  if (rel := _member_path(member.name)) is not None
                  and Path(rel).name == "pyvenv.cfg"}
-
+    with tarfile.open(tar_path, "r:") as archive:
         def in_virtualenv(rel: str) -> bool:
             path = Path(rel)
             return str(path) in venvs or any(str(parent) in venvs for parent in path.parents)
@@ -862,7 +888,7 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
         for directory in sorted(venvs):
             result.rejected.append((directory, "Python virtualenv (contains pyvenv.cfg)"))
         seen.update(rel for rel in manifest if in_virtualenv(rel))
-        for member in archive:
+        for member in _snapshot_members(archive):
             if member.isdir():
                 continue
             rel = _member_path(member.name)
@@ -906,37 +932,47 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
             if b"\0" not in data[:4096] and secret_in_text(data.decode("utf-8", "ignore"), known):
                 result.rejected.append((rel, "contains a credential"))
                 continue
-            pending.append((rel, data, member.mode))
-    for rel, data, mode in pending:
-        target = root / rel
-        if not _contained(root, target):
-            result.rejected.append((rel, "resolves outside the worktree"))
-            continue
-        local = sha256_file(target) if target.is_file() and not target.is_symlink() else None
-        new = hashlib.sha256(data).hexdigest()
-        if target.is_symlink() or (target.exists() and not target.is_file()):
-            result.rejected.append((rel, "worktree path is not a regular file"))
-            continue
-        destination = str(Path(os.path.realpath(target)).relative_to(root))
-        if _collides(destination, inputs, input_parents):
-            result.rejected.append((rel, "resolves to a read-only hub input"))
-            continue
-        if local is not None and local != new and local != manifest.get(rel):
-            result.conflicts.append(rel)
-            continue
-        if local == new:
+            pending.append((rel, member, digest))
+    # Validate the complete snapshot before applying anything (including deletions).
+    # Re-read accepted slices from the broker-owned file instead of retaining up
+    # to MAX_TOTAL_BYTES of changed payloads. Credential scanning above still has
+    # the independent MAX_FILE_BYTES bound; writes copy in 64 KiB chunks.
+    with tarfile.open(tar_path, "r:") as archive:
+        for rel, member, new in pending:
+            target = root / rel
+            if not _contained(root, target):
+                result.rejected.append((rel, "resolves outside the worktree"))
+                continue
+            local = sha256_file(target) if target.is_file() and not target.is_symlink() else None
+            if target.is_symlink() or (target.exists() and not target.is_file()):
+                result.rejected.append((rel, "worktree path is not a regular file"))
+                continue
+            destination = str(Path(os.path.realpath(target)).relative_to(root))
+            if _collides(destination, inputs, input_parents):
+                result.rejected.append((rel, "resolves to a read-only hub input"))
+                continue
+            if local is not None and local != new and local != manifest.get(rel):
+                result.conflicts.append(rel)
+                continue
+            if local == new:
+                result.manifest[rel] = new
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if not _contained(root, target):
+                result.rejected.append((rel, "resolves outside the worktree"))
+                continue
+            tmp = target.with_name(f".{target.name}.hub-{uuid.uuid4().hex[:8]}")
+            try:
+                with archive.extractfile(member) as source, tmp.open("wb") as output:
+                    shutil.copyfileobj(source, output, length=65536)
+                if sha256_file(tmp) != new:
+                    raise HubWorkspaceError("hub return archive changed during import; file not applied")
+                os.chmod(tmp, 0o755 if member.mode & 0o111 else 0o644)
+                os.replace(tmp, target)
+            finally:
+                tmp.unlink(missing_ok=True)
+            result.changed.append(rel)
             result.manifest[rel] = new
-            continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        if not _contained(root, target):
-            result.rejected.append((rel, "resolves outside the worktree"))
-            continue
-        tmp = target.with_name(f".{target.name}.hub-{uuid.uuid4().hex[:8]}")
-        tmp.write_bytes(data)
-        os.chmod(tmp, 0o755 if mode & 0o111 else 0o644)
-        os.replace(tmp, target)
-        result.changed.append(rel)
-        result.manifest[rel] = new
     gone = [rel for rel in manifest if rel not in seen]
     missing_count = len(gone)
     for rel in gone:
@@ -1004,7 +1040,7 @@ def check_refresh(snapshot: Path, manifest: dict[str, str], plan: UploadPlan,
                   send: list[str], drop: list[str], inputs: dict[str, str]) -> None:
     """Refuse to replace remote WIP when refreshing a retained conversation.
 
-    Read the existing bounded return archive without applying it. Unchanged baselines
+    Read the existing disk-backed return archive without applying it. Unchanged baselines
     and already delivered bytes permit retries; immutable inputs retain their existing
     restore-original contract after rejected remote edits.
     """
@@ -1012,7 +1048,7 @@ def check_refresh(snapshot: Path, manifest: dict[str, str], plan: UploadPlan,
     parents = _parents(affected)
     actual: dict[str, str] = {}
     with tarfile.open(snapshot, "r:") as archive:
-        for member in archive:
+        for member in _snapshot_members(archive):
             if member.isdir() and member.name in (".", "./"):
                 continue
             rel = _member_path(member.name)

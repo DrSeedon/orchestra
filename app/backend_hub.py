@@ -863,7 +863,7 @@ class HubBackend:
                          scratch: Path) -> str:
         await hw.check_workspace_file_policy(ssh, state)
         out = scratch / "out.tar"
-        await ssh.get(state.remote_dir, out)
+        await ssh.get(state.remote_dir, out, max_out=None)
         before = dict(state.manifest)
         hw.capture_inputs(root, state, state.manifest)
         result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest,
@@ -891,7 +891,7 @@ class HubBackend:
         lines = [f"[hub sync] changed {len(result.changed)}, deleted {len(result.deleted)}"
                  + (f", commit {commit}" if commit else "")]
         lines.append(f"return archive {out.stat().st_size} bytes; "
-                     f"transport limit {hw.MAX_TOTAL_BYTES * 2} bytes; workspace {state.ws_id}")
+                     f"workspace {state.ws_id}")
         if outbox_line:
             lines.append(outbox_line)
         if unstaged:

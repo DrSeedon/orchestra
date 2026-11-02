@@ -231,9 +231,13 @@ class FakeSsh(hw.HubSsh):
         for rel in rels:
             (Path(remote_dir) / rel).unlink(missing_ok=True)
 
-    async def get(self, remote_dir, out):
+    async def get(self, remote_dir, out, *, max_out=hw.MAX_TOTAL_BYTES * 2):
         with tarfile.open(out, "w") as archive:
             archive.add(remote_dir, arcname=".")
+        if max_out is not None and out.stat().st_size > max_out:
+            raise hw.HubWorkspaceError(
+                f"hub workspace download exceeds the size limit: received {out.stat().st_size} "
+                f"bytes, limit {max_out} bytes (transfer stopped)")
 
     async def remove(self, remote_dir):
         self.removed.append(remote_dir)
@@ -502,7 +506,7 @@ async def test_failed_run_with_work_or_uncertain_sync_is_not_retried(repo, tmp_p
         mc, monkeypatch, activity={"type": "command_execution", "status": "completed", "text": "$ true"}
         if work == "tool" else None)
     if work == "sync_failure":
-        async def get(*args):
+        async def get(*args, **kwargs):
             raise hw.HubWorkspaceError("snapshot unavailable")
         monkeypatch.setattr(ssh, "get", get)
     if work == "activity_failure":

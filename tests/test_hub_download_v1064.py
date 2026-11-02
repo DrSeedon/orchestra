@@ -85,31 +85,35 @@ async def test_exclusions_do_not_delete_legacy_manifest_entries(repo, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_genuine_oversize_refuses_without_mutating_worktree_state_or_remote(repo, tmp_path, monkeypatch):
+async def test_large_return_imports_valid_outputs_and_retains_independent_import_cap(repo, tmp_path, monkeypatch):
     monkeypatch.setattr(hw, "MAX_TOTAL_BYTES", 64 * 1024)
     monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
     remote = tmp_path / "hub-0123456789abcdef"
-    output = put(remote, "results/large.mp4", b"\0" * (256 * 1024))
     manifest = hw.plan_upload(repo, known=[]).manifest
+    for rel in manifest:
+        put(remote, rel, (repo / rel).read_bytes())
+    output = put(remote, "results/large.mp4", b"\0" * (256 * 1024))
+    put(remote, "calc.py", b"fixed\n")
     state = hw.WorkspaceState(remote.name, str(repo), str(remote), manifest=manifest,
                               uploaded=True, thread_id="retained-thread", input_manifest={})
     state.save()
-    before = state.path().read_bytes()
-    head = _git(repo, "rev-parse", "HEAD")
     backend = backend_hub.HubBackend("hub-gpt-6.1-sol", str(repo))
+    heads = []
     for attempt in range(2):
         scratch = tmp_path / f"attempt{attempt}"
         scratch.mkdir()
-        with pytest.raises(hw.HubWorkspaceError) as error:
-            await backend._sync_back(ShellSsh(), state, repo, scratch)
-        message = str(error.value)
-        assert "received at least 131073 bytes" in message
-        assert "limit 131072 bytes" in message and remote.name in message
-        assert (scratch / "out.tar").stat().st_size <= 131072
-        assert state.path().read_bytes() == before
+        message = await backend._sync_back(ShellSsh(), state, repo, scratch)
+        assert f"changed {1 if attempt == 0 else 0}, deleted 0" in message
+        assert "results/large.mp4 (exceeds the size limit)" in message
+        assert "transport limit" not in message
+        assert remote.name in message and "return archive" in message
+        assert (scratch / "out.tar").stat().st_size > 131072
+        assert state.turns == hw.WorkspaceState.load(state.ws_id).turns == attempt + 1
+        assert (repo / "calc.py").read_bytes() == b"fixed\n"
         assert not (repo / "results").exists()
-        assert _git(repo, "rev-parse", "HEAD") == head
+        heads.append(_git(repo, "rev-parse", "HEAD"))
         assert output.stat().st_size == 256 * 1024
+    assert heads[0] == heads[1]
 
 
 @pytest.mark.asyncio
@@ -170,7 +174,7 @@ async def test_transport_only_retry_commits_current_outputs_once_and_keeps_input
 @pytest.mark.asyncio
 async def test_sync_failure_is_visible_as_failed_turn_without_model_resend(repo, tmp_path, monkeypatch):
     backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
-    async def refused(*args):
+    async def refused(*args, **kwargs):
         raise hw.HubWorkspaceError("synthetic transport refusal")
     monkeypatch.setattr(ssh, "get", refused)
     events = await _turn(backend, "go")
@@ -196,7 +200,8 @@ async def test_download_limit_exact_boundary(tmp_path, size):
 
 
 @pytest.mark.asyncio
-async def test_download_timeout_and_failed_tar_do_not_apply_partial_output(repo, tmp_path, monkeypatch):
+@pytest.mark.parametrize("max_out", [None, 1024 * 1024])
+async def test_download_timeout_and_failed_tar_do_not_apply_partial_output(repo, tmp_path, monkeypatch, max_out):
     monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
     state = hw.WorkspaceState("hub-0123456789abcdef", str(repo), str(tmp_path / "hub-0123456789abcdef"),
                               manifest=hw.plan_upload(repo, known=[]).manifest, input_manifest={})
@@ -210,7 +215,7 @@ async def test_download_timeout_and_failed_tar_do_not_apply_partial_output(repo,
     assert state.path().read_bytes() == before
     assert (repo / "calc.py").exists()
     with pytest.raises(hw.HubWorkspaceError, match="timed out"):
-        await ssh.run("exec tail -f /dev/null", stdout=tmp_path / "timeout", timeout=0.05)
+        await ssh.run("exec tail -f /dev/null", stdout=tmp_path / "timeout", timeout=0.05, max_out=max_out)
 
 
 def test_truncated_tar_never_applies_earlier_members_or_deletes_originals(repo, tmp_path):
@@ -231,7 +236,8 @@ def test_truncated_tar_never_applies_earlier_members_or_deletes_originals(repo, 
 
 
 @pytest.mark.asyncio
-async def test_cancelled_download_reaps_its_process(tmp_path, monkeypatch):
+@pytest.mark.parametrize("max_out", [None, 1024 * 1024])
+async def test_cancelled_download_reaps_its_process(tmp_path, monkeypatch, max_out):
     real_spawn = asyncio.create_subprocess_exec
     spawned = asyncio.Event()
     processes = []
@@ -243,7 +249,7 @@ async def test_cancelled_download_reaps_its_process(tmp_path, monkeypatch):
         return process
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", capture)
-    task = asyncio.create_task(ShellSsh().run("exec tail -f /dev/null", stdout=tmp_path / "cancelled"))
+    task = asyncio.create_task(ShellSsh().run("exec tail -f /dev/null", stdout=tmp_path / "cancelled", max_out=max_out))
     await spawned.wait()
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -268,7 +274,8 @@ async def test_return_tar_does_not_follow_remote_symlinks(repo, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_failed_local_download_write_reaps_process(tmp_path, monkeypatch):
+@pytest.mark.parametrize("max_out", [None, 1024 * 1024])
+async def test_failed_local_download_write_reaps_process(tmp_path, monkeypatch, max_out):
     out = tmp_path / "full-disk"
     real_open = type(out).open
     real_spawn = asyncio.create_subprocess_exec
@@ -290,7 +297,7 @@ async def test_failed_local_download_write_reaps_process(tmp_path, monkeypatch):
     monkeypatch.setattr(asyncio, "create_subprocess_exec", capture)
     try:
         with pytest.raises(OSError, match="synthetic disk full"):
-            await ShellSsh().run("exec cat /dev/zero", stdout=out)
+            await ShellSsh().run("exec cat /dev/zero", stdout=out, max_out=max_out)
         assert len(processes) == 1 and processes[0].returncode is not None
     finally:
         for process in processes:
