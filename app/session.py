@@ -4725,13 +4725,12 @@ class AgentSession:
         """Retarget the next turn while preserving the runtime's native session."""
         total_tokens = int(self._last_context.get("total_tokens") or 0)
         target_window = get_model_spec(new_model).context_length
-        if (
-            runtime == "codex"
-            and old_model.startswith("gpt-5.6-")
-            and new_model.startswith("gpt-5.6-")
-        ):
-            target_window = max(
-                target_window,
+        if runtime == "codex":
+            from app.backend_codex import context_window_after_retarget
+
+            target_window = context_window_after_retarget(
+                old_model,
+                new_model,
                 int(self._last_context.get("max_tokens") or 0),
             )
         if total_tokens and target_window and total_tokens > target_window:

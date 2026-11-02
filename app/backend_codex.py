@@ -52,6 +52,23 @@ CODEX_CONTEXT_LIMITS = {
     "gpt-5.5": 258400,
 }
 
+
+def context_window_after_retarget(
+    current_model: str,
+    target_model: str,
+    current_window: int,
+) -> int:
+    """Mirror CodexBackend.retarget_model's effective-window transition."""
+    old_fallback = CODEX_CONTEXT_LIMITS.get(current_model, 258400)
+    new_fallback = CODEX_CONTEXT_LIMITS.get(target_model, 258400)
+    if (
+        old_fallback != new_fallback
+        or current_window <= 0
+        or current_window == old_fallback
+    ):
+        return new_fallback
+    return current_window
+
 # Standard-tier API list prices per 1M tokens, verified 11.08.2026 against
 # https://platform.openai.com/docs/pricing (fetched through https://r.jina.ai/ — the page
 # itself answers 403 to curl/WebFetch). Cached input is model-specific;
@@ -691,12 +708,11 @@ class CodexBackend(JsonRpcStdioTransport):
         """Use app-server's per-turn model override without replacing the thread."""
         if self._active_turn_id or self._events_active:
             raise RuntimeError("cannot retarget Codex model while a turn is active")
-        old_fallback = CODEX_CONTEXT_LIMITS.get(self.model, 258400)
-        new_fallback = CODEX_CONTEXT_LIMITS.get(model, 258400)
         # Preserve a runtime-reported window (for example 828400 for GPT-5.6) across
         # siblings that share the same catalog limit; switch fallbacks across families.
-        if old_fallback != new_fallback or self._model_context_window == old_fallback:
-            self._model_context_window = new_fallback
+        self._model_context_window = context_window_after_retarget(
+            self.model, model, self._model_context_window,
+        )
         self.model = model
         self._context_generation += 1
 
