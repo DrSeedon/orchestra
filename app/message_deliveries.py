@@ -20,6 +20,9 @@ logger = logging.getLogger("orchestra.message_deliveries")
 SCHEMA_VERSION = 2
 FAILURE_NOTICE_BACKFILL_MAX_AGE = timedelta(hours=24)
 _STEERED_PROVIDER_REF_PREFIX = "steered:"
+# 02.11: WAITING_NEXT_TURN of a message a Codex orchestrator's running turn held for its
+# end. Its mailbox copy keeps the order, so it does not block the target queue.
+_TURN_END_HOLD_PROVIDER_REF = "turn_end_hold"
 _target_runner_tasks: dict[str, asyncio.Task[bool]] = {}
 _target_delivery_locks: dict[str, asyncio.Lock] = {}
 _failure_notice_tasks: dict[str, asyncio.Task] = {}
@@ -207,6 +210,8 @@ def _resource(
     provider_ref = row["provider_ref"]
     if isinstance(provider_ref, str) and provider_ref.startswith(_STEERED_PROVIDER_REF_PREFIX):
         provider_ref = provider_ref[len(_STEERED_PROVIDER_REF_PREFIX):]
+    if provider_ref == _TURN_END_HOLD_PROVIDER_REF:
+        provider_ref = None
     stalled = bool(error) and error.get("code") == "TURN_NOT_STARTED"
     return {
         "ok": True,
@@ -263,6 +268,15 @@ def _next_action(
     *,
     connection: sqlite3.Connection | None = None,
 ) -> dict:
+    if _held_for_turn_end(row):
+        return {
+            "code": "WAITING_NEXT_TURN",
+            "retryable": False,
+            "message": (
+                "The target's running turn takes this message when it ends (at most "
+                "about 10 minutes); it is durably queued. Do not resend."
+            ),
+        }
     if row["state"] == "WAITING_NEXT_TURN":
         return {
             "code": "WAITING_NEXT_TURN",
@@ -876,16 +890,64 @@ def mark_message_delivery_unknown(delivery_id: str, error: BaseException, *, orp
         return _resource(row)
 
 
+def hold_message_delivery_for_turn_end(delivery_id: str) -> bool:
+    """PREPARING -> WAITING_NEXT_TURN plus its mailbox copy, in one transaction (02.11).
+
+    The turn-end drain delivers the copy and completes the receipt exactly once
+    (`complete_recovered_mailbox_delivery`); False leaves the row untouched.
+    """
+    with db._conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT * FROM message_deliveries WHERE delivery_id=? AND state='PREPARING'",
+            (_validate_id(delivery_id),),
+        ).fetchone()
+        if row is None:
+            return False
+        provenance = MessageProvenance.from_storage(row["origin"], row["origin_detail"])
+        sender = row["source_name"] or ", ".join(provenance.senders)
+        # Cron sends its rendered body (the source is the raw command output).
+        body = row["rendered_message"] if _is_cron_delivery(row, provenance) else row["message"]
+        connection.execute(
+            """INSERT INTO mailbox (
+                   recipient, scope, sender, body, origin, origin_detail, created_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                row["target_name"], row["target_scope"], sender, body, row["origin"],
+                json.dumps({
+                    "senders": [sender],
+                    "subtype": "direct_message_recovery",
+                    "ref": row["delivery_id"],
+                }, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                time.time(),
+            ),
+        )
+        connection.execute(
+            """UPDATE message_deliveries
+               SET state='WAITING_NEXT_TURN', provider_ref=?, updated_at=?
+               WHERE delivery_id=? AND state='PREPARING'""",
+            (_TURN_END_HOLD_PROVIDER_REF, _now(), row["delivery_id"]),
+        )
+        return True
+
+
+def _held_for_turn_end(row) -> bool:
+    return (row is not None and row["state"] == "WAITING_NEXT_TURN"
+            and "provider_ref" in row.keys()
+            and row["provider_ref"] == _TURN_END_HOLD_PROVIDER_REF)
+
+
 class MessageDeliveryContext:
     allow_running = True
 
     def __init__(
         self, delivery_id: str, *, history_user_message: str,
-        provenance: MessageProvenance,
+        provenance: MessageProvenance, message_kind: str | None = None,
     ):
         self.delivery_id = _validate_id(delivery_id)
         self.history_user_message = history_user_message
         self.provenance = provenance
+        self.message_kind = message_kind
         self.dispatched = False
         self.steered = False
 
@@ -1154,8 +1216,9 @@ def _next_target_delivery(
     placeholders = ",".join("?" * len(_TERMINAL_DELIVERY_STATES))
     sql = f"""SELECT * FROM message_deliveries
              WHERE target_session_id=? AND state NOT IN ({placeholders})
+               AND NOT (state='WAITING_NEXT_TURN' AND COALESCE(provider_ref, '')=?)
              ORDER BY accept_seq LIMIT 1"""
-    params = (target_session_id, *_TERMINAL_DELIVERY_STATES)
+    params = (target_session_id, *_TERMINAL_DELIVERY_STATES, _TURN_END_HOLD_PROVIDER_REF)
     if connection is not None:
         return connection.execute(sql, params).fetchone()
     with db._conn() as current:
@@ -1187,6 +1250,7 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
         delivery_id,
         history_user_message=prepared["history_user_message"],
         provenance=prepared["provenance"],
+        message_kind=row["message_kind"],
     )
     if intercepted and not intercepted["released"]:
         _mark_message_delivery_fan_buffered(delivery_id, intercepted["fan_id"])
@@ -1375,7 +1439,8 @@ async def run_target_message_deliveries(target_session_id: str, manager=None) ->
             # Терминальный ОТКАЗ этого сообщения не должен останавливать очередь: следующие
             # к нему отношения не имеют. Останавливаемся только если сообщение осталось
             # незавершённым — тогда повтор бессмысленен и его подхватит следующий заход.
-            if current is not None and current["state"] not in _TERMINAL_DELIVERY_STATES:
+            if (current is not None and current["state"] not in _TERMINAL_DELIVERY_STATES
+                    and not _held_for_turn_end(current)):
                 return False
 
 
@@ -1563,13 +1628,29 @@ async def _wake_idle_waiting_targets(manager) -> int:
             "SELECT target_session_id, MIN(updated_at) AS since FROM message_deliveries "
             "WHERE state='WAITING_NEXT_TURN' GROUP BY target_session_id"
         ).fetchall()
-    woken = 0
+    sessions = []
     for row in rows:
         if _age_seconds(row["since"]) < STUCK_WAKE_AFTER_SECONDS:
             continue
         session = manager.sessions.get(row["target_session_id"])
         if session is None:
             session = await manager.ensure_loaded_by_id(row["target_session_id"])
+        sessions.append(session)
+    # A Codex orchestrator's turn held agent input for its end, then was cut without one
+    # (CLI or service restart): only the mailbox remembers those rows (02.11).
+    get_by_name = getattr(manager, "get_by_name", None)
+    if callable(get_by_name):
+        for recipient, scope in mailbox.stale_turn_end_hold_recipients(STUCK_WAKE_AFTER_SECONDS):
+            found = get_by_name(recipient, scope)
+            if found is None:
+                continue
+            session = manager.sessions.get(found.id)
+            if session is None:
+                session = await manager.ensure_loaded_by_id(found.id)
+            if session is not None and session not in sessions:
+                sessions.append(session)
+    woken = 0
+    for session in sessions:
         # WAITING is a finished turn with background jobs still running; like IDLE it
         # starts a new turn on input. Skipping it held recovered steers until the
         # jobs ended or a manual CLI restart reset the status to IDLE.

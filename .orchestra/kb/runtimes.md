@@ -211,3 +211,27 @@ restart-cli спрашивают подтверждение, TG-пользова
 `session_turns._compact_codex_before_limit`, `hold_mailbox_after_stop`,
 `AgentSession.compaction_state`, `CodexBackend.auto_compact_token_limit`; тесты
 `tests/test_codex_compaction_smooth.py`, `tests/test_codex_compaction_smooth_ui.py`.
+
+Тот же день, «стабильный и острый, как Claude»: замер 3 дней (seedon/Orchestra/katya) — у
+оркестратора Codex в ход вливались все входящие (steer), больше половины от агентов и фоновых
+задач; ход без steer — медиана 9–20 с, с >5 steer — 600–3500 с, первый ответ владельцу внутри
+чужого хода — медиана 18–38 с против 5–8 с в новом ходе; хвост роста контекста — те же длинные
+ходы. Правило: (D) у оркестратора Codex в RUNNING вход `agent` и `background_task` (с cron) не
+вливается, а ложится в ящик (`codex_turn_end_hold`; доставка с квитанцией — копия
+`direct_message_recovery` + `WAITING_NEXT_TURN` с меткой `turn_end_hold`, которая не держит
+очередь цели) и уходит одним пакетом в конце хода; в чате видно сразу, строка статуса
+«message held for the turn end». Вливается сразу: эскалация воркера (`message_kind`
+blocked/out_of_scope/false_premise: аргумент `kind` у MCP `send_message`, ключевой вход принимает
+только эти классы), ход старше 10 мин (таймер на ход) и девятое ожидающее — тогда сначала одним блоком
+все отложенные. Владелец, воркеры и не-Codex — как было; Stop и очередь сжатия главнее. (E)
+пакет (ящик в конце хода, `_flush_pending`, префикс после Stop) — сначала владелец, затем
+остальные по порядку прихода. (F) precompact-таймер отменяет только реально начатый ход
+(`_start_turn_state`), а не отправка, ушедшая в очередь. Ход, оборванный без конца (restart-cli,
+рестарт службы), не оставляет отложенное: свип через 120 с отдаёт его простаивающей сессии. Код: `TurnManager.turn_end_hold`,
+`steer_turn_end_holds`, `message_deliveries.hold_message_delivery_for_turn_end`; тесты
+`tests/test_codex_orchestrator_turn_end_hold.py`.
+Вывод тула в Codex 0.166: ключ `tool_output_token_limit` в config.toml есть (строки бинаря,
+документация: «token budget for storing individual tool/function outputs in history»); без
+него по модели ~10 000 токенов, лишнее режется из середины с меткой `…N tokens truncated…` и
+заголовком `Total output lines:`; MCP — `mcp_servers.<id>.tools.<tool>.output_token_limit`.
+Конфиг не меняли.
