@@ -1579,6 +1579,11 @@ async def _wake_idle_waiting_targets(manager) -> int:
             or session._compacting
         ):
             continue
+        # After the owner's Stop of a Codex turn the rows wait for the next turn that a
+        # new message or wake starts; the sweep must not start one by itself (02.11).
+        held_by_stop = getattr(getattr(session, "_turns", None), "mailbox_held_by_stop", None)
+        if callable(held_by_stop) and held_by_stop() is True:
+            continue
         queued = mailbox.claim(session.name, session.scope)
         if not queued:
             continue

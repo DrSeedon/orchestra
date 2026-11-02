@@ -127,6 +127,53 @@ async def test_sweep_wakes_idle_target_blocked_by_waiting_next_turn(stuck_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("stopped", [True, False])
+async def test_sweep_does_not_start_a_codex_turn_after_the_owners_stop(stuck_db, stopped):
+    # 02.11: the owner stopped a compacting Codex turn; a recovered steer must wait for
+    # the next turn the owner (or an agent) starts, not wake the agent after 120 s.
+    _insert("d-stop", 1, "WAITING_NEXT_TURN", age_s=121)
+    mailbox.enqueue(TARGET, SCOPE, "sender-966", "body-d-stop", provenance=MessageProvenance(
+        origin="agent", senders=("sender-966",), subtype="direct_message_recovery", ref="d-stop"))
+    sent = []
+
+    class Session:
+        id = TARGET
+        name = TARGET
+        scope = SCOPE
+        status = AgentStatus.IDLE
+        backend_type = "codex"
+        _compacting = False
+        _manually_interrupted = stopped
+        _mailbox_held_after_stop = stopped
+
+        def __init__(self):
+            from app.session_turns import TurnManager
+            self._turns = TurnManager(self)
+
+        def _log(self, *a, **k):
+            pass
+
+        def _spawn_bg(self, coro):
+            return asyncio.ensure_future(coro)
+
+        async def send(self, text, *, provenance, chat_text=None, **_options):
+            sent.append(text)
+
+    class Manager:
+        sessions = {TARGET: Session()}
+
+    result = await message_deliveries.sweep_stuck_deliveries(Manager())
+    await asyncio.sleep(0.05)
+
+    if stopped:
+        assert result["woken"] == 0 and sent == []
+        assert [r["claimed_at"] for r in mailbox.pending(TARGET, SCOPE)] == [None]
+        assert _state("d-stop") == "WAITING_NEXT_TURN"
+    else:
+        assert result["woken"] == 1 and "body-d-stop" in sent[0]
+
+
+@pytest.mark.asyncio
 async def test_sweep_leaves_recent_waiting_turn_alone(stuck_db):
     _insert("d-fresh", 1, "WAITING_NEXT_TURN", age_s=5)
 

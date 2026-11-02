@@ -482,6 +482,23 @@ async def _run_home_io(func, *args):
         raise
 
 
+def _configured_compaction_window(path: Path) -> tuple[int | None, int | None]:
+    """(model_auto_compact_token_limit, model_context_window) of one config.toml.
+
+    Each is None when absent, not a positive integer, or the file is unreadable.
+    """
+    try:
+        config = tomllib.loads(path.read_text())
+    except (OSError, tomllib.TOMLDecodeError):
+        return None, None
+
+    def positive(key: str) -> int | None:
+        value = config.get(key)
+        return value if type(value) is int and value > 0 else None
+
+    return positive("model_auto_compact_token_limit"), positive("model_context_window")
+
+
 def _carried_base_scalars() -> str:
     """Разрешённые скаляры из базового config.toml (потолок обрезки AGENTS.md и т.п.)."""
     base = _base_codex_home() / "config.toml"
@@ -649,6 +666,13 @@ class CodexBackend(JsonRpcStdioTransport):
         self._last_compact: _CompactOperation | None = None
         self._compact_sequence = 0
         self._compact_reconciler: Callable[[dict], None] | None = None
+        # (turn id, wall-clock start, open item ids) of Codex's own compaction inside a
+        # user turn.
+        self._turn_compaction: tuple[str, float, set[str]] | None = None
+        # model_auto_compact_token_limit / model_context_window of the config the running
+        # app-server loaded.
+        self._loaded_auto_compact_limit: int | None = None
+        self._loaded_context_window: int | None = None
         self._context_generation = 0
         self._transport_generation = 0
         self._retired_compact_turns: set[str] = set()
@@ -729,6 +753,30 @@ class CodexBackend(JsonRpcStdioTransport):
         return self._compact_operation is not None
 
     @property
+    def turn_compaction_started_at(self) -> float | None:
+        """Start of Codex's in-turn compaction; bound to the active turn so it cannot stick."""
+        current = self._turn_compaction
+        if current is None or not self._active_turn_id or current[0] != self._active_turn_id:
+            return None
+        return current[1]
+
+    @property
+    def auto_compact_token_limit(self) -> int | None:
+        """Tokens at which this app-server compacts the thread inside a turn.
+
+        The loaded model_auto_compact_token_limit, never above Codex's default of 90%
+        of the configured model_context_window; that default when the config sets no
+        limit. Without a configured window the runtime-reported one is used; Codex
+        reports it already reduced to its effective share, so that default errs early.
+        """
+        window = self._loaded_context_window or self._model_context_window
+        default = window * 9 // 10 if type(window) is int and window > 0 else None
+        configured = self._loaded_auto_compact_limit
+        if configured is None:
+            return default
+        return min(configured, default) if default else configured
+
+    @property
     def compact_diagnostics(self) -> dict:
         operation = self._compact_operation or self._last_compact
         return operation.diagnostics() if operation else {}
@@ -803,6 +851,9 @@ class CodexBackend(JsonRpcStdioTransport):
         home = self._managed_codex_home_path()
         if home is None:
             await self._connect_unlocked()
+            self._loaded_auto_compact_limit, self._loaded_context_window = (
+                _configured_compaction_window(_base_codex_home() / "config.toml")
+            )
             return
         async with _managed_home_lock(home):
             config_sha256 = await _run_home_io(
@@ -810,6 +861,9 @@ class CodexBackend(JsonRpcStdioTransport):
             )
             await self._connect_unlocked()
             self._loaded_config_sha256 = config_sha256
+            self._loaded_auto_compact_limit, self._loaded_context_window = (
+                await _run_home_io(_configured_compaction_window, home / "config.toml")
+            )
 
     async def _connect_unlocked(self) -> None:
         if self.is_alive and not self._teardown_error:
@@ -1394,6 +1448,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self._reader_task = None
         self._stderr_task = None
         self._active_turn_id = None
+        self._turn_compaction = None
         self._clear_deferred_control()
         self._teardown_error = None
 
@@ -1805,6 +1860,7 @@ class CodexBackend(JsonRpcStdioTransport):
             )
             if params.get("willRetry") and not quota_exhausted:
                 return [AgentEvent("status", f"codex reconnecting: {content}")]
+            self._turn_compaction = None
             metadata = {"model_error": model_error}
             if model_error == "rate_limit":
                 content = f"rate_limit: {content}"
@@ -1817,6 +1873,7 @@ class CodexBackend(JsonRpcStdioTransport):
             return [AgentEvent("status", f"model rerouted: {json.dumps(params, ensure_ascii=False)}")]
 
         if method in ("context/compacted", "thread/compacted"):
+            self._turn_compaction = None
             return [AgentEvent("status", "codex context compacted")]
 
         if method in (
@@ -1952,6 +2009,7 @@ class CodexBackend(JsonRpcStdioTransport):
         if method == "turn/completed":
             turn = params.get("turn") or {}
             self._active_turn_id = None
+            self._turn_compaction = None
             # A terminal lifecycle event proves that the poisoned record was not the
             # turn terminator; later clean EOF must not replay a stale failure.
             self._reader_failure = None
@@ -1960,6 +2018,7 @@ class CodexBackend(JsonRpcStdioTransport):
         if method == "_process/exited":
             event_id = self._active_turn_id or ""
             self._active_turn_id = None
+            self._turn_compaction = None
             timing = self._finish_turn_timing()
             reader_failure = params.get("reader_failure") or ""
             model_error = "reader_failure" if reader_failure else "server_error"
@@ -2057,6 +2116,15 @@ class CodexBackend(JsonRpcStdioTransport):
         if item_type == "collabAgentToolCall":
             return self._collab_events(item, completed=False)
         if item_type == "contextCompaction":
+            turn_id = self._active_turn_id
+            if turn_id:
+                current = self._turn_compaction
+                if current is None or current[0] != turn_id:
+                    current = (turn_id, time.time(), set())
+                    self._turn_compaction = current
+                # A second compaction item keeps the first start; the flag clears when
+                # the last open item completes.
+                current[2].add(str(item.get("id") or ""))
             return [AgentEvent("status", "codex compacting context")]
         return []
 
@@ -2232,6 +2300,11 @@ class CodexBackend(JsonRpcStdioTransport):
                 metadata={"subagent_id": sub_id, "status": kind, "phase": "progress"},
             ))
         elif item_type == "contextCompaction":
+            current = self._turn_compaction
+            if current is not None:
+                current[2].discard(str(item.get("id") or ""))
+                if not current[2]:
+                    self._turn_compaction = None
             events.append(AgentEvent("status", "codex context compacted"))
         elif item_type in ("enteredReviewMode", "exitedReviewMode"):
             phase = "entered" if item_type == "enteredReviewMode" else "exited"
