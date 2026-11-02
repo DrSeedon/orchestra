@@ -77,20 +77,29 @@ class Tree:
 class Host:
     """What the kernel says about sockets and mounts, read once per run."""
 
-    def __init__(self, bound_sockets: set[str], mount_points: set[str]):
+    def __init__(self, bound_sockets: set[str], mount_points: set[str], *,
+                 unknown_sockets: bool = False):
+        # Absolute bound paths, plus the bare names of sockets bound by a relative path:
+        # /proc/net/unix records the path as given to bind(), so those match by name.
         self.bound_sockets = bound_sockets
         self.mount_points = mount_points
+        self.unknown_sockets = unknown_sockets
+
+    def socket_bound(self, path: str) -> bool:
+        return path in self.bound_sockets or os.path.basename(path) in self.bound_sockets
 
     @classmethod
     def read(cls) -> "Host":
         bound: set[str] = set()
+        unknown = False
         try:
             for line in Path("/proc/net/unix").read_text(errors="replace").splitlines()[1:]:
                 parts = line.split(maxsplit=7)
-                if len(parts) == 8 and parts[7].startswith("/"):
-                    bound.add(parts[7])
+                if len(parts) == 8 and not parts[7].startswith("@"):
+                    name = parts[7]
+                    bound.add(name if name.startswith("/") else os.path.basename(name))
         except OSError:
-            bound = set()
+            unknown = True  # listeners unknown: every socket counts as live
         mounts: set[str] = set()
         try:
             for line in Path("/proc/self/mountinfo").read_text(errors="replace").splitlines():
@@ -99,7 +108,7 @@ class Host:
                     mounts.add(_unescape(parts[4]))
         except OSError:
             pass
-        return cls(bound, mounts)
+        return cls(bound, mounts, unknown_sockets=unknown)
 
 
 def _unescape(value: str) -> str:
@@ -153,7 +162,7 @@ def inspect_tree(path: str, uid: int, host: Host, *, dead_sockets: bool = False)
         other_device = info.st_dev != device
         if not tree.skip:
             if stat.S_ISSOCK(mode):
-                if not dead_sockets or current in host.bound_sockets:
+                if not dead_sockets or host.unknown_sockets or host.socket_bound(current):
                     tree.skip = f"внутри сокет: {current}"
             elif stat.S_ISFIFO(mode) or stat.S_ISCHR(mode) or stat.S_ISBLK(mode):
                 tree.skip = f"внутри канал или устройство: {current}"
