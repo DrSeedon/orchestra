@@ -53,3 +53,23 @@ rules:
     the normal idlewatch-only policy then resumes.'
   reason: The owner explicitly allowed autonomous Orchestra restarts for this night only at 01:52 KRS.
     Apply a narrow morning expiry and preserve active work.
+- id: rule-4eae839082
+  project: '*'
+  mode: permanent
+  targets:
+  - all
+  author: Orchestra-orchestrator
+  created_at: '2026-11-02T18:55:43.445723+00:00'
+  text: 'Owner decision, 2026-11-03 01:42 KRS: ordinary Hub worker closure must retain project/thread
+    history, provider transcripts, usage/accounting and recovery provenance. Destructive data/history
+    purge requires separate explicit authorization. The current legacy strict-complete merge cleanup and
+    kill path may also purge remote history. Until the history-preserving implementation is accepted,
+    activated and verified, do not call those destructive Hub close paths automatically. Reversible stop
+    and strict schema-v2 continue merges that demonstrably preserve the Hub workspace state are allowed;
+    retain WIP, pending recovery and privacy/ownership guards. Do not delete, rewrite, suppress or falsify
+    usage to conceal consumption. Completion directives must use the verified history-preserving close
+    path once available. Native worker lifecycle is unchanged.'
+  reason: The owner approved separating ordinary archival from destructive purge after source inspection
+    showed that legacy merge/kill cleanup deletes remote history. Preserve data while V-1244 implements
+    and validates the approved contract; replace this temporary rule with the canonical lifecycle module
+    after activation.
