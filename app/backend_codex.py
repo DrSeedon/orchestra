@@ -235,6 +235,115 @@ def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
             + max(0, output_tokens) * prices["output"]) / 1_000_000
 
 
+_ROLLOUT_TAIL_CHUNK = 256 * 1024
+
+
+def _iter_token_count_rows_reversed(path: Path):
+    """Yield token_count candidate rows from the end of a rollout, newest first.
+
+    Only the latest valid token_count row matters, while a long-lived thread's rollout grows
+    to tens of MB of tool output. A forward scan parsed every line synchronously on the event
+    loop (V-1179); reading back from the end stops at the first matching row. Lines without
+    the literal `token_count` are not parsed: Codex writes rollouts with serde_json, which
+    never escapes ASCII letters. Undecodable and non-object lines are skipped.
+    """
+    with path.open("rb") as fh:
+        position = fh.seek(0, os.SEEK_END)
+        head = b""
+        while position > 0:
+            step = min(_ROLLOUT_TAIL_CHUNK, position)
+            position -= step
+            fh.seek(position)
+            lines = (fh.read(step) + head).split(b"\n")
+            # The first piece may be the end of a line that starts further back.
+            head = lines.pop(0)
+            for line in reversed(lines):
+                row = _rollout_row(line)
+                if row is not None:
+                    yield row
+        row = _rollout_row(head)
+        if row is not None:
+            yield row
+
+
+def _rollout_row(line: bytes) -> dict | None:
+    if b"token_count" not in line:
+        return None
+    try:
+        row = json.loads(line.decode("utf-8", errors="replace"))
+    except (json.JSONDecodeError, TypeError):
+        return None
+    return row if isinstance(row, dict) else None
+
+
+def _token_count_info(row: dict) -> dict | None:
+    payload = row.get("payload")
+    if row.get("type") != "event_msg" or not isinstance(payload, dict):
+        return None
+    if payload.get("type") != "token_count":
+        return None
+    info = payload.get("info")
+    return info if isinstance(info, dict) else None
+
+
+def _rollout_context_from(info: dict) -> dict[str, int] | None:
+    usage = info.get("last_token_usage")
+    usage = usage if isinstance(usage, dict) else {}
+    window = info.get("model_context_window")
+    input_tokens = usage.get("input_tokens")
+    if not isinstance(window, int) or window <= 0:
+        return None
+    if not isinstance(input_tokens, int) or input_tokens < 0:
+        return None
+    cached = usage.get("cached_input_tokens", 0)
+    cache_write = usage.get("cache_write_input_tokens", 0)
+    return {
+        "input_tokens": input_tokens,
+        "cached_input_tokens": cached if isinstance(cached, int) else 0,
+        "cache_write_input_tokens": cache_write if isinstance(cache_write, int) else 0,
+        "model_context_window": window,
+    }
+
+
+def _rollout_totals_from(info: dict) -> dict[str, int] | None:
+    total = info.get("total_token_usage")
+    total = total if isinstance(total, dict) else {}
+    input_tokens = total.get("input_tokens")
+    if not isinstance(input_tokens, int) or input_tokens < 0:
+        return None
+    try:
+        latest = {
+            "input_tokens": input_tokens,
+            "cached_input_tokens": max(0, int(total.get("cached_input_tokens") or 0)),
+            "cache_write_input_tokens": max(
+                0, int(total.get("cache_write_input_tokens") or 0)
+            ),
+            "output_tokens": max(0, int(total.get("output_tokens") or 0)),
+        }
+    except (ValueError, TypeError):
+        return None
+    reasoning_tokens = total.get("reasoning_tokens")
+    if (
+        isinstance(reasoning_tokens, int)
+        and not isinstance(reasoning_tokens, bool)
+        and reasoning_tokens >= 0
+    ):
+        latest["reasoning_tokens"] = reasoning_tokens
+    return latest
+
+
+def _latest_rollout_token_count(path: Path, extract) -> dict[str, int] | None:
+    try:
+        for row in _iter_token_count_rows_reversed(path):
+            info = _token_count_info(row)
+            found = extract(info) if info is not None else None
+            if found is not None:
+                return found
+    except OSError:
+        return None
+    return None
+
+
 def _read_rollout_context(path: Path) -> dict[str, int] | None:
     """Return the last model-call context from a Codex rollout, or None fail-soft.
 
@@ -242,74 +351,11 @@ def _read_rollout_context(path: Path) -> dict[str, int] | None:
     currently occupied window. Internal rollout token_count events expose both the last
     call and the runtime-provided effective model_context_window.
     """
-    latest = None
-    try:
-        with path.open(encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                try:
-                    row = json.loads(line)
-                except (json.JSONDecodeError, TypeError):
-                    continue
-                payload = row.get("payload") or {}
-                if row.get("type") != "event_msg" or payload.get("type") != "token_count":
-                    continue
-                info = payload.get("info") or {}
-                usage = info.get("last_token_usage") or {}
-                window = info.get("model_context_window")
-                input_tokens = usage.get("input_tokens")
-                if not isinstance(window, int) or window <= 0:
-                    continue
-                if not isinstance(input_tokens, int) or input_tokens < 0:
-                    continue
-                cached = usage.get("cached_input_tokens", 0)
-                cache_write = usage.get("cache_write_input_tokens", 0)
-                latest = {
-                    "input_tokens": input_tokens,
-                    "cached_input_tokens": cached if isinstance(cached, int) else 0,
-                    "cache_write_input_tokens": (
-                        cache_write if isinstance(cache_write, int) else 0
-                    ),
-                    "model_context_window": window,
-                }
-    except (FileNotFoundError, OSError):
-        return None
-    return latest
+    return _latest_rollout_token_count(path, _rollout_context_from)
 
 
 def _read_rollout_totals(path: Path) -> dict[str, int] | None:
-    latest = None
-    try:
-        with path.open(encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                try:
-                    row = json.loads(line)
-                except (json.JSONDecodeError, TypeError):
-                    continue
-                payload = row.get("payload") or {}
-                if row.get("type") != "event_msg" or payload.get("type") != "token_count":
-                    continue
-                total = ((payload.get("info") or {}).get("total_token_usage") or {})
-                input_tokens = total.get("input_tokens")
-                if not isinstance(input_tokens, int) or input_tokens < 0:
-                    continue
-                latest = {
-                    "input_tokens": input_tokens,
-                    "cached_input_tokens": max(0, int(total.get("cached_input_tokens") or 0)),
-                    "cache_write_input_tokens": max(
-                        0, int(total.get("cache_write_input_tokens") or 0)
-                    ),
-                    "output_tokens": max(0, int(total.get("output_tokens") or 0)),
-                }
-                reasoning_tokens = total.get("reasoning_tokens")
-                if (
-                    isinstance(reasoning_tokens, int)
-                    and not isinstance(reasoning_tokens, bool)
-                    and reasoning_tokens >= 0
-                ):
-                    latest["reasoning_tokens"] = reasoning_tokens
-    except (FileNotFoundError, OSError, ValueError, TypeError):
-        return None
-    return latest
+    return _latest_rollout_token_count(path, _rollout_totals_from)
 
 
 def _usage_delta(current: dict[str, int], baseline: dict[str, int] | None) -> dict[str, int]:
@@ -2555,7 +2601,7 @@ class CodexBackend(JsonRpcStdioTransport):
             )[:20_000]
         return str(result)[:20_000]
 
-    def _runtime_context(self) -> dict[str, int] | None:
+    def _locate_rollout(self) -> Path | None:
         if not self._thread_id:
             return None
         if self._rollout_path is None or not self._rollout_path.exists():
@@ -2572,14 +2618,16 @@ class CodexBackend(JsonRpcStdioTransport):
             if not matches:
                 return None
             self._rollout_path = max(matches, key=lambda p: p.stat().st_mtime)
-        return _read_rollout_context(self._rollout_path)
+        return self._rollout_path
+
+    def _runtime_context(self) -> dict[str, int] | None:
+        path = self._locate_rollout()
+        return _read_rollout_context(path) if path is not None else None
 
     def _runtime_totals(self) -> dict[str, int] | None:
-        # Locate the rollout through the same path/cache as context extraction.
-        self._runtime_context()
-        if self._rollout_path is None:
-            return None
-        return _read_rollout_totals(self._rollout_path)
+        # Locating the rollout must not parse the whole file for context first (V-1179).
+        path = self._locate_rollout()
+        return _read_rollout_totals(path) if path is not None else None
 
     @staticmethod
     def _toml_str(s: str) -> str:
