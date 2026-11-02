@@ -41,6 +41,12 @@ CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT = 1
 # while the displayed context stayed 93%. Bytes/2 over-counts Latin and fits Cyrillic.
 INJECTION_BYTES_PER_TOKEN = 2
 INJECTION_RESERVE_PCT = 4
+# Incident 02.11 (seedon-orchestrator): Codex compacted ~785k tokens INSIDE a user turn
+# for ~4 min, the owner pressed Stop and every replayed turn started it again. Orchestra
+# compacts the thread between turns once it reaches this share of Codex's own limit.
+CODEX_PRE_LIMIT_COMPACT_PCT = 85
+# A failed (or useless) native compaction is not retried on every following turn end.
+CODEX_PRE_LIMIT_COMPACT_COOLDOWN_SECONDS = 15 * 60
 
 
 def injection_overflows_context(s: "AgentSession", incoming_chars: int) -> bool:
@@ -69,6 +75,40 @@ def _auto_compact_threshold_pct(s: "AgentSession") -> int:
         return threshold
     cli_pct = math.ceil(cli_tokens * 100 / max_tokens)
     return max(0, min(threshold, cli_pct - CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT))
+
+
+def _codex_pre_limit_threshold(s: "AgentSession") -> tuple[int, int, int] | None:
+    """(context tokens, Codex auto-compact limit, our threshold) when all are known."""
+    if getattr(s, "backend_type", "") != "codex" or not s._last_context.get("known"):
+        return None
+    limit = getattr(s._backend, "auto_compact_token_limit", None)
+    tokens = s._last_context.get("total_tokens")
+    if (type(limit) is not int or limit <= 0
+            or type(tokens) is not int or tokens < 0):
+        return None
+    return tokens, limit, limit * CODEX_PRE_LIMIT_COMPACT_PCT // 100
+
+
+def _render_mailbox(items: list[dict]) -> str:
+    return "\n\n".join(
+        f"[from:{m['sender'] or ', '.join(m['provenance'].senders)}] {m['body']}"
+        for m in items
+    )
+
+
+def _mailbox_provenance(queued: list[dict]) -> MessageProvenance:
+    origins = {m["provenance"].origin for m in queued}
+    senders = tuple(dict.fromkeys(
+        sender
+        for message in queued
+        for sender in message["provenance"].senders
+    ))
+    return MessageProvenance(
+        origin=next(iter(origins)) if len(origins) == 1 else "unknown",
+        senders=senders,
+        subtype="mailbox" if len(origins) == 1 else "mailbox_mixed",
+        ref=f"mailbox:{queued[0]['id']}-{queued[-1]['id']}",
+    )
 
 
 def _unknown_quota_state() -> dict:
@@ -659,6 +699,9 @@ class TurnManager:
         # терминальное состояние ребёнка и может отпустить веер, пока у этого же ребёнка
         # лежит невыданный вход, — родитель получит сводку по недоработавшему ребёнку.
         from app import mailbox
+        if self.hold_mailbox_after_stop():
+            self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
+            return
         try:
             queued = mailbox.claim(s.name, s.scope)
         except Exception as exc:
@@ -677,6 +720,121 @@ class TurnManager:
             return
 
         self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
+
+    def hold_mailbox_after_stop(self) -> bool:
+        """After the owner's Stop a Codex turn end does not replay its mailbox (02.11).
+
+        The rows stay in the mailbox and go out with the next turn that a new message
+        or wake starts (`claim_mailbox_held_after_stop`). A non-manual interruption keeps
+        the replay; restart-cli has no turn end and is not affected.
+        """
+        s = self.s
+        if (getattr(s, "backend_type", "") != "codex"
+                or not getattr(s, "_manually_interrupted", False)):
+            return False
+        from app import mailbox
+
+        s._mailbox_held_after_stop = True
+        try:
+            held = len(mailbox.pending(s.name, s.scope))
+        except Exception as exc:
+            from app.errtext import err_text as _err
+            s._log("error", f"mailbox недоступен после остановки: {_err(exc)}")
+            return True
+        if held:
+            s._log(
+                "status",
+                f"mailbox: {held} held after Stop — delivered with the next turn, "
+                "not replayed now",
+            )
+        return True
+
+    def mailbox_held_by_stop(self) -> bool:
+        """Pure check for automatic claimants (defer waiter, delivery sweeper): after the
+        owner's Stop only a turn that a new message or wake starts may take the mailbox."""
+        s = self.s
+        return getattr(s, "backend_type", "") == "codex" and (
+            getattr(s, "_manually_interrupted", False) is True
+            or getattr(s, "_mailbox_held_after_stop", False) is True
+        )
+
+    def claim_mailbox_held_after_stop(self) -> list[dict]:
+        """Claim the rows held by Stop for the turn that is starting now; [] otherwise."""
+        s = self.s
+        if (not getattr(s, "_mailbox_held_after_stop", False)
+                or getattr(s, "backend_type", "") != "codex"):
+            return []
+        from app import mailbox
+
+        s._mailbox_held_after_stop = False
+        try:
+            return mailbox.claim(s.name, s.scope)
+        except Exception as exc:
+            from app.errtext import err_text as _err
+            s._mailbox_held_after_stop = True
+            s._log("error", f"mailbox: rows held after Stop stay queued: {_err(exc)}")
+            return []
+
+    def release_mailbox_held_after_stop(self, held: list[dict]) -> None:
+        """The starting turn was not submitted: the rows wait for the next one."""
+        if not held:
+            return
+        from app import mailbox
+
+        mailbox.release_claim([m["id"] for m in held])
+        self.s._mailbox_held_after_stop = True
+
+    def complete_mailbox_held_after_stop(self, held: list[dict], backend) -> None:
+        """The starting turn was submitted: acknowledge the held rows it carried."""
+        if not held:
+            return
+        started_turn = getattr(backend, "active_turn_id", None)
+        self.complete_mailbox(held, (
+            "turn", started_turn if isinstance(started_turn, str) and started_turn
+            else None, False,
+        ))
+
+    def mailbox_turn_text(self, held: list[dict], message: str) -> str:
+        """Prefix the starting turn's text with the held rows, oldest first."""
+        s = self.s
+        fresh = [
+            m for m in held
+            if m["provenance"].subtype not in _CHAT_SHOWN_RECOVERY_SUBTYPES
+        ]
+        repeated = len(held) - len(fresh)
+        if fresh:
+            s._log("user_message", _render_mailbox(fresh),
+                   provenance=_mailbox_provenance(held))
+        s._log(
+            "status",
+            f"mailbox: delivering {len(held)} message(s) held since Stop with this turn"
+            + (f"; {repeated} from the stopped turn are shown above" if repeated else ""),
+        )
+        return f"{_render_mailbox(held)}\n\n{message}"
+
+    def complete_mailbox(self, queued: list[dict], route=None) -> None:
+        """Acknowledge exactly the rows that were submitted to the provider."""
+        from app import mailbox
+
+        s = self.s
+        ids = [m["id"] for m in queued]
+        recovered_delivery_ids = [
+            m["provenance"].ref
+            for m in queued
+            if m["provenance"].subtype == "direct_message_recovery"
+            and m["provenance"].ref
+        ]
+        if recovered_delivery_ids:
+            from app import message_deliveries
+
+            message_deliveries.complete_recovered_mailbox_delivery(
+                ids, recovered_delivery_ids, route=route,
+            )
+            wake = getattr(s, "_wake_durable_message_deliveries", None)
+            if callable(wake):
+                wake()
+        else:
+            mailbox.mark_delivered(ids)
 
     def _idle_tail(self, live_pct: int, *, allow_auto_report: bool = True) -> None:
         """Обычное завершение простоя. Вынесено, чтобы его можно было доиграть после
@@ -710,17 +868,7 @@ class TurnManager:
         from app.errtext import err_text
         s = self.s
         ids = [m["id"] for m in queued]
-        recovered_delivery_ids = [
-            m["provenance"].ref
-            for m in queued
-            if m["provenance"].subtype == "direct_message_recovery"
-            and m["provenance"].ref
-        ]
-        def render(items: list[dict]) -> str:
-            return "\n\n".join(
-                f"[from:{m['sender'] or ', '.join(m['provenance'].senders)}] {m['body']}"
-                for m in items
-            )
+        render = _render_mailbox
 
         # Recovery copies repeat input the chat already shows (logged at steer or
         # receipt preparation); the model still receives them, the chat does not.
@@ -738,18 +886,7 @@ class TurnManager:
                     f"mailbox: re-sending {repeated} message(s) from the interrupted "
                     "turn; they are shown above",
                 )
-            origins = {m["provenance"].origin for m in queued}
-            senders = tuple(dict.fromkeys(
-                sender
-                for message in queued
-                for sender in message["provenance"].senders
-            ))
-            provenance = MessageProvenance(
-                origin=next(iter(origins)) if len(origins) == 1 else "unknown",
-                senders=senders,
-                subtype="mailbox" if len(origins) == 1 else "mailbox_mixed",
-                ref=f"mailbox:{ids[0]}-{ids[-1]}",
-            )
+            provenance = _mailbox_provenance(queued)
             # Rows stay claimed, not delivered, until the text is really submitted:
             # an in-memory queue would lose them with the process.
             extra = {"require_submit": True}
@@ -787,29 +924,9 @@ class TurnManager:
                                 f"ждут в ящике: {err_text(esc)}")
                 self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
                 return
-            if recovered_delivery_ids:
-                from app import message_deliveries
-
-                message_deliveries.complete_recovered_mailbox_delivery(
-                    ids, recovered_delivery_ids, route=route,
-                )
-                wake = getattr(s, "_wake_durable_message_deliveries", None)
-                if callable(wake):
-                    wake()
-            else:
-                mailbox.mark_delivered(ids)
+            self.complete_mailbox(queued, route)
             return
-        if recovered_delivery_ids:
-            from app import message_deliveries
-
-            message_deliveries.complete_recovered_mailbox_delivery(
-                ids, recovered_delivery_ids, route=route,
-            )
-            wake = getattr(s, "_wake_durable_message_deliveries", None)
-            if callable(wake):
-                wake()
-        else:
-            mailbox.mark_delivered(ids)
+        self.complete_mailbox(queued, route)
 
     def _defer_mailbox(self, ids: list[int], reason: BaseException) -> None:
         """Return the rows to the mailbox and deliver them once the session is free."""
@@ -831,6 +948,9 @@ class TurnManager:
             if (s._compacting or getattr(s, "_overflow_compact_scheduled", False)
                     or s.status == AgentStatus.RUNNING):
                 continue
+            if self.mailbox_held_by_stop():
+                # Stop came while this waiter polled: the rows wait for the next turn.
+                return
             queued = mailbox.claim(s.name, s.scope)
             if queued:
                 await self._deliver_mailbox(queued)
@@ -839,6 +959,8 @@ class TurnManager:
     def schedule_context_compaction(self, live_pct: int) -> None:
         """Run both automatic compaction decisions from one validated context."""
         s = self.s
+        if self._compact_codex_before_limit():
+            return
         if live_pct >= _auto_compact_threshold_pct(s):
             if s._auto_compact_window_blocked(live_pct):
                 return
@@ -865,3 +987,79 @@ class TurnManager:
             # thread with Orchestra's generic handoff loses native thread continuity.
             s._log("status", f"auto-compact triggered ({live_pct}%)")
             s._spawn_bg(s._auto_compact())
+
+    def _compact_codex_before_limit(self, *, before_send: bool = False) -> bool:
+        """Compact a Codex thread between turns before Codex does it inside the next one.
+
+        True means the decision is taken here (compaction started, already running,
+        postponed); False falls through to the generic thresholds. The night window
+        does not apply: an in-turn compaction costs the owner minutes of a frozen turn
+        (owner 02.11.2026, "да делай все"). Messages arriving meanwhile are queued by
+        `_overflow_compact_scheduled`, exactly as before an overflow compaction.
+        At a turn end the owner's Stop wins; `before_send` is the new message after it
+        (or after a limit change, a cooldown, a turn that grew past the limit), which
+        would otherwise start a turn that Codex compacts inside.
+        """
+        from app.session import auto_compact_enabled
+
+        s = self.s
+        measured = _codex_pre_limit_threshold(s)
+        if measured is None or not auto_compact_enabled():
+            return False
+        tokens, limit, threshold = measured
+        if tokens < threshold:
+            return False
+        if (s.status == AgentStatus.RUNNING or s._compacting
+                or s._overflow_compact_scheduled
+                or (s._manually_interrupted and not before_send)):
+            return True
+        retry_at = s._codex_pre_limit_retry_at
+        retry_in = retry_at - time.monotonic()
+        if retry_in > 0:
+            if s._codex_pre_limit_postpone_logged != retry_at:
+                s._codex_pre_limit_postpone_logged = retry_at
+                s._log(
+                    "status",
+                    f"codex pre-limit compact postponed {math.ceil(retry_in)}s: the "
+                    f"previous one did not bring context below {threshold} tokens",
+                )
+            return True
+        s._cancel_precompact_timer("codex_pre_limit")
+        s._overflow_compact_scheduled = True
+        s._log(
+            "status",
+            f"codex pre-limit compact: context {tokens} tokens >= "
+            f"{CODEX_PRE_LIMIT_COMPACT_PCT}% of Codex auto-compact limit {limit}; "
+            + ("compacting before this message" if before_send
+               else "compacting between turns"),
+        )
+        s._spawn_bg(self._run_codex_pre_limit_compact(threshold))
+        return True
+
+    async def _run_codex_pre_limit_compact(self, threshold: int) -> None:
+        s = self.s
+        result: dict = {}
+        try:
+            result = await s.compact()
+        except Exception as error:
+            logger.warning(f"[{s.name}] codex pre-limit compact failed: {error}")
+            result = {"ok": False, "mode": "native"}
+        finally:
+            s._overflow_compact_scheduled = False
+            if s._pending_messages and not s._compacting:
+                s._spawn_bg(s._flush_pending())
+            # Durable deliveries that met the flag returned to wait; a refused start
+            # never reaches the native compaction's own wake.
+            wake = getattr(s, "_wake_durable_message_deliveries", None)
+            if callable(wake):
+                wake()
+        # Only an attempted native compaction counts; a refused start (a turn won the
+        # race) is retried at the next turn end.
+        if result.get("mode") != "native":
+            return
+        after = s._last_context.get("total_tokens")
+        if (not result.get("ok") or not s._last_context.get("known")
+                or type(after) is not int or after >= threshold):
+            s._codex_pre_limit_retry_at = (
+                time.monotonic() + CODEX_PRE_LIMIT_COMPACT_COOLDOWN_SECONDS
+            )

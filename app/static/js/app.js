@@ -1194,6 +1194,8 @@ function connectSSE(fromHistoryLoad) {
             if (l.agent_status) {
                 _applyLiveAgentStatus(targetAgent, l.agent_status);
                 liveAgentStatus(l.agent_status);
+                // No field: the session is not loaded, so nothing can be compacting.
+                if (typeof applyCompactionState === 'function') applyCompactionState(targetAgent, l.compaction || null);
             }
             else if (Number.isFinite(l.id)) _wakeStatusRefreshFromStream();
             _refreshContextAfterCompact(targetAgent, l);
@@ -1476,6 +1478,7 @@ async function compactAgent() {
 
 async function restartCli() {
     if (!selectedAgent || !currentScope) return;
+    if (typeof confirmStopWhileCompacting === 'function' && !confirmStopWhileCompacting()) return;
     const targetName = selectedAgent;
     const targetScope = currentScope;
     const btn = $('#restart-cli-btn');
@@ -3801,6 +3804,9 @@ async function refreshSessions() {
             const agentSession = sessions.find(s => s.name === selectedAgent);
             if (agentSession) {
                 updateStopButton(agentSession.status);
+                if ('compaction' in agentSession && typeof applyCompactionState === 'function') {
+                    applyCompactionState(selectedAgent, agentSession.compaction);
+                }
                 if (agentSession.status !== 'running') {
                     removeWaitingIndicator();
                 }

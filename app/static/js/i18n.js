@@ -129,6 +129,8 @@
     'Codex cache state unknown · {past} past the ≈{ttl}m reference window; actual ChatGPT TTL is not guaranteed': 'Состояние кеша Codex неизвестно · {past} сверх справочного окна ≈{ttl} мин; фактический TTL ChatGPT не гарантирован',
     'Codex cache ≈{rem}m within a {ttl}m reference window; actual ChatGPT TTL is not guaranteed': 'Кеш Codex ≈{rem} мин в справочном окне {ttl} мин; фактический TTL ChatGPT не гарантирован',
     'Codex context compacted natively': 'Контекст Codex уплотнён штатно',
+    'Codex is compacting context · {seconds} s elapsed · usually 1–4 min': 'Codex сжимает контекст · прошло {seconds} с · обычно 1–4 мин',
+    'Codex is compacting context now (usually 1–4 minutes). If you stop it, compaction starts over. Stop anyway?': 'Codex сейчас сжимает контекст (обычно 1–4 минуты). Если остановить, сжатие начнётся заново. Остановить всё равно?',
     'Codex model rerouted': 'Модель Codex переключена',
     'Codex reconnecting': 'Codex переподключается',
     'Cold starts': 'Холодные старты',

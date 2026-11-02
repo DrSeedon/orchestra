@@ -1159,8 +1159,44 @@ function removeWaitingIndicator() {
     if (el) el.remove();
 }
 
+// Codex compaction (02.11): a compacting turn stays "running" for 1-4 minutes. The
+// server attaches `compaction` ({kind, started_at} or null) to every stream event.
+let _compactionState = null;
+let _compactionClock = null;
+
+function compactionIndicatorText(state, nowMs = Date.now()) {
+    const started = Number(state?.started_at);
+    const seconds = Number.isFinite(started) && started > 0
+        ? Math.max(0, Math.floor(nowMs / 1000 - started)) : 0;
+    return `🗜 ${T('Codex is compacting context · {seconds} s elapsed · usually 1–4 min', {seconds})}`;
+}
+
+function applyCompactionState(name, state) {
+    if (name !== selectedAgent) return;
+    _compactionState = state && typeof state === 'object' ? state : null;
+    if (_compactionClock) clearInterval(_compactionClock);
+    _compactionClock = null;
+    const el = $('#compaction-indicator');
+    if (!el) return;
+    if (!_compactionState) {
+        el.classList.add('hidden');
+        el.textContent = '';
+        return;
+    }
+    const paint = () => { el.textContent = compactionIndicatorText(_compactionState); };
+    paint();
+    el.classList.remove('hidden');
+    _compactionClock = setInterval(paint, 1000);
+}
+
+// Asks, never blocks: stopping restarts the compaction from scratch.
+function confirmStopWhileCompacting() {
+    return !_compactionState || confirm(T('Codex is compacting context now (usually 1–4 minutes). If you stop it, compaction starts over. Stop anyway?'));
+}
+
 async function stopAgent() {
     if (!selectedAgent || !currentScope) return;
+    if (!confirmStopWhileCompacting()) return;
     try {
         await api(`/api/sessions/${selectedAgent}/interrupt`, {
             method: 'POST',
@@ -1776,6 +1812,8 @@ function resetChatTransientState() {
     _streamDeferredFinal = null;
     _lastFinalizedStreamText = '';
     _resetCodexActivityState();
+    // The previous agent's compaction must not paint the next chat or make its Stop ask.
+    applyCompactionState(selectedAgent, null);
 }
 
 function _removeCodexThinkingLive(activity) {

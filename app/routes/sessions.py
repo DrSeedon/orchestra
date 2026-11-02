@@ -863,6 +863,12 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
             else str((stored or {}).get("status") or "idle")
         )
         result = annotate_user_message({**payload, "agent_status": status})
+        # Compaction keeps a Codex turn "running" for minutes; the chat names it and the
+        # Stop button asks before cutting it (02.11).
+        compaction = getattr(live_session, "compaction_state", None)
+        if callable(compaction):
+            compaction = compaction()
+            result["compaction"] = compaction if isinstance(compaction, dict) else None
         if payload.get("type") == "status":
             result["status_hidden"] = is_internal_telemetry_status(
                 str(payload.get("content") or "")

@@ -557,6 +557,13 @@ class AgentSession:
     _server_error_retries: int = field(default=0, repr=False)
     _session_limit_hit: bool = field(default=False, repr=False)
     _manually_interrupted: bool = field(default=False, repr=False)
+    # Codex: Stop held the mailbox back; the next started turn takes it (02.11).
+    _mailbox_held_after_stop: bool = field(default=False, repr=False)
+    # Codex pre-limit compaction (session_turns) is not retried before this monotonic time.
+    _codex_pre_limit_retry_at: float = field(default=0.0, repr=False)
+    _codex_pre_limit_postpone_logged: float = field(default=0.0, repr=False)
+    # Wall-clock start of the running Orchestra compaction, shown by the dashboard.
+    _compaction_started_at: float = field(default=0.0, repr=False)
     _restart_cut_pending: bool = field(default=False, repr=False)
     _precompact_timer_task: asyncio.Task | None = field(default=None, repr=False)
     _precompact_timer: dict | None = field(default=None, repr=False)
@@ -1488,6 +1495,16 @@ class AgentSession:
                     "plus the refreshed prompt would exceed the window; compacting first",
                 )
                 self._spawn_bg(self._overflow_compact())
+            if (
+                self.backend_type == "codex"
+                and (delivery is None or allow_running_delivery)
+                and not self._compacting
+                and not self._overflow_compact_scheduled
+                and self.status != AgentStatus.RUNNING
+            ):
+                # 02.11: a turn that starts at Codex's own limit is compacted inside it;
+                # compact first, this message waits in the queue below.
+                self._turns._compact_codex_before_limit(before_send=True)
             if self._compacting or self._overflow_compact_scheduled:
                 if delivery is not None and allow_running_delivery:
                     return
@@ -1756,10 +1773,19 @@ class AgentSession:
                 self._log("status", "native Claude transcript missing — restored from Orchestra logs")
                 self._persist()
 
-            # send() can raise AFTER status=RUNNING and
-            # BEFORE the listen task is created — without this, a failed submit strands the
-            # agent in RUNNING forever (task #97). Reset to IDLE on failure.
-            message, fact_keys = self._attach_pending_facts(message)
+            # Rows the owner's Stop held back go out first, with this new turn (02.11).
+            held = self._turns.claim_mailbox_held_after_stop()
+            provider_accepted = False
+            try:
+                if held:
+                    message = self._turns.mailbox_turn_text(held, message)
+                # send() can raise AFTER status=RUNNING and
+                # BEFORE the listen task is created — without this, a failed submit strands the
+                # agent in RUNNING forever (task #97). Reset to IDLE on failure.
+                message, fact_keys = self._attach_pending_facts(message)
+            except BaseException:
+                self._turns.release_mailbox_held_after_stop(held)
+                raise
             outbound_message = message
             pending_handoff = self.runtime_handoff
             if pending_handoff:
@@ -1785,6 +1811,7 @@ class AgentSession:
                     dispatch_started = True
                     self._active_delivery_context = delivery
                 await provider_send(outbound_message)
+                provider_accepted = True
                 if delivery is not None:
                     provider_ref = getattr(backend, "active_turn_id", None)
                     await delivery.mark_submitted(
@@ -1797,10 +1824,12 @@ class AgentSession:
                     if allow_running_delivery:
                         self._spawn_bg(watch_turn_start(self, delivery.delivery_id))
             except asyncio.CancelledError as error:
+                self._settle_held_mailbox(held, backend, provider_accepted)
                 if delivery is not None and dispatch_started:
                     await delivery.mark_unknown(error)
                 raise
             except Exception as error:
+                self._settle_held_mailbox(held, backend, provider_accepted)
                 if delivery is not None and dispatch_started:
                     await delivery.mark_unknown(error)
                 if self.status == AgentStatus.RUNNING:
@@ -1808,6 +1837,7 @@ class AgentSession:
                     self._persist()
                     self._turns.publish_turn_finished()
                 raise
+            self._turns.complete_mailbox_held_after_stop(held, backend)
             self._ack_pending_facts(fact_keys)
             if pending_handoff and self.runtime_handoff == pending_handoff:
                 self.runtime_handoff = ""
@@ -2471,7 +2501,10 @@ class AgentSession:
         try:
             from app import mailbox
 
-            queued = mailbox.claim(self.name, self.scope)
+            queued = (
+                [] if self._turns.hold_mailbox_after_stop()
+                else mailbox.claim(self.name, self.scope)
+            )
         except Exception as error:
             logger.warning(
                 "[%s] failed-turn mailbox claim failed: %s: %s",
@@ -3066,8 +3099,16 @@ class AgentSession:
                         error,
                         tuple(msgs),
                     )
-                combined, fact_keys = self._attach_pending_facts(combined)
-                await backend.send(combined)
+                held = self._turns.claim_mailbox_held_after_stop()
+                try:
+                    if held:
+                        combined = self._turns.mailbox_turn_text(held, combined)
+                    combined, fact_keys = self._attach_pending_facts(combined)
+                    await backend.send(combined)
+                except BaseException:
+                    self._turns.release_mailbox_held_after_stop(held)
+                    raise
+                self._turns.complete_mailbox_held_after_stop(held, backend)
                 self._ack_pending_facts(fact_keys)
                 if get_runtime(self.backend_type).capabilities.event_stream == "per_turn":
                     self._listen_task = asyncio.create_task(self._turn_event_loop())
@@ -3200,6 +3241,7 @@ class AgentSession:
                 raise RuntimeError("compact already in progress")
             if reserve:
                 self._compacting = True
+                self._compaction_started_at = time.time()
             return None, self.model, self._turn_start_cancel_gen
 
     def _compaction_permit_valid_locked(self, permit) -> bool:
@@ -5111,6 +5153,31 @@ class AgentSession:
             return previous
         return None
 
+    def _settle_held_mailbox(self, held: list[dict], backend, provider_accepted: bool) -> None:
+        """A failed new-turn send: held rows the provider took are acknowledged (they are
+        in the turn), the others return to the mailbox for the next turn."""
+        if provider_accepted:
+            self._turns.complete_mailbox_held_after_stop(held, backend)
+        else:
+            self._turns.release_mailbox_held_after_stop(held)
+
+    def compaction_state(self) -> dict | None:
+        """Codex context compaction in progress, for the dashboard and Telegram (02.11).
+
+        `orchestra`: our native compaction between turns; `codex_turn`: Codex compacting
+        inside the running turn. Other runtimes report nothing.
+        """
+        if self.backend_type != "codex":
+            return None
+        if self._compacting:
+            return {"kind": "orchestra", "started_at": self._compaction_started_at or None}
+        if self.status != AgentStatus.RUNNING or self._backend is None:
+            return None
+        started = getattr(self._backend, "turn_compaction_started_at", None)
+        if type(started) is not float:
+            return None
+        return {"kind": "codex_turn", "started_at": started}
+
     def to_dict(self) -> dict:
         # This describes local observation, not proof that the remote model is
         # responding. A silent reader must never turn a running task into idle.
@@ -5146,6 +5213,7 @@ class AgentSession:
             "context_pct": self._last_context.get("percentage", 0),
             "progress_pct": self.progress_pct,
             "progress_status": self.progress_status,
+            "compaction": self.compaction_state(),
             "backend_type": self.backend_type,
             "runtime": self.backend_type,
             "provider": get_model_spec(self.model).provider,
