@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import shlex
+import shutil
 import sqlite3
 import socket
 import subprocess
@@ -34,6 +35,8 @@ JOB_BUDGET_SECONDS = 600
 JOB_TAIL_RESERVE_SECONDS = 90
 MIN_TRANSFER_SLICE_SECONDS = 20
 _JOB_STARTED = time.monotonic()
+# Left free after the backup's own temp files (V-1176: 11-01 the raw copy itself hit ENOSPC).
+FREE_SPACE_RESERVE_BYTES = 2 * 1024 ** 3
 
 
 def _transfer_slice_seconds() -> int:
@@ -160,6 +163,57 @@ def _retain_local(directory: Path, keep: int = 2) -> None:
             manifest.unlink()
 
 
+def _require_free_space(directory: Path, step: str, needed: int, detail: str) -> None:
+    """Refuse before writing: a backup that fills the disk breaks the live service too."""
+    free = shutil.disk_usage(directory).free
+    if free < needed + FREE_SPACE_RESERVE_BYTES:
+        raise BackupError(
+            step,
+            f"not enough free space in {directory}: need {needed} B ({detail}) "
+            f"+ {FREE_SPACE_RESERVE_BYTES} B reserve, free {free} B",
+        )
+
+
+def _newest_size(directory: Path, pattern: str) -> int | None:
+    archives = sorted(directory.glob(pattern), reverse=True)
+    return archives[0].stat().st_size if archives else None
+
+
+# Temp names this script creates in the backup dir (mkstemp prefixes below).
+_OWN_TEMP_PATTERNS = (
+    ".????-??-??-*.sqlite", ".????-??-??-*.sqlite-journal", ".????-??-??-*.sqlite-wal",
+    ".????-??-??-*.sqlite-shm", ".????-??-??-*.zst", ".private-????-??-??-*.zst",
+    ".orchestra-db-????-??-??.json-*.tmp",
+)
+STALE_TEMP_SECONDS = 3600
+
+
+def _remove_stale_temps(directory: Path, now: float | None = None) -> None:
+    """A run killed at the 600 s job limit skips `finally` and leaves a 7 GB raw copy.
+
+    Only called under the backup lock, so no live run owns these files.
+    """
+    now = time.time() if now is None else now
+    for pattern in _OWN_TEMP_PATTERNS:
+        for path in directory.glob(pattern):
+            try:
+                if path.is_file() and now - path.stat().st_mtime > STALE_TEMP_SECONDS:
+                    path.unlink()
+            except OSError:
+                pass
+
+
+def _tree_bytes(root: Path) -> int:
+    total = 0
+    for directory, _dirs, files in os.walk(root):
+        for name in files:
+            try:
+                total += os.lstat(os.path.join(directory, name)).st_size
+            except OSError:
+                pass
+    return total
+
+
 def _make_daily_backup(db_path: Path, directory: Path) -> tuple[Path, Path]:
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -172,6 +226,18 @@ def _make_daily_backup(db_path: Path, directory: Path) -> tuple[Path, Path]:
         archive.unlink()
     if manifest_path.exists():
         manifest_path.unlink()
+
+    # The raw copy is about the DB plus its WAL; the archive about the previous one.
+    raw_estimate = db_path.stat().st_size
+    wal = Path(f"{db_path}-wal")
+    if wal.exists():
+        raw_estimate += wal.stat().st_size
+    previous = _newest_size(directory, "orchestra-db-????-??-??.sqlite.zst")
+    archive_estimate = previous * 5 // 4 if previous else raw_estimate // 2
+    _require_free_space(
+        directory, "local-space", raw_estimate + archive_estimate,
+        f"raw copy {raw_estimate} B + archive ~{archive_estimate} B",
+    )
 
     fd, raw_temp = tempfile.mkstemp(prefix=f".{day}-", suffix=".sqlite", dir=directory)
     os.close(fd)
@@ -222,6 +288,8 @@ def _make_daily_backup(db_path: Path, directory: Path) -> tuple[Path, Path]:
         return archive, manifest_path
     finally:
         raw_path.unlink(missing_ok=True)
+        # A failed sqlite backup leaves the target's rollback journal (11-01 run).
+        Path(f"{raw_path}-journal").unlink(missing_ok=True)
         Path(f"{raw_path}-wal").unlink(missing_ok=True)
         Path(f"{raw_path}-shm").unlink(missing_ok=True)
         compressed_path.unlink(missing_ok=True)
@@ -481,6 +549,11 @@ def _backup_private(root: Path, directory: Path, keep: int = 2) -> Path | None:
         return None
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     archive = directory / f"orchestra-private-{day}.tar.zst"
+    # The folder grows in jumps (a 2 GB task dir in a day), so the last archive alone
+    # underestimates; half the raw size is above the observed ~1:3 zstd ratio.
+    previous = _newest_size(directory, "orchestra-private-????-??-??.tar.zst") or 0
+    estimate = max(previous * 3 // 2, _tree_bytes(source) // 2)
+    _require_free_space(directory, "private-space", estimate, f"archive ~{estimate} B")
     fd, raw_temp = tempfile.mkstemp(prefix=f".private-{day}-", suffix=".zst", dir=directory)
     os.close(fd)
     temp = Path(raw_temp)
@@ -505,12 +578,17 @@ def _daily() -> None:
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     with lock_path.open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _remove_stale_temps(directory)
         try:
             _make_daily_backup(db_path, directory)
+        except BackupError:
+            raise
         except Exception as error:
             raise BackupError("local-database", str(error)) from error
         try:
             _backup_private(db_path.parent.parent, directory)
+        except BackupError:
+            raise
         except Exception as error:
             raise BackupError("private-folder", str(error)) from error
     # The laptop copy is left to the hourly --push-task-store run: archive creation

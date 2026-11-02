@@ -11,6 +11,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import traceback
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -575,7 +576,18 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     if args.window_hours <= 0 or getattr(args, "threshold", DEFAULT_THRESHOLD) <= 0:
         parser.error("window-hours and threshold must be positive")
-    return args.func(args)
+    if args.func is not scan:
+        return args.func(args)
+    try:
+        return scan(args)
+    except Exception as error:
+        # The cron job only wakes the orchestrator on "ERROR-WATCH:"; a scan that died
+        # (journalctl timeout, a full disk while writing state) used to stay silent.
+        traceback.print_exc()
+        reason = mask_secrets(f"{type(error).__name__}: {error}")[:500]
+        print(f"ERROR-WATCH: scan failed, recurring errors were not checked: {reason}",
+              file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

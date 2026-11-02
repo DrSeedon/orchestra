@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import subprocess
 import sys
+import time
 from types import SimpleNamespace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -432,3 +434,119 @@ def test_private_folder_is_archived_and_empty_one_is_skipped(tmp_path: Path):
         ["tar", "--zstd", "-tf", str(archive)], check=True, capture_output=True, text=True
     ).stdout
     assert "private/report.md" in listing
+
+
+def _ops_source_db(path: Path) -> Path:
+    connection = sqlite3.connect(path)
+    connection.execute("CREATE TABLE sessions (id TEXT)")
+    connection.executemany("INSERT INTO sessions VALUES (?)", [(f"s{i}",) for i in range(200)])
+    connection.commit()
+    connection.close()
+    return path
+
+
+def _ops_free(monkeypatch: pytest.MonkeyPatch, free: int) -> None:
+    monkeypatch.setattr(
+        backup.shutil, "disk_usage", lambda _path: SimpleNamespace(total=0, used=0, free=free),
+    )
+
+
+def test_ops_daily_backup_refuses_before_writing_when_space_is_short(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+):
+    """11-01: the raw copy itself hit ENOSPC at 03:00. Refuse first, with numbers."""
+    source = _ops_source_db(tmp_path / "orchestra.db")
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    old = directory / "orchestra-db-2026-10-31.sqlite.zst"
+    old.write_bytes(b"x" * 4096)
+    needed = source.stat().st_size + 4096 * 5 // 4 + backup.FREE_SPACE_RESERVE_BYTES
+    _ops_free(monkeypatch, needed - 1)
+
+    with pytest.raises(backup.BackupError, match="not enough free space") as refused:
+        backup._make_daily_backup(source, directory)
+    assert refused.value.step == "local-space"
+    assert sorted(p.name for p in directory.iterdir()) == [old.name]
+
+    monkeypatch.setattr(sys, "argv", ["orchestra_backup.py", "--daily"])
+    monkeypatch.setattr(backup, "_service_paths", lambda: (source, tmp_path))
+    assert backup.main() == 1
+    assert "BACKUP_FAILURE step=local-space" in capsys.readouterr().err
+
+    _ops_free(monkeypatch, needed)
+    archive, _manifest = backup._make_daily_backup(source, directory)
+    assert archive.exists()
+
+
+def test_ops_failed_backup_leaves_no_rollback_journal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    source = _ops_source_db(tmp_path / "orchestra.db")
+    directory = tmp_path / "backups"
+    _ops_free(monkeypatch, 10 ** 12)
+
+    def disk_full(raw_path: Path):
+        Path(f"{raw_path}-journal").write_bytes(b"j" * 1024)
+        raise sqlite3.OperationalError("database or disk is full")
+
+    monkeypatch.setattr(backup, "_table_counts", disk_full)
+    with pytest.raises(sqlite3.OperationalError):
+        backup._make_daily_backup(source, directory)
+    assert list(directory.iterdir()) == []
+
+
+def test_ops_private_archive_refuses_when_space_is_short(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    root, out = tmp_path / "root", tmp_path / "backups"
+    out.mkdir()
+    private = root / ".orchestra" / "private"
+    private.mkdir(parents=True)
+    (private / "report.md").write_text("evidence\n")
+    first = backup._backup_private(root, out)
+    assert first is not None
+    _ops_free(monkeypatch, first.stat().st_size * 3 // 2 + backup.FREE_SPACE_RESERVE_BYTES - 1)
+    with pytest.raises(backup.BackupError, match="not enough free space") as refused:
+        backup._backup_private(root, out)
+    assert refused.value.step == "private-space"
+    assert sorted(p.name for p in out.iterdir()) == [first.name]
+
+
+def test_ops_daily_removes_only_its_own_stale_temps(tmp_path: Path):
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    old = time.time() - 2 * backup.STALE_TEMP_SECONDS
+    stale = [
+        ".2026-11-01-7dxnw63f.sqlite-journal", ".2026-11-01-abc.sqlite",
+        ".2026-11-01-abc.zst", ".private-2026-11-01-x.zst",
+        ".orchestra-db-2026-11-01.json-y.tmp",
+    ]
+    for name in stale:
+        (directory / name).write_bytes(b"x")
+        os.utime(directory / name, (old, old))
+    keep = ["orchestra-db-2026-10-31.sqlite.zst", "orchestra-db-2026-10-31.json",
+            ".orchestra-backup.lock", "notes.sqlite", ".2026-11-02-live.sqlite"]
+    for name in keep:
+        (directory / name).write_bytes(b"x")
+    os.utime(directory / "notes.sqlite", (old, old))  # not a temp name: stays
+    backup._remove_stale_temps(directory)
+    assert sorted(p.name for p in directory.iterdir()) == sorted(keep)
+
+
+def test_ops_private_estimate_follows_source_growth(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    root, out = tmp_path / "root", tmp_path / "backups"
+    out.mkdir()
+    private = root / ".orchestra" / "private"
+    private.mkdir(parents=True)
+    (private / "small.md").write_text("evidence\n")
+    first = backup._backup_private(root, out)
+    (private / "big.bin").write_bytes(os.urandom(1_000_000))  # a new 1 MB task dir
+    estimate = 1_000_000 // 2
+    _ops_free(monkeypatch, estimate + backup.FREE_SPACE_RESERVE_BYTES - 1)
+    with pytest.raises(backup.BackupError, match="private-space|not enough free space"):
+        backup._backup_private(root, out)
+    _ops_free(monkeypatch, estimate + 20 + backup.FREE_SPACE_RESERVE_BYTES)
+    assert backup._backup_private(root, out) is not None
+    assert first is not None
