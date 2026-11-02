@@ -321,6 +321,51 @@ def test_mcp_config_rendered_into_config_toml_not_argv():
     assert "open_fan" in srv["enabled_tools"]
 
 
+def test_managed_codex_disables_native_sleep_beneath_user_and_project_overlays(
+    tmp_path, monkeypatch,
+):
+    import tomllib
+
+    import app.backend_codex as module
+
+    base_home = tmp_path / "base-codex-home"
+    base_home.mkdir()
+    (base_home / "config.toml").write_text(
+        "[features.sleep_tool]\nenabled = true\nmode = 'always_on'\n\n"
+        "[features.current_time_reminder]\nenabled = true\nsleep_tool = true\n"
+    )
+    project = tmp_path / "project"
+    project_config = project / ".codex" / "config.toml"
+    project_config.parent.mkdir(parents=True)
+    project_config.write_text(
+        "[features.sleep_tool]\nenabled = true\nmode = 'always_on'\n"
+    )
+    monkeypatch.setenv("CODEX_HOME", str(base_home))
+    monkeypatch.setattr(module, "_CODEX_HOME_ROOT", tmp_path / "managed-codex-homes")
+
+    backend = CodexBackend(model="gpt-5.6-sol", cwd=str(project), mcp_servers={
+        "orchestra": {
+            "command": "python",
+            "args": ["/x/mcp_stdio.py"],
+            "env": {"ORCHESTRA_SESSION_ID": "sleep-overlay-test"},
+        },
+    })
+    managed_home = backend._prepare_codex_home()
+    managed = tomllib.loads((managed_home / "config.toml").read_text())
+    orchestra = tomllib.loads(backend._mcp_servers_toml())[
+        "mcp_servers"
+    ]["orchestra"]
+    command = backend._codex_command()
+    overrides = [command[index + 1] for index, arg in enumerate(command[:-1]) if arg == "-c"]
+
+    assert managed["features"]["sleep_tool"]["enabled"] is False
+    assert managed["features"]["sleep_tool"].get("mode") is None
+    assert "sleep_tool" not in managed["features"].get("current_time_reminder", {})
+    assert "features.sleep_tool=false" in overrides
+    assert overrides[-1] == "features.sleep_tool=false"
+    assert "bg_create" in orchestra["enabled_tools"]
+
+
 def test_mcp_config_supports_url_only_servers():
     import tomllib
     b = CodexBackend(model="gpt-5.6-sol", cwd="/tmp", mcp_servers={

@@ -2670,6 +2670,9 @@ class CodexBackend(JsonRpcStdioTransport):
         cmd += ["-c", 'web_search="live"']
         for arg in self._mcp_config_args():
             cmd += ["-c", arg]
+        # Native clock.sleep runs inside Codex before Orchestra can inspect an item.
+        # Keep this override last so user/project config cannot restore the tool.
+        cmd += ["-c", "features.sleep_tool=false"]
         cmd += ["app-server", "--stdio"]
         return cmd
 
@@ -2802,6 +2805,7 @@ class CodexBackend(JsonRpcStdioTransport):
         if carried:
             parts.append(carried)
         parts.append(self._trusted_project_toml())
+        parts.append("[features.sleep_tool]\nenabled = false")
         servers = self._mcp_servers_toml()
         if servers:
             parts.append(servers)
