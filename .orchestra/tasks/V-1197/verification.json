@@ -1,0 +1,15 @@
+{
+  "app_file": "app/__init__.py",
+  "interpreter": ".venv/bin/python3",
+  "head": null,
+  "head_reason": "Private source copy has no .git; git rev-parse HEAD exited 128",
+  "landing_branch": "task-V-1197/fix-steer-fifo",
+  "sha256": {
+    "app/backend_codex.py": "f5a54889cecea0a366dfd5cef35a0607fcdeb9c96e9a98bececfb6584548efa3",
+    "app/message_deliveries.py": "08df5e9148a60a025760e0d36e567969c46dff0951edd9a0f118922cae958188",
+    "tests/test_codex_steer_rejection_v1197.py": "be811ff1fd15b90b3221f267c48f269db77baa4ec19a5bf078ffd1e5eab323ab",
+    "CHANGELOG.md": "1e9b81510a7e9456635e250fb51b3f919387005eb580fa49503079c8a1930d71",
+    "uv.lock": "b1b9364dd130ddc03376563d83c14d8ef15bc9753d3f421e682df1588a558a70"
+  },
+  "path_format": "repository-relative; absolute originals retained privately"
+}

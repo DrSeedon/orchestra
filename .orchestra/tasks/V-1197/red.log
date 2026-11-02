@@ -1,0 +1,53 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_correlated_rejection_releases_fifo_through_real_session _________
+
+harness = namespace(session=AgentSession(id='target-1197', name='target-1197', scope='/synthetic-1197', cwd='<private-path><locals>.Manager object at 0x72b87e491280>, accept=<function harness.<locals>.accept at 0x72b87e488680>)
+
+    @pytest.mark.asyncio
+    async def test_correlated_rejection_releases_fifo_through_real_session(harness):
+        h = harness
+        await h.accept(FIRST)
+        await h.accept(SECOND)
+        reader = asyncio.create_task(h.backend._read_stdout())
+        try:
+>           assert await deliveries.run_target_message_deliveries(
+                h.session.id, manager=h.manager,
+            ) is True
+
+tests/test_codex_steer_rejection_v1197.py:106: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/message_deliveries.py:1255: in run_target_message_deliveries
+    await run_message_delivery(head["delivery_id"], manager=manager)
+app/message_deliveries.py:1082: in run_message_delivery
+    await manager.send_message_delivery(
+tests/test_codex_steer_rejection_v1197.py:78: in send_message_delivery
+    await session.send(message, delivery=delivery, provenance=provenance)
+app/session.py:1508: in send
+    await backend.send(injected)
+app/backend_codex.py:903: in send
+    await self._request("turn/steer", {
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x72b87e4747d0>
+method = 'turn/steer'
+params = {'expectedTurnId': 'turn-1197', 'input': [{'text': '00000000-0000-4000-8000-000000001197', 'type': 'text'}], 'threadId': 'thread-1197'}
+
+    async def _request(self, method: str, params: dict | None) -> dict:
+        if self._in is None or not self.is_alive:
+            raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write(self._envelope({"method": method, "id": request_id,
+                                              "params": params}))
+>           result = await future
+                     ^^^^^^^^^^^^
+E           app.backend_codex.CodexProtocolError: request: no active turn to steer
+
+app/backend_jsonrpc.py:137: CodexProtocolError
+=========================== short test summary info ============================
+FAILED tests/test_codex_steer_rejection_v1197.py::test_correlated_rejection_releases_fifo_through_real_session
+1 failed in 3.76s

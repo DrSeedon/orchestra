@@ -481,6 +481,19 @@ class CodexProtocolError(RuntimeError):
         super().__init__(f"{method}: {error.get('message', 'Codex app-server error')}")
 
 
+class CodexSubmissionRejectedError(CodexProtocolError):
+    """A correlated submission RPC explicitly refused to accept this input."""
+
+    def envelope(self) -> dict:
+        return {
+            "code": "PROVIDER_REJECTED",
+            "message": str(self),
+            "retryable": True,
+            "outcome_unknown": False,
+            "details": {"provider": "codex", "method": self.method},
+        }
+
+
 class CodexWriterConflictError(RuntimeError):
     """The native thread has an owner this session cannot submit through."""
 
@@ -902,11 +915,19 @@ class CodexBackend(JsonRpcStdioTransport):
 
         user_input = [{"type": "text", "text": message}]
         if self._active_turn_id:
-            await self._request("turn/steer", {
-                "threadId": self._thread_id,
-                "expectedTurnId": self._active_turn_id,
-                "input": user_input,
-            })
+            try:
+                await self._request("turn/steer", {
+                    "threadId": self._thread_id,
+                    "expectedTurnId": self._active_turn_id,
+                    "input": user_input,
+                })
+            except CodexProtocolError as error:
+                # Only this response to this RPC proves non-acceptance. Generic
+                # protocol/internal errors and transport loss remain ambiguous.
+                if (error.error.get("code") == -32600
+                        and error.error.get("message") == "no active turn to steer"):
+                    raise CodexSubmissionRejectedError("turn/steer", error.error) from error
+                raise
             return
         if self._events_active:
             # The server completed the old turn but session.py has not left its event

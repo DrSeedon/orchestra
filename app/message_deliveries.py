@@ -541,7 +541,9 @@ def prepare_message_delivery(delivery_id: str) -> dict:
         ).fetchone()
         if row is None:
             raise KeyError(f"message delivery not found: {delivery_id}")
-        if row["state"] == "QUEUED":
+        if row["state"] == "QUEUED" or (
+            row["state"] == "PREPARING" and row["user_log_id"] is None
+        ):
 
             cursor = connection.execute(
                 """INSERT INTO logs (
@@ -556,7 +558,7 @@ def prepare_message_delivery(delivery_id: str) -> dict:
             connection.execute(
                 """UPDATE message_deliveries
                    SET state='PREPARING', user_log_id=?, updated_at=?
-                   WHERE delivery_id=? AND state='QUEUED'""",
+                   WHERE delivery_id=? AND state IN ('QUEUED','PREPARING')""",
                 (cursor.lastrowid, _now(), delivery_id),
             )
             row = connection.execute(
@@ -808,6 +810,8 @@ def list_pending_deliveries(source_session_id: str, target: str = "") -> list[di
 
 
 def mark_message_delivery_unknown(delivery_id: str, error: BaseException, *, orphaned: bool = False) -> dict:
+    from app.backend_codex import CodexSubmissionRejectedError
+
     error_json = json.dumps(
         {
             "code": "DELIVERY_OUTCOME_UNKNOWN",
@@ -840,6 +844,26 @@ def mark_message_delivery_unknown(delivery_id: str, error: BaseException, *, orp
             return _resource(row)
         if row["state"] != "DISPATCHING":
             return _resource(row)
+        if not orphaned and isinstance(error, CodexSubmissionRejectedError):
+            # FAILED_BEFORE_SUBMIT is the existing terminal "not accepted" state:
+            # a correlated refusal is definitive even though the RPC began.
+            # Keep receipt, history cleanup and sender notice in one transaction.
+            connection.execute(
+                """UPDATE message_deliveries
+                   SET state='FAILED_BEFORE_SUBMIT', error_json=?, user_log_id=NULL, updated_at=?
+                   WHERE delivery_id=? AND state='DISPATCHING'""",
+                (json.dumps(error.envelope(), ensure_ascii=False), _now(), delivery_id),
+            )
+            if row["user_log_id"] is not None:
+                connection.execute(
+                    "DELETE FROM logs WHERE id=? AND session_id=? AND type='user_message'",
+                    (row["user_log_id"], row["target_session_id"]),
+                )
+            row = connection.execute(
+                "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,),
+            ).fetchone()
+            record_delivery_failure(connection, row)
+            return _resource(row, connection=connection)
         connection.execute(
             """UPDATE message_deliveries
                SET state='DELIVERY_UNKNOWN', error_json=?, updated_at=?
@@ -1089,7 +1113,9 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
         from app.session import DrainingRefused
 
         if context.dispatched:
-            mark_message_delivery_unknown(delivery_id, error)
+            outcome = mark_message_delivery_unknown(delivery_id, error)
+            if outcome["delivery_state"] != "FAILED_BEFORE_SUBMIT":
+                raise
         elif isinstance(error, DrainingRefused) and _is_cron_delivery(row, context.provenance):
             # Submission has definitely not started. Keep the accepted payload for
             # startup recovery, without a timer or a misleading delivered log.
@@ -1105,15 +1131,15 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
             return
         else:
             mark_message_delivery_failed_before_submit(delivery_id, error)
-            try:
-                await notify_message_delivery_failure(delivery_id, manager=manager)
-            except Exception as notice_error:
-                logger.warning(
-                    "message delivery failure notice %s remains pending: %s",
-                    delivery_id, err_text(notice_error),
-                )
-            if intercepted and intercepted["released"]:
-                fan_barrier.rearm_wake(intercepted["fan_id"])
+        try:
+            await notify_message_delivery_failure(delivery_id, manager=manager)
+        except Exception as notice_error:
+            logger.warning(
+                "message delivery failure notice %s remains pending: %s",
+                delivery_id, err_text(notice_error),
+            )
+        if intercepted and intercepted["released"]:
+            fan_barrier.rearm_wake(intercepted["fan_id"])
         raise
 
 
