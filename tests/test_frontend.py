@@ -638,7 +638,7 @@ def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result
             + "async function _showModelPicker" + picker
         ))
         page.evaluate("_showModelPicker('picker-worker', 'claude-opus-5-5', $('#anchor'))")
-        page.locator("#model-picker-dd > div").click()
+        page.locator("#model-picker-dd button.model-picker-row").click()
         expected_body = {"model": target_model, "scope": "picker-test-scope"}
         if reason is not None:
             expected_body["model_reason"] = reason
