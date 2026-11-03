@@ -206,7 +206,7 @@ async def test_canonical_direct_preflight_switches_before_generation_capture_and
         return {"ok": True, "branch": "fixture-adhoc/worker"}
 
     monkeypatch.setattr("app.workspace.switch_worktree_branch", switch_git)
-    monkeypatch.setattr(manager_module, "_release_hub_workspaces", AsyncMock())
+    monkeypatch.setattr(manager_module, "_archive_hub_workspaces", AsyncMock())
     request = SimpleNamespace(headers={
         "x-orchestra-session-id": session.id,
         "x-orchestra-mcp-proof": issue_mcp_proof(session.id),

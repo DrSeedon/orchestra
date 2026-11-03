@@ -22,8 +22,8 @@ def snapshot(root):
 def cleanup_case(setup, monkeypatch):  # noqa: F811
     main, wt = setup
     release = AsyncMock(return_value=[])
-    monkeypatch.setattr("app.backend_hub.release_for_worktree", release)
-    monkeypatch.setattr(operations, "get_session", lambda _sid: {"worktree_path": str(wt)})
+    monkeypatch.setattr("app.backend_hub.archive_for_worktree", release)
+    monkeypatch.setattr(operations, "get_session", lambda _sid: {"worktree_path": str(wt), "backend_type": "codex"})
     return main, wt, release
 
 
@@ -51,7 +51,7 @@ async def test_already_removed_worktree_is_normal(cleanup_case, monkeypatch, cap
         monkeypatch.setattr("app.workspace._resolve_repo", lambda *_: main)
     await cleanup()
     assert errors(caplog) == []
-    release.assert_awaited_once_with(str(wt))
+    release.assert_not_awaited()
     assert snapshot(retained) == source
     assert snapshot(main) == target
 
@@ -112,7 +112,7 @@ async def test_removal_between_check_and_git_is_normal(
     assert len(failures) == 1
     assert failures[0].filename == str(wt)
     assert errors(caplog) == []
-    release.assert_awaited_once_with(str(wt))
+    release.assert_not_awaited()
     assert snapshot(retained) == source
     assert snapshot(main) == target
 
@@ -131,7 +131,7 @@ async def test_existing_successful_cleanup_keeps_unique_sources(cleanup_case, ca
     assert (wt / "planted.txt").read_text() == "p"
     assert (wt / ".venv" / "lib.bin").read_bytes() == b"L"
     assert snapshot(main) == target
-    release.assert_awaited_once_with(str(wt))
+    release.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -150,7 +150,7 @@ async def test_existing_nonrepository_is_still_refused(cleanup_case, caplog, kin
     await cleanup()
     assert snapshot(wt) == before
     assert errors(caplog) == []
-    release.assert_awaited_once()
+    release.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -258,15 +258,15 @@ async def test_unverifiable_absence_still_logs_original_error(cleanup_case, monk
 
 
 @pytest.mark.asyncio
-async def test_hub_release_error_survives_local_removal(cleanup_case, caplog):
+async def test_native_cleanup_never_calls_unowned_hub_archive_after_local_removal(cleanup_case, caplog):
     _main, wt, release = cleanup_case
     release.side_effect = RuntimeError("hub cleanup failed")
     wt.rename(wt.with_name("retained"))
     await cleanup()
     warnings = [r for r in caplog.records if r.name == operations.logger.name
                 and r.levelno == logging.WARNING]
-    assert len(warnings) == 1
-    assert warnings[0].exc_info[1] is release.side_effect
+    assert warnings == []
+    release.assert_not_awaited()
     assert errors(caplog) == []
 
 
@@ -288,7 +288,7 @@ async def test_terminal_merge_and_target_survive_optional_cleanup(
     monkeypatch.setattr("app.workspace.inspect_worktree_identity",
                         lambda _path: ("task-42/worker", "b" * 40))
     release = AsyncMock(return_value=[])
-    monkeypatch.setattr("app.backend_hub.release_for_worktree", release)
+    monkeypatch.setattr("app.backend_hub.archive_for_worktree", release)
     make, entered, proceed, failures = paused_git
     real_clean = worktree_cleanup.clean_worktree
     runner = make(wt, "status")
@@ -339,4 +339,4 @@ async def test_terminal_merge_and_target_survive_optional_cleanup(
         assert errors(caplog)[0].exc_info[1] is genuine
     else:
         assert len(failures) == 1
-    release.assert_awaited_once_with(str(wt))
+    release.assert_not_awaited()

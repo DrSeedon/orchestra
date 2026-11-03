@@ -13,6 +13,7 @@ import contextlib
 import dataclasses
 import errno
 import hashlib
+import json
 import logging
 import os
 import re
@@ -293,6 +294,9 @@ class HubBackend:
             raise RuntimeError(problem)
         self._ssh = hw.HubSsh.from_env()
         self._state = hw.WorkspaceState.load(self._resume) if self._resume else None
+        if (self._resume and hw._WS_ID.match(self._resume) and self._state is None
+                and (hw.STATE_DIR / f"{self._resume}.json").exists()):
+            raise hw.HubWorkspaceError("Hub resume blocked: persisted workspace record is unreadable")
         if self._state and os.path.realpath(self._state.worktree) != os.path.realpath(self.cwd):
             self._state = None
         logger.info("HubBackend connected: model=%s workspace=%s", self.model, self.session_id)
@@ -407,8 +411,7 @@ class HubBackend:
                     "t3_thread_interrupt", {"threadId": state.thread_id, "reason": "interrupted by Orchestra"})
 
     async def disconnect(self) -> None:
-        # The hub workspace survives a reconnect/hibernate; only release_for_worktree() or an
-        # explicit kill/merge removes it.
+        # The hub workspace survives a reconnect/hibernate; ordinary close archives it without deleting history.
         self._abort = True
         self._turn_active = False
         if self._mc is not None:
@@ -498,10 +501,13 @@ class HubBackend:
         known = hw.known_secret_values([getattr(mc, "_token", "")])
         root = Path(self.cwd)
         state = self._state
-        if state is not None and not state.path().exists():
-            # Released behind this backend's back (merge, task switch, sweep): the hub project and
-            # copy are gone, and saving this old record again would resurrect a dead workspace.
-            logger.info("hub workspace %s was released; starting a new one", state.ws_id)
+        persisted = hw.WorkspaceState.load(state.ws_id) if state is not None else None
+        if state is not None and state.path().exists() and persisted is None:
+            raise hw.HubWorkspaceError("Hub resume blocked: persisted workspace record is unreadable")
+        if state is not None and (not state.path().exists() or persisted.archived):
+            # A closed generation must never be resumed by a stale backend. Its
+            # record and remote history remain available for provenance.
+            logger.info("hub workspace %s closed; starting a new generation", state.ws_id)
             state = self._state = None
         if state is None or not state.remote_dir:
             state = hw.WorkspaceState(
@@ -515,14 +521,11 @@ class HubBackend:
                 yield AgentEvent("status", "hub: clean start - a new workspace is created; earlier "
                                            "records and the persistent base are not reused or touched")
             self._state = state
-            state.save()   # before any hub write, so a crash leaves a record the sweep can release
-            try:
-                await release_for_worktree(self.cwd, keep_ws_id=state.ws_id, ssh=ssh, mc=mc,
-                                           skip=frozenset(quarantined))
-            except hw.HubFilePolicyError:
-                raise
-            except Exception as exc:
-                logger.warning("hub previous workspace release incomplete (state kept for sweep): %s", exc)
+            state.save()   # before any Hub write, retaining provenance across a crash
+        # Every retry must finish old-generation archival before a new provider
+        # turn. Never swallow an unresolved report, privacy or remote failure.
+        await archive_for_worktree(self.cwd, keep_ws_id=state.ws_id, ssh=ssh, mc=mc,
+                                   skip=frozenset(quarantined))
         # A record exists from the first attempt on, but the workspace only from the first upload that
         # reached the hub: a turn that failed before it (e.g. tree too large) must retry as a first upload.
         fresh = not (state.uploaded or state.manifest)
@@ -1027,6 +1030,19 @@ class HubBackend:
             outcome = "failed/interrupted"
         if "report_context" not in pending:
             pending["report_context"] = f"[hub result] status={outcome}; provider={provider or 'unknown'}\n{pending['summary']}"
+            if self._bridge is not None:
+                from app.turn_signals import hub_completion_action
+
+                who = self._bridge.identity()
+                role = getattr(who, "role", "")
+                action = hub_completion_action(
+                    {"id": getattr(who, "session_id", ""), "name": getattr(who, "name", ""),
+                     "branch": getattr(who, "branch", ""), "backend_type": "hub",
+                     "is_orchestrator": not role or role in {"orchestrator", "sub-orchestrator"}},
+                    turn_ok=outcome == "ok" and provider == "completed",
+                )
+                if action:
+                    pending["report_context"] += "\n\n[broker next_action] " + json.dumps(action, ensure_ascii=False)
             state.save()
         # Keep archive diagnostics without restoring V-1206's removed transfer cap.
         archive_size = f"{out.stat().st_size} bytes" if out.exists() else "unavailable (outcome retained)"
@@ -1153,10 +1169,44 @@ class HubBackend:
             project_docs=getattr(prepared, "project_docs", ()), mcp_servers={})
 
 
+async def archive_for_worktree(worktree: str, *, keep_ws_id: str = "",
+                               ssh: hw.HubSsh | None = None, mc=None,
+                               skip: frozenset[str] = frozenset()) -> list[str]:
+    """Ordinary lifecycle close: retain Hub history and existing workspace records.
+
+    Destructive release_for_worktree keeps its separate explicit-purge meaning.
+    Preflight every record before remote archival or caller lifecycle teardown.
+    """
+    states = [state for state in hw.states_for_worktree(worktree)
+              if state.ws_id != keep_ws_id and state.ws_id not in skip]
+    for state in states:
+        hw.assert_archive_ready(state)
+    states = [state for state in states if not state.archived]
+    if not states:
+        return []
+    ssh = ssh or hw.HubSsh.from_env()
+    owns_client = mc is None and any(state.thread_id for state in states)
+    if owns_client:
+        problem = hub_configured()
+        if problem:
+            raise hw.HubWorkspaceError(problem)
+        mc = MultiCodeClient.from_env()
+        await mc.__aenter__()
+    archived: list[str] = []
+    try:
+        for state in states:
+            await hw.archive_workspace(state, ssh, mc)
+            archived.append(state.ws_id)
+    finally:
+        if owns_client:
+            await mc.__aexit__(None, None, None)
+    return archived
+
+
 async def release_for_worktree(worktree: str, *, keep_ws_id: str = "",
                                ssh: hw.HubSsh | None = None, mc=None,
                                skip: frozenset[str] = frozenset()) -> list[str]:
-    """Remove the worktree's hub workspaces, optionally keeping its replacement.
+    """Explicit purge only: remove the worktree's Hub workspaces, optionally keeping a replacement.
     Supplied transports belong to the caller and are not closed here.
     Returns the workspace ids that were cleaned; a failure is raised after the rest ran."""
     states = [state for state in hw.states_for_worktree(worktree) if state.ws_id != keep_ws_id and state.ws_id not in skip]
@@ -1197,70 +1247,11 @@ def _all_states() -> list[hw.WorkspaceState]:
 
 
 async def sweep_orphans(live_worktrees: set[str] | dict[str, str], *, min_age: float = ORPHAN_MIN_AGE_S) -> dict:
-    """Release hub workspaces whose worker is gone, and hub leftovers that have no local record.
+    """Retain unowned/old records; orphan status never authorizes data deletion.
 
-    The mapping identifies each worktree's current workspace; older copies of a live worker
-    are orphans too. Legacy set callers provide no ownership information, so keep their live
-    copies conservatively. Hub-side debris (directories and projects under
-    our root with no record) is removed only when older than `min_age`, which is longer than any
-    upload, because the record is written before the first hub write."""
-    report: dict = {"released": [], "remote_dirs": [], "projects": [], "kept": 0, "errors": []}
-    states = _all_states()
-    if hub_configured() is not None:
-        if states:
-            report["errors"].append(hub_configured())
-        return report
-    live = {os.path.realpath(p) for p in live_worktrees if p}
-    current = ({os.path.realpath(p): ws_id for p, ws_id in live_worktrees.items() if p}
-               if isinstance(live_worktrees, dict) else None)
-    ssh = hw.HubSsh.from_env()
-    async with MultiCodeClient.from_env() as mc:
-        for state in states:
-            worktree = os.path.realpath(state.worktree)
-            if (worktree in live and Path(state.worktree).is_dir()
-                    and (current is None or current.get(worktree) == state.ws_id)):
-                report["kept"] += 1
-                continue
-            try:
-                await hw.release_workspace(state, ssh, mc)
-                report["released"].append(state.ws_id)
-            except hw.HubWorkspaceError as exc:
-                report["errors"].append(f"{state.ws_id}: {exc}")
-        known = {st.ws_id for st in _all_states()}
-        root = await ssh.root()
-        dirs = dict(await ssh.list_workspaces())
-        now = time.time()
-
-        def stale(ws_id: str) -> bool:
-            return ws_id not in known and (ws_id not in dirs or now - dirs[ws_id] > min_age)
-
-        cursor = None
-        while True:
-            page = await mc.tool_call("t3_project_list", {"limit": 100, **({"cursor": cursor} if cursor else {})})
-            for project in page.get("projects", []):
-                workspace = str(project.get("workspaceRoot") or "")
-                ws_id = os.path.basename(workspace)
-                if os.path.dirname(workspace) != root or not hw._WS_ID.match(ws_id) or not stale(ws_id):
-                    continue
-                threads = []
-                try:
-                    listed = await mc.tool_call("t3_thread_list", {"projectId": project["id"], "limit": 100})
-                    threads = [t["threadId"] for t in listed.get("threads", [])]
-                    await mc.tool_call("t3_project_delete", {"projectId": project["id"], "force": True})
-                    for thread_id in threads or [""]:
-                        await ssh.scrub_traces(ws_id, thread_id)
-                    report["projects"].append(ws_id)
-                except (MultiCodeError, hw.HubWorkspaceError) as exc:
-                    report["errors"].append(f"project {ws_id}: {exc}")
-            cursor = page.get("nextCursor")
-            if cursor is None:
-                break
-        for ws_id in sorted(dirs):
-            if stale(ws_id):
-                try:
-                    await ssh.remove(f"{root}/{ws_id}")
-                    await ssh.scrub_traces(ws_id, "")
-                    report["remote_dirs"].append(ws_id)
-                except hw.HubWorkspaceError as exc:
-                    report["errors"].append(f"dir {ws_id}: {exc}")
-    return report
+    Compatibility keeps the existing report keys and signature. No remote scan,
+    interrupt, archive or purge is allowed without a verified lifecycle owner.
+    Existing workspace records and unrecorded remote objects remain untouched.
+    """
+    return {"released": [], "remote_dirs": [], "projects": [],
+            "kept": len(_all_states()), "errors": []}

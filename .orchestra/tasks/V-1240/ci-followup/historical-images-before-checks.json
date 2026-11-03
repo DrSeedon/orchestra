@@ -1,0 +1,46 @@
+[
+  {
+    "path": ".orchestra/tasks/V-860/screenshots/recording-recovered-after-reload.png",
+    "sha256": "73f6f73dfd74b7f09117ffd77f85122d6272ff1177474bd591b533254acb0548"
+  },
+  {
+    "path": ".orchestra/tasks/V-860/screenshots/recording.png",
+    "sha256": "07a659c2efe4802198835942e3777f3700da72b69a2c29d9320d3efb77fe6adb"
+  },
+  {
+    "path": ".orchestra/tasks/V-860/screenshots/transcription-error-retry-available.png",
+    "sha256": "2320cb3af922ad8c66079514489f02dc2ed9631747b6a742be39d4798b95d7ac"
+  },
+  {
+    "path": ".orchestra/tasks/V-874/screenshots/desktop-sending-chip.png",
+    "sha256": "25f30859889d77e13d8f941aa72cf93163c3526b67151ca4296c2b5e63afe540"
+  },
+  {
+    "path": ".orchestra/tasks/V-874/screenshots/phone-sending-chip.png",
+    "sha256": "d38d9c812ed43cef0994b4f60b8faf9f935f36356b7c504eb163b1589bc31d20"
+  },
+  {
+    "path": ".orchestra/tasks/V-967/tool-cards-compact.png",
+    "sha256": "af2082b11ccd3c3f520b7acc0f50bfa0fa376206ebe76f00e5df035c437fce14"
+  },
+  {
+    "path": ".orchestra/tasks/V-967/tool-cards-expanded-artifact.png",
+    "sha256": "fa007b5f4de63f7a34719b01026c6275f3b0ddd3fb1fa794295947c19bc480fb"
+  },
+  {
+    "path": ".orchestra/tasks/V-967/tool-cards-expanded-checklist.png",
+    "sha256": "ce4a510afe7cdff40fc98d8f01379c4a393e6553bd1ce8bcbc38d7325ee3d2bf"
+  },
+  {
+    "path": ".orchestra/tasks/V-967/tool-cards-expanded.png",
+    "sha256": "724a1da7135d4d4671000f4c97b6f1b9a8e8f71708830cafd95485989b4a72f1"
+  },
+  {
+    "path": ".orchestra/tasks/V-994/after-controls-hidden.png",
+    "sha256": "84f85154b815428ea515702fa8da7fdeb7f306999da86e6132af14ce76a1bba7"
+  },
+  {
+    "path": ".orchestra/tasks/V-994/before-controls-visible.png",
+    "sha256": "d8998081a6e2acc5da07cef0d1aa87739fc9036581329828ec48ca8760afa64b"
+  }
+]

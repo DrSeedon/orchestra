@@ -1,0 +1,26 @@
+{
+  "baseline": "0bbb0b96eb9b50cacee41023542d1d25cb560310",
+  "file": ".orchestra/pipelines/default/pipeline.yaml",
+  "local_sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16",
+  "approved_sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16",
+  "local_byte_diff": 0,
+  "was_already_correct_in_copy": true,
+  "defaults": {
+    "default": "hubsol",
+    "orchestrator": "gpt-6.1-terra",
+    "sub-orchestrator": "gpt-6.1-terra",
+    "worker": "hub-gpt-6.1-sol",
+    "full-cycle": "hub-gpt-6.1-sol",
+    "reducer": "hub-gpt-6.1-sol"
+  },
+  "effort_and_native_orchestrator_values": "exact complete bytes from pin; no reconfiguration",
+  "broker_branch_head_reported_by_parent": "63e90fafae1bbd3a3e0ab497c73395c597ef4f2b",
+  "post_sync_git_diff": "parent-owned verification; Git metadata unavailable in this copy",
+  "transport_repair": "pipeline-approved.yaml and pipeline-restoration.patch are under task-owned paths so root can restore the filtered pipeline file after import",
+  "patch_rehearsal": {
+    "exit": 0,
+    "after_sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16",
+    "diff_to_approved_bytes": 0,
+    "scope": "task-owned scratch, not broker Git worktree"
+  }
+}

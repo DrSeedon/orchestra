@@ -262,16 +262,24 @@ async def _assert_owned_survives(tmp_path, monkeypatch, old_model, new_model, ow
     monkeypatch.setattr(routes, "manager", mgr)
     monkeypatch.setattr(routes, "ensure_dashboard_visible", lambda model: None)
     monkeypatch.setattr("app.quota_queue.release_waiting", AsyncMock())
+    calls_before_change = list(mc.calls)
     result = await routes.change_model("worker", {
         "scope": str(repo), "model": new_model,
         "model_reason": "V-1031 offline ownership regression",
     })
-    assert isinstance(result, dict) and result.get("ok"), result
+    forbidden = new_model in {'hub-gpt-6-luna', 'hub-claude-haiku-5-5'}
+    if forbidden:
+        assert result.status_code == 409
+        assert 'hub_workers_require_sol' in result.body.decode()
+        assert mc.calls == calls_before_change
+        assert session.model == old_model
+    else:
+        assert isinstance(result, dict) and result.get("ok"), result
     await session._drain_persist()
     assert session.owned_dirs == owned, "live owned_dirs lost on model change"
     row = db.get_session(session.id)
     assert json.loads(row["owned_dirs"] or "[]") == owned, "persisted owned_dirs lost"
-    assert row["model"] == new_model
+    assert row["model"] == (old_model if forbidden else new_model)
 
     async def check_upload(backend):
         events = await _turn(backend, "after model change")

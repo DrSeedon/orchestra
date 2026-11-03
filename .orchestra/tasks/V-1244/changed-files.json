@@ -1,0 +1,57 @@
+{
+  "integrated_host_candidate": "c38c19e7411885c7e37f9db969010daf001a0f42",
+  "source_manifest_sha256": "8825239827e0b5013e33d96f86bedad6440fad1506c827bb388b7ee138b0d1fe",
+  "delta_manifest_sha256": "fd2f4bf90cbdb0f50ebb636fd919a1eec7aaffc2a49ccf07099a47708e3d6a20",
+  "scope": "Only this corrective delta is new; do not overlay historical complete modules or routing fixtures.",
+  "files": [
+    {
+      "path": "app/backend_hub.py",
+      "sha256": "391c2ca3094b10ad75befa5acef47f4a6ca087d5999e81c876ea73821ca0f4f1",
+      "added": 4,
+      "removed": 2
+    },
+    {
+      "path": "tests/test_hub_inputs_v1062.py",
+      "sha256": "99b88f06fc299d7828d4635c2e840859d08ff15f274510bef8ea101fe123fbf1",
+      "added": 28,
+      "removed": 9
+    },
+    {
+      "path": "tests/test_worktree_cleanup_v984.py",
+      "sha256": "7c024a80ad3214d5578301a7be56fc2a7cfdf71cf9da75d6453d846d5deb13fa",
+      "added": 52,
+      "removed": 15
+    },
+    {
+      "path": "tests/test_hub_completion_directive_v1244.py",
+      "sha256": "4ccae3fc1815b532dbf852f3efe66ab3994554aa514144aab4ebf1adfc6734ab",
+      "added": 38,
+      "removed": 1
+    },
+    {
+      "path": "tests/test_hub_cleanup_generation_v1244.py",
+      "sha256": "b3973c6c88c7c6f92f7718bea96e36dbcbc0a220a7ef1956357b713c3abc3ea4",
+      "added": 2,
+      "removed": 1
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "bec977e075865c420b21f55bb468c9e69274d56e881f2e8a337795bb673427c3",
+      "added": 1,
+      "removed": 1
+    },
+    {
+      "path": ".orchestra/tasks/V-1244/mutate_host_outcomes.py",
+      "sha256": "8b14745c680a9b9068a3411722bb44b0fc586f356df620241b4588e965cf1637",
+      "added": 63,
+      "removed": 0
+    }
+  ],
+  "source_parent": "23bd5155d9b4d57046432e0b59c57f9adad99652",
+  "source_candidate": "cf1a86568677a6a5b77db015a98e91ff04c9bb6f",
+  "actual_git_delta": {
+    "files": 7,
+    "added": 188,
+    "removed": 29
+  }
+}

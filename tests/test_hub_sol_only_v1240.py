@@ -39,6 +39,24 @@ def test_future_hub_route_fails_closed(admission, monkeypatch):
         models.ensure_spawn_allowed(spec.id)
 
 
+@pytest.mark.parametrize('model', [
+    'gpt5.6luna', 'retired-codex-model', 'retired-claude-model',
+    'grok-4', 'openrouter:synthetic',
+])
+def test_native_runtime_identity_validation_stays_with_its_owner(admission, model):
+    models.ensure_hub_worker_allowed(model)
+    assert models.validate_model_reason(model, 'task metadata') == ''
+    # Deferring a Hub-only check does not admit an unknown native worker.
+    with pytest.raises(ValueError):
+        models.ensure_spawn_allowed(model)
+
+
+@pytest.mark.parametrize('model', ['hub-unregistered-model', ' HUB-CLAUDE-FUTURE '])
+def test_unknown_hub_identity_cannot_escape_through_native_deferral(admission, model):
+    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
+        models.ensure_hub_worker_allowed(model)
+
+
 @pytest.mark.parametrize('model', FORBIDDEN)
 def test_api_credit_is_not_an_escape_for_forbidden_hub_models(admission, model):
     with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
@@ -48,6 +66,36 @@ def test_api_credit_is_not_an_escape_for_forbidden_hub_models(admission, model):
 @pytest.mark.parametrize('model_request', ['hubsol', SOL])
 def test_sol_stays_admitted_with_existing_config_and_catalog_gates(admission, model_request):
     models.ensure_spawn_allowed(models.resolve_model(model_request))
+
+
+@pytest.mark.parametrize('model', [' HUB-GPT-6.1-SOL ', 'HUBSOL'])
+def test_sol_metadata_follows_case_insensitive_canonical_resolution(admission, model):
+    assert models.resolve_model(model) == SOL
+    models.ensure_hub_worker_allowed(model)
+    assert models.validate_model_reason(model, 'creative task metadata') == ''
+
+
+@pytest.mark.asyncio
+async def test_auth_startup_refresh_without_endpoint_preserves_registry(monkeypatch):
+    from app import db, model_catalog
+    from app.auth import is_auth_enabled
+
+    db.init_db()
+    for key in ('ANTHROPIC_BASE_URL', 'UPSTREAM_API'):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv('DASHBOARD_USER', 'fixture-operator')
+    monkeypatch.setenv('DASHBOARD_PASSWORD', 'fixture-password')
+    assert is_auth_enabled()
+    model_catalog.apply_model_catalog()
+    views = ['MODEL_SPECS', 'MODELS', 'BACKENDS', 'ALIASES', 'TOKEN_PRICES', 'CONTEXT_LIMITS', 'MODEL_PROVIDERS']
+    before = {key: dict(getattr(models, key)) for key in views}
+    fetch = AsyncMock(side_effect=AssertionError('external catalog request forbidden'))
+    monkeypatch.setattr(models, 'fetch_models_from_proxy', fetch)
+
+    await models.refresh_models()
+
+    fetch.assert_not_awaited()
+    assert {key: dict(getattr(models, key)) for key in views} == before
 
 
 @pytest.mark.parametrize('model', FORBIDDEN)

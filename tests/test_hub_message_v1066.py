@@ -154,12 +154,18 @@ async def test_invalid_parameters_or_uncertain_send_never_replace_thread(
     backend._run_id = "active-run"
     backend._turn_active = operation == "steer"
     backend._effort = "high" if operation == "configure" else None
-    monkeypatch.setattr(backend, "_model_selection", AsyncMock(return_value={"model": "test"}))
+    if operation != "retarget":
+        monkeypatch.setattr(backend, "_model_selection", AsyncMock(return_value={"model": "test"}))
     calls = []
 
     async def handler(request):
         body = json.loads(request.content)
         calls.append(body["params"]["name"])
+        if operation == "retarget":
+            assert body["params"]["arguments"] == {
+                "threadId": "old-thread",
+                "modelSelection": {"instanceId": "codex", "model": "gpt-6.1-sol"},
+            }
         if failure == "uncertain":
             raise httpx.ReadError("uncertain", request=request)
         if failure == "http":
@@ -176,7 +182,7 @@ async def test_invalid_parameters_or_uncertain_send_never_replace_thread(
         monkeypatch.setattr(backend, "_client", AsyncMock(return_value=mc))
         with pytest.raises(MultiCodeError) as error:
             if operation == "retarget":
-                await backend.retarget_model("hub-gpt-6-luna")
+                await backend.retarget_model("hub-gpt-6.1-sol")
             elif operation == "steer":
                 await backend.send("steer")
             else:
@@ -187,6 +193,8 @@ async def test_invalid_parameters_or_uncertain_send_never_replace_thread(
     assert backend.model == "hub-gpt-6.1-sol"
     assert backend._early_steer == []
     assert len(calls) == 1
+    if operation == "retarget":
+        assert calls == ["t3_thread_configure"]
 
 
 @pytest.mark.asyncio

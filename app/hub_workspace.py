@@ -3,7 +3,8 @@
 A hub worker never gets credentials. The platform packs only what the task needs from the
 worker's VPS worktree, copies it to a private directory on the hub over SSH, lets the hub
 thread edit it there, then imports the result back into the worktree through a validator
-(`apply_changes`) and commits it. Nothing is pre-loaded and nothing outlives `release`.
+(`apply_changes`) and commits it. Ordinary archival retains history and provenance;
+destructive `release` is a separate, explicitly authorized operation.
 
 The hub side is untrusted input: whatever comes back is checked for path escape, links,
 size and credential shapes before a single byte reaches the worktree.
@@ -1173,6 +1174,9 @@ class WorkspaceState:
     clean_start: bool = False
     clean_start_of: list[str] = field(default_factory=list)
     pending_sync: dict = field(default_factory=dict)
+    # V-1244: ordinary close retains this record and all Hub history. Legacy
+    # records default active; neither their age nor absent owners permits purge.
+    archived: bool = False
 
     def assert_file_policy(self) -> None:
         if self.file_policy_blocked:
@@ -1244,7 +1248,13 @@ async def check_workspace_file_policy(ssh: HubSsh | None, state: WorkspaceState)
         await ssh.assert_file_policy(state.remote_dir)
     except HubFilePolicyError:
         state.file_policy_blocked = True
-        state.save()
+        current = WorkspaceState.load(state.ws_id)
+        if current is not None:
+            current.file_policy_blocked = True
+            current.save()
+        elif not state.path().exists():
+            # Retain the new incident, but never overwrite an unreadable record.
+            state.save()
         raise
 
 
@@ -1489,8 +1499,47 @@ async def verify_released(state: WorkspaceState, mcp, ssh: HubSsh | None, *, wai
     return problems
 
 
+def assert_archive_ready(state: WorkspaceState) -> None:
+    state.assert_file_policy()
+    if state.pending_sync:
+        raise HubWorkspaceError("Hub archive blocked: pending sync must recover before close")
+
+
+async def archive_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mcp=None) -> None:
+    """Close a known generation without removing project/history/recovery data.
+
+    Repeated archive is idempotent, including retry after a lost remote reply.
+    Pending import/report work must recover through its owner before closure.
+    """
+    state = WorkspaceState.load(state.ws_id) or state
+    assert_archive_ready(state)
+    if state.archived:
+        return
+    await check_workspace_file_policy(ssh, state)
+    if state.thread_id:
+        if mcp is None:
+            raise HubWorkspaceError("Hub archive blocked: MultiCode client unavailable")
+        await mcp.tool_call("t3_thread_interrupt", {"threadId": state.thread_id})
+        stopped = await mcp.tool_call("t3_thread_wait", {"threadId": state.thread_id, "timeoutMs": 10_000})
+        if (not isinstance(stopped, dict) or stopped.get("timedOut")
+                or stopped.get("status") not in {"idle", "completed", "failed", "interrupted", "cancelled", "rolled_back"}):
+            raise HubWorkspaceError("Hub archive blocked: thread termination is not confirmed")
+        await mcp.tool_call("t3_thread_organize", {"threadId": state.thread_id, "action": "archive"})
+    # A sync/report may have reached the broker during those remote awaits.
+    # Never replace its new journal/provenance with our pre-interrupt snapshot.
+    latest = WorkspaceState.load(state.ws_id)
+    if latest is None:
+        raise HubWorkspaceError("Hub archive blocked: current workspace record is unavailable")
+    if ((latest.worktree, latest.remote_dir, latest.project_id, latest.thread_id)
+            != (state.worktree, state.remote_dir, state.project_id, state.thread_id)):
+        raise HubWorkspaceError("Hub archive blocked: workspace identity changed")
+    assert_archive_ready(latest)
+    latest.archived = True
+    latest.save()
+
+
 async def release_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mcp=None) -> None:
-    """Remove everything the task left on the hub, then prove it is gone.
+    """Explicit purge only: remove everything the task left on the hub, then prove it is gone.
 
     T3 `project.delete(force)` deletes every live and archived thread of the project; the hub then
     purges their messages, turn items and attachments (only an id/title tombstone stays in its

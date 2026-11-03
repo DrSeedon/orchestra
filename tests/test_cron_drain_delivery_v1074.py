@@ -25,11 +25,11 @@ def cron(tmp_path, monkeypatch):
     session = SimpleNamespace(
         id="fixture-recipient", name="fixture-worker", scope=str(tmp_path),
         task_id="fixture-task", branch="task-fixture/worker", needs_switch=False,
-        parent_name="", last_task_sender="", send=AsyncMock(),
+        parent_name="", last_task_sender="", model="hub-gpt-6.1-sol", send=AsyncMock(),
     )
     db.save_session(dict(
         id=session.id, name=session.name, scope=session.scope, cwd=str(tmp_path),
-        model="claude-opus-5-5[1m]", system_prompt="", status="idle", session_id=None,
+        model=session.model, system_prompt="", status="idle", session_id=None,
         cost_usd=0, worktree_path=str(tmp_path), branch=session.branch,
         base_branch="main", needs_switch=0, task_id=session.task_id, role="worker",
         is_orchestrator=False, color="", created_at=now.isoformat(), finished_at=None,

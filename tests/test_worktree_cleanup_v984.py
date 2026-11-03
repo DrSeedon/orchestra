@@ -5,6 +5,7 @@ import os
 import subprocess
 import uuid
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -151,44 +152,80 @@ def test_main_checkout_itself_is_refused(setup):
                           apply=True)["state"] == "refused"
 
 
-async def _run_merge(monkeypatch, ok: bool):
+async def _run_merge(monkeypatch, setup, ok: bool, *, change_generation=False):
     import app.merge_operations as operations
+    from app import db, deps, hub_workspace as hw, workspace
+    from app.manager import SessionManager
 
-    monkeypatch.setattr("app.workspace.inspect_worktree_identity",
-                        lambda _path: ("task-42/worker", "b" * 40))
-    monkeypatch.setattr("app.workspace._resolve_repo", lambda wt, _fb: Path("/scope"))
+    main, wt = setup
+    branch, head = workspace.inspect_worktree_identity(str(wt))
+    row = db.get_session("merge-session")
+    row.update(id="native-cleanup", scope=str(main), cwd=str(main), worktree_path=str(wt), branch=branch,
+               backend_type="codex", task_id="", needs_switch=True)
+    db.save_session(row)
+    manager = SessionManager()
+    live = SimpleNamespace(_lifecycle_lock=asyncio.Lock(), backend_type="codex",
+                           worktree_path=str(wt), task_id="", branch=branch, status="idle")
+    manager.sessions[row["id"]] = live
+    monkeypatch.setattr(deps, "manager", manager)
+    monkeypatch.setattr(hw, "STATE_DIR", main.parent / "hub-records")
     calls = []
-    monkeypatch.setattr("app.worktree_cleanup.clean_worktree",
-                        lambda wt, **kw: calls.append((wt, kw)) or {"state": "cleaned"})
+
+    def clean_owned(path, **kwargs):
+        assert manager.get_session_lock(row["id"]).locked() and live._lifecycle_lock.locked()
+        assert workspace.inspect_worktree_identity(path) == (branch, head)
+        calls.append((path, kwargs))
+        return clean_worktree(path, **kwargs)
+
+    monkeypatch.setattr(worktree_cleanup, "clean_worktree", clean_owned)
 
     async def fake_execute(**_kwargs):
+        if change_generation:
+            (wt / "src.py").write_text("x = 2\n")
+            git(wt, "add", "src.py")
+            git(wt, "commit", "-qm", "next generation")
         return {
             "ok": ok, "state": "merged" if ok else "failed",
             "commit_point": "target_committed" if ok else "not_reached",
             "target_branch": "main", "target_before": "a" * 40,
             "target_after": "c" * 40 if ok else "a" * 40,
-            "worker_branch": "task-42/worker", "worker_head": "b" * 40,
+            "worker_branch": branch, "worker_head": head,
             "conflicts": [], "commits_merged": 1 if ok else 0,
             "lifecycle_status": {"ok": True}, "rag_backfill_status": "accepted",
             **({} if ok else {"error": "boom"}),
         }
 
     monkeypatch.setattr("app.routes.sessions.execute_merge_session", fake_execute)
-    await operations.accept_merge_operation(
-        operation_id=str(uuid.uuid4()), name="worker", scope="/scope/", target="main",
-        expected_head="b" * 40,
+    operation_id = str(uuid.uuid4())
+    accepted, status = await operations.accept_merge_operation(
+        operation_id=operation_id, name="worker", scope=str(main), target="main",
+        expected_head=head,
         acceptance_note="Accepted the pinned worker result after inspecting its changes.",
     )
+    assert status == 202, accepted
     await asyncio.wait_for(asyncio.gather(*list(operations._runner_tasks.values())), timeout=30)
+    result = operations.get_operation_record(operation_id)["result"]
+    assert result["operation_state"] == ("SUCCEEDED" if ok else "FAILED"), result
     return calls
 
 
 @pytest.mark.asyncio
-async def test_successful_merge_cleans_the_worker_copy(merge_db, monkeypatch):  # noqa: F811
-    calls = await _run_merge(monkeypatch, ok=True)
-    assert calls == [("/worktree", {"main_checkout": "/scope", "target_ref": "main", "apply": True})]
+async def test_successful_merge_cleans_the_worker_copy(merge_db, setup, monkeypatch):  # noqa: F811
+    main, wt = setup
+    calls = await _run_merge(monkeypatch, setup, ok=True)
+    assert calls == [(str(wt), {"main_checkout": str(main), "target_ref": "main", "apply": True})]
+    assert not (wt / "out" / "render.bin").exists()
+    assert (wt / "out" / "unique.bin").read_bytes() == b"only here"
+    assert (main / "out" / "render.bin").read_bytes() == b"R" * 4096
 
 
 @pytest.mark.asyncio
-async def test_failed_merge_does_not_clean(merge_db, monkeypatch):  # noqa: F811
-    assert await _run_merge(monkeypatch, ok=False) == []
+async def test_failed_merge_does_not_clean(merge_db, setup, monkeypatch):  # noqa: F811
+    assert await _run_merge(monkeypatch, setup, ok=False) == []
+    assert (setup[1] / "out" / "render.bin").read_bytes() == b"R" * 4096
+
+
+@pytest.mark.asyncio
+async def test_merge_observer_holds_changed_native_generation(merge_db, setup, monkeypatch):
+    assert await _run_merge(monkeypatch, setup, ok=True, change_generation=True) == []
+    assert (setup[1] / "out" / "render.bin").read_bytes() == b"R" * 4096

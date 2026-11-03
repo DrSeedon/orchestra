@@ -816,7 +816,7 @@ def test_trace_scrub_removes_only_this_workspaces_provider_traces(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_sweep_releases_dead_workers_keeps_live_and_clears_unrecorded_debris(
+async def test_sweep_preserves_dead_live_and_unrecorded_history(
         repo, tmp_path, monkeypatch, no_wait):
     import os, time
     live, ssh, mc = await _worker_turn(repo, tmp_path, monkeypatch)
@@ -832,15 +832,15 @@ async def test_sweep_releases_dead_workers_keeps_live_and_clears_unrecorded_debr
     monkeypatch.setattr(backend_hub.MultiCodeClient, "from_env", classmethod(lambda cls: _Entering(mc)))
     monkeypatch.setattr(hw.HubSsh, "from_env", classmethod(lambda cls: ssh))
     report = await backend_hub.sweep_orphans({str(repo)})
-    assert report["released"] == [dead.ws_id] and report["kept"] == 1 and not report["errors"]
-    assert report["remote_dirs"] == [old.name]
+    assert report["released"] == [] and report["kept"] == 2 and not report["errors"]
+    assert report["remote_dirs"] == []
     assert Path(live.remote_dir).exists() and fresh.exists()
-    assert not (ssh.base / dead.ws_id).exists() and not old.exists()
-    assert live.path().exists() and not dead.path().exists()
+    assert (ssh.base / dead.ws_id).exists() and old.exists()
+    assert live.path().exists() and dead.path().exists()
 
 
 @pytest.mark.asyncio
-async def test_sweep_deletes_an_orphan_project_under_our_root_only(repo, tmp_path, monkeypatch, no_wait):
+async def test_sweep_does_not_delete_unrecorded_projects(repo, tmp_path, monkeypatch, no_wait):
     ssh = FakeSsh(tmp_path / "hub")
     ssh.base.mkdir()
     monkeypatch.setattr(hw.HubSsh, "from_env", classmethod(lambda cls: ssh))
@@ -862,8 +862,8 @@ async def test_sweep_deletes_an_orphan_project_under_our_root_only(repo, tmp_pat
             return {}
     monkeypatch.setattr(backend_hub.MultiCodeClient, "from_env", classmethod(lambda cls: _Entering(Mc())))
     report = await backend_hub.sweep_orphans(set())
-    assert deleted == ["p-orphan"] and report["projects"] == ["hub-dddddddddddddddd"]
-    assert ssh.scrubbed == [("hub-dddddddddddddddd", "mcp:t1")]
+    assert deleted == [] and report["projects"] == []
+    assert not getattr(ssh, "scrubbed", [])
 
 
 def test_quota_hold_names_the_hub_alternative(monkeypatch):
@@ -1856,7 +1856,7 @@ async def test_a_lost_hub_project_is_recreated_and_uploaded_again_once(repo, tmp
 
 
 @pytest.mark.asyncio
-async def test_a_branch_or_task_switch_releases_the_hub_copy_but_a_plain_save_does_not(monkeypatch):
+async def test_a_branch_or_task_switch_archives_the_hub_copy_but_a_plain_save_does_not(monkeypatch):
     from types import SimpleNamespace
 
     from app import manager as manager_module
@@ -1864,15 +1864,16 @@ async def test_a_branch_or_task_switch_releases_the_hub_copy_but_a_plain_save_do
 
     released = []
 
-    async def fake_release(worktree, name):
+    async def fake_release(worktree, name, *, required=True):
         released.append((worktree, name))
-    monkeypatch.setattr(manager_module, "_release_hub_workspaces", fake_release)
+    monkeypatch.setattr(manager_module, "_archive_hub_workspaces", fake_release)
     monkeypatch.setattr(manager_module, "update_session_lifecycle", lambda *a, **k: True)
     mgr = object.__new__(manager_module.SessionManager)
 
     def session(status=AgentStatus.IDLE):
         return SimpleNamespace(id="s", name="w", loaded=False, branch="task-V-1/x", base_branch="main",
-                               task_id="V-1", needs_switch=False, worktree_path="/wt", db_row=None, status=status)
+                               task_id="V-1", needs_switch=False, worktree_path="/wt", db_row=None, status=status,
+                               backend_type="hub")
 
     async def move(sess, branch, task):
         await mgr.persist_lifecycle(sess, branch=branch, base_branch="main", task_id=task, needs_switch=False)

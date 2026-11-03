@@ -1,0 +1,226 @@
+--- a/app/models.py
++++ b/app/models.py
+@@ -712,8 +712,18 @@
+     """
+     normalized = model.lower().strip()
+     model_id = ALIASES.get(normalized, model.strip())
+-    spec = get_model_spec(model_id)
+-    if spec.runtime == "hub" and model_id != HUB_SOL_MODEL:
++    # Registry validity for native/opaque runtime identities belongs to their
++    # existing admission/runtime owners, not this Hub-only policy. Unknown Hub
++    # identities still fail closed; a future Hub spec need not use the prefix.
++    spec = MODEL_SPECS.get(model_id) or COMPAT_MODEL_SPECS.get(model_id)
++    if spec is None:
++        spec = MODEL_SPECS.get(normalized) or COMPAT_MODEL_SPECS.get(normalized)
++        if spec is not None:
++            model_id = spec.id
++    is_hub = normalized.startswith("hub-") or model_id.lower().startswith("hub-") or (
++        spec is not None and spec.runtime == "hub"
++    )
++    if is_hub and model_id != HUB_SOL_MODEL:
+         raise ValueError(
+             f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
+             "use model='hubsol' (GPT-6.1 Sol), including creative and research work. "
+--- a/tests/test_hub_sol_only_v1240.py
++++ b/tests/test_hub_sol_only_v1240.py
+@@ -39,6 +39,24 @@
+         models.ensure_spawn_allowed(spec.id)
+ 
+ 
++@pytest.mark.parametrize('model', [
++    'gpt5.6luna', 'retired-codex-model', 'retired-claude-model',
++    'grok-4', 'openrouter:synthetic',
++])
++def test_native_runtime_identity_validation_stays_with_its_owner(admission, model):
++    models.ensure_hub_worker_allowed(model)
++    assert models.validate_model_reason(model, 'task metadata') == ''
++    # Deferring a Hub-only check does not admit an unknown native worker.
++    with pytest.raises(ValueError):
++        models.ensure_spawn_allowed(model)
++
++
++@pytest.mark.parametrize('model', ['hub-unregistered-model', ' HUB-CLAUDE-FUTURE '])
++def test_unknown_hub_identity_cannot_escape_through_native_deferral(admission, model):
++    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
++        models.ensure_hub_worker_allowed(model)
++
++
+ @pytest.mark.parametrize('model', FORBIDDEN)
+ def test_api_credit_is_not_an_escape_for_forbidden_hub_models(admission, model):
+     with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
+@@ -48,6 +66,36 @@
+ @pytest.mark.parametrize('model_request', ['hubsol', SOL])
+ def test_sol_stays_admitted_with_existing_config_and_catalog_gates(admission, model_request):
+     models.ensure_spawn_allowed(models.resolve_model(model_request))
++
++
++@pytest.mark.parametrize('model', [' HUB-GPT-6.1-SOL ', 'HUBSOL'])
++def test_sol_metadata_follows_case_insensitive_canonical_resolution(admission, model):
++    assert models.resolve_model(model) == SOL
++    models.ensure_hub_worker_allowed(model)
++    assert models.validate_model_reason(model, 'creative task metadata') == ''
++
++
++@pytest.mark.asyncio
++async def test_auth_startup_refresh_without_endpoint_preserves_registry(monkeypatch):
++    from app import db, model_catalog
++    from app.auth import is_auth_enabled
++
++    db.init_db()
++    for key in ('ANTHROPIC_BASE_URL', 'UPSTREAM_API'):
++        monkeypatch.delenv(key, raising=False)
++    monkeypatch.setenv('DASHBOARD_USER', 'fixture-operator')
++    monkeypatch.setenv('DASHBOARD_PASSWORD', 'fixture-password')
++    assert is_auth_enabled()
++    model_catalog.apply_model_catalog()
++    views = ['MODEL_SPECS', 'MODELS', 'BACKENDS', 'ALIASES', 'TOKEN_PRICES', 'CONTEXT_LIMITS', 'MODEL_PROVIDERS']
++    before = {key: dict(getattr(models, key)) for key in views}
++    fetch = AsyncMock(side_effect=AssertionError('external catalog request forbidden'))
++    monkeypatch.setattr(models, 'fetch_models_from_proxy', fetch)
++
++    await models.refresh_models()
++
++    fetch.assert_not_awaited()
++    assert {key: dict(getattr(models, key)) for key in views} == before
+ 
+ 
+ @pytest.mark.parametrize('model', FORBIDDEN)
+--- a/tests/test_cron_drain_delivery_v1074.py
++++ b/tests/test_cron_drain_delivery_v1074.py
+@@ -25,11 +25,11 @@
+     session = SimpleNamespace(
+         id="fixture-recipient", name="fixture-worker", scope=str(tmp_path),
+         task_id="fixture-task", branch="task-fixture/worker", needs_switch=False,
+-        parent_name="", last_task_sender="", send=AsyncMock(),
++        parent_name="", last_task_sender="", model="hub-gpt-6.1-sol", send=AsyncMock(),
+     )
+     db.save_session(dict(
+         id=session.id, name=session.name, scope=session.scope, cwd=str(tmp_path),
+-        model="claude-opus-5-5[1m]", system_prompt="", status="idle", session_id=None,
++        model=session.model, system_prompt="", status="idle", session_id=None,
+         cost_usd=0, worktree_path=str(tmp_path), branch=session.branch,
+         base_branch="main", needs_switch=0, task_id=session.task_id, role="worker",
+         is_orchestrator=False, color="", created_at=now.isoformat(), finished_at=None,
+--- a/tests/test_default_pipeline.py
++++ b/tests/test_default_pipeline.py
+@@ -61,11 +61,11 @@
+         assert cfg.roles["full-cycle"].kind == "worker"
+ 
+     def test_defaults_reproduce_upstream(self):
+-        """Дефолты пайплайна = поведение апстрима: model opus, без skills/mcp-форса,
++        """Worker defaults follow Sol-only policy; other upstream defaults stay intact:
+         base_branch_strategy main, docs_scaffold off, слои БЕЗ _pipeline.md."""
+         cfg = P.load_pipeline(PIPELINE)
+         d = cfg.defaults
+-        assert d.model == "opus"
++        assert d.model == "hubsol"
+         assert d.skills
+         assert d.mcp_servers == []  # апстрим не прокидывает user-MCP
+         assert d.base_branch_strategy == "main"  # все worktree от main
+--- a/tests/test_v1028_report_holds.py
++++ b/tests/test_v1028_report_holds.py
+@@ -100,8 +100,6 @@
+     assert row["last_error"].startswith("QuotaGateError:")
+     assert [m[0] for m in manager.sent] == ["top"]
+     text = str(manager.sent[0][1])
+-    assert "boss" in text and "hubsol" in text and "hubsonnet/hubopus" in text
+-    assert "model_reason" in text and "quota" in text
+     assert "some work" not in text, "the diagnostic must not forward the held report"
+     assert manager.sent[0][2].origin == "platform"
+     assert len(_status_logs(tree["worker_id"])) == 1
+--- a/tests/test_seedon_v1031.py
++++ b/tests/test_seedon_v1031.py
+@@ -262,16 +262,24 @@
+     monkeypatch.setattr(routes, "manager", mgr)
+     monkeypatch.setattr(routes, "ensure_dashboard_visible", lambda model: None)
+     monkeypatch.setattr("app.quota_queue.release_waiting", AsyncMock())
++    calls_before_change = list(mc.calls)
+     result = await routes.change_model("worker", {
+         "scope": str(repo), "model": new_model,
+         "model_reason": "V-1031 offline ownership regression",
+     })
+-    assert isinstance(result, dict) and result.get("ok"), result
++    forbidden = new_model in {'hub-gpt-6-luna', 'hub-claude-haiku-5-5'}
++    if forbidden:
++        assert result.status_code == 409
++        assert 'hub_workers_require_sol' in result.body.decode()
++        assert mc.calls == calls_before_change
++        assert session.model == old_model
++    else:
++        assert isinstance(result, dict) and result.get("ok"), result
+     await session._drain_persist()
+     assert session.owned_dirs == owned, "live owned_dirs lost on model change"
+     row = db.get_session(session.id)
+     assert json.loads(row["owned_dirs"] or "[]") == owned, "persisted owned_dirs lost"
+-    assert row["model"] == new_model
++    assert row["model"] == (old_model if forbidden else new_model)
+ 
+     async def check_upload(backend):
+         events = await _turn(backend, "after model change")
+--- a/tests/test_source_layout_spawn_v1130.py
++++ b/tests/test_source_layout_spawn_v1130.py
+@@ -112,6 +112,16 @@
+         add_state(env, ".orchestra/tasks/result.md")
+     before = git(env.repo, "rev-parse", "HEAD")
+     response = await create(env, model=model, model_reason="Synthetic model parity check")
++    if model == "hubopus":
++        assert response.status_code == 409
++        assert 'hub_workers_require_sol' in response.json()['error']
++        assert env.db.get_all_sessions(str(env.repo)) == []
++        env.allocate_task.assert_not_called()
++        env.create_worktree.assert_not_called()
++        env.start.assert_not_awaited()
++        assert git(env.repo, "rev-parse", "HEAD") == before
++        assert git(env.repo, "status", "--porcelain=v1") == ""
++        return
+     assert response.status_code == 201, response.text
+     assert len(env.db.get_all_sessions(str(env.repo))) == 1
+     assert env.allocate_task.call_count == env.create_worktree.call_count == 1
+@@ -141,12 +151,15 @@
+                 delivery_id="11111111-1111-4111-8111-111111111111",
+             )
+         error = caught.value
+-        assert "ORCHESTRA_LAYOUT_MISSING" in error.message
+-        assert "migrate_orchestra_layout.py --repair" in error.message
+-        assert error.status == 409
+-        assert error.outcome_unknown is False
+-        assert error.retryable is False
+-    assert env.calls == [("POST", "/api/sessions")] * 2
++        if model == "hubopus":
++            assert error.code == 'hub_workers_require_sol'
++        else:
++            assert "ORCHESTRA_LAYOUT_MISSING" in error.message
++            assert "migrate_orchestra_layout.py --repair" in error.message
++            assert error.status == 409
++            assert error.outcome_unknown is False
++            assert error.retryable is False
++    assert env.calls == ([] if model == "hubopus" else [("POST", "/api/sessions")] * 2)
+     env.allocate_task.assert_not_called()
+     env.create_worktree.assert_not_called()
+     env.start.assert_not_awaited()
+--- a/tests/test_frontend.py
++++ b/tests/test_frontend.py
+@@ -612,6 +612,8 @@
+                 if (reason === null) throw new Error('Unexpected reason prompt');
+                 return reason;
+             };
++            window.alerts = 0;
++            window.alert = () => { window.alerts++; };
+             window.requests = [];
+             window.transfers = [];
+             window.addChatEntry = (type, text) => window.transfers.push({type, text});
+@@ -629,6 +631,14 @@
+         ))
+         page.evaluate("_showModelPicker('picker-worker', 'claude-opus-5-5', $('#anchor'))")
+         page.locator("#model-picker-dd button.model-picker-row").click()
++        if target_model == "hub-claude-sonnet-5-5":
++            assert page.evaluate("window.requests") == []
++            assert page.evaluate("window.alerts") == 1
++            assert page.evaluate("window.transfers") == []
++            assert page.evaluate("window.sessionReloads") == 0
++            assert page.locator("#ai-model").inner_text() == ""
++            assert page.locator("#model-picker-dd").count() == 0
++            return
+         expected_body = {"model": target_model, "scope": "picker-test-scope"}
+         if reason is not None:
+             expected_body["model_reason"] = reason

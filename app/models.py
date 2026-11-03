@@ -712,8 +712,18 @@ def ensure_hub_worker_allowed(model: str) -> None:
     """
     normalized = model.lower().strip()
     model_id = ALIASES.get(normalized, model.strip())
-    spec = get_model_spec(model_id)
-    if spec.runtime == "hub" and model_id != HUB_SOL_MODEL:
+    # Registry validity for native/opaque runtime identities belongs to their
+    # existing admission/runtime owners, not this Hub-only policy. Unknown Hub
+    # identities still fail closed; a future Hub spec need not use the prefix.
+    spec = MODEL_SPECS.get(model_id) or COMPAT_MODEL_SPECS.get(model_id)
+    if spec is None:
+        spec = MODEL_SPECS.get(normalized) or COMPAT_MODEL_SPECS.get(normalized)
+        if spec is not None:
+            model_id = spec.id
+    is_hub = normalized.startswith("hub-") or model_id.lower().startswith("hub-") or (
+        spec is not None and spec.runtime == "hub"
+    )
+    if is_hub and model_id != HUB_SOL_MODEL:
         raise ValueError(
             f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
             "use model='hubsol' (GPT-6.1 Sol), including creative and research work. "

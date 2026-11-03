@@ -1,0 +1,24 @@
+{
+  "rejected_candidate": "50d2b51be5d4a27fe13e7660c747dfd1f37883e3",
+  "source_manifest_sha256": "4b3f3fdecae12e42b628b89267bff4126104ab6a429d69691de5509623722d5b",
+  "supplied_probe_changed": false,
+  "unsafe_red": "1 failed; newthread43 contacted; both archived; localcleanup1",
+  "fixed_green": "1 passed; currenttask43; both unarchived; no remote/localcleanup; snapshotreads1",
+  "ownership": "No optional Hub archival. Native manager session + live lifecycle locks span all awaits; repository flock spans identity check and cleanup.",
+  "additional_checks": [
+    "resolution-await publication hold",
+    "publisher blocked during resolution and cleanup",
+    "actual nonblocking flock refusal while cleanup owns repository",
+    "Hub before first workspace publication hold"
+  ],
+  "targeted": "108 passed, 2 subtests passed",
+  "restored_mapped": "182 passed",
+  "mutation": "only rejected committed cleanup function replayed; actual race red; safe current file restored byte-for-byte",
+  "protected_inputs_unchanged": true,
+  "new_runtime_store_endpoint_ttl": false,
+  "live_operations": false,
+  "pipeline_contract_exit": 0,
+  "instruction_contract_exit": 1,
+  "instruction_limit": "Missing required CLAUDE.md symlink in worker bundle; no host Git/symlink fabrication.",
+  "publication_payloads_clean": 31
+}

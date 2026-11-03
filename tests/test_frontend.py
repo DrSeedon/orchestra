@@ -612,6 +612,8 @@ def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result
                 if (reason === null) throw new Error('Unexpected reason prompt');
                 return reason;
             };
+            window.alerts = 0;
+            window.alert = () => { window.alerts++; };
             window.requests = [];
             window.transfers = [];
             window.addChatEntry = (type, text) => window.transfers.push({type, text});
@@ -629,6 +631,14 @@ def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result
         ))
         page.evaluate("_showModelPicker('picker-worker', 'claude-opus-5-5', $('#anchor'))")
         page.locator("#model-picker-dd button.model-picker-row").click()
+        if target_model == "hub-claude-sonnet-5-5":
+            assert page.evaluate("window.requests") == []
+            assert page.evaluate("window.alerts") == 1
+            assert page.evaluate("window.transfers") == []
+            assert page.evaluate("window.sessionReloads") == 0
+            assert page.locator("#ai-model").inner_text() == ""
+            assert page.locator("#model-picker-dd").count() == 0
+            return
         expected_body = {"model": target_model, "scope": "picker-test-scope"}
         if reason is not None:
             expected_body["model_reason"] = reason

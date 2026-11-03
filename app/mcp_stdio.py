@@ -2647,6 +2647,7 @@ def _merge_tool_result_full(result: dict[str, Any]) -> CallToolResult:
         text = (
             f"Merged {count} commit{'s' if count != 1 else ''} from branch {branch}. "
             f"Operation {operation_id}: SUCCEEDED.{drift}"
+            + (f" Next: {action_message}" if action.get("code") == "ARCHIVE_COMPLETED_HUB_WORKER" else "")
             + (
                 f" WARNINGS (the merge itself needs no retry): {_safe_response_text(notes)}"
                 if notes else ""

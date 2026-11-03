@@ -18,6 +18,7 @@ resend, so a crash between "parent accepted" and "row marked" does not repeat th
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 import uuid
@@ -146,6 +147,65 @@ async def _resolve_parent(manager, row: dict):
     return parent
 
 
+def hub_completion_action(worker: dict, *, turn_ok: bool = True, merged: bool = False) -> dict:
+    """A parent instruction, never an executor. Callers supply broker-owned identity.
+
+    V-1244: provider completion requests acceptance; only the canonical complete
+    merge owner may select the post-acceptance action. Ordinary Hub closure
+    preserves history under the owner's 2026-11-03 archive/purge decision.
+    """
+    if (worker.get("backend_type") != "hub" or worker.get("is_orchestrator")
+            or not worker.get("id") or not worker.get("name")):
+        return {}
+    name = worker["name"]
+    action = {
+        "code": "REVIEW_HUB_RESULT" if turn_ok else "RECOVER_HUB_RESULT",
+        "worker": {"session_id": worker["id"], "name": name,
+                   "branch": worker.get("branch") or worker.get("worker_branch") or ""},
+        "message": (
+            f"Review Hub worker {name}'s result and finish required validation now. "
+            "A provider end_turn/completed is not task acceptance. "
+            "Inspect worker_wip and accept only the reviewed exact full HEAD. "
+            "If accepted, immediately merge that exact full HEAD with an acceptance_note "
+            "and the correct task_outcome. Once the task is complete, accepted work is "
+            "merged (or accepted research findings are saved), and no further assigned "
+            f"phase remains, immediately run worker_wip({name!r}) then kill_worker({name!r}) "
+            "in this handling. Ordinary close preserves Hub history and accounting; "
+            "deletion requires separate owner authorization. Required validation, "
+            "continue/next_task, dirty or unmerged WIP, privacy and ownership block archive."
+            if turn_ok else
+            f"Recover Hub worker {name}'s failed or incomplete result and finish validation. "
+            "This turn does not authorize merge, task completion or archive."
+        ),
+    }
+    if not turn_ok:
+        return action
+    action["inspection"] = {"tool": "worker_wip", "arguments": {"name": name}}
+    action["archive"] = {
+        "requires": ["same_worker_session", "task_complete", "validation_complete", "accepted_work_preserved",
+                     "no_further_assigned_phase", "kill_gate_passed"],
+        "steps": [{"tool": tool, "arguments": {"name": name}}
+                  for tool in ("worker_wip", "kill_worker")],
+    }
+    if merged:
+        action["code"] = "ARCHIVE_COMPLETED_HUB_WORKER"
+        action["message"] = (
+            f"Complete merge accepted for Hub worker {name}; do not merge again. "
+            "Verify the landed artifact and finish any required validation. "
+            "When no further assigned phase remains, immediately run "
+            f"worker_wip({name!r}) then kill_worker({name!r}) in this handling, "
+            "after confirming this same worker session identity. "
+            "Ordinary closure preserves Hub history and accounting; do not purge. "
+            "Dirty/unmerged WIP and privacy/ownership guards block archive."
+        )
+    else:
+        action["merge"] = {
+            "tool": "merge_worker", "arguments": {"name": name},
+            "requires": ["validation_complete", "accepted_exact_head", "acceptance_note"],
+        }
+    return action
+
+
 def _compose(manager, row: dict) -> str:
     sr = f" (stop_reason={row['stop_reason']})" if row["stop_reason"] else ""
     outcome = (
@@ -153,10 +213,16 @@ def _compose(manager, row: dict) -> str:
         else "Turn failed before an explicit report"
     )
     context = manager._context_warning(row["worker_name"])
-    return (
+    text = (
         f"[from:{row['worker_name']}] [auto-report]{sr} {outcome}. "
         f"Last output:\n{row['summary'] or '(no output)'}{context}"
     )
+    worker = db.get_session(row["worker_session_id"]) or {}
+    if worker.get("scope") == row["scope"] and worker.get("status") != "archived":
+        action = hub_completion_action(worker, turn_ok=bool(row["turn_ok"]))
+        if action:
+            text += "\n\n[broker next_action] " + json.dumps(action, ensure_ascii=False)
+    return text
 
 
 def _ref(ids: list[int]) -> str:

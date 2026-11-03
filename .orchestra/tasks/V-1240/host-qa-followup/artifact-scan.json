@@ -1,0 +1,72 @@
+[
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/run_checks.py",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/report.md",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/notes.md",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/baseline-local-hashes.sha256",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/workflow-last-url-repro.js",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/changes.patch",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/source-manifest.json",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/source-hashes.sha256",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/mutation.py",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/same-node-repro-proof.json",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/reproduce_existing.py",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/workflow_probe.py",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/baseline-comparison.json",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/host-qa-followup/mutation-proof.json",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  }
+]

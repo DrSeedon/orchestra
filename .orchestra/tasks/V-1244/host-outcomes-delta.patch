@@ -1,0 +1,361 @@
+diff --git a/.orchestra/tasks/V-1244/mutate_host_outcomes.py b/.orchestra/tasks/V-1244/mutate_host_outcomes.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa44e649fad2a7efe70e3213f9ca4278ceff1cd2
+--- /dev/null
++++ b/.orchestra/tasks/V-1244/mutate_host_outcomes.py
+@@ -0,0 +1,63 @@
++"""Bounded offline mutations against the committed V-1244 host regressions."""
++import argparse
++import hashlib
++import os
++from pathlib import Path
++import subprocess
++
++
++parser = argparse.ArgumentParser()
++parser.add_argument('case', choices=['identity', 'native-positive', 'fixture-loading'])
++case = parser.parse_args().case
++root = Path(__file__).resolve().parents[3]
++notes = Path(__file__).parent
++common = ['-q', '--tb=short']
++if case == 'identity':
++    source = root / 'app/backend_hub.py'
++    before = '''                role = getattr(who, "role", "")
++                action = hub_completion_action(
++                    {"id": getattr(who, "session_id", ""), "name": getattr(who, "name", ""),
++                     "branch": getattr(who, "branch", ""), "backend_type": "hub",
++                     "is_orchestrator": not role or role in {"orchestrator", "sub-orchestrator"}},'''
++    after = '''                action = hub_completion_action(
++                    {"id": who.session_id, "name": who.name, "branch": who.branch,
++                     "backend_type": "hub", "is_orchestrator": who.role in {"orchestrator", "sub-orchestrator"}},'''
++    tests = ['tests/test_hub_completion_directive_v1244.py::test_incomplete_legacy_identity_finishes_sync_without_directive']
++    evidence = ['4 failed, 2 passed', 'AttributeError', 'assert actions == [{}]']
++elif case == 'native-positive':
++    source = root / 'app/merge_operations.py'
++    before = 'return clean_worktree(worktree, main_checkout=str(repo), target_ref=target, apply=True)'
++    after = 'return {"state": "skipped"}'
++    tests = ['tests/test_worktree_cleanup_v984.py::test_successful_merge_cleans_the_worker_copy',
++             'tests/test_worktree_cleanup_v984.py::test_failed_merge_does_not_clean']
++    evidence = ['1 failed, 1 passed', 'assert calls ==']
++else:
++    source = root / 'tests/test_hub_cleanup_generation_v1244.py'
++    before = ('from tests.test_hub_archive_v1244 import history\n'
++              'from tests.test_merge_operations import merge_db')
++    after = 'pytest_plugins = ("tests.test_hub_archive_v1244", "tests.test_merge_operations")'
++    tests = ['tests/test_hub_archive_v1244.py::test_archive_preserves_objects_and_idempotent_restart',
++             'tests/test_hub_cleanup_generation_v1244.py', '-n', '2', '--dist', 'loadscope']
++    evidence = ["fixture 'history' not found", '1 passed, 1 error']
++
++original = source.read_bytes()
++assert original.decode().count(before) == 1
++mutant = original.decode().replace(before, after, 1).encode()
++log = notes / 'raw/host-outcomes' / f'mutation-{case}.log'
++try:
++    source.write_bytes(mutant)
++    with log.open('wb') as output:
++        output.write(('source=' + str(source.relative_to(root)) + '\n'
++                      + 'safe_sha256=' + hashlib.sha256(original).hexdigest() + '\n'
++                      + 'mutant_sha256=' + hashlib.sha256(mutant).hexdigest() + '\n').encode())
++        output.flush()
++        result = subprocess.run(['uv', 'run', '--frozen', 'python', '-m', 'pytest', *tests, *common],
++                                cwd=root, stdout=output, stderr=subprocess.STDOUT, timeout=55,
++                                env={**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'})
++    observed = log.read_text()
++    assert result.returncode == 1, result.returncode
++    assert all(marker in observed for marker in evidence), observed[-2500:]
++finally:
++    source.write_bytes(original)
++assert source.read_bytes() == original
++print(f'{case}: expected RED; safe source restored byte-for-byte')
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ba60d2ade7b96c62c3f8bc96e3dd08cd874f5205..96165757fb9b79abbd6be85cced64b48846fdd35 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -6,7 +6,7 @@
+ 
+ ## Unreleased
+ 
+-- **Hub close preserves history; merge observation cannot close a later generation** (V-1244; owner retention decision 2026-11-03 01:42 KRS). Task transition and explicit close own known Hub generation archival, retaining project/provider history, accounting and recovery provenance. Optional post-merge cleanup never archives Hub workspaces and holds Hub/unknown/history; native cleanup spans existing session/lifecycle locks and repository ownership through identity check and deletion. Cancellation now drains the actual native executor future with the existing owned-wait primitive before releasing locks, including repeated cancellation and cleanup errors, then propagates CancelledError. A committed rejected-b8fb mutation and actual lifecycle-publisher ordering regression cover the gap. A frozen stale-snapshot probe and committed unsafe-function mutation reproduce the rejected generation-43 race and verify its absence; additional publication-await/flock tests prove ownership. Pending/privacy/unknown stop/identity guards, native best-effort lifecycle, conditional exact-HEAD no-next receipt instructions and read-only orphan retention remain. No new store/runtime/endpoint/TTL, collector exclusions or live action.
++- **Hub close preserves history; merge observation cannot close a later generation** (V-1244; owner retention decision 2026-11-03 01:42 KRS). Task transition and explicit close own known Hub generation archival, retaining project/provider history, accounting and recovery provenance. Optional post-merge cleanup never archives Hub workspaces and holds Hub/unknown/history; native cleanup spans existing session/lifecycle locks and repository ownership through identity check and deletion. Cancellation now drains the actual native executor future with the existing owned-wait primitive before releasing locks, including repeated cancellation and cleanup errors, then propagates CancelledError. A committed rejected-b8fb mutation and actual lifecycle-publisher ordering regression cover the gap. A frozen stale-snapshot probe and committed unsafe-function mutation reproduce the rejected generation-43 race and verify its absence; additional publication-await/flock tests prove ownership. Optional completion metadata now tolerates legacy callers without a complete session identity: successful import/report recovery finishes, while missing worker identity or role yields no close instruction. Pending/privacy/unknown stop/identity guards, native best-effort lifecycle, conditional exact-HEAD no-next receipt instructions and read-only orphan retention remain. No new store/runtime/endpoint/TTL, collector exclusions or live action.
+ - **Hub workers admit only GPT-6.1 Sol** (V-1240; owner decision 2026-11-02). Canonical routing refuses every other hub model, including aliases, creative/research requests and persisted workers on send, queued delivery, resume or recovery, before provider submission. Refusal preserves model, WIP/history, pending inputs and recovery latches. Worker role defaults and tool descriptions now name hubsol; capacity messages ask to wait or report a blocker, without suggesting Claude or another fallback. Native orchestrators, manual native choices, protected local Luna, effort defaults, explicit authorized eval/API admission and existing company/privacy, ownership and quota guards retain their boundaries. No live worker/queue migration, deployment or manual restart.
+ 
+ - **Evaluation Codex actors disable built-in apps before startup** (V-1234; `app/backend_codex.py`). Only evaluation actors receive `features.apps=false` in their private managed config, preventing default apps from registering MCP servers. Ordinary actors, base config, runtime flags and routing remain unchanged. The evaluation admission guard still rejects every residual MCP entry and nonempty pagination cursor. Source-only fix; activation requires parent acceptance, merge/push and the normal idle lifecycle before the next approved run.
+diff --git a/app/backend_hub.py b/app/backend_hub.py
+index c24c4c1ad2181b3e6f17ee2d477eddafcbea63f2..7d9021929f00248f2fc1f105979df20741334dcd 100644
+--- a/app/backend_hub.py
++++ b/app/backend_hub.py
+@@ -1034,9 +1034,11 @@ class HubBackend:
+                 from app.turn_signals import hub_completion_action
+ 
+                 who = self._bridge.identity()
++                role = getattr(who, "role", "")
+                 action = hub_completion_action(
+-                    {"id": who.session_id, "name": who.name, "branch": who.branch,
+-                     "backend_type": "hub", "is_orchestrator": who.role in {"orchestrator", "sub-orchestrator"}},
++                    {"id": getattr(who, "session_id", ""), "name": getattr(who, "name", ""),
++                     "branch": getattr(who, "branch", ""), "backend_type": "hub",
++                     "is_orchestrator": not role or role in {"orchestrator", "sub-orchestrator"}},
+                     turn_ok=outcome == "ok" and provider == "completed",
+                 )
+                 if action:
+diff --git a/tests/test_hub_cleanup_generation_v1244.py b/tests/test_hub_cleanup_generation_v1244.py
+index 42d3696daff91be32d62b111dc12cf1c22188b92..a1e8411baed4153d026a45c55e75656803e35e4b 100644
+--- a/tests/test_hub_cleanup_generation_v1244.py
++++ b/tests/test_hub_cleanup_generation_v1244.py
+@@ -4,7 +4,8 @@ from unittest.mock import Mock
+ 
+ import pytest
+ 
+-pytest_plugins = ("tests.test_hub_archive_v1244", "tests.test_merge_operations")
++from tests.test_hub_archive_v1244 import history
++from tests.test_merge_operations import merge_db
+ 
+ 
+ @pytest.mark.asyncio
+diff --git a/tests/test_hub_completion_directive_v1244.py b/tests/test_hub_completion_directive_v1244.py
+index dfc42775dd68e54ab07c853c0fb30be24f4ae478..8eaec1c88121e5ef42f449c3c82cc1dbe5642640 100644
+--- a/tests/test_hub_completion_directive_v1244.py
++++ b/tests/test_hub_completion_directive_v1244.py
+@@ -1,12 +1,13 @@
+ """V-1244: trusted completion metadata, with conditional history-preserving archival."""
+ import copy
+ import json
++from types import SimpleNamespace
+ from unittest.mock import AsyncMock
+ 
+ import pytest
+ 
+ from app import merge_operations as operations, turn_signals
+-from tests.test_hub_workspace import repo, _offline_hub_pool, _git, _turn
++from tests.test_hub_workspace import repo, _offline_hub_pool, _git, _turn, _backend
+ from tests.test_hub_report_order_v1213 import worker
+ from tests.test_merge_operations import merge_db, _accepted
+ from tests.test_turn_signals import world
+@@ -32,6 +33,42 @@ def test_runtime_and_role_boundary(runtime, orchestrator):
+         assert [step['tool'] for step in action['archive']['steps']] == ['worker_wip', 'kill_worker']
+ 
+ 
++@pytest.mark.asyncio
++@pytest.mark.parametrize('missing', ['session_id', 'name', 'role'])
++@pytest.mark.parametrize('value', [None, ''])
++async def test_incomplete_legacy_identity_finishes_sync_without_directive(
++    repo, tmp_path, monkeypatch, missing, value,
++):
++    from app import hub_outbox as outbox, hub_workspace as hw
++
++    backend, _, mc = _backend(repo, tmp_path, monkeypatch,
++                              lambda root: (root / 'result.txt').write_bytes(b'preserved result\n'))
++    fields = dict(session_id='trusted-session', name='trusted-worker', role='worker', branch='task-42/worker',
++                  base_branch='')
++    if value is None:
++        fields.pop(missing)
++    else:
++        fields[missing] = value
++    backend._bridge = outbox.HubBridge(lambda: SimpleNamespace(**fields))
++    actions = []
++    real_action = turn_signals.hub_completion_action
++
++    def observe(identity, **kwargs):
++        action = real_action(identity, **kwargs)
++        actions.append(action)
++        return action
++
++    monkeypatch.setattr(turn_signals, 'hub_completion_action', observe)
++    events = await _turn(backend, 'synthetic task with legacy identity')
++    assert events[-1].metadata['ok']
++    assert actions == [{}]
++    assert (repo / 'result.txt').read_bytes() == b'preserved result\n'
++    assert _git(repo, 'show', 'HEAD:result.txt') == 'preserved result\n'
++    state = hw.WorkspaceState.load(backend.session_id)
++    assert not state.pending_sync and not state.archived
++    assert not any(name in {'t3_project_delete', 't3_thread_organize'} for name, _ in mc.calls)
++
++
+ @pytest.mark.asyncio
+ @pytest.mark.parametrize('failed', [False, True])
+ async def test_explicit_report_uses_broker_identity_not_worker_prose(repo, tmp_path, monkeypatch, failed):
+diff --git a/tests/test_hub_inputs_v1062.py b/tests/test_hub_inputs_v1062.py
+index 83f11eb3782bd8c0763a65ce1259478f93fb05d2..5d1b57f2580225265fce4eda88afb730d1661db8 100644
+--- a/tests/test_hub_inputs_v1062.py
++++ b/tests/test_hub_inputs_v1062.py
+@@ -175,23 +175,33 @@ async def test_hub_turn_merge_release_and_next_upload_keep_inputs(env, tmp_path,
+     backend, ssh, mc = _backend(root, tmp_path, monkeypatch, edit)
+     await _turn(backend, 'derive outputs')
+     state = backend._state
++    provenance = (state.ws_id, state.remote_dir, state.project_id, state.thread_id, dict(state.input_manifest))
++    saved = state.path().read_bytes()
++    mc.calls.clear()
+     assert state.input_manifest == {INPUT: hw.sha256_file(root / INPUT)}
+     assert INPUT not in git(root, 'ls-files').splitlines()
+     result = merge(env)
+     assert result['ok'], result
+-    # The same cleanup invoked after merge_worker(continue) releases only hub state.
++    # Merge observation retains this Hub generation and its original inputs.
+     from app.merge_operations import _clean_worktree_after_merge
+     monkeypatch.setattr('app.backend_hub.MultiCodeClient.from_env', lambda: _Entering(mc))
+     monkeypatch.setattr('app.merge_operations.get_session',
+                         lambda sid: {'worktree_path': str(root)})
+     await _clean_worktree_after_merge({'session_id': 'worker'}, {'git': {'target_branch': 'main'}})
+-    assert not state.path().exists()
+-    assert (root / INPUT).read_text() == RAW
++    assert state.path().read_bytes() == saved
++    assert (root / INPUT).read_bytes() == RAW.encode()
+     assert not (repo / INPUT).exists()
++    assert not mc.calls and not ssh.removed
+     await _turn(backend, 'continue the task')
+-    assert backend._state.ws_id != state.ws_id
+-    assert (Path(backend._state.remote_dir) / INPUT).read_text() == RAW
++    current = hw.WorkspaceState.load(state.ws_id)
++    assert (current.ws_id, current.remote_dir, current.project_id, current.thread_id, current.input_manifest) == provenance
++    assert not current.archived and not current.pending_sync
++    assert (Path(current.remote_dir) / INPUT).read_bytes() == RAW.encode()
+     assert backend._state.input_manifest == {INPUT: hw.sha256_file(root / INPUT)}
++    assert [args['threadId'] for name, args in mc.calls if name == 't3_thread_send'] == [state.thread_id]
++    assert not any(name in {'t3_project_delete', 't3_thread_organize', 't3_thread_launch'} for name, _ in mc.calls)
++    assert INPUT not in git(root, 'ls-files').splitlines()
++    assert INPUT not in git(repo, 'ls-tree', '-r', '--name-only', 'HEAD').splitlines()
+ 
+ 
+ def test_input_allowance_does_not_bypass_publication_guard(env, tmp_path, monkeypatch):
+@@ -236,6 +246,9 @@ async def test_merge_worker_continue_retains_task_and_uploads_original_again(tmp
+     monkeypatch.setattr('app.backend_hub.MultiCodeClient.from_env', lambda: _Entering(mc))
+     await _turn(backend, 'create output')
+     state = backend._state
++    provenance = (state.ws_id, state.remote_dir, state.project_id, state.thread_id, dict(state.input_manifest))
++    saved = state.path().read_bytes()
++    mc.calls.clear()
+     head = git(root, 'rev-parse', 'HEAD').strip()
+     _save_worker(session_id='hub-input-worker', task_id='42', scope=str(repo),
+                  worktree_path=wt.path, branch=wt.branch)
+@@ -251,13 +264,19 @@ async def test_merge_worker_continue_retains_task_and_uploads_original_again(tmp
+     assert db.get_session(found.id)['task_id'] == '42'
+     assert not db.get_session(found.id)['needs_switch']
+     await _clean_worktree_after_merge({'session_id': found.id}, {'git': {'target_branch': 'main'}})
+-    assert not state.path().exists()
+-    assert (root / INPUT).read_text() == RAW
++    assert state.path().read_bytes() == saved
++    assert (root / INPUT).read_bytes() == RAW.encode()
+     assert not (repo / INPUT).exists()
++    assert not mc.calls and not ssh.removed
+     await _turn(backend, 'continue the same task')
+-    assert backend._state.ws_id != state.ws_id
+-    assert (Path(backend._state.remote_dir) / INPUT).read_text() == RAW
++    current = hw.WorkspaceState.load(state.ws_id)
++    assert (current.ws_id, current.remote_dir, current.project_id, current.thread_id, current.input_manifest) == provenance
++    assert not current.archived and not current.pending_sync
++    assert (Path(current.remote_dir) / INPUT).read_bytes() == RAW.encode()
+     assert INPUT not in git(root, 'ls-files').splitlines()
++    assert INPUT not in git(repo, 'ls-tree', '-r', '--name-only', 'HEAD').splitlines()
++    assert [args['threadId'] for name, args in mc.calls if name == 't3_thread_send'] == [state.thread_id]
++    assert not any(name in {'t3_project_delete', 't3_thread_organize', 't3_thread_launch'} for name, _ in mc.calls)
+ 
+ 
+ @pytest.mark.asyncio
+diff --git a/tests/test_worktree_cleanup_v984.py b/tests/test_worktree_cleanup_v984.py
+index 1ead5ac8367568757b5e703fc66c3a9a1c3ac840..a72a5cb34495199aec2f93cc0ce5e64babf6c272 100644
+--- a/tests/test_worktree_cleanup_v984.py
++++ b/tests/test_worktree_cleanup_v984.py
+@@ -5,6 +5,7 @@ import os
+ import subprocess
+ import uuid
+ from pathlib import Path
++from types import SimpleNamespace
+ 
+ import pytest
+ 
+@@ -151,44 +152,80 @@ def test_main_checkout_itself_is_refused(setup):
+                           apply=True)["state"] == "refused"
+ 
+ 
+-async def _run_merge(monkeypatch, ok: bool):
++async def _run_merge(monkeypatch, setup, ok: bool, *, change_generation=False):
+     import app.merge_operations as operations
++    from app import db, deps, hub_workspace as hw, workspace
++    from app.manager import SessionManager
+ 
+-    monkeypatch.setattr("app.workspace.inspect_worktree_identity",
+-                        lambda _path: ("task-42/worker", "b" * 40))
+-    monkeypatch.setattr("app.workspace._resolve_repo", lambda wt, _fb: Path("/scope"))
++    main, wt = setup
++    branch, head = workspace.inspect_worktree_identity(str(wt))
++    row = db.get_session("merge-session")
++    row.update(id="native-cleanup", scope=str(main), cwd=str(main), worktree_path=str(wt), branch=branch,
++               backend_type="codex", task_id="", needs_switch=True)
++    db.save_session(row)
++    manager = SessionManager()
++    live = SimpleNamespace(_lifecycle_lock=asyncio.Lock(), backend_type="codex",
++                           worktree_path=str(wt), task_id="", branch=branch, status="idle")
++    manager.sessions[row["id"]] = live
++    monkeypatch.setattr(deps, "manager", manager)
++    monkeypatch.setattr(hw, "STATE_DIR", main.parent / "hub-records")
+     calls = []
+-    monkeypatch.setattr("app.worktree_cleanup.clean_worktree",
+-                        lambda wt, **kw: calls.append((wt, kw)) or {"state": "cleaned"})
++
++    def clean_owned(path, **kwargs):
++        assert manager.get_session_lock(row["id"]).locked() and live._lifecycle_lock.locked()
++        assert workspace.inspect_worktree_identity(path) == (branch, head)
++        calls.append((path, kwargs))
++        return clean_worktree(path, **kwargs)
++
++    monkeypatch.setattr(worktree_cleanup, "clean_worktree", clean_owned)
+ 
+     async def fake_execute(**_kwargs):
++        if change_generation:
++            (wt / "src.py").write_text("x = 2\n")
++            git(wt, "add", "src.py")
++            git(wt, "commit", "-qm", "next generation")
+         return {
+             "ok": ok, "state": "merged" if ok else "failed",
+             "commit_point": "target_committed" if ok else "not_reached",
+             "target_branch": "main", "target_before": "a" * 40,
+             "target_after": "c" * 40 if ok else "a" * 40,
+-            "worker_branch": "task-42/worker", "worker_head": "b" * 40,
++            "worker_branch": branch, "worker_head": head,
+             "conflicts": [], "commits_merged": 1 if ok else 0,
+             "lifecycle_status": {"ok": True}, "rag_backfill_status": "accepted",
+             **({} if ok else {"error": "boom"}),
+         }
+ 
+     monkeypatch.setattr("app.routes.sessions.execute_merge_session", fake_execute)
+-    await operations.accept_merge_operation(
+-        operation_id=str(uuid.uuid4()), name="worker", scope="/scope/", target="main",
+-        expected_head="b" * 40,
++    operation_id = str(uuid.uuid4())
++    accepted, status = await operations.accept_merge_operation(
++        operation_id=operation_id, name="worker", scope=str(main), target="main",
++        expected_head=head,
+         acceptance_note="Accepted the pinned worker result after inspecting its changes.",
+     )
++    assert status == 202, accepted
+     await asyncio.wait_for(asyncio.gather(*list(operations._runner_tasks.values())), timeout=30)
++    result = operations.get_operation_record(operation_id)["result"]
++    assert result["operation_state"] == ("SUCCEEDED" if ok else "FAILED"), result
+     return calls
+ 
+ 
+ @pytest.mark.asyncio
+-async def test_successful_merge_cleans_the_worker_copy(merge_db, monkeypatch):  # noqa: F811
+-    calls = await _run_merge(monkeypatch, ok=True)
+-    assert calls == [("/worktree", {"main_checkout": "/scope", "target_ref": "main", "apply": True})]
++async def test_successful_merge_cleans_the_worker_copy(merge_db, setup, monkeypatch):  # noqa: F811
++    main, wt = setup
++    calls = await _run_merge(monkeypatch, setup, ok=True)
++    assert calls == [(str(wt), {"main_checkout": str(main), "target_ref": "main", "apply": True})]
++    assert not (wt / "out" / "render.bin").exists()
++    assert (wt / "out" / "unique.bin").read_bytes() == b"only here"
++    assert (main / "out" / "render.bin").read_bytes() == b"R" * 4096
++
++
++@pytest.mark.asyncio
++async def test_failed_merge_does_not_clean(merge_db, setup, monkeypatch):  # noqa: F811
++    assert await _run_merge(monkeypatch, setup, ok=False) == []
++    assert (setup[1] / "out" / "render.bin").read_bytes() == b"R" * 4096
+ 
+ 
+ @pytest.mark.asyncio
+-async def test_failed_merge_does_not_clean(merge_db, monkeypatch):  # noqa: F811
+-    assert await _run_merge(monkeypatch, ok=False) == []
++async def test_merge_observer_holds_changed_native_generation(merge_db, setup, monkeypatch):
++    assert await _run_merge(monkeypatch, setup, ok=True, change_generation=True) == []
++    assert (setup[1] / "out" / "render.bin").read_bytes() == b"R" * 4096
