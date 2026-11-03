@@ -31,6 +31,7 @@ def fanned(tmp_path, monkeypatch):
 
 class _FakeSession:
     loaded = False
+    backend_type = "codex"
     worktree_path = None
 
     def __init__(self, name, sid="sid-parent"):
