@@ -1,0 +1,20 @@
+{
+  "same_test_node": "tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer",
+  "controlled_stimulus": "one unrelated GET after actual workflow refresh/render",
+  "variants": [
+    {
+      "variant": "old-observer",
+      "exit_code": 1
+    },
+    {
+      "variant": "fixed-observer",
+      "exit_code": 0
+    }
+  ],
+  "old_card_rendered": true,
+  "old_last_url_overwritten": true,
+  "fixed_detail_request_retained": true,
+  "source_restored_sha256": "2c34a853cd158461d1936eee72f529a01bfe7cb553653180b3877763446e40a6",
+  "original_30000ms_wait_unchanged": true,
+  "production_polling_changed": false
+}

@@ -1,0 +1,20 @@
+[
+  "tests/test_agent_hub_routing.py",
+  "tests/test_backend_hub.py",
+  "tests/test_hub_effort.py",
+  "tests/test_hub_model_reason.py",
+  "tests/test_hub_model_reason_frontend.py",
+  "tests/test_hub_pool.py",
+  "tests/test_hub_sol_only_v1240.py",
+  "tests/test_hub_workspace.py",
+  "tests/test_local_luna_route.py",
+  "tests/test_manager.py",
+  "tests/test_mcp_stdio.py",
+  "tests/test_models.py",
+  "tests/test_orchestrator_defaults_v1156.py",
+  "tests/test_orchestrator_terra_manifest_v1156.py",
+  "tests/test_quota_admission_e2e.py",
+  "tests/test_quota_wait_queue.py",
+  "tests/test_routes_surface.py",
+  "tests/test_session.py"
+]

@@ -1,0 +1,11 @@
+# PUBLIC_ALLOWLIST is the complete task-root publication contract.
+# Ignoring does not untrack an already committed path. Parent handles index cleanup
+# only after verifying/copying private-evidence; no evidence is deleted here.
+/*
+!/.gitignore
+!/PUBLIC_ALLOWLIST
+!/REPORT.md
+!/handoff-notes.md
+!/token-cap-decision.md
+!/mutation_check.py
+!/closure.md

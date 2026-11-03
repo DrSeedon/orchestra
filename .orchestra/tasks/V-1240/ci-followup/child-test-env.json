@@ -1,0 +1,22 @@
+{
+  "scope": "child test processes only",
+  "removed_keys": [
+    "ANTHROPIC_BASE_URL",
+    "UPSTREAM_API",
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "OPENAI_BASE_URL",
+    "OPENAI_API_KEY",
+    "OPENROUTER_API_KEY",
+    "GROK_BASE_URL",
+    "GROK_API_KEY",
+    "MULTICODE_MCP_BASE",
+    "MULTICODE_MCP_TOKEN",
+    "MULTICODE_MCP_TOKEN_FILE",
+    "MULTICODE_HUB_SSH",
+    "MULTICODE_HUB_SSH_KEY",
+    "NOTIFY_SOCKET"
+  ],
+  "provider_endpoints_absent_before_start": true,
+  "live_settings_registry_credentials_unchanged": true
+}

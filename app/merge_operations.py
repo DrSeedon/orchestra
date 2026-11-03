@@ -1043,6 +1043,8 @@ def _session_snapshot(session_id: str) -> dict[str, Any]:
         "task_id": str(row.get("task_id") or ""),
         "needs_switch": bool(row.get("needs_switch")),
         "worktree_path": row.get("worktree_path") or "",
+        "backend_type": row.get("backend_type") or "",
+        "is_orchestrator": bool(row.get("is_orchestrator")),
     }
 
 
@@ -1622,6 +1624,35 @@ def normalize_merge_result(
     return result
 
 
+def _hub_archive_action(record: dict, result: dict, terminal: dict) -> dict:
+    """Expose conditional archive only for a finalized exact accepted Hub task."""
+    request = record["request"]
+    git = result.get("git") or {}
+    if (result.get("operation_state") != "SUCCEEDED" or result.get("error")
+            or result.get("commit_point") != "REACHED"
+            or git.get("status") != "SUCCEEDED"
+            or request.get("merge_schema_version") != 2
+            or request.get("task_outcome") != "complete" or request.get("next_task_id")
+            or not record.get("accepted_task_id")
+            or terminal.get("session_id") != record["session_id"]
+            or terminal.get("name") != record["worker_name"]
+            or terminal.get("scope") != record["scope"]
+            or terminal.get("task_id") or not terminal.get("needs_switch")
+            or terminal.get("worker_branch") != record["accepted_worker_branch"]
+            or terminal.get("worker_head") != record["accepted_worker_head"]
+            or git.get("worker_head") != record["accepted_worker_head"]
+            or request.get("expected_head") != record["accepted_worker_head"]
+            or (result.get("finalization") or {}).get("stage") != "APPLIED"):
+        return {}
+    from app.turn_signals import hub_completion_action
+
+    action = hub_completion_action({**terminal, "id": terminal["session_id"]}, merged=True)
+    if action:
+        action["operation_id"] = record["operation_id"]
+        action["accepted_head"] = record["accepted_worker_head"]
+    return action
+
+
 def finish_operation(
     operation_id: str,
     owner_token: str,
@@ -1636,7 +1667,7 @@ def finish_operation(
     now = _now()
     with _conn() as connection:
         current = connection.execute(
-            "SELECT result_json FROM merge_operations WHERE operation_id=? "
+            "SELECT * FROM merge_operations WHERE operation_id=? "
             "AND state='RUNNING' AND owner_token=?",
             (operation_id, owner_token),
         ).fetchone()
@@ -1645,6 +1676,9 @@ def finish_operation(
             phases = {phase: None for phase in MERGE_PHASES}
             phases.update(stored_result.get("phase_durations_ms") or {})
             result["phase_durations_ms"] = phases
+            action = _hub_archive_action(_decode_record(current), result, terminal)
+            if action:
+                result["next_action"] = action
         cursor = connection.execute(
             """UPDATE merge_operations
                SET state=?, commit_point=?, result_json=?, result_hash=?,
@@ -2305,49 +2339,96 @@ async def _run_operation(operation_id: str) -> None:
 
 
 async def _clean_worktree_after_merge(record: dict[str, Any], result: dict[str, Any]) -> None:
-    """Free recoverable generated output in the merged worker's copy (V-984).
+    """Optional native output cleanup under the existing generation owners.
 
-    Runs after the result is stored, so it never delays or changes the merge outcome; any failure
-    is only logged. The safety rule lives in app.worktree_cleanup."""
-    from app.workspace import _resolve_repo
+    Hub generation archival belongs to task transition / explicit close, never a
+    later worktree-wide scan. Unknown ownership is a hold, not cleanup authority.
+    """
+    from contextlib import AsyncExitStack, ExitStack
+    from contextvars import copy_context
+
+    from app.deps import manager
+    from app.manager import _wait_owned_task
+    from app.hub_workspace import states_for_worktree
+    from app.models import runtime_for_record
+    from app import workspace
     from app.worktree_cleanup import clean_worktree
 
     operation_id = record.get("operation_id", "")
     worktree = ""
     try:
-        row = await asyncio.to_thread(get_session, record["session_id"])
-        worktree = (row or {}).get("worktree_path") or ""
-        target = str((result.get("git") or {}).get("target_branch") or "")
-        if worktree:
+        # These are the same locks used by delivery, branch publication and model
+        # changes. Hold them across every await and the native cleanup itself.
+        async with manager.get_session_lock(record["session_id"]), AsyncExitStack() as stack:
+            live = manager.get(record["session_id"])
+            if live is not None:
+                await stack.enter_async_context(live._lifecycle_lock)
+            row = await asyncio.to_thread(get_session, record["session_id"])
+            worktree = (row or {}).get("worktree_path") or ""
+            target = str((result.get("git") or {}).get("target_branch") or "")
             request = record.get("request") or {}
-            if request.get("merge_schema_version") == 2 and request.get("task_outcome") == "continue":
-                from app.hub_workspace import states_for_worktree
+            if not worktree or not target or not row or row.get("status") == "archived":
+                return
+            if request.get("next_task_id") or (
+                    request.get("merge_schema_version") == 2
+                    and request.get("task_outcome") == "complete" and row.get("task_id")):
+                return
+            runtime = getattr(live, "backend_type", "") if live is not None else runtime_for_record(row)
+            status = getattr(live, "status", "idle") if live is not None else row.get("status", "idle")
+            if runtime in {"", "unknown", "hub"} or getattr(status, "value", status) != "idle":
+                return
+            if live is not None and (
+                    (live.worktree_path or "") != worktree
+                    or str(live.task_id or "") != str(row.get("task_id") or "")
+                    or (live.branch or "") != (row.get("branch") or "")):
+                return
+            # No operation owns all Hub generations sharing this path. In
+            # particular, never interrupt/archive a newly published generation.
+            if await asyncio.to_thread(states_for_worktree, worktree):
+                return
+            repo = await asyncio.to_thread(workspace._resolve_repo, worktree, worktree)
+            git = result.get("git") or {}
+            expected_branch = git.get("worker_branch") or record.get("accepted_worker_branch")
+            expected_head = git.get("worker_head") or record.get("accepted_worker_head")
 
-                if await asyncio.to_thread(states_for_worktree, worktree):
-                    # The same task still owns its hub copy and conversation.
-                    # Retain input provenance and local/remote recovery data too.
-                    return
-            from app.backend_hub import release_for_worktree
+            def clean_owned_native_generation():
+                # Branch creation/switch/removal uses this existing repository
+                # lock too. The identity check and deletion have no unlock gap.
+                with ExitStack() as lease:
+                    try:
+                        lease.enter_context(workspace.repo_mutation_lock(repo))
+                    except RuntimeError as exc:
+                        logger.warning("native cleanup ownership unavailable operation_id=%s: %s", operation_id, exc)
+                        return {"state": "deferred", "reason": "repository ownership unavailable"}
+                    if states_for_worktree(worktree):
+                        return {"state": "deferred", "reason": "Hub provenance retained"}
+                    if expected_branch or expected_head:
+                        branch, head = workspace.inspect_worktree_identity(worktree)
+                        if ((expected_branch and branch != expected_branch)
+                                or (expected_head and head != expected_head)):
+                            return {"state": "deferred", "reason": "generation changed"}
+                    return clean_worktree(worktree, main_checkout=str(repo), target_ref=target, apply=True)
 
-            try:
-                await release_for_worktree(worktree)
-            except Exception:
-                logger.warning("hub workspace release failed operation_id=%s", operation_id, exc_info=True)
-        if not worktree or not target:
-            return
-        repo = await asyncio.to_thread(_resolve_repo, worktree, worktree)
-        outcome = await asyncio.to_thread(
-            clean_worktree, worktree, main_checkout=str(repo), target_ref=target, apply=True,
-        )
-        logger.info(
-            "post-merge worktree cleanup operation_id=%s worktree=%s state=%s files=%s bytes=%s reason=%s",
-            operation_id, worktree, outcome.get("state"), outcome.get("files"),
-            outcome.get("bytes"), outcome.get("reason", ""),
-        )
+            # Cancelled awaits cannot stop an executor thread. Drain its actual
+            # future before releasing session/lifecycle ownership; a bare future
+            # is not an independently cancellable task during task shutdown.
+            native_work = asyncio.get_running_loop().run_in_executor(
+                None, copy_context().run, clean_owned_native_generation,
+            )
+            cancellation = await _wait_owned_task(native_work)
+            if cancellation is not None:
+                try:
+                    native_work.result()
+                except Exception:
+                    logger.exception("native cleanup failed while draining cancellation operation_id=%s", operation_id)
+                raise cancellation
+            outcome = native_work.result()
+            logger.info(
+                "post-merge worktree cleanup operation_id=%s worktree=%s state=%s files=%s bytes=%s reason=%s",
+                operation_id, worktree, outcome.get("state"), outcome.get("files"),
+                outcome.get("bytes"), outcome.get("reason", ""),
+            )
     except Exception as exc:
-        # The terminal result permits worker removal while this optional cleanup
-        # is still running. ENOENT alone can also mean a missing Git executable
-        # or input file: only a separate stat proving the root vanished is normal.
         if isinstance(exc, FileNotFoundError) and worktree:
             try:
                 Path(worktree).stat()
@@ -2358,7 +2439,7 @@ async def _clean_worktree_after_merge(record: dict[str, Any], result: dict[str, 
                 )
                 return
             except OSError:
-                pass  # Absence is unproven; report the original cleanup failure.
+                pass
         logger.exception("post-merge worktree cleanup failed operation_id=%s", operation_id)
 
 

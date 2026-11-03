@@ -10,6 +10,7 @@ from app.session import AgentSession
 from tests.task_seeds import create_task
 from tests.test_hub_workspace import _backend, _turn, _offline_hub_pool
 from tests.test_merge_worker_v1034 import git
+from tests.test_worktree_cleanup_v984 import setup
 from tests.test_task_tracker_integration import (
     _init_db, _make_git_scope, _save_worker, _prepare_merge,
 )
@@ -594,20 +595,21 @@ def test_plain_directory_and_broken_git_remain_distinct(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_continue_without_hub_state_keeps_ordinary_cleanup(tmp_path, monkeypatch):
+async def test_continue_without_hub_state_keeps_ordinary_cleanup(setup, monkeypatch):
     from unittest.mock import AsyncMock, Mock
     from app import merge_operations, worktree_cleanup
 
+    main, wt = setup
     release = AsyncMock()
     clean = Mock(return_value={'state': 'skipped'})
-    monkeypatch.setattr(merge_operations, 'get_session', lambda sid: {'worktree_path': str(tmp_path)})
+    monkeypatch.setattr(merge_operations, 'get_session', lambda sid: {'worktree_path': str(wt), 'backend_type': 'codex'})
     monkeypatch.setattr(hw, 'states_for_worktree', lambda path: [])
-    monkeypatch.setattr('app.backend_hub.release_for_worktree', release)
-    monkeypatch.setattr(workspace, '_resolve_repo', lambda *args: tmp_path)
+    monkeypatch.setattr('app.backend_hub.archive_for_worktree', release)
+    monkeypatch.setattr(workspace, '_resolve_repo', lambda *args: main)
     monkeypatch.setattr(worktree_cleanup, 'clean_worktree', clean)
     await merge_operations._clean_worktree_after_merge(
         {'session_id': 'ordinary', 'request': {'merge_schema_version': 2, 'task_outcome': 'continue'}},
         {'git': {'target_branch': 'main'}},
     )
-    release.assert_awaited_once_with(str(tmp_path))
-    clean.assert_called_once_with(str(tmp_path), main_checkout=str(tmp_path), target_ref='main', apply=True)
+    release.assert_not_awaited()
+    clean.assert_called_once_with(str(wt), main_checkout=str(main), target_ref='main', apply=True)

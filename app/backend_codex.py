@@ -52,6 +52,23 @@ CODEX_CONTEXT_LIMITS = {
     "gpt-5.5": 258400,
 }
 
+
+def context_window_after_retarget(
+    current_model: str,
+    target_model: str,
+    current_window: int,
+) -> int:
+    """Mirror CodexBackend.retarget_model's effective-window transition."""
+    old_fallback = CODEX_CONTEXT_LIMITS.get(current_model, 258400)
+    new_fallback = CODEX_CONTEXT_LIMITS.get(target_model, 258400)
+    if (
+        old_fallback != new_fallback
+        or current_window <= 0
+        or current_window == old_fallback
+    ):
+        return new_fallback
+    return current_window
+
 # Standard-tier API list prices per 1M tokens, verified 11.08.2026 against
 # https://platform.openai.com/docs/pricing (fetched through https://r.jina.ai/ — the page
 # itself answers 403 to curl/WebFetch). Cached input is model-specific;
@@ -83,8 +100,8 @@ CODEX_TOKEN_PRICES = {
 }
 
 
-# Codex server-side reasoning effort values. "ultra" (parallel sub-agents) is intentionally
-# excluded: it is a client-side mode, not a plain effort level for a generic worker field.
+# Legacy ordinary-worker/UI values, not the CLI's advertised ReasoningEffort schema.
+# Authorized evals preserve the model-advertised non-empty string unchanged.
 CODEX_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 CODEX_SILENCE_HEARTBEAT_SECONDS = 30
 # One bounded budget, including ACK. Observed explicit compact terminals took
@@ -218,6 +235,115 @@ def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
             + max(0, output_tokens) * prices["output"]) / 1_000_000
 
 
+_ROLLOUT_TAIL_CHUNK = 256 * 1024
+
+
+def _iter_token_count_rows_reversed(path: Path):
+    """Yield token_count candidate rows from the end of a rollout, newest first.
+
+    Only the latest valid token_count row matters, while a long-lived thread's rollout grows
+    to tens of MB of tool output. A forward scan parsed every line synchronously on the event
+    loop (V-1179); reading back from the end stops at the first matching row. Lines without
+    the literal `token_count` are not parsed: Codex writes rollouts with serde_json, which
+    never escapes ASCII letters. Undecodable and non-object lines are skipped.
+    """
+    with path.open("rb") as fh:
+        position = fh.seek(0, os.SEEK_END)
+        head = b""
+        while position > 0:
+            step = min(_ROLLOUT_TAIL_CHUNK, position)
+            position -= step
+            fh.seek(position)
+            lines = (fh.read(step) + head).split(b"\n")
+            # The first piece may be the end of a line that starts further back.
+            head = lines.pop(0)
+            for line in reversed(lines):
+                row = _rollout_row(line)
+                if row is not None:
+                    yield row
+        row = _rollout_row(head)
+        if row is not None:
+            yield row
+
+
+def _rollout_row(line: bytes) -> dict | None:
+    if b"token_count" not in line:
+        return None
+    try:
+        row = json.loads(line.decode("utf-8", errors="replace"))
+    except (json.JSONDecodeError, TypeError):
+        return None
+    return row if isinstance(row, dict) else None
+
+
+def _token_count_info(row: dict) -> dict | None:
+    payload = row.get("payload")
+    if row.get("type") != "event_msg" or not isinstance(payload, dict):
+        return None
+    if payload.get("type") != "token_count":
+        return None
+    info = payload.get("info")
+    return info if isinstance(info, dict) else None
+
+
+def _rollout_context_from(info: dict) -> dict[str, int] | None:
+    usage = info.get("last_token_usage")
+    usage = usage if isinstance(usage, dict) else {}
+    window = info.get("model_context_window")
+    input_tokens = usage.get("input_tokens")
+    if not isinstance(window, int) or window <= 0:
+        return None
+    if not isinstance(input_tokens, int) or input_tokens < 0:
+        return None
+    cached = usage.get("cached_input_tokens", 0)
+    cache_write = usage.get("cache_write_input_tokens", 0)
+    return {
+        "input_tokens": input_tokens,
+        "cached_input_tokens": cached if isinstance(cached, int) else 0,
+        "cache_write_input_tokens": cache_write if isinstance(cache_write, int) else 0,
+        "model_context_window": window,
+    }
+
+
+def _rollout_totals_from(info: dict) -> dict[str, int] | None:
+    total = info.get("total_token_usage")
+    total = total if isinstance(total, dict) else {}
+    input_tokens = total.get("input_tokens")
+    if not isinstance(input_tokens, int) or input_tokens < 0:
+        return None
+    try:
+        latest = {
+            "input_tokens": input_tokens,
+            "cached_input_tokens": max(0, int(total.get("cached_input_tokens") or 0)),
+            "cache_write_input_tokens": max(
+                0, int(total.get("cache_write_input_tokens") or 0)
+            ),
+            "output_tokens": max(0, int(total.get("output_tokens") or 0)),
+        }
+    except (ValueError, TypeError):
+        return None
+    reasoning_tokens = total.get("reasoning_tokens")
+    if (
+        isinstance(reasoning_tokens, int)
+        and not isinstance(reasoning_tokens, bool)
+        and reasoning_tokens >= 0
+    ):
+        latest["reasoning_tokens"] = reasoning_tokens
+    return latest
+
+
+def _latest_rollout_token_count(path: Path, extract) -> dict[str, int] | None:
+    try:
+        for row in _iter_token_count_rows_reversed(path):
+            info = _token_count_info(row)
+            found = extract(info) if info is not None else None
+            if found is not None:
+                return found
+    except OSError:
+        return None
+    return None
+
+
 def _read_rollout_context(path: Path) -> dict[str, int] | None:
     """Return the last model-call context from a Codex rollout, or None fail-soft.
 
@@ -225,74 +351,11 @@ def _read_rollout_context(path: Path) -> dict[str, int] | None:
     currently occupied window. Internal rollout token_count events expose both the last
     call and the runtime-provided effective model_context_window.
     """
-    latest = None
-    try:
-        with path.open(encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                try:
-                    row = json.loads(line)
-                except (json.JSONDecodeError, TypeError):
-                    continue
-                payload = row.get("payload") or {}
-                if row.get("type") != "event_msg" or payload.get("type") != "token_count":
-                    continue
-                info = payload.get("info") or {}
-                usage = info.get("last_token_usage") or {}
-                window = info.get("model_context_window")
-                input_tokens = usage.get("input_tokens")
-                if not isinstance(window, int) or window <= 0:
-                    continue
-                if not isinstance(input_tokens, int) or input_tokens < 0:
-                    continue
-                cached = usage.get("cached_input_tokens", 0)
-                cache_write = usage.get("cache_write_input_tokens", 0)
-                latest = {
-                    "input_tokens": input_tokens,
-                    "cached_input_tokens": cached if isinstance(cached, int) else 0,
-                    "cache_write_input_tokens": (
-                        cache_write if isinstance(cache_write, int) else 0
-                    ),
-                    "model_context_window": window,
-                }
-    except (FileNotFoundError, OSError):
-        return None
-    return latest
+    return _latest_rollout_token_count(path, _rollout_context_from)
 
 
 def _read_rollout_totals(path: Path) -> dict[str, int] | None:
-    latest = None
-    try:
-        with path.open(encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                try:
-                    row = json.loads(line)
-                except (json.JSONDecodeError, TypeError):
-                    continue
-                payload = row.get("payload") or {}
-                if row.get("type") != "event_msg" or payload.get("type") != "token_count":
-                    continue
-                total = ((payload.get("info") or {}).get("total_token_usage") or {})
-                input_tokens = total.get("input_tokens")
-                if not isinstance(input_tokens, int) or input_tokens < 0:
-                    continue
-                latest = {
-                    "input_tokens": input_tokens,
-                    "cached_input_tokens": max(0, int(total.get("cached_input_tokens") or 0)),
-                    "cache_write_input_tokens": max(
-                        0, int(total.get("cache_write_input_tokens") or 0)
-                    ),
-                    "output_tokens": max(0, int(total.get("output_tokens") or 0)),
-                }
-                reasoning_tokens = total.get("reasoning_tokens")
-                if (
-                    isinstance(reasoning_tokens, int)
-                    and not isinstance(reasoning_tokens, bool)
-                    and reasoning_tokens >= 0
-                ):
-                    latest["reasoning_tokens"] = reasoning_tokens
-    except (FileNotFoundError, OSError, ValueError, TypeError):
-        return None
-    return latest
+    return _latest_rollout_token_count(path, _rollout_totals_from)
 
 
 def _usage_delta(current: dict[str, int], baseline: dict[str, int] | None) -> dict[str, int]:
@@ -419,6 +482,23 @@ async def _run_home_io(func, *args):
         raise
 
 
+def _configured_compaction_window(path: Path) -> tuple[int | None, int | None]:
+    """(model_auto_compact_token_limit, model_context_window) of one config.toml.
+
+    Each is None when absent, not a positive integer, or the file is unreadable.
+    """
+    try:
+        config = tomllib.loads(path.read_text())
+    except (OSError, tomllib.TOMLDecodeError):
+        return None, None
+
+    def positive(key: str) -> int | None:
+        value = config.get(key)
+        return value if type(value) is int and value > 0 else None
+
+    return positive("model_auto_compact_token_limit"), positive("model_context_window")
+
+
 def _carried_base_scalars() -> str:
     """Разрешённые скаляры из базового config.toml (потолок обрезки AGENTS.md и т.п.)."""
     base = _base_codex_home() / "config.toml"
@@ -462,6 +542,19 @@ class CodexProtocolError(RuntimeError):
         self.method = method
         self.error = error
         super().__init__(f"{method}: {error.get('message', 'Codex app-server error')}")
+
+
+class CodexSubmissionRejectedError(CodexProtocolError):
+    """A correlated submission RPC explicitly refused to accept this input."""
+
+    def envelope(self) -> dict:
+        return {
+            "code": "PROVIDER_REJECTED",
+            "message": str(self),
+            "retryable": True,
+            "outcome_unknown": False,
+            "details": {"provider": "codex", "method": self.method},
+        }
 
 
 class CodexWriterConflictError(RuntimeError):
@@ -519,13 +612,21 @@ class CodexBackend(JsonRpcStdioTransport):
                  reasoning_effort: str = "high",
                  is_orchestrator: bool = False,
                  history_import: object | None = None,
-                 validation_profile: bool = False):
+                 validation_profile: bool = False,
+                 evaluation_actor_id: str = ""):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._thread_id: str | None = resume_thread_id
         self._mcp_env: dict[str, str] = mcp_env or {}
         self._mcp_servers: dict = mcp_servers or {}
+        if evaluation_actor_id:
+            if not _SAFE_HOME_KEY.fullmatch(evaluation_actor_id) or not evaluation_actor_id.startswith("eval-"):
+                raise ValueError("invalid managed evaluation actor identity")
+            if is_orchestrator or resume_thread_id or history_import or mcp_servers or mcp_env:
+                raise ValueError("evaluation requires a fresh worker without MCP/history")
+        self._evaluation_actor_id = evaluation_actor_id
+        self._evaluation_stopped = False
         # #224: приватный CODEX_HOME этого агента; готовится лениво в _prepare_codex_home,
         # чтобы конструктор оставался безопасным для вызова без session id.
         self._codex_home: Path | None = None
@@ -538,9 +639,14 @@ class CodexBackend(JsonRpcStdioTransport):
             raise TypeError("history_import must be CodexHistoryImport")
         self._history_import = history_import
         self._validation_profile = validation_profile
-        self.reasoning_effort = (
-            reasoning_effort if reasoning_effort in CODEX_REASONING_EFFORTS else "high"
-        )
+        if evaluation_actor_id:
+            if not isinstance(reasoning_effort, str) or not reasoning_effort.strip():
+                raise ValueError("evaluation effort must be a non-empty advertised string")
+            self.reasoning_effort = reasoning_effort
+        else:
+            self.reasoning_effort = (
+                reasoning_effort if reasoning_effort in CODEX_REASONING_EFFORTS else "high"
+            )
         self._proc: Optional[asyncio.subprocess.Process] = None
         self._reader_task: Optional[asyncio.Task] = None
         self._stderr_task: Optional[asyncio.Task] = None
@@ -573,6 +679,13 @@ class CodexBackend(JsonRpcStdioTransport):
         self._last_compact: _CompactOperation | None = None
         self._compact_sequence = 0
         self._compact_reconciler: Callable[[dict], None] | None = None
+        # (turn id, wall-clock start, open item ids) of Codex's own compaction inside a
+        # user turn.
+        self._turn_compaction: tuple[str, float, set[str]] | None = None
+        # model_auto_compact_token_limit / model_context_window of the config the running
+        # app-server loaded.
+        self._loaded_auto_compact_limit: int | None = None
+        self._loaded_context_window: int | None = None
         self._context_generation = 0
         self._transport_generation = 0
         self._retired_compact_turns: set[str] = set()
@@ -653,6 +766,30 @@ class CodexBackend(JsonRpcStdioTransport):
         return self._compact_operation is not None
 
     @property
+    def turn_compaction_started_at(self) -> float | None:
+        """Start of Codex's in-turn compaction; bound to the active turn so it cannot stick."""
+        current = self._turn_compaction
+        if current is None or not self._active_turn_id or current[0] != self._active_turn_id:
+            return None
+        return current[1]
+
+    @property
+    def auto_compact_token_limit(self) -> int | None:
+        """Tokens at which this app-server compacts the thread inside a turn.
+
+        The loaded model_auto_compact_token_limit, never above Codex's default of 90%
+        of the configured model_context_window; that default when the config sets no
+        limit. Without a configured window the runtime-reported one is used; Codex
+        reports it already reduced to its effective share, so that default errs early.
+        """
+        window = self._loaded_context_window or self._model_context_window
+        default = window * 9 // 10 if type(window) is int and window > 0 else None
+        configured = self._loaded_auto_compact_limit
+        if configured is None:
+            return default
+        return min(configured, default) if default else configured
+
+    @property
     def compact_diagnostics(self) -> dict:
         operation = self._compact_operation or self._last_compact
         return operation.diagnostics() if operation else {}
@@ -691,12 +828,11 @@ class CodexBackend(JsonRpcStdioTransport):
         """Use app-server's per-turn model override without replacing the thread."""
         if self._active_turn_id or self._events_active:
             raise RuntimeError("cannot retarget Codex model while a turn is active")
-        old_fallback = CODEX_CONTEXT_LIMITS.get(self.model, 258400)
-        new_fallback = CODEX_CONTEXT_LIMITS.get(model, 258400)
         # Preserve a runtime-reported window (for example 828400 for GPT-5.6) across
         # siblings that share the same catalog limit; switch fallbacks across families.
-        if old_fallback != new_fallback or self._model_context_window == old_fallback:
-            self._model_context_window = new_fallback
+        self._model_context_window = context_window_after_retarget(
+            self.model, model, self._model_context_window,
+        )
         self.model = model
         self._context_generation += 1
 
@@ -728,6 +864,9 @@ class CodexBackend(JsonRpcStdioTransport):
         home = self._managed_codex_home_path()
         if home is None:
             await self._connect_unlocked()
+            self._loaded_auto_compact_limit, self._loaded_context_window = (
+                _configured_compaction_window(_base_codex_home() / "config.toml")
+            )
             return
         async with _managed_home_lock(home):
             config_sha256 = await _run_home_io(
@@ -735,6 +874,9 @@ class CodexBackend(JsonRpcStdioTransport):
             )
             await self._connect_unlocked()
             self._loaded_config_sha256 = config_sha256
+            self._loaded_auto_compact_limit, self._loaded_context_window = (
+                await _run_home_io(_configured_compaction_window, home / "config.toml")
+            )
 
     async def _connect_unlocked(self) -> None:
         if self.is_alive and not self._teardown_error:
@@ -875,6 +1017,8 @@ class CodexBackend(JsonRpcStdioTransport):
             raise
 
     async def send(self, message: str) -> None:
+        if self._evaluation_actor_id and self._evaluation_stopped:
+            raise RuntimeError("evaluation backend stopped; generation is forbidden")
         if self._teardown_error or not self.is_alive or self._stdout_closed:
             await self.connect()
         if not self._thread_id:
@@ -886,11 +1030,19 @@ class CodexBackend(JsonRpcStdioTransport):
 
         user_input = [{"type": "text", "text": message}]
         if self._active_turn_id:
-            await self._request("turn/steer", {
-                "threadId": self._thread_id,
-                "expectedTurnId": self._active_turn_id,
-                "input": user_input,
-            })
+            try:
+                await self._request("turn/steer", {
+                    "threadId": self._thread_id,
+                    "expectedTurnId": self._active_turn_id,
+                    "input": user_input,
+                })
+            except CodexProtocolError as error:
+                # Only this response to this RPC proves non-acceptance. Generic
+                # protocol/internal errors and transport loss remain ambiguous.
+                if (error.error.get("code") == -32600
+                        and error.error.get("message") == "no active turn to steer"):
+                    raise CodexSubmissionRejectedError("turn/steer", error.error) from error
+                raise
             return
         if self._events_active:
             # The server completed the old turn but session.py has not left its event
@@ -917,12 +1069,15 @@ class CodexBackend(JsonRpcStdioTransport):
         early_notifications: list[dict] = []
         self._starting_user_turn = early_notifications
         try:
-            result = await self._request("turn/start", {
+            params = {
                 "threadId": self._thread_id,
                 "input": user_input,
                 "model": self.model,
                 "effort": self.reasoning_effort,
-            })
+            }
+            if self._evaluation_actor_id and self._evaluation_stopped:
+                raise RuntimeError("evaluation backend stopped before turn/start")
+            result = await self._request("turn/start", params)
             turn_id = ((result.get("turn") or {}).get("id"))
             if not turn_id:
                 raise RuntimeError("Codex app-server returned no turn id")
@@ -1311,10 +1466,13 @@ class CodexBackend(JsonRpcStdioTransport):
         self._reader_task = None
         self._stderr_task = None
         self._active_turn_id = None
+        self._turn_compaction = None
         self._clear_deferred_control()
         self._teardown_error = None
 
     async def disconnect(self) -> None:
+        if self._evaluation_actor_id:
+            self._evaluation_stopped = True
         proc = self._proc
         if proc is None and self._process_group is None:
             return
@@ -1722,6 +1880,7 @@ class CodexBackend(JsonRpcStdioTransport):
             )
             if params.get("willRetry") and not quota_exhausted:
                 return [AgentEvent("status", f"codex reconnecting: {content}")]
+            self._turn_compaction = None
             metadata = {"model_error": model_error}
             if model_error == "rate_limit":
                 content = f"rate_limit: {content}"
@@ -1734,6 +1893,7 @@ class CodexBackend(JsonRpcStdioTransport):
             return [AgentEvent("status", f"model rerouted: {json.dumps(params, ensure_ascii=False)}")]
 
         if method in ("context/compacted", "thread/compacted"):
+            self._turn_compaction = None
             return [AgentEvent("status", "codex context compacted")]
 
         if method in (
@@ -1869,6 +2029,7 @@ class CodexBackend(JsonRpcStdioTransport):
         if method == "turn/completed":
             turn = params.get("turn") or {}
             self._active_turn_id = None
+            self._turn_compaction = None
             # A terminal lifecycle event proves that the poisoned record was not the
             # turn terminator; later clean EOF must not replay a stale failure.
             self._reader_failure = None
@@ -1877,6 +2038,7 @@ class CodexBackend(JsonRpcStdioTransport):
         if method == "_process/exited":
             event_id = self._active_turn_id or ""
             self._active_turn_id = None
+            self._turn_compaction = None
             timing = self._finish_turn_timing()
             reader_failure = params.get("reader_failure") or ""
             model_error = "reader_failure" if reader_failure else "server_error"
@@ -1974,6 +2136,15 @@ class CodexBackend(JsonRpcStdioTransport):
         if item_type == "collabAgentToolCall":
             return self._collab_events(item, completed=False)
         if item_type == "contextCompaction":
+            turn_id = self._active_turn_id
+            if turn_id:
+                current = self._turn_compaction
+                if current is None or current[0] != turn_id:
+                    current = (turn_id, time.time(), set())
+                    self._turn_compaction = current
+                # A second compaction item keeps the first start; the flag clears when
+                # the last open item completes.
+                current[2].add(str(item.get("id") or ""))
             return [AgentEvent("status", "codex compacting context")]
         return []
 
@@ -2149,6 +2320,11 @@ class CodexBackend(JsonRpcStdioTransport):
                 metadata={"subagent_id": sub_id, "status": kind, "phase": "progress"},
             ))
         elif item_type == "contextCompaction":
+            current = self._turn_compaction
+            if current is not None:
+                current[2].discard(str(item.get("id") or ""))
+                if not current[2]:
+                    self._turn_compaction = None
             events.append(AgentEvent("status", "codex context compacted"))
         elif item_type in ("enteredReviewMode", "exitedReviewMode"):
             phase = "entered" if item_type == "enteredReviewMode" else "exited"
@@ -2518,10 +2694,14 @@ class CodexBackend(JsonRpcStdioTransport):
             )[:20_000]
         return str(result)[:20_000]
 
-    def _runtime_context(self) -> dict[str, int] | None:
+    def _locate_rollout(self) -> Path | None:
         if not self._thread_id:
             return None
-        if self._rollout_path is None or not self._rollout_path.exists():
+        try:
+            known = self._rollout_path is not None and self._rollout_path.exists()
+        except OSError:
+            known = False
+        if not known:
             # #224: os.environ здесь — окружение РОДИТЕЛЬСКОГО процесса Orchestra, а
             # дочерний env отдаётся только в create_subprocess_exec. Спрашивать надо
             # собственный каталог бэкенда, иначе rollout не находится и учёт токенов с
@@ -2534,15 +2714,21 @@ class CodexBackend(JsonRpcStdioTransport):
                 matches = []
             if not matches:
                 return None
-            self._rollout_path = max(matches, key=lambda p: p.stat().st_mtime)
-        return _read_rollout_context(self._rollout_path)
+            try:
+                self._rollout_path = max(matches, key=lambda p: p.stat().st_mtime)
+            except OSError:
+                # A rollout disappearing between glob and stat is not a usable baseline.
+                return None
+        return self._rollout_path
+
+    def _runtime_context(self) -> dict[str, int] | None:
+        path = self._locate_rollout()
+        return _read_rollout_context(path) if path is not None else None
 
     def _runtime_totals(self) -> dict[str, int] | None:
-        # Locate the rollout through the same path/cache as context extraction.
-        self._runtime_context()
-        if self._rollout_path is None:
-            return None
-        return _read_rollout_totals(self._rollout_path)
+        # Locating the rollout must not parse the whole file for context first (V-1179).
+        path = self._locate_rollout()
+        return _read_rollout_totals(path) if path is not None else None
 
     @staticmethod
     def _toml_str(s: str) -> str:
@@ -2585,6 +2771,9 @@ class CodexBackend(JsonRpcStdioTransport):
         cmd += ["-c", 'web_search="live"']
         for arg in self._mcp_config_args():
             cmd += ["-c", arg]
+        # Native clock.sleep runs inside Codex before Orchestra can inspect an item.
+        # Keep this override last so user/project config cannot restore the tool.
+        cmd += ["-c", "features.sleep_tool=false"]
         cmd += ["app-server", "--stdio"]
         return cmd
 
@@ -2658,6 +2847,8 @@ class CodexBackend(JsonRpcStdioTransport):
         )
 
     def _managed_codex_home_path(self) -> Path | None:
+        if self._evaluation_actor_id:
+            return _CODEX_HOME_ROOT / self._evaluation_actor_id
         if not self._mcp_servers:
             return None
         session_id = (self._mcp_servers.get("orchestra", {}).get("env") or {}).get(
@@ -2717,6 +2908,10 @@ class CodexBackend(JsonRpcStdioTransport):
         if carried:
             parts.append(carried)
         parts.append(self._trusted_project_toml())
+        if self._evaluation_actor_id:
+            # Built-in apps register MCP servers even without caller-supplied MCP.
+            parts.append("[features]\napps = false")
+        parts.append("[features.sleep_tool]\nenabled = false")
         servers = self._mcp_servers_toml()
         if servers:
             parts.append(servers)

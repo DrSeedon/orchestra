@@ -43,6 +43,30 @@
   ]
  ],
  [
+  "/api/bg/eval/bind",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/bg/eval/dispatch",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/bg/eval/grants",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/bg/eval/grants/{grant_id}",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/bg/jobs",
   [
    "GET"

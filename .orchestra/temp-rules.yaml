@@ -36,3 +36,20 @@ rules:
   reason: The owner explicitly paused Claude updates after the subscription-refused update canary and
     reaffirmed continuing Codex updates. No expiry is assumed; the pause remains until his next explicit
     decision.
+- id: rule-17286f316e
+  project: this
+  mode: expires
+  expires_at: '2026-11-03T01:00:00+00:00'
+  targets:
+  - agent:Orchestra-orchestrator
+  author: Orchestra-orchestrator
+  created_at: '2026-11-02T18:55:43.180369+00:00'
+  text: 'Temporary owner authorization, 2026-11-03 01:52 KRS: Orchestra-orchestrator may restart the Orchestra
+    service on its VPS when necessary for accepted changes during this night, until 2026-11-03 08:00 KRS
+    (01:00 UTC). Do not cut running workers. Check current worker state, preserve pending work and use
+    the canonical restart path and vps-deploy verification. No laptop restart or other service restart
+    is authorized; never restart telegram-bot-api. Verify new PID, HTTP readiness, cgroup limits, OOM
+    score, restored jobs and cut_names, and resume any cut work. This permission expires automatically;
+    the normal idlewatch-only policy then resumes.'
+  reason: The owner explicitly allowed autonomous Orchestra restarts for this night only at 01:52 KRS.
+    Apply a narrow morning expiry and preserve active work.

@@ -1,0 +1,200 @@
+--- a/tests/test_hub_message_v1066.py
++++ b/tests/test_hub_message_v1066.py
+@@ -154,12 +154,18 @@
+     backend._run_id = "active-run"
+     backend._turn_active = operation == "steer"
+     backend._effort = "high" if operation == "configure" else None
+-    monkeypatch.setattr(backend, "_model_selection", AsyncMock(return_value={"model": "test"}))
++    if operation != "retarget":
++        monkeypatch.setattr(backend, "_model_selection", AsyncMock(return_value={"model": "test"}))
+     calls = []
+ 
+     async def handler(request):
+         body = json.loads(request.content)
+         calls.append(body["params"]["name"])
++        if operation == "retarget":
++            assert body["params"]["arguments"] == {
++                "threadId": "old-thread",
++                "modelSelection": {"instanceId": "codex", "model": "gpt-6.1-sol"},
++            }
+         if failure == "uncertain":
+             raise httpx.ReadError("uncertain", request=request)
+         if failure == "http":
+@@ -176,7 +182,7 @@
+         monkeypatch.setattr(backend, "_client", AsyncMock(return_value=mc))
+         with pytest.raises(MultiCodeError) as error:
+             if operation == "retarget":
+-                await backend.retarget_model("hub-gpt-6-luna")
++                await backend.retarget_model("hub-gpt-6.1-sol")
+             elif operation == "steer":
+                 await backend.send("steer")
+             else:
+@@ -187,6 +193,8 @@
+     assert backend.model == "hub-gpt-6.1-sol"
+     assert backend._early_steer == []
+     assert len(calls) == 1
++    if operation == "retarget":
++        assert calls == ["t3_thread_configure"]
+ 
+ 
+ @pytest.mark.asyncio
+--- a/tests/test_initial_deliveries.py
++++ b/tests/test_initial_deliveries.py
+@@ -629,6 +629,8 @@
+ 
+     class FakeSession:
+         id = SESSION_ID
++        name = WORKER
++        model = "gpt-5.6-sol"
+ 
+         async def send(self, message, *, delivery=None, provenance):
+             assert manager.get_session_lock(self.id).locked()
+@@ -849,6 +851,8 @@
+ 
+     class LoadedSession:
+         id = SESSION_ID
++        name = WORKER
++        model = "gpt-5.6-sol"
+ 
+         async def send(self, message, *, delivery=None, provenance):
+             assert manager.get_session_lock(self.id).locked()
+--- a/tests/test_workflow_cards.py
++++ b/tests/test_workflow_cards.py
+@@ -124,6 +124,98 @@
+     (run_dir / "journal.jsonl").write_text('{"event":"slot_waiting"}\n')
+     (run_dir / "manifest.json").write_text(json.dumps({"finished": False, "complete": False}))
+     assert _workflow_finished(run_dir) is False
++
++
++def test_workflow_fixture_preserves_refresh_when_unrelated_get_follows(dashboard_browser):
++    from playwright.sync_api import expect
++
++    source_root = Path(__file__).resolve().parents[1]
++    app_source = (source_root / 'app/static/js/app.js').read_text()
++    chat_source = (source_root / 'app/static/js/chat.js').read_text()
++    polling = app_source[app_source.index('const _POLL_MAX_BACKOFF_MS'):app_source.index('function scheduleRefresh()')]
++    api = app_source[app_source.index('const _API_TIMEOUT_MS'):app_source.index('// === Rate Limit Banner')]
++    workflow = chat_source[chat_source.index('function _workflowModeLabel('):chat_source.index('function _renderFullToolCall(')]
++    page = dashboard_browser.new_page()
++    try:
++        page.route('http://workflow.test/**', lambda route: route.fulfill(
++            status=200, content_type='application/json', body='{"background":true}',
++        ))
++        page.goto('http://workflow.test/')
++        page.set_content('<div data-tool-raw-name="mcp__orchestra__dynamic_workflow" data-workflow-mode="parallel">'
++                         '<div data-role="workflow-status"></div><div data-role="workflow-detail"></div></div>')
++        page.add_script_tag(content="""
++            const MODEL_COST_CURRENCY = '$';
++            const _modelLabel = model => model;
++            const modelColorVar = () => 'gray';
++            const orchLocale = () => 'en-US';
++            const T = (text, values = {}) => Object.entries(values).reduce(
++                (value, [key, replacement]) => value.replaceAll(`{${key}}`, replacement), text);
++            const Connection = {observe(){}, ok(){}, fail(){}, restartFromBody(){return false;}};
++            let selectedAgent = null;
++            let currentScope = null;
++            let eventSource = null;
++            window.backgroundRequests = [];
++            const baseFetch = window.fetch.bind(window);
++            window.fetch = (url, options) => {
++                window.backgroundRequests.push(String(url));
++                return baseFetch(url, options);
++            };
++        """)
++        page.add_script_tag(content=polling + api + workflow)
++        page.evaluate("""() => {
++            _initPollingVisibility();
++            Object.defineProperty(document, 'hidden', {configurable:true, value:true});
++            document.dispatchEvent(new Event('visibilitychange'));
++        }""")
++        detail = dict(available=True, finished=True, complete=True, spent_usd=0.25,
++                      budget_usd=3, counts=dict(completed=1), stages=[dict(index=0, tasks=[dict(
++                          status='completed', label='Task 1', model='hub-gpt-6.1-sol',
++                          answer_preview='First answer expands here',
++                          result_url='/api/bg/workflows/V-776-fixture/results/0',
++                      )])])
++        _watch_workflow_fixture(page, detail, 'V-776-fixture')
++        expect(page.locator('[data-role="workflow-detail"]')).to_contain_text('Task 1')
++        requests_before = page.evaluate('window.__workflowApiRequests.slice()')
++        assert requests_before == ['/api/bg/workflows/V-776-fixture']
++
++        # A real, later unrelated GET must keep its own response and cannot erase
++        # proof that this card fetched its detail, even while polling is hidden.
++        assert page.evaluate("api('/api/background-fixture')") == {'background': True}
++        assert page.evaluate('window.backgroundRequests') == ['/api/background-fixture']
++        assert page.evaluate('window.__workflowApiRequests') == requests_before
++        assert page.evaluate('_pollCanRun()') is False
++        assert page.evaluate('_pollTimers.size') == 0
++        answer = page.locator('details')
++        answer.locator('summary').click()
++        expect(answer.locator('pre')).to_have_text('First answer expands here')
++        assert page.evaluate('window.__workflowApiRequests') == requests_before + [
++            '/api/bg/workflows/V-776-fixture/results/0',
++        ]
++    finally:
++        page.close()
++
++
++def _watch_workflow_fixture(page, detail, run_id, card_index=0):
++    page.evaluate("""({detail, runId, cardIndex}) => {
++        const fallbackFetch = window.fetch.bind(window);
++        const detailPath = `/api/bg/workflows/${encodeURIComponent(runId)}`;
++        const requests = [];
++        window.__workflowApiRequests = requests;
++        window.fetch = async (url, options) => {
++            const path = new URL(String(url), location.href).pathname;
++            if (path !== detailPath && path !== `${detailPath}/results/0`) {
++                return fallbackFetch(url, options);
++            }
++            requests.push(path);
++            const payload = path === `${detailPath}/results/0`
++                ? {data: 'First answer expands here'}
++                : detail;
++            return new Response(JSON.stringify(payload), {
++                status: 200, headers: {'Content-Type': 'application/json'},
++            });
++        };
++        _watchWorkflowCard(document.querySelectorAll('[data-tool-raw-name="mcp__orchestra__dynamic_workflow"]')[cardIndex], runId);
++    }""", {"detail": detail, "runId": run_id, "cardIndex": card_index})
+ 
+ 
+ def test_dynamic_workflow_call_renders_detail_card_and_expands_answer(dashboard_browser, tmp_path):
+@@ -189,19 +281,8 @@
+         }), null, null, {tool_use_id: toolId});
+     }""", tool_id)
+     card = page.locator('[data-tool-raw-name="mcp__orchestra__dynamic_workflow"]')
+-    page.evaluate("""({detail, runId}) => {
+-        window.fetch = async url => {
+-            window.__workflowApiPath = String(url);
+-            const payload = String(url).endsWith('/results/0')
+-                ? {data: 'First answer expands here'}
+-                : detail;
+-            return new Response(JSON.stringify(payload), {
+-                status: 200, headers: {'Content-Type': 'application/json'},
+-            });
+-        };
+-        _watchWorkflowCard(document.querySelector('[data-tool-raw-name="mcp__orchestra__dynamic_workflow"]'), runId);
+-    }""", {"detail": fixture_detail, "runId": "V-776-fixture"})
+-    page.wait_for_function("() => window.__workflowApiPath.endsWith('/api/bg/workflows/V-776-fixture')")
++    _watch_workflow_fixture(page, fixture_detail, "V-776-fixture")
++    page.wait_for_function("() => window.__workflowApiRequests.includes('/api/bg/workflows/V-776-fixture')")
+     expect(card).to_contain_text("Parallel")
+     expect(card).to_contain_text("First task prompt")
+     expect(card).to_contain_text("1/1 ready")
+@@ -256,15 +337,7 @@
+                 null, null, {tool_use_id: toolId});
+         }""", {"toolId": actual_tool_id, "args": args, "runId": actual_id})
+         real_card = page.locator('[data-tool-raw-name="mcp__orchestra__dynamic_workflow"]').nth(3)
+-        page.evaluate("""({runId, detail}) => {
+-            window.fetch = async url => {
+-                window.__workflowApiPath = String(url);
+-                return new Response(JSON.stringify(detail), {
+-                    status: 200, headers: {'Content-Type': 'application/json'},
+-                });
+-            };
+-            _watchWorkflowCard(document.querySelectorAll('[data-tool-raw-name="mcp__orchestra__dynamic_workflow"]')[3], runId);
+-        }""", {"runId": actual_id, "detail": actual_detail})
++        _watch_workflow_fixture(page, actual_detail, actual_id, card_index=3)
+         expect(real_card).to_contain_text("8410")
+         expect(real_card).to_contain_text("failed")
+         page.evaluate("""() => {

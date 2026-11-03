@@ -1,0 +1,50 @@
+[
+  {
+    "path": "app/models.py",
+    "insertions": 12,
+    "deletions": 2,
+    "sha256": "0644a7304db57887096f86ce9db0255abc6f5b2f8c46e92a822c8d47096cc78a"
+  },
+  {
+    "path": "tests/test_hub_sol_only_v1240.py",
+    "insertions": 48,
+    "deletions": 0,
+    "sha256": "6d73de54d9994f07cd162aa48f58f33973db1e126be99088cd12d5fa7846a012"
+  },
+  {
+    "path": "tests/test_cron_drain_delivery_v1074.py",
+    "insertions": 2,
+    "deletions": 2,
+    "sha256": "ba7013d1284c3ad4e371c2d2711717cad0477a5163091f319d5dba8983030aa9"
+  },
+  {
+    "path": "tests/test_default_pipeline.py",
+    "insertions": 2,
+    "deletions": 2,
+    "sha256": "a4f41f862ad427a902abdcbaab2bd4dd8bc0f3036831c1b6f7d6fd0613f73198"
+  },
+  {
+    "path": "tests/test_v1028_report_holds.py",
+    "insertions": 0,
+    "deletions": 2,
+    "sha256": "d109abd4368f8eb70253c16caaa9840cc023fcd1c21af28259ad29cf4b3a0548"
+  },
+  {
+    "path": "tests/test_seedon_v1031.py",
+    "insertions": 10,
+    "deletions": 2,
+    "sha256": "90bed31f5a1b4c3c84eb0a31c3ecea462f7f21647020613119495320f25502fc"
+  },
+  {
+    "path": "tests/test_source_layout_spawn_v1130.py",
+    "insertions": 19,
+    "deletions": 6,
+    "sha256": "ba756cb8135d657a83ff0778bfab4f232d13032d6b256cbd457d59d1eae44a32"
+  },
+  {
+    "path": "tests/test_frontend.py",
+    "insertions": 10,
+    "deletions": 0,
+    "sha256": "1e187e9f635b30c170693331428c46222060538a4e6c9854af86274fdda05b95"
+  }
+]

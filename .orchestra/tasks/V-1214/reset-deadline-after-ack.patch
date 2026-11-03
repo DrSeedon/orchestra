@@ -1,0 +1,18 @@
+--- a/app/backend_codex.py
++++ b/app/backend_codex.py
+@@ -1269,11 +1269,14 @@
+             "thread/compact/start", {"threadId": op.thread_id},
+         ))
+         try:
+-            async with asyncio.timeout(CODEX_COMPACT_TIMEOUT_SECONDS):
++            async with asyncio.timeout(CODEX_COMPACT_TIMEOUT_SECONDS) as deadline:
+                 await asyncio.wait((request, future), return_when=asyncio.FIRST_COMPLETED)
+                 if future.done() and future.exception() is not None:
+                     return await future
+                 await request
++                deadline.reschedule(
++                    asyncio.get_running_loop().time() + CODEX_COMPACT_TIMEOUT_SECONDS
++                )
+                 op.acknowledged = True
+                 op.times["ack"] = round(time.monotonic() - op.started_at, 3)
+                 self._finish_compact_if_ready(op)

@@ -1,0 +1,27 @@
+[
+  {
+    "path": ".orchestra/tasks/V-1240/ci-followup/report.md",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/ci-followup/notes.md",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/ci-followup/final-mutation-proof.json",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/ci-followup/cache-placement.json",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/report.md",
+    "foreign_host_user_paths": false,
+    "secret_shape_changes": false
+  }
+]

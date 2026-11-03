@@ -1,0 +1,88 @@
+async def _clean_worktree_after_merge(record: dict[str, Any], result: dict[str, Any]) -> None:
+    """Optional native output cleanup under the existing generation owners.
+
+    Hub generation archival belongs to task transition / explicit close, never a
+    later worktree-wide scan. Unknown ownership is a hold, not cleanup authority.
+    """
+    from contextlib import AsyncExitStack, ExitStack
+
+    from app.deps import manager
+    from app.hub_workspace import states_for_worktree
+    from app.models import runtime_for_record
+    from app import workspace
+    from app.worktree_cleanup import clean_worktree
+
+    operation_id = record.get("operation_id", "")
+    worktree = ""
+    try:
+        # These are the same locks used by delivery, branch publication and model
+        # changes. Hold them across every await and the native cleanup itself.
+        async with manager.get_session_lock(record["session_id"]), AsyncExitStack() as stack:
+            live = manager.get(record["session_id"])
+            if live is not None:
+                await stack.enter_async_context(live._lifecycle_lock)
+            row = await asyncio.to_thread(get_session, record["session_id"])
+            worktree = (row or {}).get("worktree_path") or ""
+            target = str((result.get("git") or {}).get("target_branch") or "")
+            request = record.get("request") or {}
+            if not worktree or not target or not row or row.get("status") == "archived":
+                return
+            if request.get("next_task_id") or (
+                    request.get("merge_schema_version") == 2
+                    and request.get("task_outcome") == "complete" and row.get("task_id")):
+                return
+            runtime = getattr(live, "backend_type", "") if live is not None else runtime_for_record(row)
+            status = getattr(live, "status", "idle") if live is not None else row.get("status", "idle")
+            if runtime in {"", "unknown", "hub"} or getattr(status, "value", status) != "idle":
+                return
+            if live is not None and (
+                    (live.worktree_path or "") != worktree
+                    or str(live.task_id or "") != str(row.get("task_id") or "")
+                    or (live.branch or "") != (row.get("branch") or "")):
+                return
+            # No operation owns all Hub generations sharing this path. In
+            # particular, never interrupt/archive a newly published generation.
+            if await asyncio.to_thread(states_for_worktree, worktree):
+                return
+            repo = await asyncio.to_thread(workspace._resolve_repo, worktree, worktree)
+            git = result.get("git") or {}
+            expected_branch = git.get("worker_branch") or record.get("accepted_worker_branch")
+            expected_head = git.get("worker_head") or record.get("accepted_worker_head")
+
+            def clean_owned_native_generation():
+                # Branch creation/switch/removal uses this existing repository
+                # lock too. The identity check and deletion have no unlock gap.
+                with ExitStack() as lease:
+                    try:
+                        lease.enter_context(workspace.repo_mutation_lock(repo))
+                    except RuntimeError as exc:
+                        logger.warning("native cleanup ownership unavailable operation_id=%s: %s", operation_id, exc)
+                        return {"state": "deferred", "reason": "repository ownership unavailable"}
+                    if states_for_worktree(worktree):
+                        return {"state": "deferred", "reason": "Hub provenance retained"}
+                    if expected_branch or expected_head:
+                        branch, head = workspace.inspect_worktree_identity(worktree)
+                        if ((expected_branch and branch != expected_branch)
+                                or (expected_head and head != expected_head)):
+                            return {"state": "deferred", "reason": "generation changed"}
+                    return clean_worktree(worktree, main_checkout=str(repo), target_ref=target, apply=True)
+
+            outcome = await asyncio.to_thread(clean_owned_native_generation)
+            logger.info(
+                "post-merge worktree cleanup operation_id=%s worktree=%s state=%s files=%s bytes=%s reason=%s",
+                operation_id, worktree, outcome.get("state"), outcome.get("files"),
+                outcome.get("bytes"), outcome.get("reason", ""),
+            )
+    except Exception as exc:
+        if isinstance(exc, FileNotFoundError) and worktree:
+            try:
+                Path(worktree).stat()
+            except FileNotFoundError:
+                logger.info(
+                    "post-merge worktree cleanup operation_id=%s worktree=%s state=skipped reason=removed",
+                    operation_id, worktree,
+                )
+                return
+            except OSError:
+                pass
+        logger.exception("post-merge worktree cleanup failed operation_id=%s", operation_id)

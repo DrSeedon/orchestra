@@ -61,11 +61,11 @@ class TestDefaultManifestLoads:
         assert cfg.roles["full-cycle"].kind == "worker"
 
     def test_defaults_reproduce_upstream(self):
-        """Дефолты пайплайна = поведение апстрима: model opus, без skills/mcp-форса,
+        """Worker defaults follow Sol-only policy; other upstream defaults stay intact:
         base_branch_strategy main, docs_scaffold off, слои БЕЗ _pipeline.md."""
         cfg = P.load_pipeline(PIPELINE)
         d = cfg.defaults
-        assert d.model == "opus"
+        assert d.model == "hubsol"
         assert d.skills
         assert d.mcp_servers == []  # апстрим не прокидывает user-MCP
         assert d.base_branch_strategy == "main"  # все worktree от main

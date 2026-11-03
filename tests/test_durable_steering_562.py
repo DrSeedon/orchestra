@@ -87,9 +87,13 @@ async def test_recovered_mailbox_delivery_completes_receipts_atomically(message_
     class Session:
         def __init__(self):
             self.sent = []
+            self.logs = []
 
-        async def send(self, text, *, provenance):
-            self.sent.append((text, provenance))
+        def _log(self, kind, content, **_kwargs):
+            self.logs.append((kind, content))
+
+        async def send(self, text, *, provenance, chat_text=None, **_options):
+            self.sent.append((text, provenance, chat_text))
 
     session = Session()
     from app.session_turns import TurnManager
@@ -99,6 +103,8 @@ async def test_recovered_mailbox_delivery_completes_receipts_atomically(message_
     assert mailbox.pending(TARGET, SCOPE) == []
     assert message_deliveries._row("delivery-562")["state"] == "SUBMITTED"
     assert session.sent[0][0] == "[from:sender-562] доставить на следующем ходу"
+    # V-1160: the receipt already logged this input; the model gets it, the chat not again.
+    assert session.sent[0][2] == ""
 
 
 def test_context_marks_only_running_steer_with_turn_identity(message_db):

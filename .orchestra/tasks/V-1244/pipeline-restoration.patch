@@ -1,0 +1,38 @@
+--- a/.orchestra/pipelines/default/pipeline.yaml
++++ b/.orchestra/pipelines/default/pipeline.yaml
+@@ -2,7 +2,7 @@
+ description: Upstream-derived v2.18 pipeline with local models and runtime modules.
+ validation: fail-open
+ defaults:
+-  model: opus
++  model: hubsol
+   skills: [html-artifacts, video-artifact, explainer-craft]
+   mcp_servers: []
+   inherit_claude_md: true
+@@ -97,7 +97,7 @@
+     kind: worker
+     label: Worker
+     order: 2
+-    model: claude-sonnet-5-5[1m]
++    model: hub-gpt-6.1-sol
+     effort: &worker_effort_policy {"claude-opus-5-5[1m]": medium, "claude-sonnet-5-5[1m]": medium, claude-haiku-5-5: low, hub-gpt-6.1-sol: high, hub-claude-opus-5-5: medium, hub-claude-sonnet-5-5: medium, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
+     skills: [laptop-access]
+     modules: [safety, project-maintenance, code-quality, git-workflow, report-format, knowledge, communication-style, user-values]
+@@ -114,7 +114,7 @@
+     kind: worker
+     label: Full-Cycle
+     order: 3
+-    model: claude-sonnet-5-5[1m]
++    model: hub-gpt-6.1-sol
+     # xhigh → high (#207). Anthropic для Opus 5 велит начинать с high и НЕ переносить настройки
+     # прошлого поколения — унаследованный xhigh оттуда и пришёл; на девяти чужих бенчмарках
+     # high→xhigh даёт +47% цены без значимого прироста, наш #199 на Sol — ×2.04 при том же вердикте.
+@@ -140,7 +140,7 @@
+     kind: worker
+     label: Reducer
+     order: 4
+-    model: gpt-6-luna
++    model: hub-gpt-6.1-sol
+     effort: *effort_policy
+     modules: [safety, knowledge, communication-style, user-values]
+     can_spawn: []

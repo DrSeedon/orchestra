@@ -41,7 +41,7 @@ from app.deps import manager
 from app.backend_codex import CodexWriterConflictError
 from app.errtext import err_text
 from app.events import MessageProvenance
-from app.models import ensure_dashboard_visible, ensure_spawn_allowed, resolve_model, MODELS
+from app.models import ensure_dashboard_visible, ensure_spawn_allowed, ensure_hub_worker_allowed, resolve_model, MODELS
 from app.manager import LifecycleQuarantineError
 from app.quota_gate import QuotaGateError
 from app.routes.errors import keyed_auth_required
@@ -258,7 +258,7 @@ def _unlanded_work(session, worktree_path: str) -> dict:
 class CreateSessionRequest(BaseModel):
     name: str
     cwd: str
-    model: str = "claude-sonnet-5-5[1m]"
+    model: str = "hub-gpt-6.1-sol"
     scope: Optional[str] = None
     system_prompt: str = ""
     use_worktree: bool = False
@@ -863,6 +863,12 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
             else str((stored or {}).get("status") or "idle")
         )
         result = annotate_user_message({**payload, "agent_status": status})
+        # Compaction keeps a Codex turn "running" for minutes; the chat names it and the
+        # Stop button asks before cutting it (02.11).
+        compaction = getattr(live_session, "compaction_state", None)
+        if callable(compaction):
+            compaction = compaction()
+            result["compaction"] = compaction if isinstance(compaction, dict) else None
         if payload.get("type") == "status":
             result["status_hidden"] = is_internal_telemetry_status(
                 str(payload.get("content") or "")
@@ -1065,7 +1071,13 @@ async def _preflight_or_quota_wait(session_id: str):
 async def send_message(name: str, req: SendRequest, request: Request = None):
     try:
         if req.delivery_id.strip():
-            if not req.wake or req.message_kind is not None or req.after_turn:
+            from app import fan_barrier
+
+            # A worker's escalation kind is the one class a keyed send carries (02.11):
+            # it bypasses a fan barrier and a Codex orchestrator's turn-end hold.
+            if (not req.wake or req.after_turn or (
+                    req.message_kind is not None
+                    and not fan_barrier.is_blocker_kind(req.message_kind))):
                 return JSONResponse(
                     {
                         "ok": False,
@@ -1607,6 +1619,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
         msg = add_user_message_time_prefix(msg)
         await manager.send(
             session.id, msg, provenance=provenance,
+            **({"message_kind": req.message_kind} if req.message_kind else {}),
         )
         pn = session.parent_name or ""
         result = {"ok": True, "parent_name": pn}
@@ -1895,8 +1908,13 @@ async def restart_cli(name: str, req: ScopeRequest):
             session._turn_start_cancel_gen += 1
             session._manually_interrupted = True
             session._cancel_precompact_timer("restart_cli")
+            # The killed CLI may have dropped steers it had not yet added to the
+            # turn, and the cancelled listener publishes no failed terminal event.
+            cut_turn = getattr(session._backend, "active_turn_id", None)
             await session._disconnect_backend()
             settled = await message_deliveries.recover_message_deliveries(target_session_id=session.id)
+            if isinstance(cut_turn, str) and cut_turn:
+                session._turns.recover_failed_turn_steers(cut_turn)
             session.status = AgentStatus.IDLE
             session._persist()
         if session._pending_messages:
@@ -2048,6 +2066,7 @@ async def change_model(name: str, req: dict):
     if new_model not in MODELS:
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
     try:
+        ensure_hub_worker_allowed(new_model)
         if via == "mcp":
             ensure_spawn_allowed(new_model, model_reason=req.get("model_reason") or "")
         else:

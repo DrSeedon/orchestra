@@ -1194,6 +1194,8 @@ function connectSSE(fromHistoryLoad) {
             if (l.agent_status) {
                 _applyLiveAgentStatus(targetAgent, l.agent_status);
                 liveAgentStatus(l.agent_status);
+                // No field: the session is not loaded, so nothing can be compacting.
+                if (typeof applyCompactionState === 'function') applyCompactionState(targetAgent, l.compaction || null);
             }
             else if (Number.isFinite(l.id)) _wakeStatusRefreshFromStream();
             _refreshContextAfterCompact(targetAgent, l);
@@ -1352,18 +1354,19 @@ function _renderModels(data) {
             });
             select.dataset.modelSelectionBound = 'true';
         }
+        const choices = models.filter(model => !_isModelChoiceHidden(model));
         const selected = select.dataset.userSelectedModel;
-        const explicit = models.some(model => model.id === selected);
+        const explicit = choices.some(model => model.id === selected);
         if (!explicit) delete select.dataset.userSelectedModel;
         select.innerHTML = '';
-        for (const m of models) {
+        for (const m of choices) {
             const opt = document.createElement('option');
             opt.value = m.id;
             opt.textContent = `${m.name} (${m.id})`;
             select.appendChild(opt);
         }
         const preferred = explicit ? selected : data.default_orchestrator_model;
-        if (models.some(model => model.id === preferred)) select.value = preferred;
+        if (choices.some(model => model.id === preferred)) select.value = preferred;
     }
     _updateProxyStatus(data.proxy_connected);
 }
@@ -1475,6 +1478,7 @@ async function compactAgent() {
 
 async function restartCli() {
     if (!selectedAgent || !currentScope) return;
+    if (typeof confirmStopWhileCompacting === 'function' && !confirmStopWhileCompacting()) return;
     const targetName = selectedAgent;
     const targetScope = currentScope;
     const btn = $('#restart-cli-btn');
@@ -2848,9 +2852,11 @@ function _showHistoryTransfer(transfer) {
 }
 
 function _modelReasonForSelection(model) {
-    if (!model.startsWith('hub-claude-')) return '';
-    const reason = window.prompt(T('Why does this task need Claude?'));
-    return reason?.trim() || null;
+    if (model.startsWith('hub-') && model !== 'hub-gpt-6.1-sol') {
+        window.alert(T('Hub workers require hubsol (GPT-6.1 Sol). If Sol is unavailable, wait or report the blocker; no fallback.'));
+        return null;
+    }
+    return '';
 }
 
 function _modelReasonBadge(reason) {
@@ -2864,58 +2870,180 @@ function _modelReasonBadge(reason) {
     return span;
 }
 
+// GigaChat stays in the catalog, backends and stored sessions (labels and colors resolve
+// through _MODELS); it is only withheld from the places where a model is chosen.
+function _isModelChoiceHidden(m) {
+    return m.provider === 'gigachat' || /^gigachat/i.test(String(m.id || ''));
+}
+
+const _MODEL_PICKER_GROUPS = [['claude', 'Claude'], ['codex', 'Codex'], ['grok', 'Grok'], ['hub', 'Hub']];
+let _closeModelPicker = null;
+
+function _modelContextHint(m) {
+    const n = Number(m.context_length) || 0;
+    if (!n) return '';
+    return n >= 1000000 ? `${+(n / 1000000).toFixed(1)}M` : `${Math.round(n / 1000)}K`;
+}
+
+function _placeModelPicker(dd, anchor) {
+    const vv = window.visualViewport;
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = Math.min(window.innerHeight, vv ? vv.height + vv.offsetTop : window.innerHeight);
+    const rect = anchor.getBoundingClientRect();
+    const margin = 8;
+    const width = Math.min(320, vw - margin * 2);
+    const below = vh - rect.bottom - margin - 4;
+    const above = rect.top - margin - 4;
+    const placeBelow = below >= 260 || below >= above;
+    const room = Math.max(120, Math.min(480, placeBelow ? below : above));
+    dd.style.width = `${width}px`;
+    dd.style.maxHeight = `${room}px`;
+    dd.style.left = `${Math.max(margin, Math.min(rect.left, vw - width - margin))}px`;
+    if (placeBelow) { dd.style.top = `${rect.bottom + 4}px`; dd.style.bottom = ''; }
+    else { dd.style.top = ''; dd.style.bottom = `${window.innerHeight - rect.top + 4}px`; }
+}
+
 async function _showModelPicker(agentName, currentModel, anchor) {
-    const existing = document.getElementById('model-picker-dd');
-    if (existing) { existing.remove(); return; }
+    if (_closeModelPicker) { _closeModelPicker(); return; }
     await _ensureModels();
     if (!_MODELS.length) { console.warn('No models available for picker'); return; }
     const dd = document.createElement('div');
     dd.id = 'model-picker-dd';
-    const rect = anchor.getBoundingClientRect();
-    dd.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
-    for (const m of _MODELS) {
-        const item = document.createElement('div');
-        const isCurrent = currentModel === m.id;
-        item.style.cssText = `padding:5px 14px;font-size:11px;color:${isCurrent ? '#818cf8' : '#94a3b8'};cursor:${isCurrent ? 'default' : 'pointer'};white-space:nowrap`;
-        item.textContent = `${isCurrent ? '● ' : ''}${m.label}`;
-        if (!isCurrent) {
-            item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
-            item.addEventListener('mouseleave', () => item.style.background = '');
-            item.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                dd.remove();
+    dd.className = 'model-picker';
+    dd.setAttribute('role', 'dialog');
+    dd.setAttribute('aria-label', T('Change model'));
+    dd.dataset.i18nSkip = '1';
+
+    const close = (restoreFocus) => {
+        dd.remove();
+        document.removeEventListener('pointerdown', onOutside, true);
+        document.removeEventListener('keydown', onKey, true);
+        window.removeEventListener('resize', reposition);
+        window.visualViewport?.removeEventListener('resize', reposition);
+        anchor.setAttribute('aria-expanded', 'false');
+        _closeModelPicker = null;
+        if (restoreFocus && anchor.focus) anchor.focus();
+    };
+    const reposition = () => _placeModelPicker(dd, anchor);
+    const onOutside = (e) => { if (!dd.contains(e.target) && !anchor.contains(e.target)) close(false); };
+    const rows = () => Array.from(dd.querySelectorAll('button.model-picker-row'));
+    const onKey = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); return; }
+        if (e.key === 'Tab') { close(false); return; }
+        const keys = {ArrowDown: 1, ArrowUp: -1, Home: 'first', End: 'last'};
+        if (!(e.key in keys) || !dd.contains(document.activeElement) && document.activeElement !== anchor) return;
+        const list = rows();
+        if (!list.length) return;
+        e.preventDefault();
+        const at = list.indexOf(document.activeElement);
+        const step = keys[e.key];
+        const next = step === 'first' ? 0 : step === 'last' ? list.length - 1
+            : (at < 0 ? (step > 0 ? 0 : list.length - 1) : (at + step + list.length) % list.length);
+        list[next].focus();
+    };
+
+    const meta = _MODELS.find(m => m.id === currentModel);
+    const head = document.createElement('div');
+    head.className = 'model-picker-current';
+    const eyebrow = document.createElement('div');
+    eyebrow.className = 'model-picker-eyebrow';
+    eyebrow.textContent = T('Current model');
+    const cur = document.createElement('div');
+    cur.className = 'model-picker-row';
+    cur.style.cssText = `cursor:default;padding:0;min-height:0;color:${modelColorVar(currentModel, meta?.provider)}`;
+    const curDot = document.createElement('span');
+    curDot.className = 'model-picker-dot';
+    const curName = document.createElement('span');
+    curName.className = 'model-picker-name';
+    curName.style.color = 'var(--ink-strong)';
+    curName.textContent = meta?.label || currentModel || '-';
+    curName.title = currentModel || '';
+    cur.append(curDot, curName);
+    head.append(eyebrow, cur);
+    dd.appendChild(head);
+
+    const list = document.createElement('div');
+    list.className = 'model-picker-list';
+    list.setAttribute('role', 'group');
+    const choices = _MODELS.filter(m => m.id !== currentModel && !_isModelChoiceHidden(m));
+    const known = new Set(_MODEL_PICKER_GROUPS.map(g => g[0]));
+    const groups = _MODEL_PICKER_GROUPS.map(([key, title]) => [title, choices.filter(m => (m.runtime || m.backend) === key)]);
+    groups.push([T('Other'), choices.filter(m => !known.has(m.runtime || m.backend))]);
+    const choose = async (m) => {
+        close(false);
+        try {
+            const body = { model: m.id, scope: currentScope };
+            const reason = _modelReasonForSelection(m.id);
+            if (reason === null) return;
+            if (reason) body.model_reason = reason;
+            const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+            if (resp && !resp.error) {
+                $('#ai-model').textContent = m.id;
+                _showHistoryTransfer(resp.history_transfer);
+                loadSessions();
+            }
+        } catch (e) {
+            const match = String(e.message || '').match(/^\d+:\s*(\{.*\})$/s);
+            if (match) {
                 try {
-                    const body = { model: m.id, scope: currentScope };
-                    const reason = _modelReasonForSelection(m.id);
-                    if (reason === null) return;
-                    if (reason) body.model_reason = reason;
-                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-                    if (resp && !resp.error) {
-                        $('#ai-model').textContent = m.id;
-                        _showHistoryTransfer(resp.history_transfer);
-                        loadSessions();
-                    }
-                } catch (e) {
-                    const match = String(e.message || '').match(/^\d+:\s*(\{.*\})$/s);
-                    if (match) {
-                        try {
-                            const body = JSON.parse(match[1]);
-                            _showHistoryTransfer({
-                                ...(body.history_transfer || {mode: 'blocked'}),
-                                error_code: body.error_code,
-                                reason: body.error,
-                            });
-                        } catch {}
-                    }
-                    console.warn('Change model failed:', e);
-                }
-            });
+                    const body = JSON.parse(match[1]);
+                    _showHistoryTransfer({
+                        ...(body.history_transfer || {mode: 'blocked'}),
+                        error_code: body.error_code,
+                        reason: body.error,
+                    });
+                } catch {}
+            }
+            console.warn('Change model failed:', e);
         }
-        dd.appendChild(item);
+    };
+    for (const [title, items] of groups) {
+        if (!items.length) continue;
+        if (groups.filter(g => g[1].length).length > 1) {
+            const h = document.createElement('div');
+            h.className = 'model-picker-group';
+            h.textContent = title;
+            list.appendChild(h);
+        }
+        for (const m of items) {
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'model-picker-row';
+            row.title = m.id;
+            const dot = document.createElement('span');
+            dot.className = 'model-picker-dot';
+            dot.style.color = modelColorVar(m.id, m.provider);
+            const name = document.createElement('span');
+            name.className = 'model-picker-name';
+            name.textContent = m.label;
+            row.append(dot, name);
+            const hint = _modelContextHint(m);
+            if (hint) {
+                const ctx = document.createElement('span');
+                ctx.className = 'model-picker-meta';
+                ctx.textContent = hint;
+                row.appendChild(ctx);
+            }
+            row.addEventListener('click', (e) => { e.stopPropagation(); choose(m); });
+            list.appendChild(row);
+        }
     }
+    if (!list.children.length) {
+        const empty = document.createElement('div');
+        empty.className = 'model-picker-empty';
+        empty.textContent = T('No other models available');
+        list.appendChild(empty);
+    }
+    dd.appendChild(list);
     document.body.appendChild(dd);
-    const close = (e) => { if (!dd.contains(e.target) && e.target !== anchor) { dd.remove(); document.removeEventListener('click', close); } };
-    setTimeout(() => document.addEventListener('click', close), 10);
+    anchor.setAttribute('aria-expanded', 'true');
+    _closeModelPicker = close;
+    reposition();
+    document.addEventListener('pointerdown', onOutside, true);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('resize', reposition);
+    window.visualViewport?.addEventListener('resize', reposition);
+    rows()[0]?.focus({preventScroll: true});
 }
 
 function updateAgentInfo(session) {
@@ -2969,6 +3097,13 @@ function updateAgentInfo(session) {
         changeBtn.textContent = '⇄';
         changeBtn.addEventListener('mouseenter', () => changeBtn.style.color = '#94a3b8');
         changeBtn.addEventListener('mouseleave', () => changeBtn.style.color = '#475569');
+        changeBtn.tabIndex = 0;
+        changeBtn.setAttribute('role', 'button');
+        changeBtn.setAttribute('aria-haspopup', 'dialog');
+        changeBtn.setAttribute('aria-label', T('Change model'));
+        changeBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); changeBtn.click(); }
+        });
         modelEl.parentElement.appendChild(changeBtn);
     }
     // Model can only be changed when the CLI is not actively processing — changing mid-turn would be ignored by the SDK
@@ -3303,8 +3438,6 @@ function createAgentItem(s) {
     const pill = _cachePill(s);
     if (pill) meta.appendChild(pill);
     meta.appendChild(modelBadge(s.model || ''));
-    const modelReason = _modelReasonBadge(s.model_reason);
-    if (modelReason) meta.appendChild(modelReason);
     if (isHubModel(s.model)) meta.appendChild(hubBadge());
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');
@@ -3673,6 +3806,9 @@ async function refreshSessions() {
             const agentSession = sessions.find(s => s.name === selectedAgent);
             if (agentSession) {
                 updateStopButton(agentSession.status);
+                if ('compaction' in agentSession && typeof applyCompactionState === 'function') {
+                    applyCompactionState(selectedAgent, agentSession.compaction);
+                }
                 if (agentSession.status !== 'running') {
                     removeWaitingIndicator();
                 }

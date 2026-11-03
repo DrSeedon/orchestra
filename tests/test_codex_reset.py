@@ -23,7 +23,7 @@ def credit(name="synthetic-bonus-one", *, expires_in=3600, status="available"):
     return {"id": name, "expiresAt": NOW + expires_in, "status": status}
 
 
-def snapshot(*, slot="primary", used=95, credits=None):
+def snapshot(*, slot="primary", used=99, credits=None):
     weekly = {"usedPercent": used, "windowDurationMins": 10080,
               "resetsAt": NOW + 10_000}
     limits = {"primary": weekly, "secondary": None}
@@ -90,7 +90,8 @@ def test_weekly_window_in_either_slot_and_successful_readback(slot):
 
 @pytest.mark.parametrize("slot", ["primary", "secondary"])
 @pytest.mark.parametrize(("used", "expires_in", "redeem"), [
-    (94.999, 540, False), (95, 540, True), (95.001, 3600, True),
+    (94.999, 540, False), (95, 540, False), (98, 540, False),
+    (99, 540, True), (100, 540, True), (99.001, 3600, True),
     (24, 539.999, True), (24, 540, False), (24, 540.001, False),
     (0, -1, True),
 ])

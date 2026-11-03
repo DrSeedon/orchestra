@@ -36,6 +36,11 @@ def is_terminal_report(message_kind: str | None) -> bool:
     return message_kind in _TERMINAL_STATES
 
 
+def is_blocker_kind(message_kind: str | None) -> bool:
+    """A worker's escalation (blocker, wrong premise, out of scope): it needs the parent now."""
+    return message_kind in _BYPASS_KINDS
+
+
 def _persist_child_report(fan_id: str, child: str, body: str) -> str:
     """Write the child's report next to the DB. Manifest keeps only this path."""
     safe_fan = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in fan_id) or "fan"

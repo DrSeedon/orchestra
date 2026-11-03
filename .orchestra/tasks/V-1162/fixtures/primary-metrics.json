@@ -1,0 +1,8 @@
+{
+  "acceptance": "binary validator result per dispatched task invocation; failed, partial, lost and refused outcomes are not removed",
+  "cost": "actual subscription quota observation if exposed; API-equivalent cost is a separate proxy only, never converted to subscription percentage",
+  "generated_tokens": "provider-reported output_tokens + distinct reasoning_output_tokens, counted once; cache-read is input and excluded",
+  "paired_unit": "task × repeat × exact model/effort configuration; matched N is reported per cell",
+  "time": "whole task invocation wall from dispatch through terminal validator outcome; request latency also retained where supplied",
+  "uncertainty": "N=2 is a pilot; report raw paired outcomes and ranges; do not claim a fleet-wide winner"
+}

@@ -1,0 +1,57 @@
+{
+  "host_baseline_as_supplied": "cf2912cfe49ed5625f893d83c598ce282e172858",
+  "local_baseline_captured_before_edits": true,
+  "changed": [
+    {
+      "path": "tests/test_hub_message_v1066.py",
+      "insertions": 10,
+      "deletions": 2,
+      "sha256": "de581f6e866cc04e6714e78bf85df6592d3401b564a974952e9f0223ac74dbf1"
+    },
+    {
+      "path": "tests/test_initial_deliveries.py",
+      "insertions": 4,
+      "deletions": 0,
+      "sha256": "c457158824b1b73df4720b87148c8ced82701fa21f9c70ae5186369f2b3c4292"
+    },
+    {
+      "path": "tests/test_workflow_cards.py",
+      "insertions": 95,
+      "deletions": 22,
+      "sha256": "2c34a853cd158461d1936eee72f529a01bfe7cb553653180b3877763446e40a6"
+    }
+  ],
+  "protected_production": [
+    {
+      "path": "app/models.py",
+      "sha256": "0644a7304db57887096f86ce9db0255abc6f5b2f8c46e92a822c8d47096cc78a",
+      "unchanged": true
+    },
+    {
+      "path": "app/static/js/app.js",
+      "sha256": "4b83b28dfda71cb1116869c863596f6f48ce14cbb4d1e1ec7cd6317afbaa8a7a",
+      "unchanged": true
+    },
+    {
+      "path": "app/static/js/chat.js",
+      "sha256": "6fed637f43c20cc3b0ed2679536cac6f580d34d9bf1320af6b8672c40af739f3",
+      "unchanged": true
+    },
+    {
+      "path": "app/manager.py",
+      "sha256": "266ce57e67205e3196faa85863b4ff33c29561a141fdb5f5391259b16d64367d",
+      "unchanged": true
+    },
+    {
+      "path": "app/session.py",
+      "sha256": "4ead81ed7309518e9b8092a343a8324bef5ba799948a9148ae1938662a11b636",
+      "unchanged": true
+    },
+    {
+      "path": "app/backend_hub.py",
+      "sha256": "236695fb26137750717996d417cf5760d17a932427195c4bc96ca20095520ae0",
+      "unchanged": true
+    }
+  ],
+  "scope": "test-only; product unchanged"
+}

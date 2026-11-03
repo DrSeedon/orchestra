@@ -1,0 +1,15 @@
+{
+  "mutation": "restore eager global registry validation inside Hub-only guard",
+  "tests": [
+    "tests/test_hub_sol_only_v1240.py::test_native_runtime_identity_validation_stays_with_its_owner",
+    "tests/test_hub_sol_only_v1240.py::test_all_non_sol_hub_requests_refuse_even_with_old_enabled_flags",
+    "tests/test_hub_sol_only_v1240.py::test_sol_stays_admitted_with_existing_config_and_catalog_gates"
+  ],
+  "mutated_exit": 1,
+  "restored_exit": 0,
+  "before_sha256": "1bd29adae5d60d2d91bb9a87297ac6ef252315d5db1cdd483653aeed5980bd31",
+  "mutant_sha256": "52cc82a13476ad7ce66b2475d7879d9082f795433bab3f83a127ccd3de29f9ba",
+  "restored_sha256": "1bd29adae5d60d2d91bb9a87297ac6ef252315d5db1cdd483653aeed5980bd31",
+  "mutated_summary": "5 failed, 24 passed in 13.60s",
+  "restored_summary": "29 passed in 13.91s"
+}

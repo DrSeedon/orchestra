@@ -1,13 +1,15 @@
 """Background Jobs API routes."""
 
+import asyncio
 import json
 import re
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.deps import manager
 
@@ -15,6 +17,113 @@ router = APIRouter(prefix="/api/bg", tags=["bg-jobs"])
 _WORKFLOW_RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 _WORKFLOW_HEADERS = {"Cache-Control": "no-store, private, max-age=0"}
 WORKFLOW_RUNS_DIR = Path(__file__).resolve().parents[2] / "data" / "workflow-runs"
+
+
+class EvalGrantRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    task_id: str
+    manifest: dict
+    expected_hash: str
+    approval_ref: str
+    expires_at: float
+    token_policy: str
+    fixture_inputs: dict[str, str] | None = None
+    run_order_csv: str = ""
+
+
+class EvalBindRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    grant_id: str
+    task_id: str
+    manifest_hash: str
+    run_id: str
+
+
+class EvalDispatchRequest(EvalBindRequest):
+    invocation: int = Field(strict=True, ge=0, lt=56)
+    slot_id: str
+    prompt: str
+    model: str
+    effort: str
+
+
+def _eval_error(error):
+    from app.temp_rules import RuleError
+    status = error.status_code if isinstance(error, RuleError) else (
+        403 if isinstance(error, PermissionError) else 400)
+    return JSONResponse({"error": str(error)}, status_code=status)
+
+
+@router.post("/eval/grants")
+def issue_eval_grant(req: EvalGrantRequest, request: Request):
+    from app import eval_admission
+    from app.routes.temp_rules import _actor
+    from app.temp_rules import RuleError
+    try:
+        return eval_admission.issue(_actor(request), **req.model_dump())
+    except sqlite3.IntegrityError:
+        return JSONResponse({"error": "owner permission record already used for a grant"}, status_code=409)
+    except (ValueError, PermissionError, RuleError) as error:
+        return _eval_error(error)
+
+
+@router.post("/eval/bind")
+def bind_eval_grant(req: EvalBindRequest, request: Request):
+    from app import eval_admission
+    from app.routes.temp_rules import _actor
+    from app.temp_rules import RuleError
+    try:
+        return eval_admission.bind(_actor(request), **req.model_dump())
+    except (ValueError, PermissionError, RuleError) as error:
+        return _eval_error(error)
+
+
+@router.post("/eval/dispatch")
+async def dispatch_eval(req: EvalDispatchRequest, request: Request):
+    from app import eval_admission
+    from app.auth import check_internal_token
+    # Background runners use the existing internal transport. This is not issuance
+    # authority: only an already bound, immutable server grant can authorize a call.
+    if not check_internal_token(request.headers.get("authorization", "")):
+        return JSONResponse({"error": "internal workflow transport required"}, status_code=403)
+    dispatch = asyncio.create_task(eval_admission.dispatch(**req.model_dump(),
+        scheduler_available=bool(getattr(request.app.state, "agent_cgroup", ""))))
+    async def disconnected():
+        # Body parsing is complete. Wait for the ASGI disconnect event directly;
+        # is_disconnected() uses an inner cancel scope which can absorb teardown
+        # cancellation and leave a detached watcher running after dispatch finishes.
+        while True:
+            if (await request.receive()).get("type") == "http.disconnect":
+                return
+    caller = asyncio.create_task(disconnected())
+    try:
+        done, _ = await asyncio.wait({dispatch, caller}, return_when=asyncio.FIRST_COMPLETED)
+        if caller in done:
+            await caller
+            # Request cancellation is not evidence that remote inference stopped.
+            # Keep an already consumed reservation unresolved and stop locally.
+            dispatch.cancel()
+            await asyncio.gather(dispatch, return_exceptions=True)
+            return JSONResponse({"error": "evaluation caller disconnected; outcome unknown"}, status_code=409)
+        return await dispatch
+    except (ValueError, PermissionError) as error:
+        return _eval_error(error)
+    finally:
+        caller.cancel()
+        dispatch.cancel()
+        await asyncio.gather(caller, dispatch, return_exceptions=True)
+
+
+@router.get("/eval/grants/{grant_id}")
+def eval_grant_receipt(grant_id: str, request: Request):
+    from app import eval_admission
+    from app.auth import check_internal_token
+    if not check_internal_token(request.headers.get("authorization", "")):
+        return JSONResponse({"error": "internal workflow transport required"}, status_code=403)
+    try:
+        return eval_admission.snapshot(grant_id)
+    except ValueError as error:
+        return _eval_error(error)
 
 
 def _workflow_run_dir(run_id: str) -> Path | None:

@@ -1,0 +1,125 @@
+{
+  "published_commit": "0bbb0b96eb9b50cacee41023542d1d25cb560310",
+  "archive_sha256": "f1992d84c80ee5c95e1bd817787bbe9682b9b262655e41902cb996d07d7d77dd",
+  "files": [
+    {
+      "path": "app/models.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "b745ff54a695407e87509b0987827b65b2cf75dae309f3ec29a8d3a3e1cf9ab6",
+      "published_sha256": "b745ff54a695407e87509b0987827b65b2cf75dae309f3ec29a8d3a3e1cf9ab6"
+    },
+    {
+      "path": "app/manager.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "266ce57e67205e3196faa85863b4ff33c29561a141fdb5f5391259b16d64367d",
+      "published_sha256": "266ce57e67205e3196faa85863b4ff33c29561a141fdb5f5391259b16d64367d"
+    },
+    {
+      "path": "app/session.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "4ead81ed7309518e9b8092a343a8324bef5ba799948a9148ae1938662a11b636",
+      "published_sha256": "4ead81ed7309518e9b8092a343a8324bef5ba799948a9148ae1938662a11b636"
+    },
+    {
+      "path": "app/backend_hub.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "236695fb26137750717996d417cf5760d17a932427195c4bc96ca20095520ae0",
+      "published_sha256": "236695fb26137750717996d417cf5760d17a932427195c4bc96ca20095520ae0"
+    },
+    {
+      "path": "app/mcp_stdio.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "45f428bbfefcaa1a88e1111dd7c12fee4994f9d46e38492117de4cda6266cd6a",
+      "published_sha256": "45f428bbfefcaa1a88e1111dd7c12fee4994f9d46e38492117de4cda6266cd6a"
+    },
+    {
+      "path": "tests/test_manager.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "8e6ba83eeab95c91e01bb0e2aa33d46bb58b2e92f74102d844fa71c79204ab65",
+      "published_sha256": "8e6ba83eeab95c91e01bb0e2aa33d46bb58b2e92f74102d844fa71c79204ab65"
+    },
+    {
+      "path": "tests/test_hub_model_reason_frontend.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "fc28bfb5684c955e724b48cb3c26c8393a2af42cb0314c7d86231cbe37b6f55b",
+      "published_sha256": "fc28bfb5684c955e724b48cb3c26c8393a2af42cb0314c7d86231cbe37b6f55b"
+    },
+    {
+      "path": "tests/test_tool_scoping.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "661c9ef98aa798eeeb1047d4659732926f2c3de90e6a1ff834206d5815a017c1",
+      "published_sha256": "661c9ef98aa798eeeb1047d4659732926f2c3de90e6a1ff834206d5815a017c1"
+    },
+    {
+      "path": "tests/test_codex_quota_gate_1121.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "69d6ab11717348c079a8a0e5dbfb15e1cae6320f482a20d54d335d182835daea",
+      "published_sha256": "69d6ab11717348c079a8a0e5dbfb15e1cae6320f482a20d54d335d182835daea"
+    },
+    {
+      "path": "tests/test_cron_drain_abort_v1074.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "ec4139e982ccd64f315dd276c4c494719a7dd62a56cc566ba8f4e1e81b0c7bbf",
+      "published_sha256": "ec4139e982ccd64f315dd276c4c494719a7dd62a56cc566ba8f4e1e81b0c7bbf"
+    },
+    {
+      "path": "tests/test_cron_drain_delivery_v1074.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "aa644ab356d2bbb1e34a122f8f041e0c3ad4ea55e788272d0971253b391a30ad",
+      "published_sha256": "aa644ab356d2bbb1e34a122f8f041e0c3ad4ea55e788272d0971253b391a30ad"
+    },
+    {
+      "path": "tests/test_seedon_v1031.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "f66795d1ef3b439639d232b1b38874de956c7b7aca03faafc5f4648d97917d33",
+      "published_sha256": "f66795d1ef3b439639d232b1b38874de956c7b7aca03faafc5f4648d97917d33"
+    },
+    {
+      "path": "tests/test_source_layout_spawn_v1130.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "c16d070e110cc3d760d884ffabbba5d58b306e4885e6fa00420aa901603c9422",
+      "published_sha256": "c16d070e110cc3d760d884ffabbba5d58b306e4885e6fa00420aa901603c9422"
+    },
+    {
+      "path": "tests/test_frontend.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "78f264988d0d0f0e87a1dfe2cddf62a36a1c6bd2a5b1ccdc407c2093dbfccb6b",
+      "published_sha256": "78f264988d0d0f0e87a1dfe2cddf62a36a1c6bd2a5b1ccdc407c2093dbfccb6b"
+    },
+    {
+      "path": "tests/test_default_pipeline.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "69ec3662dcd589416e3706a4e00ff7ae53fa45284b9da1f4ff7397971fc6a008",
+      "published_sha256": "69ec3662dcd589416e3706a4e00ff7ae53fa45284b9da1f4ff7397971fc6a008"
+    },
+    {
+      "path": "tests/test_v1028_report_holds.py",
+      "matches": true,
+      "local_present": true,
+      "local_sha256": "b9a08537ccadd4d677a11b6b5dfe270304f0afa565768585005ceb0ef1caaa12",
+      "published_sha256": "b9a08537ccadd4d677a11b6b5dfe270304f0afa565768585005ceb0ef1caaa12"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "matches": false,
+      "local_present": false,
+      "local_sha256": null,
+      "published_sha256": "575f617edc3fa32804ec8f571034b8e53bd6dc537dee99b84ac5d116653d0487"
+    }
+  ]
+}

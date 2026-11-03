@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from app.db import turn_usage_add
 from app.usage_contract import DeferredContext
 from app.events import AgentEvent, MessageProvenance
-from app.session_state import AgentStatus
+from app.session_state import AgentStatus, DeliveryDeferred
 from app.turn_markers import is_successful_silent_turn
 
 if TYPE_CHECKING:
@@ -25,6 +25,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger("app.session")
 
 PRICE_MAY_BE_UNDERSTATED_MARKER = "[price_may_be_understated]"
+STEER_RECOVERY_RETRY_DELAYS = (1.0, 5.0, 30.0)
+# One-second checks for a deferred mailbox batch, beyond the 660 s compact budget.
+MAILBOX_DEFER_POLLS = 900
+_CHAT_SHOWN_RECOVERY_SUBTYPES = frozenset({
+    "direct_message_recovery", "codex_steer_backup", "codex_steer_backup_pending",
+    "codex_turn_end_hold",
+})
+# 02.11 (research: steers stretch a turn from ~15 s to 600-3500 s and delay the owner's
+# reply): a Codex orchestrator's running turn does not take agent and background input
+# (cron included) as steers; the mailbox gives it to the turn end. Escapes keep anything
+# from starving: a worker's escalation kind, a turn this old, or this many waiting rows
+# steer the held block first.
+TURN_END_HOLD_ORIGINS = frozenset({"agent", "background_task"})
+TURN_END_HOLD_MAX_TURN_SECONDS = 600
+TURN_END_HOLD_MAX_WAITING = 8
 
 # Leave room for the CLI's own compaction and any in-flight context growth.
 CRITICAL_AUTO_COMPACT_PCT = 95
@@ -35,6 +50,12 @@ CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT = 1
 # while the displayed context stayed 93%. Bytes/2 over-counts Latin and fits Cyrillic.
 INJECTION_BYTES_PER_TOKEN = 2
 INJECTION_RESERVE_PCT = 4
+# Incident 02.11 (seedon-orchestrator): Codex compacted ~785k tokens INSIDE a user turn
+# for ~4 min, the owner pressed Stop and every replayed turn started it again. Orchestra
+# compacts the thread between turns once it reaches this share of Codex's own limit.
+CODEX_PRE_LIMIT_COMPACT_PCT = 85
+# A failed (or useless) native compaction is not retried on every following turn end.
+CODEX_PRE_LIMIT_COMPACT_COOLDOWN_SECONDS = 15 * 60
 
 
 def injection_overflows_context(s: "AgentSession", incoming_chars: int) -> bool:
@@ -63,6 +84,52 @@ def _auto_compact_threshold_pct(s: "AgentSession") -> int:
         return threshold
     cli_pct = math.ceil(cli_tokens * 100 / max_tokens)
     return max(0, min(threshold, cli_pct - CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT))
+
+
+def _codex_pre_limit_threshold(s: "AgentSession") -> tuple[int, int, int] | None:
+    """(context tokens, Codex auto-compact limit, our threshold) when all are known."""
+    if getattr(s, "backend_type", "") != "codex" or not s._last_context.get("known"):
+        return None
+    limit = getattr(s._backend, "auto_compact_token_limit", None)
+    tokens = s._last_context.get("total_tokens")
+    if (type(limit) is not int or limit <= 0
+            or type(tokens) is not int or tokens < 0):
+        return None
+    return tokens, limit, limit * CODEX_PRE_LIMIT_COMPACT_PCT // 100
+
+
+def _render_mailbox(items: list[dict]) -> str:
+    return "\n\n".join(
+        f"[from:{m['sender'] or ', '.join(m['provenance'].senders)}] {m['body']}"
+        for m in items
+    )
+
+
+def _is_owner_row(item: dict) -> bool:
+    from app.session import _is_owner_direct_message
+
+    return _is_owner_direct_message(item["provenance"])
+
+
+def _owner_first(items: list[dict]) -> list[dict]:
+    """Owner rows first, then the rest; each part keeps its arrival order."""
+    return ([m for m in items if _is_owner_row(m)]
+            + [m for m in items if not _is_owner_row(m)])
+
+
+def _mailbox_provenance(queued: list[dict]) -> MessageProvenance:
+    origins = {m["provenance"].origin for m in queued}
+    senders = tuple(dict.fromkeys(
+        sender
+        for message in queued
+        for sender in message["provenance"].senders
+    ))
+    return MessageProvenance(
+        origin=next(iter(origins)) if len(origins) == 1 else "unknown",
+        senders=senders,
+        subtype="mailbox" if len(origins) == 1 else "mailbox_mixed",
+        ref=f"mailbox:{queued[0]['id']}-{queued[-1]['id']}",
+    )
 
 
 def _unknown_quota_state() -> dict:
@@ -392,21 +459,7 @@ class TurnManager:
                     f"{type(error).__name__}: {error}"
                 )
         if not ok and event_id:
-            from app import message_deliveries
-
-            try:
-                recovered = message_deliveries.requeue_failed_turn(s.id, event_id)
-            except Exception as error:
-                logger.warning(
-                    f"[{s.name}] failed-turn steer recovery unavailable: "
-                    f"{type(error).__name__}: {error}"
-                )
-                recovered = 0
-            if recovered:
-                s._log(
-                    "status",
-                    f"steered messages waiting for next turn: {recovered}",
-                )
+            self.recover_failed_turn_steers(event_id)
         try:
             quota_snapshot = _cached_quota_snapshot(s.backend_type, s.model)
         except Exception as error:
@@ -579,6 +632,52 @@ class TurnManager:
         if server_error_retry is not None:
             s._spawn_bg(s._retry_after_server_error(*server_error_retry))
 
+    def recover_failed_turn_steers(self, turn_id: str) -> int:
+        """Requeue steers of a turn that ended without success; idempotent.
+
+        A failure before the recovery intent is durable retries in-process; one
+        after it is finished by the delivery sweeper.
+        """
+        from app import message_deliveries
+
+        s = self.s
+        try:
+            recovered = message_deliveries.requeue_failed_turn(s.id, turn_id)
+        except Exception as error:
+            logger.warning(
+                f"[{s.name}] failed-turn steer recovery unavailable, retrying: "
+                f"{type(error).__name__}: {error}"
+            )
+            s._spawn_bg(self._retry_steer_recovery(turn_id))
+            return 0
+        if recovered:
+            s._log("status", f"steered messages waiting for next turn: {recovered}")
+        return recovered
+
+    async def _retry_steer_recovery(self, turn_id: str) -> None:
+        from app import message_deliveries
+
+        s = self.s
+        for delay in STEER_RECOVERY_RETRY_DELAYS:
+            await asyncio.sleep(delay)
+            try:
+                recovered = await asyncio.to_thread(
+                    message_deliveries.requeue_failed_turn, s.id, turn_id,
+                )
+            except Exception as error:
+                logger.warning(
+                    f"[{s.name}] failed-turn steer recovery retry failed: "
+                    f"{type(error).__name__}: {error}"
+                )
+                continue
+            if recovered:
+                s._log("status", f"steered messages waiting for next turn: {recovered}")
+                wake = getattr(s, "_wake_durable_message_deliveries", None)
+                if callable(wake):
+                    wake()
+            return
+        s._log("error", "steered messages of the failed turn could not be requeued")
+
     def finish_turn_status(self) -> None:
         """Set IDLE or WAITING based on bg jobs, then persist."""
         s = self.s
@@ -621,6 +720,9 @@ class TurnManager:
         # терминальное состояние ребёнка и может отпустить веер, пока у этого же ребёнка
         # лежит невыданный вход, — родитель получит сводку по недоработавшему ребёнку.
         from app import mailbox
+        if self.hold_mailbox_after_stop():
+            self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
+            return
         try:
             queued = mailbox.claim(s.name, s.scope)
         except Exception as exc:
@@ -639,6 +741,233 @@ class TurnManager:
             return
 
         self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
+
+    def hold_mailbox_after_stop(self) -> bool:
+        """After the owner's Stop a Codex turn end does not replay its mailbox (02.11).
+
+        The rows stay in the mailbox and go out with the next turn that a new message
+        or wake starts (`claim_mailbox_held_after_stop`). A non-manual interruption keeps
+        the replay; restart-cli has no turn end and is not affected.
+        """
+        s = self.s
+        if (getattr(s, "backend_type", "") != "codex"
+                or not getattr(s, "_manually_interrupted", False)):
+            return False
+        from app import mailbox
+
+        s._mailbox_held_after_stop = True
+        try:
+            held = len(mailbox.pending(s.name, s.scope))
+        except Exception as exc:
+            from app.errtext import err_text as _err
+            s._log("error", f"mailbox недоступен после остановки: {_err(exc)}")
+            return True
+        if held:
+            s._log(
+                "status",
+                f"mailbox: {held} held after Stop — delivered with the next turn, "
+                "not replayed now",
+            )
+        return True
+
+    def mailbox_held_by_stop(self) -> bool:
+        """Pure check for automatic claimants (defer waiter, delivery sweeper): after the
+        owner's Stop only a turn that a new message or wake starts may take the mailbox."""
+        s = self.s
+        return getattr(s, "backend_type", "") == "codex" and (
+            getattr(s, "_manually_interrupted", False) is True
+            or getattr(s, "_mailbox_held_after_stop", False) is True
+        )
+
+    def claim_mailbox_held_after_stop(self) -> list[dict]:
+        """Claim the rows held by Stop for the turn that is starting now; [] otherwise."""
+        s = self.s
+        if (not getattr(s, "_mailbox_held_after_stop", False)
+                or getattr(s, "backend_type", "") != "codex"):
+            return []
+        from app import mailbox
+
+        s._mailbox_held_after_stop = False
+        try:
+            return mailbox.claim(s.name, s.scope)
+        except Exception as exc:
+            from app.errtext import err_text as _err
+            s._mailbox_held_after_stop = True
+            s._log("error", f"mailbox: rows held after Stop stay queued: {_err(exc)}")
+            return []
+
+    def release_mailbox_held_after_stop(self, held: list[dict]) -> None:
+        """The starting turn was not submitted: the rows wait for the next one."""
+        if not held:
+            return
+        from app import mailbox
+
+        mailbox.release_claim([m["id"] for m in held])
+        self.s._mailbox_held_after_stop = True
+
+    def complete_mailbox_held_after_stop(self, held: list[dict], backend) -> None:
+        """The starting turn was submitted: acknowledge the held rows it carried."""
+        if not held:
+            return
+        started_turn = getattr(backend, "active_turn_id", None)
+        self.complete_mailbox(held, (
+            "turn", started_turn if isinstance(started_turn, str) and started_turn
+            else None, False,
+        ))
+
+    def mailbox_turn_text(self, held: list[dict], message: str, *,
+                          message_is_owner: bool = False) -> str:
+        """Prefix the starting turn's text with the held rows: the owner's first, then
+        the rest, each in arrival order; the new message is the newest of its group."""
+        s = self.s
+        fresh = [
+            m for m in held
+            if m["provenance"].subtype not in _CHAT_SHOWN_RECOVERY_SUBTYPES
+        ]
+        repeated = len(held) - len(fresh)
+        if fresh:
+            s._log("user_message", _render_mailbox(_owner_first(fresh)),
+                   provenance=_mailbox_provenance(held))
+        s._log(
+            "status",
+            f"mailbox: delivering {len(held)} message(s) held since Stop with this turn"
+            + (f"; {repeated} from the stopped turn are shown above" if repeated else ""),
+        )
+        ordered = _owner_first(held)
+        owners = sum(1 for m in held if _is_owner_row(m))
+        parts = [_render_mailbox(ordered[:owners])] if owners else []
+        if message_is_owner:
+            parts.append(message)
+        if ordered[owners:]:
+            parts.append(_render_mailbox(ordered[owners:]))
+        if not message_is_owner:
+            parts.append(message)
+        return "\n\n".join(parts)
+
+    def complete_mailbox(self, queued: list[dict], route=None) -> None:
+        """Acknowledge exactly the rows that were submitted to the provider."""
+        from app import mailbox
+
+        s = self.s
+        ids = [m["id"] for m in queued]
+        recovered_delivery_ids = [
+            m["provenance"].ref
+            for m in queued
+            if m["provenance"].subtype == "direct_message_recovery"
+            and m["provenance"].ref
+        ]
+        if recovered_delivery_ids:
+            from app import message_deliveries
+
+            message_deliveries.complete_recovered_mailbox_delivery(
+                ids, recovered_delivery_ids, route=route,
+            )
+            wake = getattr(s, "_wake_durable_message_deliveries", None)
+            if callable(wake):
+                wake()
+        else:
+            mailbox.mark_delivered(ids)
+
+    def turn_end_hold(self, provenance: MessageProvenance, *,
+                      message_kind: str | None = None) -> tuple[str | None, str]:
+        """Where a running turn takes this input (02.11): (None, "") steers it as before;
+        ("hold", "") keeps it for the turn end; ("flush", reason) steers the held block
+        first, then this message. Only a Codex orchestrator holds."""
+        s = self.s
+        if (getattr(s, "backend_type", "") != "codex" or not s.is_orchestrator
+                or provenance.origin not in TURN_END_HOLD_ORIGINS):
+            return None, ""
+        from app import fan_barrier, mailbox
+
+        if fan_barrier.is_blocker_kind(message_kind):
+            return "flush", f"worker escalation ({message_kind})"
+        started = getattr(s, "_turn_start", 0) or 0
+        if started and asyncio.get_event_loop().time() - started >= TURN_END_HOLD_MAX_TURN_SECONDS:
+            return "flush", f"turn older than {TURN_END_HOLD_MAX_TURN_SECONDS // 60} min"
+        try:
+            waiting = mailbox.count_turn_end_holds(s.name, s.scope)
+        except Exception as error:
+            logger.warning(f"[{s.name}] turn-end hold unavailable, steering: {error}")
+            return None, ""
+        if waiting >= TURN_END_HOLD_MAX_WAITING:
+            return "flush", f"{waiting + 1} messages waiting"
+        return "hold", ""
+
+    def note_turn_end_hold(self, provenance: MessageProvenance) -> None:
+        """Say why the message waits and make sure the turn's age escape fires."""
+        s = self.s
+        try:
+            from app import mailbox
+
+            waiting = mailbox.count_turn_end_holds(s.name, s.scope)
+        except Exception:
+            waiting = 0
+        s._log(
+            "status",
+            f"message held for the turn end ({provenance.origin}; {waiting} waiting): "
+            "an orchestrator's running turn takes agent and background input when it ends",
+        )
+        if getattr(s, "_turn_end_hold_timer_gen", None) != s._turn_gen:
+            s._turn_end_hold_timer_gen = s._turn_gen
+            s._spawn_bg(self._steer_turn_end_holds_when_turn_ages(s._turn_gen))
+
+    async def _steer_turn_end_holds_when_turn_ages(self, turn_gen: int) -> None:
+        s = self.s
+        started = getattr(s, "_turn_start", 0) or 0
+        if started:
+            age = asyncio.get_event_loop().time() - started
+            await asyncio.sleep(max(0.0, TURN_END_HOLD_MAX_TURN_SECONDS - age))
+        await s._lifecycle_lock.acquire()
+        try:
+            backend = s._backend
+            if (s.status != AgentStatus.RUNNING or s._turn_gen != turn_gen
+                    or s._compacting or backend is None
+                    or getattr(backend, "deferred_interrupt_pending", False) is True):
+                return
+            await self.steer_turn_end_holds(
+                backend, f"turn older than {TURN_END_HOLD_MAX_TURN_SECONDS // 60} min",
+            )
+        finally:
+            s._lifecycle_lock.release()
+
+    async def steer_turn_end_holds(self, backend, reason: str) -> int:
+        """Steer every held row into the running turn as one block; the caller holds the
+        lifecycle lock. A failure leaves the rows for the turn end."""
+        from app import mailbox
+        from app.errtext import err_text as _err
+
+        s = self.s
+        try:
+            held = mailbox.claim_turn_end_holds(s.name, s.scope)
+        except Exception as error:
+            s._log("error", f"mailbox: held messages stay for the turn end: {_err(error)}")
+            return 0
+        if not held:
+            return 0
+        turn_id = getattr(backend, "active_turn_id", None)
+        turn_id = turn_id if isinstance(turn_id, str) and turn_id else None
+        try:
+            await backend.send(_render_mailbox(_owner_first(held)))
+        except BaseException as error:
+            mailbox.release_claim([m["id"] for m in held])
+            if not isinstance(error, Exception):
+                raise
+            s._log("error", f"mailbox: held messages stay for the turn end: {_err(error)}")
+            return 0
+        plain = [m for m in held if m["provenance"].subtype == "codex_turn_end_hold"]
+        receipts = [m for m in held if m not in plain]
+        try:
+            if plain and turn_id:
+                mailbox.hold_as_codex_steer_backup([m["id"] for m in plain], turn_id)
+            elif plain:
+                receipts = held
+            self.complete_mailbox(receipts, ("steer", turn_id, False))
+        except Exception as error:
+            # The turn has the text; an expired claim re-sends it (at least once).
+            s._log("error", f"mailbox: steered held messages not acknowledged: {_err(error)}")
+        s._log("status", f"mailbox: {len(held)} held message(s) steered into the "
+                         f"running turn ({reason})")
+        return len(held)
 
     def _idle_tail(self, live_pct: int, *, allow_auto_report: bool = True) -> None:
         """Обычное завершение простоя. Вынесено, чтобы его можно было доиграть после
@@ -672,36 +1001,40 @@ class TurnManager:
         from app.errtext import err_text
         s = self.s
         ids = [m["id"] for m in queued]
-        recovered_delivery_ids = [
-            m["provenance"].ref
-            for m in queued
-            if m["provenance"].subtype == "direct_message_recovery"
-            and m["provenance"].ref
+        render = _render_mailbox
+
+        # Recovery copies repeat input the chat already shows (logged at steer or
+        # receipt preparation); the model still receives them, the chat does not.
+        fresh = [
+            m for m in queued
+            if m["provenance"].subtype not in _CHAT_SHOWN_RECOVERY_SUBTYPES
         ]
+        repeated = len(queued) - len(fresh)
         try:
-            text = "\n\n".join(
-                f"[from:{m['sender'] or ', '.join(m['provenance'].senders)}] {m['body']}"
-                for m in queued
-            )
-            origins = {m["provenance"].origin for m in queued}
-            senders = tuple(dict.fromkeys(
-                sender
-                for message in queued
-                for sender in message["provenance"].senders
-            ))
-            provenance = MessageProvenance(
-                origin=next(iter(origins)) if len(origins) == 1 else "unknown",
-                senders=senders,
-                subtype="mailbox" if len(origins) == 1 else "mailbox_mixed",
-                ref=f"mailbox:{ids[0]}-{ids[-1]}",
-            )
-            await s.send(text, provenance=provenance)
+            text = render(_owner_first(queued))
+            chat_text = render(_owner_first(fresh)) if repeated else None
+            if repeated:
+                s._log(
+                    "status",
+                    f"mailbox: re-sending {repeated} message(s) from the interrupted "
+                    "turn; they are shown above",
+                )
+            provenance = _mailbox_provenance(queued)
+            # Rows stay claimed, not delivered, until the text is really submitted:
+            # an in-memory queue would lose them with the process.
+            extra = {"require_submit": True}
+            if chat_text is not None:
+                extra["chat_text"] = chat_text
+            route = await s.send(text, provenance=provenance, **extra)
         except asyncio.CancelledError:
             # `CancelledError` НЕ наследует `Exception` (3.8+): без отдельной ветки
             # отмена задачи оставляла бы строки под арендой до её протухания
             # (находка раунда 3 ревью реализации).
             mailbox.release_claim(ids)
             raise
+        except DeliveryDeferred as deferred:
+            self._defer_mailbox(ids, deferred)
+            return
         except Exception as exc:
             # Возвращаем строки в ящик и ДОИГРЫВАЕМ обычный хвост простоя. Без этого
             # сессия оставалась бы без авто-отчёта и без гибернации, а сообщения —
@@ -715,39 +1048,52 @@ class TurnManager:
             # не случиться никогда, и сообщения залягут (F3 ревью реализации).
             try:
                 from app.deps import manager as _mgr
-                await _mgr.send(s.id, text, provenance=provenance)
+                route = await _mgr.send(s.id, text, provenance=provenance, **extra)
+            except DeliveryDeferred as deferred:
+                self._defer_mailbox(ids, deferred)
+                return
             except Exception as esc:
                 s._log("error", f"mailbox: эскалация тоже не удалась, {len(queued)} "
                                 f"ждут в ящике: {err_text(esc)}")
                 self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
                 return
-            if recovered_delivery_ids:
-                from app import message_deliveries
-
-                message_deliveries.complete_recovered_mailbox_delivery(
-                    ids, recovered_delivery_ids,
-                )
-                wake = getattr(s, "_wake_durable_message_deliveries", None)
-                if callable(wake):
-                    wake()
-            else:
-                mailbox.mark_delivered(ids)
+            self.complete_mailbox(queued, route)
             return
-        if recovered_delivery_ids:
-            from app import message_deliveries
+        self.complete_mailbox(queued, route)
 
-            message_deliveries.complete_recovered_mailbox_delivery(
-                ids, recovered_delivery_ids,
-            )
-            wake = getattr(s, "_wake_durable_message_deliveries", None)
-            if callable(wake):
-                wake()
-        else:
-            mailbox.mark_delivered(ids)
+    def _defer_mailbox(self, ids: list[int], reason: BaseException) -> None:
+        """Return the rows to the mailbox and deliver them once the session is free."""
+        from app import mailbox
+
+        mailbox.release_claim(ids)
+        self.s._log("status", f"mailbox: {len(ids)} kept for after this step ({reason})")
+        self.s._spawn_bg(self._deliver_mailbox_when_free())
+
+    async def _deliver_mailbox_when_free(self) -> None:
+        # A running turn claims the rows itself when it ends; compaction has no turn
+        # end, so this waiter covers it. Dying with the process loses nothing: the
+        # rows are still in the mailbox for the next turn end.
+        from app import mailbox
+
+        s = self.s
+        for _ in range(MAILBOX_DEFER_POLLS):
+            await asyncio.sleep(1)
+            if (s._compacting or getattr(s, "_overflow_compact_scheduled", False)
+                    or s.status == AgentStatus.RUNNING):
+                continue
+            if self.mailbox_held_by_stop():
+                # Stop came while this waiter polled: the rows wait for the next turn.
+                return
+            queued = mailbox.claim(s.name, s.scope)
+            if queued:
+                await self._deliver_mailbox(queued)
+            return
 
     def schedule_context_compaction(self, live_pct: int) -> None:
         """Run both automatic compaction decisions from one validated context."""
         s = self.s
+        if self._compact_codex_before_limit():
+            return
         if live_pct >= _auto_compact_threshold_pct(s):
             if s._auto_compact_window_blocked(live_pct):
                 return
@@ -774,3 +1120,79 @@ class TurnManager:
             # thread with Orchestra's generic handoff loses native thread continuity.
             s._log("status", f"auto-compact triggered ({live_pct}%)")
             s._spawn_bg(s._auto_compact())
+
+    def _compact_codex_before_limit(self, *, before_send: bool = False) -> bool:
+        """Compact a Codex thread between turns before Codex does it inside the next one.
+
+        True means the decision is taken here (compaction started, already running,
+        postponed); False falls through to the generic thresholds. The night window
+        does not apply: an in-turn compaction costs the owner minutes of a frozen turn
+        (owner 02.11.2026, "да делай все"). Messages arriving meanwhile are queued by
+        `_overflow_compact_scheduled`, exactly as before an overflow compaction.
+        At a turn end the owner's Stop wins; `before_send` is the new message after it
+        (or after a limit change, a cooldown, a turn that grew past the limit), which
+        would otherwise start a turn that Codex compacts inside.
+        """
+        from app.session import auto_compact_enabled
+
+        s = self.s
+        measured = _codex_pre_limit_threshold(s)
+        if measured is None or not auto_compact_enabled():
+            return False
+        tokens, limit, threshold = measured
+        if tokens < threshold:
+            return False
+        if (s.status == AgentStatus.RUNNING or s._compacting
+                or s._overflow_compact_scheduled
+                or (s._manually_interrupted and not before_send)):
+            return True
+        retry_at = s._codex_pre_limit_retry_at
+        retry_in = retry_at - time.monotonic()
+        if retry_in > 0:
+            if s._codex_pre_limit_postpone_logged != retry_at:
+                s._codex_pre_limit_postpone_logged = retry_at
+                s._log(
+                    "status",
+                    f"codex pre-limit compact postponed {math.ceil(retry_in)}s: the "
+                    f"previous one did not bring context below {threshold} tokens",
+                )
+            return True
+        s._cancel_precompact_timer("codex_pre_limit")
+        s._overflow_compact_scheduled = True
+        s._log(
+            "status",
+            f"codex pre-limit compact: context {tokens} tokens >= "
+            f"{CODEX_PRE_LIMIT_COMPACT_PCT}% of Codex auto-compact limit {limit}; "
+            + ("compacting before this message" if before_send
+               else "compacting between turns"),
+        )
+        s._spawn_bg(self._run_codex_pre_limit_compact(threshold))
+        return True
+
+    async def _run_codex_pre_limit_compact(self, threshold: int) -> None:
+        s = self.s
+        result: dict = {}
+        try:
+            result = await s.compact()
+        except Exception as error:
+            logger.warning(f"[{s.name}] codex pre-limit compact failed: {error}")
+            result = {"ok": False, "mode": "native"}
+        finally:
+            s._overflow_compact_scheduled = False
+            if s._pending_messages and not s._compacting:
+                s._spawn_bg(s._flush_pending())
+            # Durable deliveries that met the flag returned to wait; a refused start
+            # never reaches the native compaction's own wake.
+            wake = getattr(s, "_wake_durable_message_deliveries", None)
+            if callable(wake):
+                wake()
+        # Only an attempted native compaction counts; a refused start (a turn won the
+        # race) is retried at the next turn end.
+        if result.get("mode") != "native":
+            return
+        after = s._last_context.get("total_tokens")
+        if (not result.get("ok") or not s._last_context.get("known")
+                or type(after) is not int or after >= threshold):
+            s._codex_pre_limit_retry_at = (
+                time.monotonic() + CODEX_PRE_LIMIT_COMPACT_COOLDOWN_SECONDS
+            )

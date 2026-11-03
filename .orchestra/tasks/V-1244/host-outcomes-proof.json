@@ -1,0 +1,86 @@
+{
+  "integrated_host_candidate": "c38c19e7411885c7e37f9db969010daf001a0f42",
+  "delta_manifest_sha256": "fd2f4bf90cbdb0f50ebb636fd919a1eec7aaffc2a49ccf07099a47708e3d6a20",
+  "delta": {
+    "app/backend_hub.py": {
+      "added": 4,
+      "removed": 2
+    },
+    "tests/test_hub_inputs_v1062.py": {
+      "added": 28,
+      "removed": 9
+    },
+    "tests/test_worktree_cleanup_v984.py": {
+      "added": 52,
+      "removed": 15
+    },
+    "tests/test_hub_completion_directive_v1244.py": {
+      "added": 38,
+      "removed": 1
+    },
+    "tests/test_hub_cleanup_generation_v1244.py": {
+      "added": 2,
+      "removed": 1
+    },
+    "CHANGELOG.md": {
+      "added": 1,
+      "removed": 1
+    },
+    ".orchestra/tasks/V-1244/mutate_host_outcomes.py": {
+      "added": 63,
+      "removed": 0
+    }
+  },
+  "protected_inputs_unchanged": true,
+  "frozen_body_unchanged": true,
+  "baseline": {
+    "failed": 4,
+    "error": 1,
+    "passed": 1,
+    "seconds": 27.34
+  },
+  "restored_two_worker": {
+    "passed": 106,
+    "seconds": 36.48,
+    "workers": 2,
+    "dist": "loadscope"
+  },
+  "mutation_cases": [
+    "identity",
+    "native-positive",
+    "fixture-loading"
+  ],
+  "actual_new_broker_commit": "assigned after delivery; unavailable in Git-free copy",
+  "restored_boundaries": {
+    "passed": 63,
+    "seconds": 17.72,
+    "workers": 1
+  },
+  "mutations": {
+    "identity": {
+      "failed": 4,
+      "passed": 2,
+      "seconds": 10.2
+    },
+    "native-positive": {
+      "failed": 1,
+      "passed": 1,
+      "seconds": 7.9
+    },
+    "fixture-loading": {
+      "errors": 1,
+      "passed": 1,
+      "seconds": 10.4
+    }
+  },
+  "source_restoration_byte_exact": true,
+  "restored_skipped": 0,
+  "full_source_manifest_sha256": "8825239827e0b5013e33d96f86bedad6440fad1506c827bb388b7ee138b0d1fe",
+  "source_parent": "23bd5155d9b4d57046432e0b59c57f9adad99652",
+  "source_candidate": "cf1a86568677a6a5b77db015a98e91ff04c9bb6f",
+  "actual_git_delta": {
+    "files": 7,
+    "added": 188,
+    "removed": 29
+  }
+}

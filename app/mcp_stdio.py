@@ -1132,20 +1132,20 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None,
                        model_reason: str = "") -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the general default; choose hubsonnet/hubopus for creative work. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Every hub worker must use hubsol (GPT-6.1 Sol), including creative and research work; other hub models are forbidden even with model_reason. Protected local luna retains its reason requirement. If Sol is unavailable, report the blocker or wait; no native or API fallback. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
             message="model is required; choose it by the <model-routing> block in your prompt",
             details={"field": "model"},
         )
-    from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
+    from app.models import validate_model_reason, HUB_SOL_ONLY_RULE
 
     try:
         model_reason = validate_model_reason(model, model_reason)
     except ValueError as exc:
-        raise ApiToolError(code=HUB_CLAUDE_REASON_RULE, message=str(exc),
-                           details={"field": "model_reason"}) from exc
+        raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
+                           details={"field": "model"}) from exc
     scope = SCOPE or repo_path
     body = {
         "name": name, "scope": scope, "cwd": repo_path,
@@ -1393,9 +1393,9 @@ def _read_message_file(file_path: str) -> tuple[str, int]:
 
 @mcp.tool()
 async def send_message(
-    to: str, message: str, delivery_id: str = "", file_path: str = "",
+    to: str, message: str, delivery_id: str = "", file_path: str = "", kind: str = "",
 ) -> str:
-    """Send a message to an agent and trigger a turn. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat the same send_message call with the same delivery_id. A quota-blocked message is held durably and sent in order when the gate opens; cancel_message_delivery withdraws it."""
+    """Send a message to an agent and trigger a turn. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat the same send_message call with the same delivery_id. A quota-blocked message is held durably and sent in order when the gate opens; cancel_message_delivery withdraws it. kind: empty, or blocked|out_of_scope|false_premise when you cannot continue without the recipient's decision — a busy orchestrator then reads it at once instead of at its turn end."""
     # A message to oneself wakes a new turn that repeats the same call: the reestr
     # stand's GigaChat orchestrator looped 32 times in 4 minutes (V-636).
     if to.strip() == (WORKER_NAME or ROLE):
@@ -1426,12 +1426,21 @@ async def send_message(
                 message="delivery_id must be a UUID",
                 details={"field": "delivery_id"},
             ) from error
+    kind = kind.strip().casefold() if isinstance(kind, str) else ""
+    if kind and kind not in {"blocked", "out_of_scope", "false_premise"}:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="kind must be empty or blocked|out_of_scope|false_premise",
+            details={"field": "kind"},
+        )
     payload = {
         "message": message,
         "sender": WORKER_NAME or ROLE,
         "scope": SCOPE,
         "delivery_id": delivery_id,
     }
+    if kind:
+        payload["message_kind"] = kind
     try:
         result = await _api("POST", f"/api/sessions/{to}/send", json=payload)
     except ApiToolError as cause:
@@ -2431,14 +2440,14 @@ async def change_worker_model(name: str, model: str, model_reason: str = "") -> 
     """Change an idle worker's model while preserving its dialog. Within one runtime the
     native session continues. Between Claude and Codex, recent chat history is handed off
     (chat_history_v1); a refused transfer returns an error. Refused while the worker is
-    running or compacting. Hub Claude requires model_reason naming why this task needs Claude; hubsol is the general default; choose hubsonnet/hubopus for creative work."""
-    from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
+    running or compacting. Every hub worker must use hubsol (GPT-6.1 Sol), including creative and research work; other hub models are forbidden even with model_reason. Protected local luna retains its reason requirement. No native or API fallback."""
+    from app.models import validate_model_reason, HUB_SOL_ONLY_RULE
 
     try:
         model_reason = validate_model_reason(model, model_reason)
     except ValueError as exc:
-        raise ApiToolError(code=HUB_CLAUDE_REASON_RULE, message=str(exc),
-                           details={"field": "model_reason"}) from exc
+        raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
+                           details={"field": "model"}) from exc
     body = {"scope": SCOPE, "model": model, "via": "mcp"}
     if model_reason:
         body["model_reason"] = model_reason
@@ -2638,6 +2647,7 @@ def _merge_tool_result_full(result: dict[str, Any]) -> CallToolResult:
         text = (
             f"Merged {count} commit{'s' if count != 1 else ''} from branch {branch}. "
             f"Operation {operation_id}: SUCCEEDED.{drift}"
+            + (f" Next: {action_message}" if action.get("code") == "ARCHIVE_COMPLETED_HUB_WORKER" else "")
             + (
                 f" WARNINGS (the merge itself needs no retry): {_safe_response_text(notes)}"
                 if notes else ""
@@ -3471,6 +3481,29 @@ async def task_get(par: str, project: str = "") -> str:
 
 
 @mcp.tool()
+async def eval_grant_issue(task_id: str, manifest: dict, expected_hash: str,
+                           approval_ref: str, expires_at: float, token_policy: str,
+                           fixture_inputs: dict[str, str] | None = None,
+                           run_order_csv: str = "") -> str:
+    """Root only: issue one frozen subscription comparison grant after owner approval.
+
+    Does not dispatch. Four frozen synthetic coding fixtures cover every declared
+    runtime-supported Terra/Sol effort once; the legacy comparison remains readable.
+    Maximum 56 task invocations. The caller must accept the experiment's soft
+    token stop and unbounded single-invocation overshoot before issuance.
+    For a frozen file pack, supply only model_input_files content in fixture_inputs
+    and the original run-order.csv bytes as text; hidden oracle/reference files are
+    refused as model inputs. The manifest self-hash excludes manifest_sha256.
+    """
+    result = await _api("POST", "/api/bg/eval/grants", json={
+        "task_id": task_id, "manifest": manifest, "expected_hash": expected_hash,
+        "approval_ref": approval_ref, "expires_at": expires_at, "token_policy": token_policy,
+        "fixture_inputs": fixture_inputs, "run_order_csv": run_order_csv,
+    })
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
 async def dynamic_workflow(
     budget_usd: float,
     max_calls: int,
@@ -3480,8 +3513,16 @@ async def dynamic_workflow(
     tasks: list[dict[str, Any]] | None = None,
     mode: str = "parallel",
     stages: list[dict[str, Any]] | None = None,
+    eval_grant_id: str = "",
+    eval_manifest_hash: str = "",
 ) -> str:
     """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Select each task model through model-routing and pass it explicitly, or inherit an explicit stage model; the implementation still falls back to luna when both omit model. Each task also has an optional JSON schema and billing route (defaults to subscription; set billing='api_credit' only for an explicitly authorized Claude task). Native subscription tasks are refused; hub work requires an ordinary spawn_worker because wf_run has no hub adapter. Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD and see only files committed at `base_commit`. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
+
+    A server-issued eval_grant_id plus eval_manifest_hash is a single-use exception:
+    omit tasks/stages and use budget_usd=0, max_calls<=56, max_concurrency=1. The
+    server supplies the frozen synthetic cohort. This route uses subscription
+    admission, a 90-minute deadline and the explicitly accepted token soft stop;
+    it does not turn virtual USD accounting into a real API charge.
 
     MiroFish example: 50 personas read a page, then each writes a reaction for
     three rounds using all results from the previous round, then one analyst
@@ -3497,7 +3538,14 @@ async def dynamic_workflow(
                          task_id="TASK-ID", repo="/absolute/repository",
                          mode="stages", stages=stages)
     """
-    if stages is not None:
+    if eval_grant_id:
+        if tasks is not None or stages is not None or mode != "parallel":
+            return "Error: evaluation tasks come only from the server's frozen manifest"
+        if (budget_usd != 0 or type(max_calls) is not int or not 1 <= max_calls <= 56
+                or max_concurrency != 1):
+            return "Error: evaluation requires budget_usd=0, 1<=max_calls<=56, max_concurrency=1"
+        spec_payload = {}
+    elif stages is not None:
         if mode != "stages" or tasks is not None:
             return "Error: pass stages with mode='stages' and omit tasks"
         if not stages or len(stages) > 20:
@@ -3594,7 +3642,7 @@ async def dynamic_workflow(
             normalized.append(row)
         spec_payload = {"tasks": normalized, "mode": mode}
     if (not isinstance(budget_usd, (int, float)) or isinstance(budget_usd, bool)
-            or not math.isfinite(budget_usd) or budget_usd <= 0):
+            or not math.isfinite(budget_usd) or (budget_usd < 0 if eval_grant_id else budget_usd <= 0)):
         return "Error: budget_usd must be positive"
     if not isinstance(max_calls, int) or isinstance(max_calls, bool) or max_calls < 1:
         return "Error: max_calls must be a positive integer"
@@ -3612,6 +3660,17 @@ async def dynamic_workflow(
 
     runner_root = Path(__file__).resolve().parents[1]
     run_id = f"{task_id}-{uuid.uuid4().hex[:12]}"
+    if eval_grant_id:
+        bound = await _api("POST", "/api/bg/eval/bind", json={
+            "grant_id": eval_grant_id, "task_id": task_id,
+            "manifest_hash": eval_manifest_hash, "run_id": run_id,
+        })
+        if not isinstance(bound, dict) or bound.get("error") or "tasks" not in bound:
+            return f"Error: evaluation grant bind refused: {bound}"
+        tasks = bound.pop("tasks")
+        if len(tasks) > max_calls:
+            return "Error: frozen evaluation plan exceeds max_calls; grant remains bound, no dispatch queued"
+        spec_payload = {"mode": "eval", "tasks": tasks, "eval_grant": bound}
     spec_payload["dashboard"] = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "task_id": task_id,
@@ -3652,7 +3711,7 @@ async def dynamic_workflow(
         "message": f"Dynamic workflow {run_id} ({total_tasks if stages is not None else len(tasks)} tasks, {mode})",
         "target_name": WORKER_NAME,
         "target_scope": SCOPE,
-        "timeout_seconds": 3600,
+        "timeout_seconds": 5400 if eval_grant_id else 3600,
         "created_by": WORKER_NAME,
     })
     if isinstance(result, dict) and result.get("error"):

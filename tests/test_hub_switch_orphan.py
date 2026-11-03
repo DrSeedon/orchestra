@@ -76,6 +76,8 @@ class FakeMc:
             if args["threadId"] not in self.threads:
                 raise MultiCodeError("thread_not_found")
             return {"items": []}
+        elif name == "t3_thread_wait":
+            return {"status": "interrupted", "timedOut": False}
         elif name == "t3_project_create":
             project = "project-" + Path(args["workspaceRoot"]).name
             self.projects[project] = args["workspaceRoot"]
@@ -180,7 +182,7 @@ class HubWorkspaceLifecycleTests(_WorkspaceCase):
         self.assert_kept(current)
         self.assertFalse(self.mc.closed)
 
-    async def test_fresh_backend_releases_all_previous_copies_only(self):
+    async def test_fresh_backend_archives_previous_copies_and_keeps_history(self):
         old = self.workspace("a")
         old.uploaded = True
         old.save()
@@ -190,53 +192,53 @@ class HubWorkspaceLifecycleTests(_WorkspaceCase):
         foreign = self.workspace("c", foreign_tree)
         new = await self.new_turn()
         self.assertNotEqual(new.ws_id, old.ws_id)
-        self.assert_released(old)
-        self.assert_released(older)
-        self.assert_kept(new)
-        self.assert_kept(foreign)
+        for state in (old, older, new, foreign):
+            self.assert_kept(state)
+        self.assertTrue(hw.WorkspaceState.load(old.ws_id).archived)
+        self.assertTrue(hw.WorkspaceState.load(older.ws_id).archived)
+        self.assertFalse(hw.WorkspaceState.load(foreign.ws_id).archived)
+        self.assertFalse(any(n == "t3_project_delete" for n, _ in self.mc.calls))
 
-    async def test_reprovision_after_failed_upload_releases_previous(self):
+    async def test_reprovision_after_failed_upload_archives_previous(self):
         old = self.workspace("a")
         self.assertFalse(old.uploaded)
         new = await self.new_turn()
         self.assertNotEqual(new.ws_id, old.ws_id)
-        self.assert_released(old)
+        self.assert_kept(old)
+        self.assertTrue(hw.WorkspaceState.load(old.ws_id).archived)
         self.assert_kept(new)
 
-    async def test_release_failure_does_not_block_new_turn_and_sweep_retries(self):
+    async def test_pending_old_return_blocks_replacement_without_losing_history(self):
         old = self.workspace("a")
-        self.ssh.fail_remove.add(old.remote_dir)
-        with self.assertLogs(hub.logger, level="WARNING") as logged:
-            new = await self.new_turn()
-        self.assertIn("state kept for sweep", " ".join(logged.output))
-        self.assertTrue(old.path().exists())
-        self.assert_kept(new)
-        self.ssh.fail_remove.clear()
-        report = await hub.sweep_orphans({str(self.worktree): new.ws_id})
-        self.assertEqual(report["released"], [old.ws_id])
-        self.assertEqual(report["errors"], [])
-        self.assert_released(old)
-        self.assert_kept(new)
+        old.pending_sync = {"phase": "report", "entries": [{"tool": "send_message"}]}
+        old.save()
+        with self.assertRaises(hw.HubWorkspaceError):
+            await self.new_turn()
+        self.assert_kept(old)
+        self.assertEqual(hw.WorkspaceState.load(old.ws_id).pending_sync, old.pending_sync)
+        self.assertFalse(any(n in {"t3_thread_launch", "t3_project_delete"} for n, _ in self.mc.calls))
 
-    async def test_sweep_uses_current_id_even_for_existing_worktree(self):
+    async def test_sweep_keeps_both_current_and_old_existing_worktree(self):
         old = self.workspace("a")
         current = self.workspace("b")
         alias = self.root / "worktree-alias"
         alias.symlink_to(self.worktree, target_is_directory=True)
         report = await hub.sweep_orphans({str(alias): current.ws_id})
-        self.assertEqual(report["released"], [old.ws_id])
-        self.assertEqual(report["kept"], 1)
+        self.assertEqual(report["released"], [])
+        self.assertEqual(report["kept"], 2)
         self.assertEqual(report["errors"], [])
-        self.assert_released(old)
+        self.assert_kept(old)
         self.assert_kept(current)
+        self.assertEqual(self.mc.calls, [])
 
-    async def test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn(self):
+    async def test_sweep_keeps_records_after_runtime_switch_or_before_next_turn(self):
+        old = self.workspace("a")
         for sid in ("", "local-session"):
             with self.subTest(session_id=sid):
-                old = self.workspace("a")
                 report = await hub.sweep_orphans({str(self.worktree): sid})
-                self.assertEqual(report["released"], [old.ws_id])
-                self.assert_released(old)
+                self.assertEqual(report["released"], [])
+                self.assert_kept(old)
+                self.assertEqual(self.mc.calls, [])
 
     async def test_sweep_keeps_failed_record_and_current_copy(self):
         old = self.workspace("a")
@@ -244,9 +246,10 @@ class HubWorkspaceLifecycleTests(_WorkspaceCase):
         self.ssh.fail_remove.add(old.remote_dir)
         report = await hub.sweep_orphans({str(self.worktree): current.ws_id})
         self.assertEqual(report["released"], [])
-        self.assertTrue(any(old.ws_id in error for error in report["errors"]))
-        self.assertTrue(old.path().exists())
+        self.assertEqual(report["errors"], [])
+        self.assert_kept(old)
         self.assert_kept(current)
+        self.assertEqual(self.mc.calls, [])
 
     async def test_legacy_set_caller_conservatively_keeps_live_copy(self):
         current = self.workspace("a")
@@ -285,12 +288,13 @@ class HubSessionSwitchTests(_WorkspaceCase):
         result = await session._change_runtime_chat_locked("gpt-6.1-sol", session.model, "hub")
         return session, result
 
-    async def test_hub_to_local_releases_after_persisted_switch(self):
+    async def test_hub_to_local_archives_after_persisted_switch(self):
         self.old = self.workspace("a")
         session, result = await self.switch_runtime()
         self.assertTrue(result["ok"])
         self.assertEqual(session.session_id, "")
-        self.assert_released(self.old)
+        self.assert_kept(self.old)
+        self.assertTrue(hw.WorkspaceState.load(self.old.ws_id).archived)
 
     async def test_failed_switch_preserves_old_workspace(self):
         self.old = self.workspace("a")
@@ -302,13 +306,12 @@ class HubSessionSwitchTests(_WorkspaceCase):
 
     async def test_cleanup_failure_is_logged_without_rejecting_runtime_switch(self):
         self.old = self.workspace("a")
-        self.ssh.fail_remove.add(self.old.remote_dir)
+        self.patch(self.mc, "tool_call", AsyncMock(side_effect=MultiCodeError("archive transport failed")))
         with self.assertLogs("app.session", level="WARNING") as logged:
             session, result = await self.switch_runtime()
         self.assertTrue(result["ok"])
         self.assertEqual(session.session_id, "")
         self.assertTrue(self.old.path().exists())
-        self.assertIn("state kept for sweep", " ".join(logged.output))
 
     async def test_normal_native_switch_preserves_incident_after_actual_policy_refusal(self):
         from app import session as module, hub_pool
@@ -339,20 +342,20 @@ class HubSessionSwitchTests(_WorkspaceCase):
         session._persist = Mock()
         saved = self.patch(module, "save_session", Mock())
         self.patch(hub_pool, "require_hub_capacity", AsyncMock(return_value=None))
-        actual_release = hw.release_workspace
+        actual_ready = hw.assert_archive_ready
         refusals = []
 
-        async def capture_actual_refusal(state, ssh, mc):
+        def capture_actual_refusal(state):
             # Verify ordering using the real refusal, not a mocked cleanup error.
             self.assertEqual(saved.call_count, 1)
             self.assertEqual(saved.call_args.args[0]["backend_type"], "codex")
             try:
-                await actual_release(state, ssh, mc)
+                actual_ready(state)
             except hw.HubFilePolicyError as error:
                 refusals.append(error)
                 raise
 
-        self.patch(hw, "release_workspace", capture_actual_refusal)
+        self.patch(hw, "assert_archive_ready", capture_actual_refusal)
         with self.assertLogs("app.session", level="WARNING"):
             result = await session.change_model("gpt-6.1-sol")
         self.assertTrue(result["ok"])
@@ -394,7 +397,7 @@ class HubPeriodicSweepTests(_WorkspaceCase):
         sweep = self.patch(hub, "sweep_orphans", AsyncMock(wraps=hub.sweep_orphans))
         with self.assertRaises(asyncio.CancelledError):
             await manager._periodic_hub_sweep()
-        self.assert_released(old)
+        self.assert_kept(old)
         sweep.assert_awaited_once_with({str(self.worktree): current.ws_id if current else ""})
         if current:
             self.assert_kept(current)

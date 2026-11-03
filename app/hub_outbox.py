@@ -51,6 +51,9 @@ class Identity:
 class OutboxReport:
     done: list[str] = field(default_factory=list)
     dropped: list[str] = field(default_factory=list)
+    # A subset of dropped: only positively identified, terminal bookkeeping
+    # validation refusals. Everything else remains pending in the sync journal.
+    rejected: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
         if not self.done and not self.dropped:
@@ -61,6 +64,18 @@ class OutboxReport:
         if self.dropped:
             text += f", {len(self.dropped)} dropped: " + "; ".join(self.dropped[:10])
         return text
+
+
+class BookkeepingValidationError(ValueError):
+    """The local checklist owner explicitly rejected the request before writing it."""
+
+
+def _reject(report: OutboxReport, entry: dict, reason: str) -> None:
+    # Keep the original action, broker delivery identity and full owner error in
+    # the existing dropped journal/report path; never repair model arguments.
+    diagnostic = f"{reason}; terminal validation rejection; action=" + json.dumps(entry, ensure_ascii=False)
+    report.dropped.append(diagnostic)
+    report.rejected.append(diagnostic)
 
 
 def parse_outbox(data: bytes) -> tuple[list[dict], list[str]]:
@@ -95,7 +110,7 @@ def parse_outbox(data: bytes) -> tuple[list[dict], list[str]]:
     return entries, dropped
 
 
-def _request_for(tool: str, args: dict, who: Identity) -> tuple[str, str, dict] | str:
+def _request_for(tool: str, args: dict, who: Identity, *, delivery_id: str = "") -> tuple[str, str, dict] | str:
     """(method, path, body) for an allowed tool, or the reason it cannot run."""
     if tool == "send_message":
         if not who.parent_name:
@@ -106,7 +121,7 @@ def _request_for(tool: str, args: dict, who: Identity) -> tuple[str, str, dict] 
         # `to` is never read: a hub worker may talk to its own parent only.
         return ("POST", f"/api/sessions/{quote(who.parent_name, safe='')}/send", {
             "message": message[:MAX_MESSAGE_CHARS], "sender": who.name, "scope": who.scope,
-            "delivery_id": str(uuid.uuid4())})
+            "delivery_id": delivery_id or str(uuid.uuid4())})
     if tool == "update_progress":
         percent = args.get("percent")
         if isinstance(percent, bool) or not isinstance(percent, (int, float)):
@@ -128,13 +143,23 @@ async def execute(entries: list[dict], who: Identity, call: ApiCall) -> OutboxRe
     report = OutboxReport()
     for entry in entries:
         tool = entry["tool"]
-        planned = _request_for(tool, entry["args"], who)
+        # Only the broker can attach this field: parse_outbox strips unknown keys.
+        planned = _request_for(tool, entry["args"], who, delivery_id=entry.get("_delivery_id", ""))
         if isinstance(planned, str):
-            report.dropped.append(planned)
+            if tool in {"update_checklist", "update_progress"}:
+                _reject(report, entry, planned)
+            else:
+                report.dropped.append(planned)
             continue
         method, path, body = planned
         try:
             result = await call(method, path, body)
+        except BookkeepingValidationError as exc:
+            if tool == "update_checklist":
+                _reject(report, entry, f"{tool}: {exc}")
+            else:
+                report.dropped.append(f"{tool}: {exc}")
+            continue
         except Exception as exc:   # noqa: BLE001 - one bad entry must not lose the turn's other entries
             report.dropped.append(f"{tool}: {type(exc).__name__}: {str(exc)[:120]}")
             continue
@@ -144,6 +169,8 @@ async def execute(entries: list[dict], who: Identity, call: ApiCall) -> OutboxRe
                 error = None  # WAITING_QUOTA's error metadata describes a retained receipt.
             else:
                 error = error or "parent report was not accepted"
+        elif not (isinstance(result, dict) and result.get("ok") is True):
+            error = error or "bookkeeping update was not acknowledged"
         if error:
             report.dropped.append(f"{tool}: {str(error)[:160]}")
         else:
@@ -171,8 +198,28 @@ async def local_api_call(who: Identity, method: str, path: str, body: dict) -> o
         payload = response.json()
     except ValueError:
         payload = {}
-    if response.status_code >= 400 and not (isinstance(payload, dict) and payload.get("error")):
-        return {"error": f"HTTP {response.status_code}"}
+    if not 200 <= response.status_code < 300:
+        error = payload.get("error") if isinstance(payload, dict) else None
+        # Only this owned endpoint's explicit 422/error response is known to be
+        # a permanent validation refusal. HTTP/auth/ownership failures, malformed
+        # replies and send_message outcomes must retain their ambiguity barrier.
+        if (response.status_code == 422 and method == "POST"
+                and path == f"/api/sessions/{quote(who.name, safe='')}/checklist"
+                and isinstance(payload, dict)
+                and payload.get("ok") is not True):
+            if isinstance(error, str) and error:
+                raise BookkeepingValidationError(error)
+            detail = payload.get("detail")
+            # FastAPI/Pydantic rejects malformed body fields before the handler.
+            # An arbitrary 422/detail string or unknown error object is not proof.
+            if error is None and isinstance(detail, list) and detail and all(
+                isinstance(item, dict) and isinstance(item.get("loc"), list)
+                and item["loc"] and item["loc"][0] == "body"
+                and isinstance(item.get("msg"), str) and isinstance(item.get("type"), str)
+                for item in detail
+            ):
+                raise BookkeepingValidationError(json.dumps(detail, ensure_ascii=False))
+        return {"error": error or f"HTTP {response.status_code}"}
     return payload
 
 
@@ -188,7 +235,7 @@ class HubBridge:
     def identity(self) -> Identity:
         return self._identity()
 
-    async def run(self, entries: list[dict]) -> OutboxReport:
+    async def run(self, entries: list[dict], *, mark_reported: bool = True) -> OutboxReport:
         who = self._identity()
 
         async def call(method: str, path: str, body: dict) -> object:
@@ -198,6 +245,7 @@ class HubBridge:
                 result = await local_api_call(who, method, path, body)
             if (
                 self._on_parent_report is not None
+                and mark_reported
                 and method == "POST"
                 and path == f"/api/sessions/{quote(who.parent_name, safe='')}/send"
                 and report_receipt_accepted(result)

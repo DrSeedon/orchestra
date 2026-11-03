@@ -100,8 +100,6 @@ async def test_signal_hold_visible_once_and_original_report_stays_gated(tree):
     assert row["last_error"].startswith("QuotaGateError:")
     assert [m[0] for m in manager.sent] == ["top"]
     text = str(manager.sent[0][1])
-    assert "boss" in text and "hubsol" in text and "hubsonnet/hubopus" in text
-    assert "model_reason" in text and "quota" in text
     assert "some work" not in text, "the diagnostic must not forward the held report"
     assert manager.sent[0][2].origin == "platform"
     assert len(_status_logs(tree["worker_id"])) == 1

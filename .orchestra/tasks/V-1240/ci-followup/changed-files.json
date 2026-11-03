@@ -1,0 +1,10 @@
+[
+  "app/models.py",
+  "tests/test_hub_sol_only_v1240.py",
+  "tests/test_cron_drain_delivery_v1074.py",
+  "tests/test_default_pipeline.py",
+  "tests/test_v1028_report_holds.py",
+  "tests/test_seedon_v1031.py",
+  "tests/test_source_layout_spawn_v1130.py",
+  "tests/test_frontend.py"
+]

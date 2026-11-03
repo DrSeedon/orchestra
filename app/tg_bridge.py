@@ -484,6 +484,7 @@ async def _flush_batch(sid: str, batch: list):
     if not mutating_admission_open():
         await _queue_until_restarted(sid, valid, combined)
         return
+    await _tell_compacting(sid, valid)
     try:
         provenance = MessageProvenance(
             origin="user", senders=("user",), subtype="telegram",
@@ -497,6 +498,27 @@ async def _flush_batch(sid: str, batch: list):
         # 0 сообщений в чат). Для человека на том конце это неотличимо от «агент прочитал
         # и не ответил».
         await _report_undelivered_to_user(sid, valid, error)
+
+
+async def _tell_compacting(sid: str, valid: list) -> None:
+    """Codex compacting for minutes looks like an agent ignoring the message (02.11)."""
+    getter = getattr(_manager, "get", None)
+    session = getter(sid) if callable(getter) else None
+    state = getattr(session, "compaction_state", None)
+    first = next((m for m, _c in valid if m is not None), None)
+    if not callable(state) or first is None or bot is None:
+        return
+    if not isinstance(state(), dict):
+        return
+    try:
+        await _tg_send_safe(
+            first.chat.id,
+            "🗜 Codex сейчас сжимает контекст (обычно 1–4 минуты) — сообщение принято "
+            "и дойдёт до агента, когда сжатие закончится.",
+            thread_id=getattr(first, "message_thread_id", None),
+        )
+    except Exception as error:
+        logger.warning("could not tell the user %s is compacting: %s", sid, err_text(error))
 
 
 async def _queue_until_restarted(sid: str, valid: list, combined: str) -> None:

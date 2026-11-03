@@ -1,0 +1,11 @@
+--- a/tests/test_codex_compact_state.py
++++ b/tests/test_codex_compact_state.py
+@@ -66,7 +66,7 @@
+     monkeypatch.setattr(sqlite3, "connect", forbidden)
+     # Lifecycle assertions use the harness's independent 0.5s watchdogs, not a
+     # compact performance budget. Deadline oracles opt into controlled time.
+-    monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", None)
++    monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", 0.06)
+ 
+ 
+ class CompactClock:

@@ -45,6 +45,7 @@ from app.models import (
     cache_policy_for_runtime,
     ensure_dashboard_visible,
     ensure_spawn_allowed,
+    ensure_hub_worker_allowed,
     get_model_spec,
     resolve_model,
     runtime_for_record,
@@ -91,16 +92,20 @@ def enc_cli_dir(cwd: str) -> str:
 # Клиент MCP отваливается по таймауту через 30 с (mcp_stdio.py). Ждём заведомо меньше,
 # чтобы вызывающий получил внятный отказ, а не ReadTimeout, неотличимый от мёртвого сервера.
 LOCK_WAIT_LIMIT_SECONDS = 25.0
-async def _release_hub_workspaces(worktree: str, name: str) -> None:
-    """Drop the worker's on-demand copy on the MultiCode hub; never blocks a kill (V-1008)."""
-    from app.backend_hub import release_for_worktree
+async def _archive_hub_workspaces(worktree: str, name: str, *, required: bool = True) -> None:
+    """Hub close is strict; native cleanup retains its existing best-effort boundary."""
+    from app.backend_hub import archive_for_worktree
 
     try:
-        cleaned = await release_for_worktree(worktree)
-        if cleaned:
-            logger.info("[%s] released hub workspaces %s", name, cleaned)
+        archived = await archive_for_worktree(worktree)
     except Exception as exc:
-        logger.warning("[%s] hub workspace release incomplete (state kept for retry): %s", name, exc)
+        if required:
+            raise
+        logger.warning("[%s] retained Hub archive pending (history kept): %s", name, exc)
+        return
+    if archived:
+        logger.info("[%s] archived hub workspaces %s (history retained)", name, archived)
+
 
 
 class LockBusy(RuntimeError):
@@ -1114,22 +1119,23 @@ class SessionManager:
 
     async def send(
         self, session_id: str, message: str | InjectedMessage, *,
-        provenance: MessageProvenance,
-    ) -> None:
+        provenance: MessageProvenance, **send_options,
+    ):
         session = self.sessions.get(session_id)
         if not session:
             raise KeyError(f"session not found: {session_id}")
 
-        async def deliver() -> None:
+        async def deliver():
             async with self.get_session_lock(session_id):
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
+                ensure_hub_worker_allowed(session.model)
                 await self._auto_switch_before_delivery(session)
-                await session.send(message, provenance=provenance)
+                return await session.send(message, provenance=provenance, **send_options)
 
         delivery_task = asyncio.create_task(deliver())
         await _wait_owned_task(delivery_task)
-        delivery_task.result()
+        return delivery_task.result()
 
     async def send_initial_delivery(
         self, session_id: str, message: str, *, delivery,
@@ -1145,6 +1151,7 @@ class SessionManager:
             async with self.get_session_lock(session_id):
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
+                ensure_hub_worker_allowed(session.model)
                 await self._auto_switch_before_delivery(session)
                 await session.send(
                     message, delivery=delivery, provenance=provenance,
@@ -1190,6 +1197,7 @@ class SessionManager:
 
                 if provenance.subtype == "limit_wake" and is_codex_wake_ref(provenance.ref):
                     validate_codex_wake(session, provenance.ref)
+                ensure_hub_worker_allowed(session.model)
                 await self._auto_switch_before_delivery(session)
                 check_generation()
                 await session.send(
@@ -1208,6 +1216,7 @@ class SessionManager:
             session = self._hydrate_row(row) if row else None
         if session is None:
             raise KeyError(f"session not found: {session_id}")
+        ensure_hub_worker_allowed(session.model)
         await self._auto_switch_before_delivery(session)
         await session.preflight_delivery_admission()
 
@@ -1284,9 +1293,19 @@ class SessionManager:
         )
 
     async def remove(self, session_id: str) -> None:
+        session = self.sessions.get(session_id)
+        if session is None:
+            row = get_session(session_id)
+            if row is None:
+                return
+            session = self._hydrate_row(row)
+        # For Hub workers, retained evidence or archival failure must block close
+        # before jobs, the provider connection, worktree or lifecycle are touched.
+        if session.worktree_path:
+            await _archive_hub_workspaces(session.worktree_path, session.name,
+                                          required=session.backend_type == "hub")
         from app.bg_jobs import bg_manager
         await bg_manager.cancel_by_session(session_id)
-        session = self.sessions.get(session_id)
         # #219 T1b, AC-2: убитый ребёнок обязан породить ПОЛОЖИТЕЛЬНЫЙ терминальный
         # токен. Гейт на `fire_auto_report` его породить не может — тот выходит
         # раньше `on_idle` для `_manually_interrupted` (`session_turns.py:266`).
@@ -1301,13 +1320,7 @@ class SessionManager:
         # worktree, в котором он работает. Гидрированная из БД сессия его не имеет.
         if session is not None and session.loaded:
             await session._disconnect_backend()
-        if session is None:
-            row = get_session(session_id)
-            if row is None:
-                return
-            session = self._hydrate_row(row)
         if session.worktree_path:
-            await _release_hub_workspaces(session.worktree_path, session.name)
             await asyncio.to_thread(
                 remove_worktree,
                 session.scope,
@@ -1646,6 +1659,7 @@ class SessionManager:
     ) -> None:
         """Persist one Git lifecycle snapshot for loaded or detached sessions."""
         previous = (session.branch, session.task_id)
+        self._check_stale_hub_workspace(session, branch, task_id)
         if session.loaded:
             await session._drain_persist()
         session.branch = branch
@@ -1669,17 +1683,31 @@ class SessionManager:
                 task_id=task_id,
                 needs_switch=int(needs_switch),
             )
-        await self._release_stale_hub_workspace(session, previous)
+        await self._archive_stale_hub_workspace(session, previous)
 
     @staticmethod
-    async def _release_stale_hub_workspace(session: AgentSession, previous: tuple[str, str]) -> None:
-        """A hub copy belongs to one branch/task: after a switch the old one is only a stale
-        project (V-1008). The persistent warm copy of a project is not per worker and stays."""
+    def _check_stale_hub_workspace(session: AgentSession, branch: str, task_id: str) -> None:
+        if (getattr(session, "backend_type", "") != "hub"
+                or (session.branch, session.task_id) == (branch, task_id)
+                or session.status == AgentStatus.RUNNING):
+            return
+        from app.hub_workspace import assert_archive_ready, states_for_worktree
+
+        worktree = getattr(session, "worktree_path", "")
+        if worktree:
+            for state in states_for_worktree(worktree):
+                assert_archive_ready(state)
+
+    @staticmethod
+    async def _archive_stale_hub_workspace(session: AgentSession, previous: tuple[str, str]) -> None:
+        """Close the prior branch/task generation while retaining its Hub history.
+        The project's persistent warm copy is separate and remains untouched."""
         if (session.branch, session.task_id) == previous or session.status == AgentStatus.RUNNING:
             return
         worktree = getattr(session, "worktree_path", "")
         if worktree:
-            await _release_hub_workspaces(worktree, session.name)
+            await _archive_hub_workspaces(worktree, session.name,
+                                          required=getattr(session, "backend_type", "") == "hub")
 
     async def transition_lifecycle(
         self,
@@ -1712,6 +1740,7 @@ class SessionManager:
             )
             return
         previous = (session.branch, session.task_id)
+        self._check_stale_hub_workspace(session, branch, task_id)
         if session.loaded:
             await session._drain_persist()
         snapshot = session._to_db_dict()
@@ -1758,7 +1787,7 @@ class SessionManager:
                     system_prompt=new_prompt or "",
                     prompt_overlay=new_overlay,
                 )
-        await self._release_stale_hub_workspace(session, previous)
+        await self._archive_stale_hub_workspace(session, previous)
 
     def _scope_ownership_lock(self, scope: str) -> asyncio.Lock:
         """One ownership critical section per scope — overlap is a scope-wide invariant."""
@@ -2273,7 +2302,7 @@ class SessionManager:
             message = (
                 f"[from:{worker.name}] New worker turn blocked by the quota line; "
                 f"{retained_count} queued message(s) retained. {error} "
-                "Luna and Spark are outside the line. "
+                "Hub workers must use hubsol; if Sol is unavailable, report the blocker or wait. "
                 "Stop and model change remain available."
             )
             parent = None
@@ -2501,6 +2530,14 @@ class SessionManager:
             c.execute("UPDATE sessions SET status='idle' "
                       "WHERE status IN ('running', 'interrupted', 'waiting')")
 
+        # V-1160: a death before the cut turn's recovery intent left its steers SUBMITTED.
+        from app.message_deliveries import requeue_cut_turn_steers
+        for row in was_running_rows:
+            try:
+                await asyncio.to_thread(requeue_cut_turn_steers, row["id"])
+            except Exception as error:
+                logger.error("cut-turn steer recovery failed for %s: %s", row["name"], error)
+
         # R1: load orchestrators first — workers need their parent_name resolved,
         # and the orchestrator's on_idle callback registered before workers resume
         orchs = [r for r in resumable if bool(r.get("is_orchestrator")) or is_orchestrator_role(r.get("role", "worker"))]
@@ -2611,7 +2648,7 @@ class SessionManager:
 
 
     async def _periodic_hub_sweep(self) -> None:
-        """Release superseded/vanished workers' hub workspaces and unrecorded debris."""
+        """Observe retained Hub records; absence/age never authorizes purge."""
         from app.backend_hub import sweep_orphans
 
         await asyncio.sleep(120)

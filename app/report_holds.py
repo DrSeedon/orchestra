@@ -11,7 +11,7 @@ from app import db
 from app.events import InjectedMessage, MessageProvenance
 
 logger = logging.getLogger(__name__)
-HINT = "Move the parent to hubsol, or hubsonnet/hubopus with model_reason."
+HINT = "Use hubsol for hub work; if Sol is unavailable, report the blocker or wait (no fallback)."
 _inflight: set[str] = set()
 _recovery_task: asyncio.Task | None = None
 _rescan_requested = False

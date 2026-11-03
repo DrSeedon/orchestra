@@ -1,0 +1,68 @@
+{
+  "controls": [
+    {
+      "actual": "RED",
+      "control": "base-red",
+      "expected": "RED",
+      "fixture": "simple-199-t3",
+      "outcome": "PASS",
+      "returncode": 1
+    },
+    {
+      "actual": "GREEN",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "fixture": "simple-199-t3",
+      "outcome": "PASS",
+      "returncode": 0
+    },
+    {
+      "actual": "RED",
+      "control": "base-red",
+      "expected": "RED",
+      "fixture": "simple-201-accounting",
+      "outcome": "PASS",
+      "returncode": 1
+    },
+    {
+      "actual": "GREEN",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "fixture": "simple-201-accounting",
+      "outcome": "PASS",
+      "returncode": 0
+    },
+    {
+      "actual": "RED",
+      "control": "base-red",
+      "expected": "RED",
+      "fixture": "complex-v620-binding",
+      "outcome": "PASS",
+      "returncode": 1
+    },
+    {
+      "actual": "GREEN",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "fixture": "complex-v620-binding",
+      "outcome": "PASS",
+      "returncode": 0
+    },
+    {
+      "actual": "RED",
+      "control": "base-red",
+      "expected": "RED",
+      "fixture": "complex-v543-pidfd",
+      "outcome": "PASS",
+      "returncode": 1
+    },
+    {
+      "actual": "GREEN",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "fixture": "complex-v543-pidfd",
+      "outcome": "PASS",
+      "returncode": 0
+    }
+  ]
+}

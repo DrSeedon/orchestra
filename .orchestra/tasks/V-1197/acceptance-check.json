@@ -1,0 +1,10 @@
+{
+  "source_and_lock_hashes_unchanged": true,
+  "private_originals_hash_verified": 10,
+  "private_files_owner_only": true,
+  "public_artifact_findings": [],
+  "test_outcome_lines_unchanged": true,
+  "git_ignore_check": "existing root ignore + private nested ignore inspected; no .git for check-ignore",
+  "tests_rerun": false,
+  "reason": "Only artifact redaction; application and tests unchanged"
+}

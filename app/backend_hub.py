@@ -11,9 +11,13 @@ all files.
 import asyncio
 import contextlib
 import dataclasses
+import errno
+import hashlib
+import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import tarfile
 import time
@@ -23,8 +27,9 @@ from uuid import uuid4
 
 from app import hub_workspace as hw
 from app.hub_activity import HubActivityStream
-from app.hub_outbox import OUTBOX_NAME, OutboxReport, parse_outbox
+from app.hub_outbox import OUTBOX_NAME, OutboxReport, parse_outbox, _request_for
 from app.events import AgentEvent
+from app.models import ensure_hub_worker_allowed
 from app.multicode_client import MultiCodeClient, MultiCodeError, _last_assistant_text
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
@@ -274,6 +279,8 @@ class HubBackend:
         self._watch_limit: str | None = None
         self._run_evidence: _RunEvidence | None = None
         self._sync_no_work = False
+        self._sync_failure = ""
+        self._recovering_sync = False
         self._uv_ready = False
 
     @property
@@ -281,11 +288,15 @@ class HubBackend:
         return self._state.ws_id if self._state else self._resume
 
     async def connect(self) -> None:
+        ensure_hub_worker_allowed(self.model)
         problem = hub_configured()
         if problem:
             raise RuntimeError(problem)
         self._ssh = hw.HubSsh.from_env()
         self._state = hw.WorkspaceState.load(self._resume) if self._resume else None
+        if (self._resume and hw._WS_ID.match(self._resume) and self._state is None
+                and (hw.STATE_DIR / f"{self._resume}.json").exists()):
+            raise hw.HubWorkspaceError("Hub resume blocked: persisted workspace record is unreadable")
         if self._state and os.path.realpath(self._state.worktree) != os.path.realpath(self.cwd):
             self._state = None
         logger.info("HubBackend connected: model=%s workspace=%s", self.model, self.session_id)
@@ -326,6 +337,7 @@ class HubBackend:
         return selection
 
     async def send(self, message: str) -> None:
+        ensure_hub_worker_allowed(self.model)
         if self._ssh is None:
             raise RuntimeError("HubBackend not connected")
         if not self._turn_active:
@@ -355,6 +367,7 @@ class HubBackend:
         next turn opens a new thread and says so, instead of failing the switch."""
         if model not in HUB_MODELS:
             raise ValueError(f"unknown hub model '{model}'")
+        ensure_hub_worker_allowed(model)
         if self._turn_active:
             raise RuntimeError("cannot retarget a hub worker while a turn is active")
         if self._state is not None:
@@ -398,8 +411,7 @@ class HubBackend:
                     "t3_thread_interrupt", {"threadId": state.thread_id, "reason": "interrupted by Orchestra"})
 
     async def disconnect(self) -> None:
-        # The hub workspace survives a reconnect/hibernate; only release_for_worktree() or an
-        # explicit kill/merge removes it.
+        # The hub workspace survives a reconnect/hibernate; ordinary close archives it without deleting history.
         self._abort = True
         self._turn_active = False
         if self._mc is not None:
@@ -408,6 +420,7 @@ class HubBackend:
             self._mc = None
 
     async def reconnect(self) -> None:
+        ensure_hub_worker_allowed(self.model)
         await self.disconnect()
         await self.connect()
 
@@ -416,6 +429,7 @@ class HubBackend:
     async def events(self) -> AsyncIterator[AgentEvent]:
         if not self._turn_active or self._pending is None or self._ssh is None:
             return
+        ensure_hub_worker_allowed(self.model)
         message, self._pending = self._pending, None
         self._turn_started = time.perf_counter()
         ok, stop_reason, detail = True, "end_turn", ""
@@ -435,7 +449,8 @@ class HubBackend:
                 from app.hub_pool import alternative_model, provider_for_model
 
                 detail = (f"Hub {provider_for_model(self.model) or 'provider'} {limit}; "
-                          f"use model='{alternative_model(self.model)}'")
+                          f"use model='{alternative_model(self.model)}' only; "
+                          "if Sol is unavailable, report the blocker or wait (no fallback)")
                 if self._bridge is not None:
                     try:
                         report = await self._bridge.run([
@@ -457,6 +472,7 @@ class HubBackend:
         from app.hub_pool import require_hub_capacity
         from app.quota_gate import QuotaGateError
 
+        ensure_hub_worker_allowed(self.model)
         # Check retained evidence before replacing a released record or cleaning
         # up an older workspace. A new thread must not erase the incident trail.
         options = hw.project_options(self._scope)
@@ -485,10 +501,13 @@ class HubBackend:
         known = hw.known_secret_values([getattr(mc, "_token", "")])
         root = Path(self.cwd)
         state = self._state
-        if state is not None and not state.path().exists():
-            # Released behind this backend's back (merge, task switch, sweep): the hub project and
-            # copy are gone, and saving this old record again would resurrect a dead workspace.
-            logger.info("hub workspace %s was released; starting a new one", state.ws_id)
+        persisted = hw.WorkspaceState.load(state.ws_id) if state is not None else None
+        if state is not None and state.path().exists() and persisted is None:
+            raise hw.HubWorkspaceError("Hub resume blocked: persisted workspace record is unreadable")
+        if state is not None and (not state.path().exists() or persisted.archived):
+            # A closed generation must never be resumed by a stale backend. Its
+            # record and remote history remain available for provenance.
+            logger.info("hub workspace %s closed; starting a new generation", state.ws_id)
             state = self._state = None
         if state is None or not state.remote_dir:
             state = hw.WorkspaceState(
@@ -502,14 +521,11 @@ class HubBackend:
                 yield AgentEvent("status", "hub: clean start - a new workspace is created; earlier "
                                            "records and the persistent base are not reused or touched")
             self._state = state
-            state.save()   # before any hub write, so a crash leaves a record the sweep can release
-            try:
-                await release_for_worktree(self.cwd, keep_ws_id=state.ws_id, ssh=ssh, mc=mc,
-                                           skip=frozenset(quarantined))
-            except hw.HubFilePolicyError:
-                raise
-            except Exception as exc:
-                logger.warning("hub previous workspace release incomplete (state kept for sweep): %s", exc)
+            state.save()   # before any Hub write, retaining provenance across a crash
+        # Every retry must finish old-generation archival before a new provider
+        # turn. Never swallow an unresolved report, privacy or remote failure.
+        await archive_for_worktree(self.cwd, keep_ws_id=state.ws_id, ssh=ssh, mc=mc,
+                                   skip=frozenset(quarantined))
         # A record exists from the first attempt on, but the workspace only from the first upload that
         # reached the hub: a turn that failed before it (e.g. tree too large) must retry as a first upload.
         fresh = not (state.uploaded or state.manifest)
@@ -518,6 +534,16 @@ class HubBackend:
             # Never the warm base (it descends from the contaminated copy), and always an explicit scope.
             options = dataclasses.replace(options, persistent=False)
         hw.require_scope(state.paths, options)
+        if state.pending_sync:
+            recovery = hw.local_scratch()
+            self._recovering_sync = True
+            try:
+                yield AgentEvent("status", await self._sync_back(ssh, state, root, recovery))
+                if self._sync_failure:
+                    raise hw.HubWorkspaceError(self._sync_failure)
+            finally:
+                self._recovering_sync = False
+                hw.rmtree_quiet(recovery)
         if self._bridge is not None:
             identity = self._bridge.identity()
             if identity.base_branch:
@@ -573,6 +599,7 @@ class HubBackend:
                     sync_error = None
                     try:
                         sync = await self._sync_back(ssh, state, root, scratch)
+                        sync_error = self._sync_failure or None
                     except (hw.HubWorkspaceError, OSError, tarfile.TarError) as exc:
                         sync = f"[hub sync FAILED: {exc}] the hub copy {state.ws_id} is kept for a retry"
                         sync_error = sync
@@ -607,7 +634,7 @@ class HubBackend:
                             raise MultiCodeError("MultiCode retry send returned no runId")
                         run_id = sent["runId"]
                         continue
-                    if status in {"failed", "cancelled", "rolled_back"}:
+                    if status in {"failed", "cancelled", "interrupted", "rolled_back"}:
                         raise hw.HubWorkspaceError(failure)
                     break
         finally:
@@ -677,7 +704,8 @@ class HubBackend:
             state.save()
         if not state.project_id:
             project = await mc.tool_call("t3_project_create", {
-                "title": f"orchestra {state.ws_id}", "workspaceRoot": state.remote_dir})
+                "title": self._worker_title() or f"orchestra {state.ws_id}",
+                "workspaceRoot": state.remote_dir})
             state.project_id = project["id"] if isinstance(project, dict) else ""
             if not state.project_id:
                 raise hw.HubWorkspaceError("hub project registration returned no id")
@@ -712,6 +740,12 @@ class HubBackend:
         who = self._bridge.identity() if self._bridge is not None else None
         return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None)
 
+    def _worker_title(self) -> str | None:
+        """Visible label only: storage and resume keep their unique workspace identity."""
+        who = self._bridge.identity() if self._bridge is not None else None
+        name = (getattr(who, "name", "") or "").strip()
+        return f"hub-{name}" if name else None
+
     async def _wire_message(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
         known = hw.known_secret_values([getattr(mc, "_token", "")])
         prompt = _redact_history(prompt, known)
@@ -736,6 +770,7 @@ class HubBackend:
         )
 
     async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
+        ensure_hub_worker_allowed(self.model)
         # A reconstructed backend can resume a thread created with an older effort.
         selection = await self._model_selection(mc, self.model, self._effort)
         if state.thread_id:
@@ -760,7 +795,7 @@ class HubBackend:
                 return sent["runId"]
         wire = await self._wire_message(mc, state, prompt)
         launched = await mc.tool_call("t3_thread_launch", {
-            "title": f"{state.ws_id}", "projectId": state.project_id, "message": wire,
+            "title": self._worker_title() or state.ws_id, "projectId": state.project_id, "message": wire,
             "runtimeMode": "full-access",
             "modelSelection": selection,
         })
@@ -862,12 +897,165 @@ class HubBackend:
     async def _sync_back(self, ssh: hw.HubSsh, state: hw.WorkspaceState, root: Path,
                          scratch: Path) -> str:
         await hw.check_workspace_file_policy(ssh, state)
-        out = scratch / "out.tar"
-        await ssh.get(state.remote_dir, out)
-        before = dict(state.manifest)
-        hw.capture_inputs(root, state, state.manifest)
-        result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest,
-                                        inputs=state.input_manifest)
+        out = state.path().with_suffix(".sync.tar")
+        if not state.pending_sync:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            # No journal references this file: a prior return either finished or
+            # stopped before import. Do not keep an orphan beside a new download.
+            out.unlink(missing_ok=True)
+            out.with_suffix(".tmp").unlink(missing_ok=True)
+            downloaded = scratch / "out.tar"
+            await ssh.get(state.remote_dir, downloaded, max_out=None)
+            hw.capture_inputs(root, state, state.manifest)
+            # Retain the exact snapshot before applying it. An import interrupted
+            # between file replacement and state.save can then be replayed safely.
+            retaining = asyncio.create_task(asyncio.to_thread(
+                self._retain_sync_snapshot, downloaded, out, state))
+            await self._await_sync_task(retaining)
+        # to_thread cannot be cancelled. Drain the transaction before callers can
+        # remove scratch/start another import; cancellation must not race a commit.
+        task = asyncio.create_task(self._finish_sync(ssh, state, root, out))
+        return await self._await_sync_task(task)
+
+    def _retain_sync_snapshot(self, downloaded: Path, out: Path, state: hw.WorkspaceState) -> None:
+        try:
+            os.replace(downloaded, out)
+        except OSError as exc:
+            if exc.errno != errno.EXDEV:
+                raise
+            # A different filesystem requires one bounded copy. Publish only the
+            # complete file; retain the source and remove a partial copy on error.
+            retained = out.with_suffix(".tmp")
+            try:
+                with downloaded.open("rb") as source, retained.open("wb") as target:
+                    shutil.copyfileobj(source, target, length=64 * 1024)
+                    target.flush()
+                    os.fsync(target.fileno())
+                os.replace(retained, out)
+                downloaded.unlink()
+            finally:
+                retained.unlink(missing_ok=True)
+        # The shielded step includes the journal save. Cancellation after moving
+        # the snapshot leaves a resumable import, before any worktree writes.
+        state.pending_sync = {"phase": "import", "before": dict(state.manifest),
+                              "provider_status": self._watch_status}
+        state.save()
+
+    async def _await_sync_task(self, task: asyncio.Task):
+        cancelled = False
+        # Event-driven drain, including a repeated Stop/shutdown cancellation.
+        # Each wait suspends on the same task; no polling or timed retry.
+        while True:
+            try:
+                result = await asyncio.shield(task)
+            except asyncio.CancelledError:
+                if task.cancelled():
+                    raise
+                cancelled = self._abort = True
+                continue
+            except Exception:
+                if not cancelled:
+                    raise
+                logger.exception("hub sync remains pending after cancellation")
+                raise asyncio.CancelledError from None
+            if cancelled:
+                raise asyncio.CancelledError
+            return result
+
+    async def _finish_sync(self, ssh: hw.HubSsh, state: hw.WorkspaceState,
+                           root: Path, out: Path) -> str:
+        pending = state.pending_sync
+        if pending["phase"] == "import":
+            before = pending["before"]
+            result = await asyncio.to_thread(hw.apply_changes, out, root, before,
+                                            inputs=state.input_manifest)
+            # Replay also accounts for files already replaced/deleted before a
+            # broker crash. Immutable-input and conflict decisions still belong
+            # to apply_changes, never to this journal.
+            result.changed = sorted(set(result.changed) | {
+                rel for rel, digest in result.manifest.items() if before.get(rel) != digest})
+            result.deleted = sorted(set(result.deleted) | (set(before) - set(result.manifest)
+                                    - set(state.input_manifest or {})))
+            self._record_sync(state, result, before)
+        if pending["phase"] == "commit":
+            changed, deleted = pending["changed"], pending["deleted"]
+            commit, unstaged = "", []
+            if changed or deleted:
+                message = f"{_branch_task_ref(self.cwd)}: hub worker turn {state.turns} ({self.model})"
+                try:
+                    # A crash after git commit but before saving its receipt must
+                    # recover the existing HEAD instead of committing it twice.
+                    tree = await asyncio.to_thread(hw._git_out, root, "ls-tree", "-r", "--name-only",
+                                                   "-z", "HEAD", "--", *changed, *deleted)
+                    tracked = set(tree.stdout.decode().split("\0")) if tree and not tree.returncode else set()
+                    already_committed = (tree is not None and tree.returncode == 0 and set(changed) <= tracked
+                                         and not (set(deleted) & tracked))
+                    for rel in changed:
+                        path = root / rel
+                        if path.is_symlink() or not path.is_file() or hw.sha256_file(path) != state.manifest[rel]:
+                            raise hw.HubWorkspaceError(f"imported path changed before commit: {rel}")
+                        blob = await asyncio.to_thread(hw._git_out, root, "show", f"HEAD:{rel}")
+                        already_committed = bool(already_committed and blob and blob.returncode == 0
+                                                 and hashlib.sha256(blob.stdout).hexdigest() == state.manifest[rel])
+                    if any(os.path.lexists(root / rel) for rel in deleted):
+                        raise hw.HubWorkspaceError("deleted import path reappeared before commit")
+                    if not already_committed:
+                        commit, unstaged = await asyncio.to_thread(
+                            hw.commit_sync, root, changed, deleted, message)
+                except (hw.HubWorkspaceError, OSError, subprocess.SubprocessError) as exc:
+                    pending["commit_error"] = f"NOT COMMITTED ({exc})"
+            head = await asyncio.to_thread(hw._git_out, root, "rev-parse", "--short", "HEAD")
+            sha = head.stdout.decode().strip() if head and head.returncode == 0 else ""
+            lines = [f"[hub sync] changed {len(changed)}, deleted {len(deleted)}"
+                     + (f", commit {commit}" if commit else "") + (f", local HEAD {sha}" if sha else "")]
+            if pending.get("commit_error"):
+                lines.append(pending["commit_error"])
+            if unstaged:
+                lines.append("left uncommitted in the worktree (git refused them): "
+                             + "; ".join(f"{p} ({why})" for p, why in unstaged[:20]))
+            if pending["conflicts"]:
+                lines.append("conflicts (both sides changed, hub copy NOT applied): "
+                             + ", ".join(pending["conflicts"][:20]))
+            if pending["rejected"]:
+                lines.append("rejected: " + "; ".join(f"{p} ({why})" for p, why in pending["rejected"][:20]))
+            failed = bool(pending.get("commit_error") or unstaged or pending["conflicts"] or pending["rejected"])
+            pending.update(phase="report", summary="\n".join(lines), failed=failed)
+            # Final outcome and report identities are durable before any delivery.
+            state.save()
+        self._sync_failure = pending["summary"] if pending["failed"] else ""
+        self._sync_no_work = pending["no_work"]
+        outcome = "partial/failed" if pending["failed"] else "ok"
+        provider = pending["provider_status"]
+        if self._abort or provider in {"failed", "cancelled", "interrupted", "rolled_back"}:
+            outcome = "failed/interrupted"
+        if "report_context" not in pending:
+            pending["report_context"] = f"[hub result] status={outcome}; provider={provider or 'unknown'}\n{pending['summary']}"
+            if self._bridge is not None:
+                from app.turn_signals import hub_completion_action
+
+                who = self._bridge.identity()
+                role = getattr(who, "role", "")
+                action = hub_completion_action(
+                    {"id": getattr(who, "session_id", ""), "name": getattr(who, "name", ""),
+                     "branch": getattr(who, "branch", ""), "backend_type": "hub",
+                     "is_orchestrator": not role or role in {"orchestrator", "sub-orchestrator"}},
+                    turn_ok=outcome == "ok" and provider == "completed",
+                )
+                if action:
+                    pending["report_context"] += "\n\n[broker next_action] " + json.dumps(action, ensure_ascii=False)
+            state.save()
+        # Keep archive diagnostics without restoring V-1206's removed transfer cap.
+        archive_size = f"{out.stat().st_size} bytes" if out.exists() else "unavailable (outcome retained)"
+        lines = [pending["summary"], f"return archive {archive_size}; workspace {state.ws_id}"]
+        line = await self._run_outbox(ssh, state, b"", context=pending["report_context"])
+        if line:
+            lines.append(line)
+        state.pending_sync = {}
+        state.save()
+        out.unlink(missing_ok=True)
+        return "\n".join(lines)
+
+    def _record_sync(self, state: hw.WorkspaceState, result: hw.SyncResult, before: dict) -> None:
         if any(hw._company_path(rel) for rel, _ in result.rejected):
             # The snapshot is new evidence, including if someone later removes
             # the file. Preserve it as a latch without rewriting old provenance.
@@ -878,35 +1066,51 @@ class HubBackend:
         state.hub_made = sorted((set(state.hub_made) | {r for r, d in result.manifest.items()
                                                          if before.get(r) != d}) & set(result.manifest))
         state.turns += 1
-        outbox_line = await self._run_outbox(ssh, state, result.outbox)
-        commit, unstaged = "", []
-        if result.changed or result.deleted:
-            message = f"{_branch_task_ref(self.cwd)}: hub worker turn {state.turns} ({self.model})"
-            try:
-                commit, unstaged = await asyncio.to_thread(
-                    hw.commit_sync, root, result.changed, result.deleted, message)
-            except (hw.HubWorkspaceError, subprocess.SubprocessError) as exc:
-                commit = f"NOT COMMITTED ({exc})"
+        entries, dropped = parse_outbox(result.outbox)
+        for entry in entries:
+            entry["_delivery_id"] = str(uuid4())
+        state.pending_sync.update(phase="commit", changed=result.changed, deleted=result.deleted,
+                                  conflicts=result.conflicts, rejected=result.rejected,
+                                  entries=entries, dropped=dropped, done=[], no_work=no_work,
+                                  has_outbox=bool(result.outbox.strip()))
         state.save()
-        lines = [f"[hub sync] changed {len(result.changed)}, deleted {len(result.deleted)}"
-                 + (f", commit {commit}" if commit else "")]
-        lines.append(f"return archive {out.stat().st_size} bytes; "
-                     f"transport limit {hw.MAX_TOTAL_BYTES * 2} bytes; workspace {state.ws_id}")
-        if outbox_line:
-            lines.append(outbox_line)
-        if unstaged:
-            lines.append("left uncommitted in the worktree (git refused them): "
-                         + "; ".join(f"{p} ({why})" for p, why in unstaged[:20]))
-        if result.conflicts:
-            lines.append("conflicts (both sides changed, hub copy NOT applied): "
-                         + ", ".join(result.conflicts[:20]))
-        if result.rejected:
-            lines.append("rejected: " + "; ".join(f"{p} ({why})" for p, why in result.rejected[:20]))
-        self._sync_no_work = no_work
-        return "\n".join(lines)
 
-    async def _run_outbox(self, ssh: hw.HubSsh, state: hw.WorkspaceState, data: bytes) -> str:
+    async def _run_outbox(self, ssh: hw.HubSsh, state: hw.WorkspaceState, data: bytes,
+                          *, context: str = "") -> str:
         """Run what the hub agent queued for Orchestra, then empty the file on the hub."""
+        if context:
+            pending = state.pending_sync
+            if pending["has_outbox"]:
+                # The local journal owns these entries before remote acknowledgement.
+                # Failure keeps the journal and prevents a new upload/provider turn.
+                await ssh.delete_files(state.remote_dir, [OUTBOX_NAME])
+            if pending["entries"] and self._bridge is None:
+                raise hw.HubWorkspaceError("hub outbox delivery pending: this worker has no Orchestra link")
+            while pending["entries"]:
+                entry = pending["entries"][0]
+                sent = {**entry, "args": dict(entry["args"])}
+                if entry["tool"] == "send_message":
+                    # Check the original message before context makes even an
+                    # empty/invalid report look deliverable. Keep it for repair.
+                    planned = _request_for(entry["tool"], entry["args"], self._bridge.identity())
+                    if isinstance(planned, str):
+                        raise hw.HubWorkspaceError("hub outbox delivery pending: " + planned)
+                    sent["args"]["message"] = context + "\n\nWorker report:\n" + str(entry["args"].get("message", ""))
+                ran = await self._bridge.run(
+                    [sent], mark_reported=not self._recovering_sync or bool(self._sync_failure))
+                if ran.dropped and (entry["tool"] not in {"update_checklist", "update_progress"}
+                                    or ran.dropped != ran.rejected):
+                    # A lost response may already have accepted the report. Retry
+                    # its saved delivery_id through the existing durable API owner.
+                    raise hw.HubWorkspaceError("hub outbox delivery pending: " + "; ".join(ran.dropped))
+                pending["done"].extend(ran.done)
+                pending["dropped"].extend(ran.dropped)
+                pending["entries"].pop(0)
+                state.save()
+            report = OutboxReport(done=pending["done"], dropped=pending["dropped"])
+            for reason in report.dropped:
+                logger.warning("hub outbox of %s: dropped %s", state.ws_id, reason)
+            return report.summary()
         if not data.strip():
             return ""
         entries, dropped = parse_outbox(data)
@@ -965,10 +1169,44 @@ class HubBackend:
             project_docs=getattr(prepared, "project_docs", ()), mcp_servers={})
 
 
+async def archive_for_worktree(worktree: str, *, keep_ws_id: str = "",
+                               ssh: hw.HubSsh | None = None, mc=None,
+                               skip: frozenset[str] = frozenset()) -> list[str]:
+    """Ordinary lifecycle close: retain Hub history and existing workspace records.
+
+    Destructive release_for_worktree keeps its separate explicit-purge meaning.
+    Preflight every record before remote archival or caller lifecycle teardown.
+    """
+    states = [state for state in hw.states_for_worktree(worktree)
+              if state.ws_id != keep_ws_id and state.ws_id not in skip]
+    for state in states:
+        hw.assert_archive_ready(state)
+    states = [state for state in states if not state.archived]
+    if not states:
+        return []
+    ssh = ssh or hw.HubSsh.from_env()
+    owns_client = mc is None and any(state.thread_id for state in states)
+    if owns_client:
+        problem = hub_configured()
+        if problem:
+            raise hw.HubWorkspaceError(problem)
+        mc = MultiCodeClient.from_env()
+        await mc.__aenter__()
+    archived: list[str] = []
+    try:
+        for state in states:
+            await hw.archive_workspace(state, ssh, mc)
+            archived.append(state.ws_id)
+    finally:
+        if owns_client:
+            await mc.__aexit__(None, None, None)
+    return archived
+
+
 async def release_for_worktree(worktree: str, *, keep_ws_id: str = "",
                                ssh: hw.HubSsh | None = None, mc=None,
                                skip: frozenset[str] = frozenset()) -> list[str]:
-    """Remove the worktree's hub workspaces, optionally keeping its replacement.
+    """Explicit purge only: remove the worktree's Hub workspaces, optionally keeping a replacement.
     Supplied transports belong to the caller and are not closed here.
     Returns the workspace ids that were cleaned; a failure is raised after the rest ran."""
     states = [state for state in hw.states_for_worktree(worktree) if state.ws_id != keep_ws_id and state.ws_id not in skip]
@@ -1009,70 +1247,11 @@ def _all_states() -> list[hw.WorkspaceState]:
 
 
 async def sweep_orphans(live_worktrees: set[str] | dict[str, str], *, min_age: float = ORPHAN_MIN_AGE_S) -> dict:
-    """Release hub workspaces whose worker is gone, and hub leftovers that have no local record.
+    """Retain unowned/old records; orphan status never authorizes data deletion.
 
-    The mapping identifies each worktree's current workspace; older copies of a live worker
-    are orphans too. Legacy set callers provide no ownership information, so keep their live
-    copies conservatively. Hub-side debris (directories and projects under
-    our root with no record) is removed only when older than `min_age`, which is longer than any
-    upload, because the record is written before the first hub write."""
-    report: dict = {"released": [], "remote_dirs": [], "projects": [], "kept": 0, "errors": []}
-    states = _all_states()
-    if hub_configured() is not None:
-        if states:
-            report["errors"].append(hub_configured())
-        return report
-    live = {os.path.realpath(p) for p in live_worktrees if p}
-    current = ({os.path.realpath(p): ws_id for p, ws_id in live_worktrees.items() if p}
-               if isinstance(live_worktrees, dict) else None)
-    ssh = hw.HubSsh.from_env()
-    async with MultiCodeClient.from_env() as mc:
-        for state in states:
-            worktree = os.path.realpath(state.worktree)
-            if (worktree in live and Path(state.worktree).is_dir()
-                    and (current is None or current.get(worktree) == state.ws_id)):
-                report["kept"] += 1
-                continue
-            try:
-                await hw.release_workspace(state, ssh, mc)
-                report["released"].append(state.ws_id)
-            except hw.HubWorkspaceError as exc:
-                report["errors"].append(f"{state.ws_id}: {exc}")
-        known = {st.ws_id for st in _all_states()}
-        root = await ssh.root()
-        dirs = dict(await ssh.list_workspaces())
-        now = time.time()
-
-        def stale(ws_id: str) -> bool:
-            return ws_id not in known and (ws_id not in dirs or now - dirs[ws_id] > min_age)
-
-        cursor = None
-        while True:
-            page = await mc.tool_call("t3_project_list", {"limit": 100, **({"cursor": cursor} if cursor else {})})
-            for project in page.get("projects", []):
-                workspace = str(project.get("workspaceRoot") or "")
-                ws_id = os.path.basename(workspace)
-                if os.path.dirname(workspace) != root or not hw._WS_ID.match(ws_id) or not stale(ws_id):
-                    continue
-                threads = []
-                try:
-                    listed = await mc.tool_call("t3_thread_list", {"projectId": project["id"], "limit": 100})
-                    threads = [t["threadId"] for t in listed.get("threads", [])]
-                    await mc.tool_call("t3_project_delete", {"projectId": project["id"], "force": True})
-                    for thread_id in threads or [""]:
-                        await ssh.scrub_traces(ws_id, thread_id)
-                    report["projects"].append(ws_id)
-                except (MultiCodeError, hw.HubWorkspaceError) as exc:
-                    report["errors"].append(f"project {ws_id}: {exc}")
-            cursor = page.get("nextCursor")
-            if cursor is None:
-                break
-        for ws_id in sorted(dirs):
-            if stale(ws_id):
-                try:
-                    await ssh.remove(f"{root}/{ws_id}")
-                    await ssh.scrub_traces(ws_id, "")
-                    report["remote_dirs"].append(ws_id)
-                except hw.HubWorkspaceError as exc:
-                    report["errors"].append(f"dir {ws_id}: {exc}")
-    return report
+    Compatibility keeps the existing report keys and signature. No remote scan,
+    interrupt, archive or purge is allowed without a verified lifecycle owner.
+    Existing workspace records and unrecorded remote objects remain untouched.
+    """
+    return {"released": [], "remote_dirs": [], "projects": [],
+            "kept": len(_all_states()), "errors": []}

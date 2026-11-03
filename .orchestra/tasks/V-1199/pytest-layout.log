@@ -1,0 +1,252 @@
+.FFFF                                                                    [100%]
+=================================== FAILURES ===================================
+_ test_agent_card_without_reason_preserves_layout_and_actions[gpt-6.1-sol-240] _
+
+width = 240, model = 'gpt-6.1-sol'
+
+    @pytest.mark.browser
+    @pytest.mark.parametrize('width', [240, 320])
+    @pytest.mark.parametrize('model', ['gpt-6.1-sol', 'hub-gpt-6.1-sol'])
+    def test_agent_card_without_reason_preserves_layout_and_actions(width, model):
+        """Render the production card and styles with synthetic data, without a server."""
+        root = Path(__file__).resolve().parents[1]
+        source = (root / 'app/static/js/app.js').read_text()
+        card = source[source.index('function createAgentItem('):source.index('function _applyLiveAgentStatus(')]
+        cache = source[source.index('function _cachePillState('):source.index('// Client-side countdown')]
+        reason = source[source.index('function _modelReasonBadge('):source.index('async function _showModelPicker(')]
+        utils = (root / 'app/static/js/utils.js').read_text()
+        runtime = utils[utils.index('function _runtimeStatusDetail('):utils.index('// Client task/payment')]
+        with sync_playwright() as playwright:
+>           browser = playwright.chromium.launch(headless=True)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_model_reason_frontend.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7ff940d69f70>
+cb = <function Channel.send.<locals>.<lambda> at 0x7ff940aa5440>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at .cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_ test_agent_card_without_reason_preserves_layout_and_actions[gpt-6.1-sol-320] _
+
+width = 320, model = 'gpt-6.1-sol'
+
+    @pytest.mark.browser
+    @pytest.mark.parametrize('width', [240, 320])
+    @pytest.mark.parametrize('model', ['gpt-6.1-sol', 'hub-gpt-6.1-sol'])
+    def test_agent_card_without_reason_preserves_layout_and_actions(width, model):
+        """Render the production card and styles with synthetic data, without a server."""
+        root = Path(__file__).resolve().parents[1]
+        source = (root / 'app/static/js/app.js').read_text()
+        card = source[source.index('function createAgentItem('):source.index('function _applyLiveAgentStatus(')]
+        cache = source[source.index('function _cachePillState('):source.index('// Client-side countdown')]
+        reason = source[source.index('function _modelReasonBadge('):source.index('async function _showModelPicker(')]
+        utils = (root / 'app/static/js/utils.js').read_text()
+        runtime = utils[utils.index('function _runtimeStatusDetail('):utils.index('// Client task/payment')]
+        with sync_playwright() as playwright:
+>           browser = playwright.chromium.launch(headless=True)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_model_reason_frontend.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7ff940821970>
+cb = <function Channel.send.<locals>.<lambda> at 0x7ff940935ee0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at .cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_ test_agent_card_without_reason_preserves_layout_and_actions[hub-gpt-6.1-sol-240] _
+
+width = 240, model = 'hub-gpt-6.1-sol'
+
+    @pytest.mark.browser
+    @pytest.mark.parametrize('width', [240, 320])
+    @pytest.mark.parametrize('model', ['gpt-6.1-sol', 'hub-gpt-6.1-sol'])
+    def test_agent_card_without_reason_preserves_layout_and_actions(width, model):
+        """Render the production card and styles with synthetic data, without a server."""
+        root = Path(__file__).resolve().parents[1]
+        source = (root / 'app/static/js/app.js').read_text()
+        card = source[source.index('function createAgentItem('):source.index('function _applyLiveAgentStatus(')]
+        cache = source[source.index('function _cachePillState('):source.index('// Client-side countdown')]
+        reason = source[source.index('function _modelReasonBadge('):source.index('async function _showModelPicker(')]
+        utils = (root / 'app/static/js/utils.js').read_text()
+        runtime = utils[utils.index('function _runtimeStatusDetail('):utils.index('// Client task/payment')]
+        with sync_playwright() as playwright:
+>           browser = playwright.chromium.launch(headless=True)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_model_reason_frontend.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7ff940872210>
+cb = <function Channel.send.<locals>.<lambda> at 0x7ff940935080>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at .cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_ test_agent_card_without_reason_preserves_layout_and_actions[hub-gpt-6.1-sol-320] _
+
+width = 320, model = 'hub-gpt-6.1-sol'
+
+    @pytest.mark.browser
+    @pytest.mark.parametrize('width', [240, 320])
+    @pytest.mark.parametrize('model', ['gpt-6.1-sol', 'hub-gpt-6.1-sol'])
+    def test_agent_card_without_reason_preserves_layout_and_actions(width, model):
+        """Render the production card and styles with synthetic data, without a server."""
+        root = Path(__file__).resolve().parents[1]
+        source = (root / 'app/static/js/app.js').read_text()
+        card = source[source.index('function createAgentItem('):source.index('function _applyLiveAgentStatus(')]
+        cache = source[source.index('function _cachePillState('):source.index('// Client-side countdown')]
+        reason = source[source.index('function _modelReasonBadge('):source.index('async function _showModelPicker(')]
+        utils = (root / 'app/static/js/utils.js').read_text()
+        runtime = utils[utils.index('function _runtimeStatusDetail('):utils.index('// Client task/payment')]
+        with sync_playwright() as playwright:
+>           browser = playwright.chromium.launch(headless=True)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_model_reason_frontend.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7ff9408215e0>
+cb = <function Channel.send.<locals>.<lambda> at 0x7ff940810f40>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at .cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+=========================== short test summary info ============================
+FAILED tests/test_hub_model_reason_frontend.py::test_agent_card_without_reason_preserves_layout_and_actions[gpt-6.1-sol-240]
+FAILED tests/test_hub_model_reason_frontend.py::test_agent_card_without_reason_preserves_layout_and_actions[gpt-6.1-sol-320]
+FAILED tests/test_hub_model_reason_frontend.py::test_agent_card_without_reason_preserves_layout_and_actions[hub-gpt-6.1-sol-240]
+FAILED tests/test_hub_model_reason_frontend.py::test_agent_card_without_reason_preserves_layout_and_actions[hub-gpt-6.1-sol-320]
+4 failed, 1 passed in 15.24s

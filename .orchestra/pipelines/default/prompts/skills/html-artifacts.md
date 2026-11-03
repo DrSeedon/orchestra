@@ -45,6 +45,10 @@ request; a report does not need one.
   and a short mechanism explanation. Decorative telemetry and neon for its own sake interfere.
 - Keep the chosen style across artifacts. Do not change palette/fonts for variety or automatically
   carry covers and effects over from third-party design skills.
+- When polishing an existing artifact, keep its functions, actions, data, and meaning. Keep a
+  screen that already works; do not restyle it for a trend. Keep the established light default,
+  design system, user-chosen palette, density, and emoji. Removing a button or control is not a
+  visual fix. Polish is not a redesign and does not change application behavior.
 
 ## Honest data and dynamics
 
@@ -127,10 +131,18 @@ not recreate the chart or reset focus. A simple drawing needs no controls.
 
 ## Check and deliver
 
+Before changing an existing visual, write a short audit in the working notes or reply: each
+concrete issue → file/selector → desired result. Choose the scope from those actual defects and
+the task: no visual change needed, targeted polish, or a full pass. A new artifact has no
+"before"; check it against the reader's needs and its actual render instead. A separate audit
+file is not needed for small fixes, and the authorized task needs no extra approval round.
+
 Open the file in a headless browser: no JS errors, mandatory network requests, overlapping
 labels, or unintended page overflow. Check real hover, shared X, units, and the calculation at
 the selected moment; when present, check drag/zoom and save/export. Inspect an enlarged diagram
-area, narrow screen, and reduced motion. Checking the skill does not replace checking the artifact.
+area, narrow screen, and reduced motion, and check text contrast and visible keyboard focus in
+the real render. After the render, recheck the same audit list item by item and name anything
+left unfixed or untested. Checking the skill does not replace checking the artifact.
 
 On the owner's laptop, open finished HTML immediately in Opera with:
 `opera /absolute/path/to/file.html`. This is a standing preference; do not ask for each opening.
@@ -147,7 +159,12 @@ file is self-contained; external skills are not required to run it.
 
 BASIS: the owner's choice across two galleries and a dynamics clarification. Technique sources:
 local visual-artifact examples and diagrams from cathrynlavery/diagram-design (MIT). Their effect
-on speed/quality was not measured.
+on speed/quality was not measured. The audit → scope → render recheck steps and the
+preservation rule are adapted, in our own words, from heydamir/unslop by Damir Sokolovsky
+(https://github.com/heydamir/unslop, commit a6f121eee5f29c2f74976b75456feae8b66afb3a, CC BY 4.0,
+https://creativecommons.org/licenses/by/4.0/); changes: condensed, no fixed pass count or
+approval pause, bound to the checks above. Owner decision 2026-11-02: adopt these steps to make
+polish of existing visuals targeted and verifiable without losing function.
 ## Animation and step-by-step playback
 
 When order or change over time carries meaning, use animation to explain the causal sequence rather than decorate it. Read [`references/animation.md`](references/animation.md) inside this skill for the complete step format, player scaffold, motion rules, frame capture, and checks. The visual, data-honesty, standalone-file, and accessibility rules above still apply.

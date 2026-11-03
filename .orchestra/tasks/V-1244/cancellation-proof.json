@@ -1,0 +1,23 @@
+{
+  "rejected_candidate": "b8fb98bbeb52b44647d493e16530ac8be4dd4679",
+  "source_manifest_sha256": "610d23667476552d60e3ce2c37cae866fcc604acac24322988fa3979e3255f61",
+  "unsafe_order": "publish43, thread_exit",
+  "safe_order": "thread_exit, publish43",
+  "actual_publisher": "SessionManager.transition_lifecycle + DB Hub runtime + WorkspaceState",
+  "regression_matrix": "ordinary/repeated cancellation x success/cleanup failure",
+  "red": "4 failed; order-focused single case1failed",
+  "fixed_green": "4 passed",
+  "committed_mutation": "4 expected failed; only rejected function replayed; safe source restored byte-for-byte",
+  "restored_mapped": "163 passed",
+  "ownership": "existing session/lifecycle scopes outlive actual executor future; existing _wait_owned_task drains shielded future through repeated cancellation; saved cancellation re-raised after work/error retrieval",
+  "context_preserved": true,
+  "new_store_runtime_endpoint_ttl": false,
+  "protected_three_inputs_unchanged": true,
+  "live_actions": false,
+  "rejected_parent_candidate": "b8fb98bbeb52b44647d493e16530ac8be4dd4679",
+  "cancellation_boundary": "Existing owned future drain keeps session/lifecycle ownership through actual thread/repository-flock completion; repeated cancellation propagated afterward.",
+  "current_validation": "unsafe4red/order single1red; fixed4green; committed rejected-function4red; restored mapped163passed",
+  "pipeline_contract_exit": 0,
+  "instruction_contract_exit": 1,
+  "publication_payloads_clean": 32
+}

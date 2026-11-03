@@ -1,0 +1,37 @@
+{
+  "tests": [
+    "tests/test_hub_sol_only_v1240.py::test_native_runtime_identity_validation_stays_with_its_owner",
+    "tests/test_hub_sol_only_v1240.py::test_all_non_sol_hub_requests_refuse_even_with_old_enabled_flags",
+    "tests/test_hub_sol_only_v1240.py::test_sol_stays_admitted_with_existing_config_and_catalog_gates",
+    "tests/test_hub_sol_only_v1240.py::test_sol_metadata_follows_case_insensitive_canonical_resolution"
+  ],
+  "mutations": [
+    {
+      "mutation": "eager-registry",
+      "exit_code": 1,
+      "summary": "6 failed, 25 passed in 6.78s",
+      "failed_nodes": [
+        "tests/test_hub_sol_only_v1240.py::test_native_runtime_identity_validation_stays_with_its_owner[gpt5.6luna]",
+        "tests/test_hub_sol_only_v1240.py::test_native_runtime_identity_validation_stays_with_its_owner[retired-codex-model]",
+        "tests/test_hub_sol_only_v1240.py::test_native_runtime_identity_validation_stays_with_its_owner[retired-claude-model]",
+        "tests/test_hub_sol_only_v1240.py::test_native_runtime_identity_validation_stays_with_its_owner[grok-4]",
+        "tests/test_hub_sol_only_v1240.py::test_native_runtime_identity_validation_stays_with_its_owner[openrouter:synthetic]",
+        "tests/test_hub_sol_only_v1240.py::test_sol_metadata_follows_case_insensitive_canonical_resolution[ HUB-GPT-6.1-SOL ]"
+      ],
+      "mutant_sha256": "36c615f4d86ae3b969ddb4f15861e867fcb253e5e17c03664daf1cf140681f99"
+    },
+    {
+      "mutation": "raw-case",
+      "exit_code": 1,
+      "summary": "1 failed, 30 passed in 5.58s",
+      "failed_nodes": [
+        "tests/test_hub_sol_only_v1240.py::test_sol_metadata_follows_case_insensitive_canonical_resolution[ HUB-GPT-6.1-SOL ]"
+      ],
+      "mutant_sha256": "1bd29adae5d60d2d91bb9a87297ac6ef252315d5db1cdd483653aeed5980bd31"
+    }
+  ],
+  "before_sha256": "0644a7304db57887096f86ce9db0255abc6f5b2f8c46e92a822c8d47096cc78a",
+  "restored_sha256": "0644a7304db57887096f86ce9db0255abc6f5b2f8c46e92a822c8d47096cc78a",
+  "restored_exit_code": 0,
+  "restored_summary": "31 passed in 8.21s"
+}

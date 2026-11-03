@@ -4809,6 +4809,7 @@ class TestRuntimeCapabilities:
         ("claude", "claude-sonnet-5-5[1m]", "claude-opus-5[1m]"),
         ("grok", "grok-4.5", "grok-4.6"),
         ("harness", "vendor/from:free", "vendor/to:free"),
+        ("codex", "gpt-6.1-terra", "gpt-6.1-sol"),
     ])
     async def test_other_builtin_model_switches_retarget_in_place(
             self, session, monkeypatch, live_harness_route, runtime, old_model, new_model):
@@ -4829,9 +4830,11 @@ class TestRuntimeCapabilities:
         )
         session._backend = source
         session._log = MagicMock()
-        session._last_context = {
-            "percentage": 1, "total_tokens": 1_000, "max_tokens": 1_000_000,
-        }
+        session._last_context = (
+            {"percentage": 50, "total_tokens": 350_001, "max_tokens": 700_000}
+            if runtime == "codex"
+            else {"percentage": 1, "total_tokens": 1_000, "max_tokens": 1_000_000}
+        )
         session._prepare_runtime_handoff = AsyncMock(
             side_effect=AssertionError("same native session needs no handoff"),
         )
@@ -4850,6 +4853,8 @@ class TestRuntimeCapabilities:
         assert session.model == new_model
         assert session.session_id == f"native-{runtime}-session"
         assert session._backend is source
+        if runtime == "codex":
+            assert session._last_context["max_tokens"] == 700_000
         source.retarget_model.assert_awaited_once_with(new_model)
         session._prepare_runtime_handoff.assert_not_awaited()
         session._make_backend.assert_not_called()
@@ -4859,6 +4864,7 @@ class TestRuntimeCapabilities:
     @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
         ("claude", "claude-opus-5[1m]", "claude-haiku-5-5"),
         ("harness", "vendor/wide:free", "vendor/narrow:free"),
+        ("codex", "gpt-6.1-terra", "gpt-5.3-codex-spark"),
     ])
     async def test_in_place_switch_respects_target_context_window(
             self, session, monkeypatch, live_harness_route, runtime, old_model, new_model):

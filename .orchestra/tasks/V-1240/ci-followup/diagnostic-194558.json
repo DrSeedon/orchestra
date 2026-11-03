@@ -1,0 +1,33 @@
+{
+  "checked_at_utc": "2026-11-02T19:45:58Z",
+  "active_matching_processes": [],
+  "last_completed_command": [
+    "uv",
+    "run",
+    "--frozen",
+    "python",
+    ".orchestra/tasks/V-1240/ci-followup/mutation.py"
+  ],
+  "unified_session_id": "{{PRIVATE_LOCAL_SESSION_ID_01}}",
+  "completed_at_utc": "2026-11-02T19:45:56Z",
+  "exit_code": 0,
+  "last_output": [
+    "5 failed, 24 passed in 13.60s (intended mutation)",
+    "29 passed in 13.91s (restored control)"
+  ],
+  "restored_source_sha256": "1bd29adae5d60d2d91bb9a87297ac6ef252315d5db1cdd483653aeed5980bd31",
+  "browser_command_exit": 1,
+  "browser_log_completed_at_utc": "2026-11-02T19:41:19Z",
+  "browser_summary": "3 failed, 245 passed, 8 skipped, 7621 deselected in 774.75s",
+  "browser_limitations": [
+    ".orchestra/tasks/V-672/compact-fixture.json",
+    "docs/dashboard-real.png",
+    ".git"
+  ],
+  "core_runner_started_at_check": false,
+  "t3_run_id": "{{PRIVATE_T3_RUN_ID_01}}",
+  "t3_status": "running",
+  "t3_metadata_updated_at": "2026-11-02T19:46:23.926Z",
+  "no_restart_kill_model_change_replay_or_queue_history_change": true,
+  "observation": "Watchdog snapshot ending at19:24 differs from current process/results and T3 metadata; no stuck Bash is confirmed."
+}

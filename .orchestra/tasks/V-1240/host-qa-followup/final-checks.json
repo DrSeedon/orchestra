@@ -1,0 +1,11 @@
+{
+  "source_manifest_matches": true,
+  "production_files_unchanged": 6,
+  "guard_sha256": "0644a7304db57887096f86ce9db0255abc6f5b2f8c46e92a822c8d47096cc78a",
+  "mutation_restored": true,
+  "models_api_effort_guards_scope_unchanged": true,
+  "host_private_not_copied": true,
+  "historical_screenshots_not_modified": true,
+  "caches_outside_export": true,
+  "full_host_ci": "V1248/root acceptance, not claimed here"
+}

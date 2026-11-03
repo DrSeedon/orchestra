@@ -17,6 +17,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -594,10 +595,12 @@ class WorkflowEngine:
         workspace_base_commit: str = "",
         pipeline_name: str = "default",
         default_modules: Iterable[str] = DEFAULT_WORKFLOW_MODULES,
+        eval_grant: dict | None = None,
     ):
         if not _RUN_ID.fullmatch(run_id):
             raise ValueError("run_id must contain only letters, digits, dot, underscore, or dash")
         self.run_id = run_id
+        self.eval_grant = eval_grant
         self.run_dir = Path(run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.steps_dir = self.run_dir / "steps"
@@ -707,14 +710,18 @@ class WorkflowEngine:
         return f"{digest}:{occurrence}"
 
     async def _acquire_workflow_slot(self, call_key: str, attempt: int, label: str) -> str:
-        if self._injected_adapter or self._scheduler_missing:
+        if (self._injected_adapter or self._scheduler_missing) and not self.eval_grant:
             return ""
         request_id = f"{self.run_id}:{self.scheduler_owner_id}:{call_key}:{attempt}"
         payload = {"request_id": request_id, "run_id": self.run_id, "label": label}
         retry_delay = 1
         while True:
+            if self.eval_grant and time.time() >= self.eval_grant["deadline"]:
+                raise ValueError("evaluation deadline expired while waiting for scheduler")
             status = await _workflow_slot_request("/api/bg/workflow-scheduler/acquire", payload)
             if status and status.get("scheduler_missing"):
+                if self.eval_grant:
+                    raise ValueError("evaluation scheduler missing; dispatch refused")
                 self._scheduler_missing = True
                 self.scheduler_status = {"reason": "scheduler route absent (Orchestra older than this script); running without central admission"}
                 self.journal.append({"event": "scheduler_absent", "call_key": call_key,
@@ -733,6 +740,8 @@ class WorkflowEngine:
                 state = (status.get("position"), status.get("limit"), status.get("reason"),
                          status.get("active"), status.get("queued"))
             else:
+                if self.eval_grant:
+                    raise ValueError("evaluation scheduler unavailable; dispatch refused")
                 state = (None, None, "Orchestra scheduler unavailable; waiting", None, None)
             if self._slot_wait_state.get(request_id) != state:
                 self._slot_wait_state[request_id] = state
@@ -803,7 +812,12 @@ class WorkflowEngine:
         modules: Iterable[str] | None = None,
         capability_reason: str = "",
         billing: str = "subscription",
+        effort: str = "high",
+        eval_invocation: int | None = None,
     ) -> WorkflowValue | None:
+        if self.eval_grant:
+            return await self._eval_agent(prompt, model=model, effort=effort,
+                                          invocation=eval_invocation, billing=billing, label=label)
         if purpose not in {"work", "verify", "synthesis"}:
             raise ValueError("purpose must be work, verify, or synthesis")
         if tools not in {"all", "read"}:
@@ -1113,6 +1127,66 @@ class WorkflowEngine:
         )
         return value
 
+    async def _eval_agent(self, prompt, *, model, effort, invocation, billing, label):
+        """Same workflow journal/adapter, with authority and accounting on the server."""
+        from dataclasses import asdict
+        from scripts.wf_adapters import _failed
+        if type(invocation) is not int or not isinstance(model, str):
+            raise ValueError("evaluation requires a fixed manifest invocation")
+        key = await self._call_key({"eval_invocation": invocation, "model": model,
+                                    "prompt": prompt, "effort": effort})
+        if key in self._completed:
+            if self._completed[key] is None:
+                self.partial_reason = self.partial_reason or self._completed_reason[key]
+            return self._completed[key]
+        # Let the server replay an already terminal receipt, or refuse an unresolved
+        # reservation. Never locally infer that an interrupted dispatch was not sent.
+        slot_id = ""
+        renewal = None
+        result = None
+        try:
+            remaining = self.eval_grant["deadline"] - time.time()
+            if remaining <= 0:
+                raise ValueError("evaluation deadline expired")
+            try:
+                slot_id = await asyncio.wait_for(
+                    self._acquire_workflow_slot(key, 1, label), remaining)
+            except Exception as error:
+                # Submit the single admission request with an empty slot so the
+                # server records this refused task in the same durable call unit.
+                self.journal.append({"event": "eval_scheduler_refused", "call_key": key,
+                                     "error": f"{type(error).__name__}: {error}"})
+            if slot_id:
+                renewal = asyncio.create_task(self._renew_workflow_slot(slot_id, label))
+            context = {field: self.eval_grant[field]
+                       for field in ("grant_id", "task_id", "manifest_hash")}
+            context.update(run_id=self.run_id, invocation=invocation, slot_id=slot_id)
+            self.journal.append({"event": "dispatched", "call_key": key, "attempt": 1,
+                                 "model": model, "effort": effort, "eval_invocation": invocation})
+            result = await self.adapter(prompt, model=model, effort=effort,
+                cwd=self.run_dir, timeout=max(0.001, self.eval_grant["deadline"] - time.time()),
+                billing_mode=billing, eval_context=context)
+        except Exception as error:
+            result = _failed("codex", model, f"{type(error).__name__}: {error}",
+                             stop_reason="eval_refused")
+        finally:
+            if renewal:
+                renewal.cancel()
+                await asyncio.gather(renewal, return_exceptions=True)
+            await self._release_workflow_slot(slot_id)
+        receipt = self.steps_dir / f"eval-{invocation}.json"
+        self._atomic_json(receipt, {**asdict(result), "invocation": invocation,
+                                   "generated_tokens": result.usage.output_tokens if result.usage_known else None})
+        self.journal.append({"event": "eval_result", "call_key": key,
+                             "receipt_path": str(receipt), "usage_known": result.usage_known,
+                             "generated_tokens": result.usage.output_tokens if result.usage_known else None})
+        value = WorkflowValue(result.text, key, str(receipt), workspace_path=result.workspace_path) if result.ok else None
+        self._finish(key, value, reason="completed" if result.ok else result.stop_reason,
+                     model=model, runtime="codex", error=result.error, label=label)
+        if not result.ok:
+            self.partial_reason = self.partial_reason or result.stop_reason
+        return value
+
     async def _run_attempt(
         self,
         prompt: str,
@@ -1332,12 +1406,16 @@ class WorkflowEngine:
         resume = self.resume_command()
         manifest = {
             "run_id": self.run_id,
+            **({"eval_grant": self.eval_grant, "usage_authority": "server eval_invocations ledger",
+                "billing_mode": "subscription", "usd_limit_applies": False} if self.eval_grant else {}),
             "complete": not in_progress and not bool(self.partial_reason),
             "finished": not in_progress,
             "partial_reason": self.partial_reason or None,
             "spent_usd": round(self.budget.spent_usd, 9),
             "budget_usd": self.budget.maximum_usd,
-            "dispatched_calls": self.budget.dispatched_calls,
+            "dispatched_calls": None if self.eval_grant else self.budget.dispatched_calls,
+            **({"invocation_ledger_url": f"/api/bg/eval/grants/{self.eval_grant['grant_id']}"}
+               if self.eval_grant else {}),
             "scheduler": self.scheduler_status,
             "steps": [
                 {
@@ -1387,6 +1465,22 @@ class WorkflowEngine:
     async def execute_tasks(self, spec: dict[str, Any]) -> Any:
         tasks = spec["tasks"]
         mode = spec["mode"]
+
+        if mode == "eval":
+            if not self.eval_grant:
+                raise ValueError("evaluation spec requires a server-issued grant")
+            results = []
+            for index, task in enumerate(tasks):
+                value = await self.agent(task["prompt"], model=task["model"],
+                    effort=task["effort"], billing=task["billing"],
+                    label=task["label"], eval_invocation=index)
+                results.append(_task_result_record(task, value, task_id=task["task_id"], task_index=index))
+                if value is None:
+                    # Conservatively stop remaining tasks; unknown usage cannot be
+                    # converted to zero and failed outcomes remain in the manifest.
+                    break
+            self.result = results
+            return results
 
         async def run_task(task: dict[str, Any], prior: WorkflowValue | None = None):
             inputs = [prior] if prior is not None else []
@@ -1529,6 +1623,7 @@ async def _run_locked(
         workspace_repo=args.repo,
         workspace_base_commit=args.base_commit,
         resume_command_override=command,
+        eval_grant=spec.get("eval_grant") if spec else None,
     )
     resume = engine.resume_command()
     print(f"WF_BG_MESSAGE={json.dumps(f'wf_run {run_id} interrupted; resume with: {resume}')}", flush=True)

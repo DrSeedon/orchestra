@@ -1,0 +1,21 @@
+--- a/tests/test_manager.py
++++ b/tests/test_manager.py
+@@ -145,8 +145,6 @@
+         mgr.send.assert_awaited_once()
+         assert mgr.send.await_args.args[0] == parent.id
+         assert "2 queued message(s) retained" in mgr.send.await_args.args[1]
+-        assert "hubsol" in mgr.send.await_args.args[1] and "wait" in mgr.send.await_args.args[1]
+-        assert "Luna and Spark" not in mgr.send.await_args.args[1]
+         assert "Codex" in mgr.send.await_args.args[1]
+ 
+     @pytest.mark.asyncio
+--- a/tests/test_hub_model_reason_frontend.py
++++ b/tests/test_hub_model_reason_frontend.py
+@@ -34,7 +34,6 @@
+     assert.equal(_modelReasonForSelection(model), null);
+ }
+ assert.equal(alerts.length, 5);
+-assert.ok(alerts.every(text => text.includes('hubsol') && text.includes('no fallback')));
+ const reason = '<img src=x onerror=alert(1)> creative direction';
+ const badge = _modelReasonBadge(reason);
+ assert.equal(badge.textContent, reason);

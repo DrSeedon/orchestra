@@ -1,0 +1,15 @@
+{
+  "exit_code": 1,
+  "command": [
+    "run",
+    "--frozen",
+    "python",
+    "-m",
+    "pytest",
+    "tests/test_manager.py::TestAtomicSpawnLifecycle::test_cancelled_blocked_git_waits_then_removes_worktree_and_branch",
+    "-q",
+    "--timeout=60",
+    "-rfs"
+  ],
+  "original_assertions_and_waits_unchanged": true
+}

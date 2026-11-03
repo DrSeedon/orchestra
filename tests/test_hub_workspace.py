@@ -231,9 +231,13 @@ class FakeSsh(hw.HubSsh):
         for rel in rels:
             (Path(remote_dir) / rel).unlink(missing_ok=True)
 
-    async def get(self, remote_dir, out):
+    async def get(self, remote_dir, out, *, max_out=hw.MAX_TOTAL_BYTES * 2):
         with tarfile.open(out, "w") as archive:
             archive.add(remote_dir, arcname=".")
+        if max_out is not None and out.stat().st_size > max_out:
+            raise hw.HubWorkspaceError(
+                f"hub workspace download exceeds the size limit: received {out.stat().st_size} "
+                f"bytes, limit {max_out} bytes (transfer stopped)")
 
     async def remove(self, remote_dir):
         self.removed.append(remote_dir)
@@ -337,7 +341,7 @@ def _backend(repo, tmp_path, monkeypatch, edit):
     monkeypatch.setenv("MULTICODE_MCP_TOKEN", FakeMc._token)
     # the broker uploads only what the worker owns; the helper owns the fixture's top-level entries
     owned = sorted(p.name for p in Path(repo).iterdir() if p.name != ".git")
-    backend = backend_hub.HubBackend("hub-claude-haiku-5-5", str(repo), paths=owned)
+    backend = backend_hub.HubBackend("hub-gpt-6.1-sol", str(repo), paths=owned)
     mc = FakeMc(edit)
 
     async def client():
@@ -502,7 +506,7 @@ async def test_failed_run_with_work_or_uncertain_sync_is_not_retried(repo, tmp_p
         mc, monkeypatch, activity={"type": "command_execution", "status": "completed", "text": "$ true"}
         if work == "tool" else None)
     if work == "sync_failure":
-        async def get(*args):
+        async def get(*args, **kwargs):
             raise hw.HubWorkspaceError("snapshot unavailable")
         monkeypatch.setattr(ssh, "get", get)
     if work == "activity_failure":
@@ -547,7 +551,7 @@ async def test_hub_created_virtualenv_is_rejected_and_sibling_is_synced(repo, tm
 
     backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
     events = await _turn(backend, "go")
-    assert events[-1].metadata["ok"] is True
+    assert events[-1].metadata["ok"] is False
     assert not (repo / ".venv-v281").exists()
     assert (repo / "sibling.py").read_text() == "keep = True\n"
     assert "sibling.py" in _git(repo, "show", "--format=", "--name-only", "HEAD")
@@ -630,8 +634,13 @@ async def test_release_removes_hub_project_directory_and_state(repo, tmp_path, m
     await _turn(backend, "noop")
     state = backend._state
     assert state.path().exists() and Path(state.remote_dir).exists()
+    retained = state.path().with_suffix(".sync.tar")
+    interrupted_copy = state.path().with_suffix(".sync.tmp")
+    retained.write_bytes(b"synthetic retained return")
+    interrupted_copy.write_bytes(b"synthetic interrupted copy")
     await hw.release_workspace(state, ssh, mc)
     assert not Path(state.remote_dir).exists() and not state.path().exists()
+    assert not retained.exists() and not interrupted_copy.exists()
     assert ("t3_project_delete", {"projectId": "proj-1", "force": True}) in mc.calls
 
 
@@ -660,7 +669,7 @@ def test_hub_models_resolve_and_spawn_needs_configuration(monkeypatch):
                 "MULTICODE_HUB_SSH", "MULTICODE_HUB_SSH_KEY"):
         monkeypatch.delenv(key, raising=False)
     with pytest.raises(ValueError, match="MULTICODE_MCP_BASE"):
-        models.ensure_spawn_allowed("hub-claude-sonnet-5-5")
+        models.ensure_spawn_allowed("hub-gpt-6.1-sol")
 
 
 @pytest.mark.asyncio
@@ -698,7 +707,7 @@ async def test_real_agent_session_drives_a_hub_turn_like_any_runtime(repo, tmp_p
 
     session = AgentSession(
         id="hub-sess", name="hubw", scope=str(repo), cwd=str(repo),
-        model="hub-claude-sonnet-5-5", system_prompt="x", role="worker",
+        model="hub-gpt-6.1-sol", system_prompt="x", role="worker",
         backend_type="hub", owned_dirs=["calc.py"], created_at=datetime.now(timezone.utc),
     )
     await session.start("fix add()", provenance=MessageProvenance(origin="user", senders=("user",)))
@@ -807,7 +816,7 @@ def test_trace_scrub_removes_only_this_workspaces_provider_traces(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_sweep_releases_dead_workers_keeps_live_and_clears_unrecorded_debris(
+async def test_sweep_preserves_dead_live_and_unrecorded_history(
         repo, tmp_path, monkeypatch, no_wait):
     import os, time
     live, ssh, mc = await _worker_turn(repo, tmp_path, monkeypatch)
@@ -823,15 +832,15 @@ async def test_sweep_releases_dead_workers_keeps_live_and_clears_unrecorded_debr
     monkeypatch.setattr(backend_hub.MultiCodeClient, "from_env", classmethod(lambda cls: _Entering(mc)))
     monkeypatch.setattr(hw.HubSsh, "from_env", classmethod(lambda cls: ssh))
     report = await backend_hub.sweep_orphans({str(repo)})
-    assert report["released"] == [dead.ws_id] and report["kept"] == 1 and not report["errors"]
-    assert report["remote_dirs"] == [old.name]
+    assert report["released"] == [] and report["kept"] == 2 and not report["errors"]
+    assert report["remote_dirs"] == []
     assert Path(live.remote_dir).exists() and fresh.exists()
-    assert not (ssh.base / dead.ws_id).exists() and not old.exists()
-    assert live.path().exists() and not dead.path().exists()
+    assert (ssh.base / dead.ws_id).exists() and old.exists()
+    assert live.path().exists() and dead.path().exists()
 
 
 @pytest.mark.asyncio
-async def test_sweep_deletes_an_orphan_project_under_our_root_only(repo, tmp_path, monkeypatch, no_wait):
+async def test_sweep_does_not_delete_unrecorded_projects(repo, tmp_path, monkeypatch, no_wait):
     ssh = FakeSsh(tmp_path / "hub")
     ssh.base.mkdir()
     monkeypatch.setattr(hw.HubSsh, "from_env", classmethod(lambda cls: ssh))
@@ -853,8 +862,8 @@ async def test_sweep_deletes_an_orphan_project_under_our_root_only(repo, tmp_pat
             return {}
     monkeypatch.setattr(backend_hub.MultiCodeClient, "from_env", classmethod(lambda cls: _Entering(Mc())))
     report = await backend_hub.sweep_orphans(set())
-    assert deleted == ["p-orphan"] and report["projects"] == ["hub-dddddddddddddddd"]
-    assert ssh.scrubbed == [("hub-dddddddddddddddd", "mcp:t1")]
+    assert deleted == [] and report["projects"] == []
+    assert not getattr(ssh, "scrubbed", [])
 
 
 def test_quota_hold_names_the_hub_alternative(monkeypatch):
@@ -864,7 +873,7 @@ def test_quota_hold_names_the_hub_alternative(monkeypatch):
                        "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
         monkeypatch.setenv(key, value)
     assert "model='hubsol'" in hub_alternative_hint("luna")
-    assert "model='hubsonnet'" in hub_alternative_hint("opus")
+    assert "model='hubsol'" in hub_alternative_hint("opus")
     assert hub_alternative_hint("grok") == ""
     monkeypatch.delenv("MULTICODE_HUB_SSH")
     assert hub_alternative_hint("opus") == ""
@@ -1232,7 +1241,7 @@ async def test_persistent_project_copy_is_reused_and_only_the_delta_is_sent(repo
     assert sorted(sent[0]) == ["calc.py", "src/keep.txt"]            # the first worker uploads everything
     (repo / "extra.txt").write_text("new\n")                         # the repo moved on before worker 2
     (repo / "calc.py").write_text("def add(a, b):\n    return a * b\n")
-    second = backend_hub.HubBackend("hub-claude-haiku-5-5", str(repo), scope=str(repo))
+    second = backend_hub.HubBackend("hub-gpt-6.1-sol", str(repo), scope=str(repo))
     second._client = first._client
     await _turn(second, "two")
     assert sent[1] == ["calc.py", "extra.txt"]                        # only what changed vs the warm copy
@@ -1268,10 +1277,14 @@ async def test_hub_model_change_reconfigures_the_thread_or_says_it_started_a_new
     monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
     backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
     await _turn(backend, "one")
-    await backend.retarget_model("hub-claude-opus-5-5")
-    assert backend.model == "hub-claude-opus-5-5" and backend._state.thread_id == "thr-1"
+    before = list(mc.calls)
+    with pytest.raises(ValueError, match="hub_workers_require_sol"):
+        await backend.retarget_model("hub-claude-opus-5-5")
+    assert mc.calls == before
+    assert backend.model == "hub-gpt-6.1-sol" and backend._state.thread_id == "thr-1"
+    await backend.retarget_model("hub-gpt-6.1-sol")
     assert ("t3_thread_configure", {"threadId": "thr-1", "modelSelection": {
-        "instanceId": "claudeAgent", "model": "claude-opus-5-5"}}) in mc.calls
+        "instanceId": "codex", "model": "gpt-6.1-sol"}}) in mc.calls
 
     async def refuse(name, args):
         if name == "t3_thread_configure":
@@ -1309,7 +1322,7 @@ def test_session_hands_owned_dirs_and_scope_to_the_hub_backend(monkeypatch):
     for key, value in {"MULTICODE_MCP_BASE": "http://x", "MULTICODE_MCP_TOKEN": "t",
                        "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
         monkeypatch.setenv(key, value)
-    session = AgentSession(id="i", name="w", scope="/p/big", cwd="/p/big/wt", model="hub-claude-haiku-5-5",
+    session = AgentSession(id="i", name="w", scope="/p/big", cwd="/p/big/wt", model="hub-gpt-6.1-sol",
                            system_prompt="x", role="worker", owned_dirs=["src", "docs"],
                            created_at=datetime.now(timezone.utc))
     backend = session._make_backend()
@@ -1356,7 +1369,7 @@ def test_the_session_hands_its_live_owned_dirs_to_the_hub_backend(monkeypatch):
     for key, value in {"MULTICODE_MCP_BASE": "http://x", "MULTICODE_MCP_TOKEN": "t",
                        "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
         monkeypatch.setenv(key, value)
-    session = AgentSession(id="i", name="w", scope="/p/big", cwd="/p/big/wt", model="hub-claude-haiku-5-5",
+    session = AgentSession(id="i", name="w", scope="/p/big", cwd="/p/big/wt", model="hub-gpt-6.1-sol",
                            system_prompt="x", role="worker", owned_dirs=["a"],
                            created_at=datetime.now(timezone.utc))
     backend = session._make_backend()
@@ -1559,14 +1572,15 @@ async def test_hub_outbox_runs_allowed_tools_once_and_never_reaches_the_worktree
 
 
 @pytest.mark.asyncio
-async def test_hub_outbox_without_a_link_to_orchestra_is_dropped_and_logged(repo, tmp_path, monkeypatch, caplog):
+async def test_hub_outbox_without_a_link_retains_undelivered_report(repo, tmp_path, monkeypatch):
     backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch,
                                        [{"tool": "send_message", "args": {"message": "hi"}}], _Calls())
     backend._bridge = None
-    with caplog.at_level("WARNING"):
-        events = await _turn(backend, "go")
-    assert "dropped" in events[-2].content and "no Orchestra link" in events[-2].content
-    assert any("no Orchestra link" in r.message for r in caplog.records)
+    events = await _turn(backend, "go")
+    assert events[-1].metadata["ok"] is False
+    assert "no Orchestra link" in "\n".join(e.content for e in events)
+    entries = hw.WorkspaceState.load(backend.session_id).pending_sync["entries"]
+    assert entries[0]["tool"] == "send_message" and entries[0]["_delivery_id"]
     assert not (repo / ob.OUTBOX_NAME).exists()
 
 
@@ -1625,8 +1639,10 @@ async def test_nested_outbox_is_reported_and_never_executed_or_committed(repo, t
     call = _Calls()
     backend._bridge = ob.HubBridge(lambda: _who("boss"), call)
     events = await _turn(backend, "go")
-    assert f"rejected: {rel} (broker outbox file)" in events[-2].content
-    assert "[hub outbox] 1 delivered" in events[-2].content
+    text = next(e.content for e in events if e.type == "text" and "[hub sync]" in e.content)
+    assert events[-1].metadata["ok"] is False
+    assert f"rejected: {rel} (broker outbox file)" in text
+    assert "[hub outbox] 1 delivered" in text
     assert len(call.calls) == 1 and call.calls[0][2]["percent"] == 60
     assert not (repo / rel).exists() and rel not in _git(repo, "ls-files")
     assert rel not in backend._state.manifest
@@ -1724,7 +1740,7 @@ def test_the_session_gives_the_hub_backend_its_identity_and_bridge(monkeypatch):
     for key, value in {"MULTICODE_MCP_BASE": "http://x", "MULTICODE_MCP_TOKEN": "t",
                        "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
         monkeypatch.setenv(key, value)
-    session = AgentSession(id="i-1", name="w1", scope="/p/big", cwd="/p/big/wt", model="hub-claude-haiku-5-5",
+    session = AgentSession(id="i-1", name="w1", scope="/p/big", cwd="/p/big/wt", model="hub-gpt-6.1-sol",
                            system_prompt="x", role="worker", parent_name="orch-9",
                            created_at=datetime.now(timezone.utc))
     backend = session._make_backend()
@@ -1840,7 +1856,7 @@ async def test_a_lost_hub_project_is_recreated_and_uploaded_again_once(repo, tmp
 
 
 @pytest.mark.asyncio
-async def test_a_branch_or_task_switch_releases_the_hub_copy_but_a_plain_save_does_not(monkeypatch):
+async def test_a_branch_or_task_switch_archives_the_hub_copy_but_a_plain_save_does_not(monkeypatch):
     from types import SimpleNamespace
 
     from app import manager as manager_module
@@ -1848,15 +1864,16 @@ async def test_a_branch_or_task_switch_releases_the_hub_copy_but_a_plain_save_do
 
     released = []
 
-    async def fake_release(worktree, name):
+    async def fake_release(worktree, name, *, required=True):
         released.append((worktree, name))
-    monkeypatch.setattr(manager_module, "_release_hub_workspaces", fake_release)
+    monkeypatch.setattr(manager_module, "_archive_hub_workspaces", fake_release)
     monkeypatch.setattr(manager_module, "update_session_lifecycle", lambda *a, **k: True)
     mgr = object.__new__(manager_module.SessionManager)
 
     def session(status=AgentStatus.IDLE):
         return SimpleNamespace(id="s", name="w", loaded=False, branch="task-V-1/x", base_branch="main",
-                               task_id="V-1", needs_switch=False, worktree_path="/wt", db_row=None, status=status)
+                               task_id="V-1", needs_switch=False, worktree_path="/wt", db_row=None, status=status,
+                               backend_type="hub")
 
     async def move(sess, branch, task):
         await mgr.persist_lifecycle(sess, branch=branch, base_branch="main", task_id=task, needs_switch=False)
@@ -1973,7 +1990,7 @@ def test_a_refused_scope_uploads_nothing_through_the_backend(repo, tmp_path, mon
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("model,alternative", [
-    ("hub-claude-sonnet-5-5", "hubsol"), ("hub-gpt-6.1-sol", "hubsonnet"),
+    ("hub-gpt-6.1-sol", "hubsol"),
 ])
 @pytest.mark.parametrize("source", ["reply", "status", "exception"])
 async def test_provider_limit_fails_turn_and_notifies_exact_parent(
@@ -2026,7 +2043,7 @@ async def test_pool_refusal_prevents_upload_and_new_hub_turn(repo, tmp_path, mon
     backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
 
     async def pool(**kwargs):
-        return {"available": True, "providers": {"claude": {
+        return {"available": True, "providers": {"codex": {
             "usable": 0, "accounts": 10, "threshold_pct": 100}}}
     monkeypatch.setattr(hub_pool, "get_hub_pool", pool)
     events = await _turn(backend, "go")

@@ -22,7 +22,8 @@ def _make_db(tmp_path, rows):
                accept_seq INTEGER PRIMARY KEY,
                delivery_id TEXT,
                target_session_id TEXT,
-               state TEXT
+               state TEXT,
+               provider_ref TEXT
            )"""
     )
     connection.executemany(

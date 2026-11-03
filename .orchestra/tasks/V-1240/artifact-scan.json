@@ -1,0 +1,57 @@
+[
+  {
+    "path": ".orchestra/tasks/V-1240/changed-files.json",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/mapped-tests.json",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/mutation-proof.json",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/mutation.py",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/notes.md",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/product-equivalence.json",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/raw-log-hashes.sha256",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/report.md",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/source-hashes-06f3.sha256",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/source-hashes.sha256",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  },
+  {
+    "path": ".orchestra/tasks/V-1240/test-only-delta.patch",
+    "foreign_host_user_paths": false,
+    "shape_mask_would_change": false
+  }
+]

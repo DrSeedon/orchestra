@@ -2547,6 +2547,7 @@ class TestEnsureLoadedSingleFlight:
         load_calls = 0
 
         class Session:
+            model = "hub-gpt-6.1-sol"
             id = row["id"]
             name = row["name"]
             scope = row["scope"]

@@ -6,7 +6,8 @@ all ordinary workers use the MultiCode hub, with the one protected-work exceptio
 "Keep protected work local". This replaces native-worker defaults,
 native Sonnet/Opus fallback, the former Opus orchestrator route, and routing based
 on old subscription-pool or Plus-versus-Pro ratios. The reason is to keep local
-orchestration separate from worker capacity and use hub Claude for creative quality.
+orchestration separate from worker capacity. The later Sol-only decision below supersedes
+the former hub Claude creative permission.
 Routing policy belongs here, not in personal memory or project AGENTS files.
 
 **Owner decision, 2026-10-31:** our native orchestrator roles default to GPT-6.1 Terra
@@ -17,26 +18,28 @@ Terra worker admission. Apply a manifest containing a new model only after that 
 running Python registry recognizes it; an offline host must activate the registry with
 the old manifest before receiving the new default.
 
-### Choose a hub model
+### Hub workers: Sol only
 
-- Use `hubsol` as the general worker default, regardless of local quota headroom.
-- Actively choose `hubsonnet` or `hubopus` for **any creative work**, including prose,
-  visual direction, educational/explanatory video, images, and demanding synthesis.
-  There is no "important creative work" or "known-heavy" threshold on hub Claude.
-  The owner has lifted model-choice restrictions for creative work on the hub.
-- Follow an owner's explicit hub-model choice. Use the pipeline's model effort;
-  the creative permission does not authorize changing unrelated settings.
-- Pass short aliases to `spawn_worker` and `change_worker_model`; the model manifest
-  owns versioned ids. A spawn requires an explicit model. For `hubsonnet`, `hubopus`
-  and `hubhaiku`, pass a non-empty `model_reason` describing the task. This remains
-  required tool metadata under `hub_claude_reason_required`, not an importance test.
+**Permanent owner decision, 2026-11-02 17:27 UTC (2026-11-03 00:27 KRS), clarified
+at 17:29 UTC:** every hub worker in every scope must use `hubsol` (GPT-6.1 Sol).
+The owner requires this enforced in Orchestra to prevent hub Opus creation and keep
+all hub work on Sol. This includes creative work, research and existing workers on
+send, queued delivery, resume and recovery. It supersedes all earlier hub Claude
+creative permissions and other hub-model choices.
 
-The existing hub configuration, credential, data and pool-admission guards remain
-in force. A reason never bypasses admission. If the selected hub route is unavailable,
-use another suitable permitted hub route or report the blocker. Do not fall back to
-our own Claude subscription, native Codex workers (except the protected-work route
-below), Grok, or Harness for ordinary work.
-Do not wait for a native subscription to recover as a worker-routing strategy.
+- Pass `model="hubsol"` explicitly to `spawn_worker` or `change_worker_model`.
+  Aliases, direct/versioned IDs, stored flags and `model_reason` cannot permit hub
+  Opus, Sonnet, Haiku, Luna, Grok or any other non-Sol hub model.
+- Keep the pipeline's existing effort. This decision does not change effort defaults,
+  native orchestrator defaults or the owner's manual native orchestrator choice.
+- The canonical routing guard in `app/models.py` refuses with
+  `hub_workers_require_sol` before provider submission; it never resets a worker's
+  model, clears a recovery latch, replays a delivery or discards WIP/history.
+- Hub configuration, company/privacy, ownership, quota and provider-capacity guards
+  still apply. If Sol is at capacity or unavailable, report the blocker or wait.
+  Do not choose another hub model, native worker or API fallback.
+- Do not migrate live workers, remote workspaces or held queues to apply this rule.
+  Activation follows the owner's idle watcher; code on disk is not live activation.
 
 ### Keep protected work local
 
@@ -75,8 +78,8 @@ Preserve existing idle native threads and worktrees. Do not delete, migrate, upl
 or restart them merely to apply this routing decision. The default native orchestrator
 model follows the pipeline; the owner may select another model manually. Agent tools do
 not gain permission to start auxiliary native Terra, Astra, Sol, Claude, Spark, Grok or
-Harness workers. Manual model selection and persisted-session recovery keep their existing
-boundaries.
+Harness workers. Manual native model selection keeps its existing boundaries; persisted hub-session
+recovery must pass the Sol-only guard before another provider submission.
 
 ### Explicit API-credit tasks and workflows
 
@@ -103,7 +106,7 @@ separate all model/effort combinations. Sonnet sometimes stopped at minimal chec
 state required checks explicitly. Opus did better on some concurrency/ownership bugs
 (V-543) and cross-module restructuring (V-621, V-671). V-723 and V-731 found useful
 Claude results on explanatory video and reinforced semantic viewing alongside tests.
-These observations may inform hub Sonnet/Opus selection; they neither benchmark today's
-hub deployment nor restore the former native routes. Historical price and pool-size
+These historical observations do not authorize hub Claude selection, benchmark today's
+hub deployment or restore former native routes. Historical price and pool-size
 comparisons are not current routing rationale.
 </model-routing>

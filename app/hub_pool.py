@@ -79,7 +79,7 @@ def provider_for_model(model: str) -> str | None:
 
 
 def alternative_model(model: str) -> str:
-    return "hubsonnet" if provider_for_model(model) == "codex" else "hubsol"
+    return "hubsol"
 
 
 async def hub_admission(model: str):
@@ -104,7 +104,7 @@ async def hub_admission(model: str):
     if block.get("unknown", 0):
         reason += f"; {block['unknown']} accounts have unknown window data and do not count as usable"
     if not usable:
-        reason += f"; use model='{alternative_model(model)}'"
+        reason += "; use model='hubsol' only; if Sol is unavailable, report the blocker or wait (no fallback)"
     return replace(base, state="available" if usable else "blocked",
                    provider=f"hub_{provider}", provider_label=f"Hub {provider}", gated=True,
                    utilization=threshold if not usable else None, limit_pct=threshold,

@@ -1,0 +1,92 @@
+{
+  "controls": [
+    {
+      "fixture": "simple-199-t3",
+      "control": "base-red",
+      "expected": "RED",
+      "actual": "RED",
+      "returncode": 1,
+      "duration_seconds": 0.034,
+      "stdout_path": ".orchestra/private/V-1162-fixture-validation/simple-199-t3.base-red.stdout.txt",
+      "stderr_path": ".orchestra/private/V-1162-fixture-validation/simple-199-t3.base-red.stderr.txt",
+      "outcome": "PASS"
+    },
+    {
+      "fixture": "simple-199-t3",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "actual": "GREEN",
+      "returncode": 0,
+      "duration_seconds": 0.031,
+      "stdout_path": ".orchestra/private/V-1162-fixture-validation/simple-199-t3.reference-green.stdout.txt",
+      "stderr_path": ".orchestra/private/V-1162-fixture-validation/simple-199-t3.reference-green.stderr.txt",
+      "outcome": "PASS"
+    },
+    {
+      "fixture": "simple-201-accounting",
+      "control": "base-red",
+      "expected": "RED",
+      "actual": "RED",
+      "returncode": 1,
+      "duration_seconds": 0.035,
+      "stdout_path": ".orchestra/private/V-1162-fixture-validation/simple-201-accounting.base-red.stdout.txt",
+      "stderr_path": ".orchestra/private/V-1162-fixture-validation/simple-201-accounting.base-red.stderr.txt",
+      "outcome": "PASS"
+    },
+    {
+      "fixture": "simple-201-accounting",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "actual": "GREEN",
+      "returncode": 0,
+      "duration_seconds": 0.041,
+      "stdout_path": ".orchestra/private/V-1162-fixture-validation/simple-201-accounting.reference-green.stdout.txt",
+      "stderr_path": ".orchestra/private/V-1162-fixture-validation/simple-201-accounting.reference-green.stderr.txt",
+      "outcome": "PASS"
+    },
+    {
+      "fixture": "complex-v620-binding",
+      "control": "base-red",
+      "expected": "RED",
+      "actual": "RED",
+      "returncode": 1,
+      "duration_seconds": 0.088,
+      "stdout_path": ".orchestra/private/V-1162-fixture-validation/complex-v620-binding.base-red.stdout.txt",
+      "stderr_path": ".orchestra/private/V-1162-fixture-validation/complex-v620-binding.base-red.stderr.txt",
+      "outcome": "PASS"
+    },
+    {
+      "fixture": "complex-v620-binding",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "actual": "GREEN",
+      "returncode": 0,
+      "duration_seconds": 0.385,
+      "stdout_path": ".orchestra/private/V-1162-fixture-validation/complex-v620-binding.reference-green.stdout.txt",
+      "stderr_path": ".orchestra/private/V-1162-fixture-validation/complex-v620-binding.reference-green.stderr.txt",
+      "outcome": "PASS"
+    },
+    {
+      "fixture": "complex-v543-pidfd",
+      "control": "base-red",
+      "expected": "RED",
+      "actual": "RED",
+      "returncode": 1,
+      "duration_seconds": 0.375,
+      "stdout_path": ".orchestra/private/V-1162-fixture-validation/complex-v543-pidfd.base-red.stdout.txt",
+      "stderr_path": ".orchestra/private/V-1162-fixture-validation/complex-v543-pidfd.base-red.stderr.txt",
+      "outcome": "PASS"
+    },
+    {
+      "fixture": "complex-v543-pidfd",
+      "control": "reference-green",
+      "expected": "GREEN",
+      "actual": "GREEN",
+      "returncode": 0,
+      "duration_seconds": 0.372,
+      "stdout_path": ".orchestra/private/V-1162-fixture-validation/complex-v543-pidfd.reference-green.stdout.txt",
+      "stderr_path": ".orchestra/private/V-1162-fixture-validation/complex-v543-pidfd.reference-green.stderr.txt",
+      "outcome": "PASS"
+    }
+  ]
+}

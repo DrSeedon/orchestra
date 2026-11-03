@@ -1,0 +1,11 @@
+{
+  "source_hashes_match": true,
+  "models_restored_sha256": "0644a7304db57887096f86ce9db0255abc6f5b2f8c46e92a822c8d47096cc78a",
+  "shared_V1244_files_unchanged": true,
+  "historical_images_unchanged": 11,
+  "caches_absent_from_export": true,
+  "public_artifact_scan": "passed",
+  "reproduction_scripts_parse": true,
+  "actual_host_full_CI": "root acceptance required",
+  "prior_parallel": "interrupted/no terminal exit receipt"
+}

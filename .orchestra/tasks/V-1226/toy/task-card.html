@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V-1226 · учебная карточка задачи: до и после</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1.5' y='2.5' width='13' height='11' rx='2' fill='none' stroke='%231d1d1f' stroke-width='1.5'/%3E%3Cpath d='M4 6h5M4 9h8' stroke='%23007aff' stroke-width='1.5'/%3E%3C/svg%3E">
+<style>
+/* Учебный пример V-1226. Данные вымышлены, разметка не связана с app/.
+   Обе версии рендерят ОДИН объект TASK; меняется только подача. */
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px; font: 14px/20px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+.note { max-width: 720px; margin: 0 0 16px; font-size: 13px; }
+
+/* ── До: типовые признаки из чек-листа аудита ── */
+body.before { background: #0b0b1a; color: #e9e6ff; }
+body.before .note { color: #b9b3ff; }
+.before .card {
+  max-width: 560px; padding: 22px 19px 27px; border-radius: 9999px 9999px 28px 28px / 60px 60px 28px 28px;
+  background: linear-gradient(135deg, #6d28d9, #2563eb); box-shadow: 0 0 40px rgba(139,92,246,.6);
+}
+.before .eyebrow { text-transform: uppercase; letter-spacing: .18em; font-size: 10px; color: #c4b5fd; font-weight: 800; }
+.before h1 { margin: 6px 0 13px; font-size: 26px; line-height: 30px; font-weight: 900;
+  background: linear-gradient(90deg, #f0abfc, #93c5fd); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.before .pill { display: inline-block; padding: 3px 11px; border-radius: 999px; background: #a855f7; color: #fff; font-weight: 800;
+  box-shadow: 0 0 16px #a855f7; margin: 0 6px 7px 0; font-size: 12px; }
+.before .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f0abfc; animation: ping 1s infinite; }
+@keyframes ping { 50% { transform: scale(1.8); opacity: .3; } }
+.before .stats { display: flex; gap: 9px; margin: 14px 0 17px; }
+.before .stat { flex: 1; padding: 11px 13px; border-radius: 18px; background: rgba(255,255,255,.08); border: 1px solid #c084fc; }
+.before .stat b { display: block; font-size: 20px; font-weight: 800; }
+.before .stat span { text-transform: uppercase; letter-spacing: .14em; font-size: 9px; color: #a78bfa; }
+.before .actions button { margin: 0 6px 6px 0; padding: 9px 15px; border-radius: 999px; border: 0; color: #fff; font-weight: 800;
+  background: linear-gradient(90deg, #ec4899, #8b5cf6); transition: all .4s; }
+.before .actions button:hover { transform: scale(1.08); }
+.before .actions button:focus { outline: none; }
+
+/* ── После: светлая тема и система из нашего html-artifacts skill ── */
+body.after { background: #f5f5f7; color: #1d1d1f; }
+body.after .note { color: #515154; }
+.after .card { max-width: 560px; padding: 20px; border-radius: 14px; background: #fff; border: 1px solid rgba(29,29,31,.10); }
+.after .head { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; }
+.after .id { font: 12px/16px ui-monospace, SFMono-Regular, Menlo, monospace; color: #6e6e73; }
+.after h1 { margin: 4px 0 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+.after .status { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 6px;
+  font-size: 12px; line-height: 16px; background: #fff4e0; color: #8a4b00; }
+.after .status svg { width: 12px; height: 12px; }
+.after .why { margin: 12px 0 0; color: #515154; }
+.after ol { margin: 16px 0 0; padding: 0; list-style: none; }
+.after li { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; min-height: 32px; border-top: 1px solid rgba(29,29,31,.08); }
+.after li .t { font: 12px/16px ui-monospace, SFMono-Regular, Menlo, monospace; color: #6e6e73; font-variant-numeric: tabular-nums; }
+.after li[data-s="done"] .m { color: #1e7d3b; } .after li[data-s="now"] { font-weight: 600; }
+.after li[data-s="todo"] { color: #6e6e73; }
+.after .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0 0; }
+.after .facts dt { font-size: 12px; color: #6e6e73; }
+.after .facts dd { margin: 2px 0 0; font-size: 15px; font-variant-numeric: tabular-nums; }
+.after .facts small { display: block; font-size: 12px; color: #6e6e73; }
+.after .actions { display: flex; gap: 8px; margin: 20px 0 0; }
+.after .actions button { min-height: 36px; padding: 0 16px; border-radius: 8px; font: inherit; font-weight: 500; cursor: pointer;
+  transition: background-color .15s, border-color .15s; }
+.after .primary { background: #0066d6; color: #fff; border: 1px solid #0066d6; }
+.after .primary:hover { background: #0057b8; }
+.after .secondary { background: #fff; color: #1d1d1f; border: 1px solid rgba(29,29,31,.18); }
+.after .secondary:hover { background: #f0f0f2; }
+.after .danger { margin-left: auto; background: #fff; color: #b42318; border: 1px solid rgba(180,35,24,.35); }
+.after .danger:hover { background: #fff1f0; }
+.after .actions button:focus-visible { outline: 2px solid #0066d6; outline-offset: 2px; }
+@media (max-width: 480px) {
+  body { padding: 16px; }
+  .after .head { flex-direction: column; gap: 8px; }
+  .after .facts { grid-template-columns: 1fr 1fr; }
+  .after .actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .after .danger { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@media print { body { background: #fff !important; } .actions { display: none; } }
+</style>
+</head>
+<body>
+<p class="note" id="note"></p>
+<main id="root"></main>
+<script>
+// Вымышленная задача: одинаковые факты для обеих версий.
+const TASK = {
+  id: 'T-0042', title: 'Перенос индекса поиска на новую схему',
+  status: 'ждёт ревью', why: 'Шаг 4 из 5: миграция прошла на копии, ждём проверки владельца индекса',
+  steps: [
+    { s: 'done', name: 'Снять копию индекса', t: '09:12' },
+    { s: 'done', name: 'Прогнать миграцию на копии', t: '09:40' },
+    { s: 'done', name: 'Сверить 1 204 документа', t: '10:05' },
+    { s: 'now',  name: 'Ревью диффа схемы', t: 'с 10:07' },
+    { s: 'todo', name: 'Переключить чтение', t: '—' },
+  ],
+  elapsedMin: 58, prevElapsedMin: 46, docs: 1204, failedDocs: 0,
+};
+// Одни и те же четыре действия в обеих версиях: улучшение не должно прятать функции.
+const ACTIONS = [
+  { id: 'open', label: 'Открыть', emoji: '🚀', kind: 'primary' },
+  { id: 'chat', label: 'Чат', emoji: '💬', kind: 'secondary' },
+  { id: 'restart', label: 'Перезапустить', emoji: '⚡', kind: 'secondary' },
+  { id: 'delete', label: 'Удалить', emoji: '🗑', kind: 'danger' },
+];
+const view = new URLSearchParams(location.search).get('v') === 'after' ? 'after' : 'before';
+document.body.className = view;
+const root = document.getElementById('root');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const done = TASK.steps.filter(x => x.s === 'done').length;
+
+if (view === 'before') {
+  document.getElementById('note').textContent = 'До: вымышленная карточка с типовыми признаками (градиент, свечение, эмодзи, капс, пульс, «!!»)';
+  root.innerHTML = `<article class="card">
+    <div class="eyebrow">🚀 AI-powered task ✨</div>
+    <h1>🔥 ${esc(TASK.title)}!!</h1>
+    <span class="pill">⏳ ${esc(TASK.status.toUpperCase())}</span><span class="pill">NEW ✨</span><span class="dot"></span>
+    <div class="stats">
+      <div class="stat"><b>${done}/${TASK.steps.length} ✅</b><span>Progress</span></div>
+      <div class="stat"><b>+${TASK.elapsedMin - TASK.prevElapsedMin} MIN!!</b><span>Time</span></div>
+      <div class="stat"><b>${TASK.docs.toLocaleString('en-US')}.0</b><span>Docs 📄</span></div>
+    </div>
+    <div class="actions">${ACTIONS.map(a => `<button data-action="${a.id}">${a.emoji} ${esc(a.label)}</button>`).join('')}</div>
+  </article>`;
+} else {
+  document.getElementById('note').textContent = 'После: те же факты; статус назван словом, место остановки видно в списке шагов, у изменения есть база сравнения';
+  const icon = '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 3.5V6l1.8 1.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+  const mark = { done: '✓', now: '→', todo: '·' };
+  const delta = TASK.elapsedMin - TASK.prevElapsedMin;
+  root.innerHTML = `<article class="card" aria-labelledby="t">
+    <div class="head"><div><div class="id">${esc(TASK.id)}</div><h1 id="t">${esc(TASK.title)}</h1></div>
+      <span class="status">${icon}${esc(TASK.status)}</span></div>
+    <p class="why">${esc(TASK.why)}</p>
+    <ol aria-label="Шаги">${TASK.steps.map(x => `<li data-s="${x.s}"><span class="m" aria-hidden="true">${mark[x.s]}</span><span>${esc(x.name)}</span><span class="t">${esc(x.t)}</span></li>`).join('')}</ol>
+    <dl class="facts">
+      <div><dt>Шаги</dt><dd>${done} из ${TASK.steps.length}</dd></div>
+      <div><dt>В работе</dt><dd>${TASK.elapsedMin} мин<small>+${delta} мин к прошлой проверке</small></dd></div>
+      <div><dt>Документы</dt><dd>${TASK.docs.toLocaleString('ru-RU')}<small>расхождений ${TASK.failedDocs}</small></dd></div>
+    </dl>
+    <div class="actions">${ACTIONS.map(a => `<button class="${a.kind}" data-action="${a.id}"${a.kind === 'primary' ? ' id="primary"' : ''}>${esc(a.label)}</button>`).join('')}</div>
+  </article>`;
+  if (new URLSearchParams(location.search).get('focus') === '1') document.getElementById('primary').focus();
+}
+
+// Самопроверка контраста текста против фона его карточки; итог — в data-атрибут для --dump-dom.
+function rgb(c) { const m = c.match(/[\d.]+/g).map(Number); return m; }
+function lum([r, g, b]) { return [r, g, b].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; })
+  .reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0); }
+function bgOf(el) { while (el) { const c = getComputedStyle(el).backgroundColor; const v = rgb(c); if (getComputedStyle(el).backgroundImage !== 'none') return null; if (v.length < 4 || v[3] === 1) return v.slice(0, 3); if (v[3] > 0) return null; el = el.parentElement; } return [255, 255, 255]; }
+const rows = [];
+for (const el of root.querySelectorAll('*')) {
+  if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue;
+  const cs = getComputedStyle(el); const bg = bgOf(el);
+  if (!bg || cs.color.includes('0, 0, 0, 0')) { rows.push({ text: el.textContent.trim().slice(0, 24), ratio: 'n/a (gradient, translucent or clipped)' }); continue; }
+  const a = lum(rgb(cs.color)), b = lum(bg); const r = (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+  rows.push({ text: el.textContent.trim().slice(0, 24), size: cs.fontSize, ratio: +r.toFixed(2) });
+}
+const num = rows.filter(r => typeof r.ratio === 'number');
+document.body.dataset.check = JSON.stringify({ view, width: innerWidth,
+  actions: [...root.querySelectorAll('button[data-action]')].map(b => b.dataset.action).join(','), min: Math.min(...num.map(r => r.ratio)),
+  below45: num.filter(r => r.ratio < 4.5).map(r => r.text + ' ' + r.ratio), unmeasured: rows.length - num.length,
+  overflowX: document.documentElement.scrollWidth > innerWidth,
+  focused: document.activeElement?.id || null, focusOutline: document.activeElement?.id ? getComputedStyle(document.activeElement).outlineStyle : null,
+  focusVisible: document.activeElement?.id ? document.activeElement.matches(':focus-visible') : null });
+</script>
+</body>
+</html>

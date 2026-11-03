@@ -1,0 +1,23 @@
+{
+  "placement": "outside export worktree",
+  "cache_subdirectory": "v1240-tools-9980yqy3",
+  "relative_parent": ".cache/orchestra-task-tools",
+  "moved": [
+    {
+      "name": "browser-assets",
+      "files": 294,
+      "bytes": 276065738
+    },
+    {
+      "name": "tool-bin",
+      "files": 2,
+      "bytes": 289612560
+    },
+    {
+      "name": "npm-cache",
+      "files": 1893,
+      "bytes": 71509950
+    }
+  ],
+  "no_active_consumer_at_move": true
+}

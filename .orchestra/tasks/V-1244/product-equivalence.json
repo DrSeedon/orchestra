@@ -1,0 +1,21 @@
+{
+  "source_manifest_sha256": "8825239827e0b5013e33d96f86bedad6440fad1506c827bb388b7ee138b0d1fe",
+  "integrated_host_candidate": "c38c19e7411885c7e37f9db969010daf001a0f42",
+  "new_production_change": "backend_hub._finish_sync only: optional canonical worker identity reads, missing role/id/name gives no directive; no fabricated identity",
+  "unchanged_production": [
+    "Hub retention/archive paths",
+    "native cleanup critical ownership/cancellation",
+    "privacy/pending/WIP/UNKNOWN/no-next/exact-HEAD guards",
+    "Sol-only routing",
+    "models/manager/session/merge_operations/pipeline/app.js/i18n.js/cron fixtures"
+  ],
+  "protected_hashes": "raw/host-outcomes/protected-unchanged.json",
+  "new_validation": [
+    "input continuation retains state/thread/manifests and input bytes",
+    "native positive uses real owned Git generation and real output cleanup",
+    "frozen stale-snapshot body unchanged, explicit fixture imports",
+    "six optional identity missing/empty cases",
+    "three bounded committed-regression mutations"
+  ],
+  "activation": "Not accepted, merged or live; root owns broker SHA, integrated host run and approved idlewatch activation"
+}

@@ -1,0 +1,5 @@
+# Task C1 — release a clean completed worker binding
+
+Change only `src/task_binding.py`. A worker's branch may already equal the target after a successful `continue`, while its task run remains open. When the worker is idle and the Git worktree is clean with no commits ahead, moving to a different task must either release the old binding (old task returns to the queue) or, only when explicitly requested with a nonempty note, complete the old task. Create the new task run in the same SQLite transaction as the binding change.
+
+Fail closed before changing any rows when the worktree is dirty, has untracked files, or contains commits ahead of the target branch. A failure while opening the new task run must roll back the release of the previous task. If another worker still owns the previous task, explicit completion must refuse; a normal release must keep that task in progress for the other worker. Keep `complete_committed_work` behavior working for a normal task with real commits. The hidden validator observes Git and SQLite outcomes; do not depend on private helper names or exact error wording.

@@ -629,6 +629,8 @@ async def test_t2_manager_entry_preserves_session_lock_and_auto_switch(
 
     class FakeSession:
         id = SESSION_ID
+        name = WORKER
+        model = "gpt-5.6-sol"
 
         async def send(self, message, *, delivery=None, provenance):
             assert manager.get_session_lock(self.id).locked()
@@ -849,6 +851,8 @@ async def test_v788_quota_release_loads_initial_target_missing_from_manager(
 
     class LoadedSession:
         id = SESSION_ID
+        name = WORKER
+        model = "gpt-5.6-sol"
 
         async def send(self, message, *, delivery=None, provenance):
             assert manager.get_session_lock(self.id).locked()

@@ -175,23 +175,33 @@ async def test_hub_turn_merge_release_and_next_upload_keep_inputs(env, tmp_path,
     backend, ssh, mc = _backend(root, tmp_path, monkeypatch, edit)
     await _turn(backend, 'derive outputs')
     state = backend._state
+    provenance = (state.ws_id, state.remote_dir, state.project_id, state.thread_id, dict(state.input_manifest))
+    saved = state.path().read_bytes()
+    mc.calls.clear()
     assert state.input_manifest == {INPUT: hw.sha256_file(root / INPUT)}
     assert INPUT not in git(root, 'ls-files').splitlines()
     result = merge(env)
     assert result['ok'], result
-    # The same cleanup invoked after merge_worker(continue) releases only hub state.
+    # Merge observation retains this Hub generation and its original inputs.
     from app.merge_operations import _clean_worktree_after_merge
     monkeypatch.setattr('app.backend_hub.MultiCodeClient.from_env', lambda: _Entering(mc))
     monkeypatch.setattr('app.merge_operations.get_session',
                         lambda sid: {'worktree_path': str(root)})
     await _clean_worktree_after_merge({'session_id': 'worker'}, {'git': {'target_branch': 'main'}})
-    assert not state.path().exists()
-    assert (root / INPUT).read_text() == RAW
+    assert state.path().read_bytes() == saved
+    assert (root / INPUT).read_bytes() == RAW.encode()
     assert not (repo / INPUT).exists()
+    assert not mc.calls and not ssh.removed
     await _turn(backend, 'continue the task')
-    assert backend._state.ws_id != state.ws_id
-    assert (Path(backend._state.remote_dir) / INPUT).read_text() == RAW
+    current = hw.WorkspaceState.load(state.ws_id)
+    assert (current.ws_id, current.remote_dir, current.project_id, current.thread_id, current.input_manifest) == provenance
+    assert not current.archived and not current.pending_sync
+    assert (Path(current.remote_dir) / INPUT).read_bytes() == RAW.encode()
     assert backend._state.input_manifest == {INPUT: hw.sha256_file(root / INPUT)}
+    assert [args['threadId'] for name, args in mc.calls if name == 't3_thread_send'] == [state.thread_id]
+    assert not any(name in {'t3_project_delete', 't3_thread_organize', 't3_thread_launch'} for name, _ in mc.calls)
+    assert INPUT not in git(root, 'ls-files').splitlines()
+    assert INPUT not in git(repo, 'ls-tree', '-r', '--name-only', 'HEAD').splitlines()
 
 
 def test_input_allowance_does_not_bypass_publication_guard(env, tmp_path, monkeypatch):
@@ -236,6 +246,9 @@ async def test_merge_worker_continue_retains_task_and_uploads_original_again(tmp
     monkeypatch.setattr('app.backend_hub.MultiCodeClient.from_env', lambda: _Entering(mc))
     await _turn(backend, 'create output')
     state = backend._state
+    provenance = (state.ws_id, state.remote_dir, state.project_id, state.thread_id, dict(state.input_manifest))
+    saved = state.path().read_bytes()
+    mc.calls.clear()
     head = git(root, 'rev-parse', 'HEAD').strip()
     _save_worker(session_id='hub-input-worker', task_id='42', scope=str(repo),
                  worktree_path=wt.path, branch=wt.branch)
@@ -251,13 +264,19 @@ async def test_merge_worker_continue_retains_task_and_uploads_original_again(tmp
     assert db.get_session(found.id)['task_id'] == '42'
     assert not db.get_session(found.id)['needs_switch']
     await _clean_worktree_after_merge({'session_id': found.id}, {'git': {'target_branch': 'main'}})
-    assert not state.path().exists()
-    assert (root / INPUT).read_text() == RAW
+    assert state.path().read_bytes() == saved
+    assert (root / INPUT).read_bytes() == RAW.encode()
     assert not (repo / INPUT).exists()
+    assert not mc.calls and not ssh.removed
     await _turn(backend, 'continue the same task')
-    assert backend._state.ws_id != state.ws_id
-    assert (Path(backend._state.remote_dir) / INPUT).read_text() == RAW
+    current = hw.WorkspaceState.load(state.ws_id)
+    assert (current.ws_id, current.remote_dir, current.project_id, current.thread_id, current.input_manifest) == provenance
+    assert not current.archived and not current.pending_sync
+    assert (Path(current.remote_dir) / INPUT).read_bytes() == RAW.encode()
     assert INPUT not in git(root, 'ls-files').splitlines()
+    assert INPUT not in git(repo, 'ls-tree', '-r', '--name-only', 'HEAD').splitlines()
+    assert [args['threadId'] for name, args in mc.calls if name == 't3_thread_send'] == [state.thread_id]
+    assert not any(name in {'t3_project_delete', 't3_thread_organize', 't3_thread_launch'} for name, _ in mc.calls)
 
 
 @pytest.mark.asyncio

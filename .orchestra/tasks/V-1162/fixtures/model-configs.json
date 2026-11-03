@@ -1,0 +1,104 @@
+{
+  "billing": "subscription-only; API-credit fallback forbidden",
+  "matrix_conditions": [
+    {
+      "effort": "low",
+      "id": "terra-low",
+      "model": "gpt-6.1-terra"
+    },
+    {
+      "effort": "medium",
+      "id": "terra-medium",
+      "model": "gpt-6.1-terra"
+    },
+    {
+      "effort": "high",
+      "id": "terra-high",
+      "model": "gpt-6.1-terra"
+    },
+    {
+      "effort": "xhigh",
+      "id": "terra-xhigh",
+      "model": "gpt-6.1-terra"
+    },
+    {
+      "effort": "max",
+      "id": "terra-max",
+      "model": "gpt-6.1-terra"
+    },
+    {
+      "effort": "high",
+      "id": "sol-high",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "effort": "high",
+      "id": "luna-high",
+      "model": "gpt-6-luna"
+    }
+  ],
+  "models": {
+    "gpt-6-luna": {
+      "api_equivalent_rates_per_million": {
+        "cache_write_30m": 0.125,
+        "cached_input": 0.01,
+        "fresh_input": 0.1,
+        "output": 0.5
+      },
+      "billing": "subscription",
+      "context_window": {
+        "registry_fallback": 258400,
+        "runtime_measured": false
+      },
+      "display_name": "GPT-6 Luna",
+      "manual_only": false,
+      "policy_note": "protected-local route is insufficient for this public fixture; exact V-1162 grant required",
+      "provider": "openai",
+      "quota_bucket": "codex",
+      "quota_lane": "luna",
+      "runtime": "codex",
+      "stage_a_commit": "pre-existing"
+    },
+    "gpt-6.1-sol": {
+      "api_equivalent_rates_per_million": {
+        "cache_write_30m": 2.5,
+        "cached_input": 0.1,
+        "fresh_input": 2.0,
+        "output": 10.0
+      },
+      "billing": "subscription",
+      "context_window": {
+        "registry_fallback": 258400,
+        "runtime_measured": false
+      },
+      "display_name": "GPT-6.1 Sol",
+      "manual_only": true,
+      "provider": "openai",
+      "quota_bucket": "codex",
+      "quota_lane": "sol",
+      "runtime": "codex",
+      "stage_a_commit": "460d12c2"
+    },
+    "gpt-6.1-terra": {
+      "api_equivalent_rates_per_million": {
+        "cache_write_30m": 1.25,
+        "cached_input": 0.05,
+        "fresh_input": 1.0,
+        "output": 5.0
+      },
+      "billing": "subscription",
+      "context_window": {
+        "registry_fallback": 258400,
+        "runtime_measured": false
+      },
+      "display_name": "GPT-6.1 Terra",
+      "manual_only": true,
+      "provider": "openai",
+      "quota_bucket": "codex",
+      "quota_lane": "sol",
+      "runtime": "codex",
+      "stage_a_commit": "460d12c2"
+    }
+  },
+  "pricing_note": "API-equivalent Standard rates are metadata only, not subscription cost or a spending cap"
+}

@@ -1,0 +1,12 @@
+{
+  "node": "tests/test_workflow_cards.py::test_workflow_fixture_preserves_refresh_when_unrelated_get_follows",
+  "mutation": "remove the workflow endpoint filter, restoring global workflow response injection",
+  "intended_assertion": "unrelated API returns its independent background payload",
+  "mutated_exit": 1,
+  "restored_exit": 0,
+  "mutated_summary": "1 failed in 25.59s",
+  "restored_summary": "1 passed in 25.60s",
+  "before_sha256": "2c34a853cd158461d1936eee72f529a01bfe7cb553653180b3877763446e40a6",
+  "mutant_sha256": "f041f7777a2fab5abbe095edd9eee182fa681a8978088b78ae75145fa30081a1",
+  "restored_sha256": "2c34a853cd158461d1936eee72f529a01bfe7cb553653180b3877763446e40a6"
+}

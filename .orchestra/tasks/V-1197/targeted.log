@@ -1,0 +1,957 @@
+........................................................................ [ 33%]
+........................................................................ [ 67%]
+..............................................................FFFFFFF.   [100%]
+=================================== FAILURES ===================================
+________________ test_failed_send_keeps_the_facts_in_the_queue _________________
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+>           base = build_system_prompt(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/manager.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:647: in build_system_prompt
+    rr = resolve_role(load_pipeline(pipeline_name), role)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '<workspace>/app/db.py'>
+session_id = 'e0b1fd6c-7d9d-4278-8594-3a6c979a0544'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x748b4dc14320>
+agent = <function agent.<locals>._make at 0x748b4d122f20>
+
+    @pytest.mark.asyncio
+    async def test_failed_send_keeps_the_facts_in_the_queue(db, session_id, monkeypatch, agent):
+        """Гашение строго по факту доставки: не дошло — факт остаётся."""
+        db.enqueue_fact(session_id, "bug:1", "уведомление о баг-репорте не доставлено")
+    
+        async def boom(_msg):
+            raise RuntimeError("CLI отвалился")
+    
+>       session = await agent(send_impl=boom)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_undelivered_queue.py:132: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_undelivered_queue.py:99: in _make
+    session = await manager.ensure_loaded_any("worker")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1976: in ensure_loaded_any
+    return await self._ensure_loaded_row(row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1993: in _ensure_loaded_row
+    return await self._load_from_db(get_session(session_id) or db_row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:2124: in _load_from_db
+    current_prompt, prompt_overlay = self.assemble_prompt(
+app/manager.py:2011: in assemble_prompt
+    current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+            base = build_system_prompt(pipeline, role, scope)
+        except (FileNotFoundError, KeyError) as e:
+>           raise ValueError(
+                f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+                f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            ) from e
+E           ValueError: role 'worker' not resolvable in pipeline 'default': FileNotFoundError("pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml"). Define it in .orchestra/pipelines/default/pipeline.yaml + prompts/roles/worker.md
+
+app/manager.py:294: ValueError
+----------------------------- Captured stderr call -----------------------------
+Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+------------------------------ Captured log call -------------------------------
+WARNING  app.private_folder:private_folder.py:168 Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+___________________ test_agent_sees_the_fact_in_its_context ____________________
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+>           base = build_system_prompt(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/manager.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:647: in build_system_prompt
+    rr = resolve_role(load_pipeline(pipeline_name), role)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '<workspace>/app/db.py'>
+session_id = 'ea39ad84-485d-47e5-bf51-437851637076'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x748b4dde8950>
+agent = <function agent.<locals>._make at 0x748b4d1ef6a0>
+
+    @pytest.mark.asyncio
+    async def test_agent_sees_the_fact_in_its_context(db, session_id, monkeypatch, agent):
+        db.enqueue_fact(session_id, "autoreport:1",
+                        "автоотчёт воркера «perf» не доставлен: RuntimeError: занято")
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+>       session = await agent(send_impl=capture)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_undelivered_queue.py:152: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_undelivered_queue.py:99: in _make
+    session = await manager.ensure_loaded_any("worker")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1976: in ensure_loaded_any
+    return await self._ensure_loaded_row(row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1993: in _ensure_loaded_row
+    return await self._load_from_db(get_session(session_id) or db_row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:2124: in _load_from_db
+    current_prompt, prompt_overlay = self.assemble_prompt(
+app/manager.py:2011: in assemble_prompt
+    current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+            base = build_system_prompt(pipeline, role, scope)
+        except (FileNotFoundError, KeyError) as e:
+>           raise ValueError(
+                f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+                f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            ) from e
+E           ValueError: role 'worker' not resolvable in pipeline 'default': FileNotFoundError("pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml"). Define it in .orchestra/pipelines/default/pipeline.yaml + prompts/roles/worker.md
+
+app/manager.py:294: ValueError
+----------------------------- Captured stderr call -----------------------------
+Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+------------------------------ Captured log call -------------------------------
+WARNING  app.private_folder:private_folder.py:168 Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+__________________ test_overflow_line_is_visible_to_the_agent __________________
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+>           base = build_system_prompt(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/manager.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:647: in build_system_prompt
+    rr = resolve_role(load_pipeline(pipeline_name), role)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '<workspace>/app/db.py'>
+session_id = '72932348-328b-4670-b3d9-12c8e2616c8d'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x748b4dc33b90>
+agent = <function agent.<locals>._make at 0x748b4d1ef920>
+
+    @pytest.mark.asyncio
+    async def test_overflow_line_is_visible_to_the_agent(db, session_id, monkeypatch, agent):
+        for i in range(23):
+            db.enqueue_fact(session_id, f"k{i}", f"событие {i}")
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+>       session = await agent(send_impl=capture)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_undelivered_queue.py:176: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_undelivered_queue.py:99: in _make
+    session = await manager.ensure_loaded_any("worker")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1976: in ensure_loaded_any
+    return await self._ensure_loaded_row(row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1993: in _ensure_loaded_row
+    return await self._load_from_db(get_session(session_id) or db_row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:2124: in _load_from_db
+    current_prompt, prompt_overlay = self.assemble_prompt(
+app/manager.py:2011: in assemble_prompt
+    current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+            base = build_system_prompt(pipeline, role, scope)
+        except (FileNotFoundError, KeyError) as e:
+>           raise ValueError(
+                f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+                f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            ) from e
+E           ValueError: role 'worker' not resolvable in pipeline 'default': FileNotFoundError("pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml"). Define it in .orchestra/pipelines/default/pipeline.yaml + prompts/roles/worker.md
+
+app/manager.py:294: ValueError
+----------------------------- Captured stderr call -----------------------------
+Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+------------------------------ Captured log call -------------------------------
+WARNING  app.private_folder:private_folder.py:168 Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+_________________ test_broken_queue_does_not_block_the_message _________________
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+>           base = build_system_prompt(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/manager.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:647: in build_system_prompt
+    rr = resolve_role(load_pipeline(pipeline_name), role)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '<workspace>/app/db.py'>
+session_id = 'a8bf1ae4-e5ae-48df-870d-b51fee63670e'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x748b5233fad0>
+agent = <function agent.<locals>._make at 0x748b4d1ef380>
+
+    @pytest.mark.asyncio
+    async def test_broken_queue_does_not_block_the_message(db, session_id, monkeypatch, agent):
+        """Сообщение важнее факта: сбой очереди не должен мешать доставке."""
+        import app.db as dbmod
+    
+        def boom(*_a, **_k):
+            raise RuntimeError("БД недоступна")
+    
+        monkeypatch.setattr(dbmod, "peek_facts", boom)
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+>       session = await agent(send_impl=capture)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_undelivered_queue.py:198: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_undelivered_queue.py:99: in _make
+    session = await manager.ensure_loaded_any("worker")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1976: in ensure_loaded_any
+    return await self._ensure_loaded_row(row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1993: in _ensure_loaded_row
+    return await self._load_from_db(get_session(session_id) or db_row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:2124: in _load_from_db
+    current_prompt, prompt_overlay = self.assemble_prompt(
+app/manager.py:2011: in assemble_prompt
+    current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+            base = build_system_prompt(pipeline, role, scope)
+        except (FileNotFoundError, KeyError) as e:
+>           raise ValueError(
+                f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+                f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            ) from e
+E           ValueError: role 'worker' not resolvable in pipeline 'default': FileNotFoundError("pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml"). Define it in .orchestra/pipelines/default/pipeline.yaml + prompts/roles/worker.md
+
+app/manager.py:294: ValueError
+----------------------------- Captured stderr call -----------------------------
+Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+------------------------------ Captured log call -------------------------------
+WARNING  app.private_folder:private_folder.py:168 Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+__________________ test_mid_turn_inject_also_carries_the_fact __________________
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+>           base = build_system_prompt(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/manager.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:647: in build_system_prompt
+    rr = resolve_role(load_pipeline(pipeline_name), role)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '<workspace>/app/db.py'>
+session_id = 'cba83e46-db52-4aba-9fd8-7ae20c204f63'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x748b4dc542c0>
+agent = <function agent.<locals>._make at 0x748b4d1efe20>
+
+    @pytest.mark.asyncio
+    async def test_mid_turn_inject_also_carries_the_fact(db, session_id, monkeypatch, agent):
+        """Путь RUNNING + рантайм с mid-turn inject (Claude)."""
+        from app.session_state import AgentStatus
+    
+        db.enqueue_fact(session_id, "wake:7", "пробуждение не доставлено")
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+>       session = await agent(send_impl=capture)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_undelivered_queue.py:216: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_undelivered_queue.py:99: in _make
+    session = await manager.ensure_loaded_any("worker")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1976: in ensure_loaded_any
+    return await self._ensure_loaded_row(row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1993: in _ensure_loaded_row
+    return await self._load_from_db(get_session(session_id) or db_row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:2124: in _load_from_db
+    current_prompt, prompt_overlay = self.assemble_prompt(
+app/manager.py:2011: in assemble_prompt
+    current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+            base = build_system_prompt(pipeline, role, scope)
+        except (FileNotFoundError, KeyError) as e:
+>           raise ValueError(
+                f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+                f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            ) from e
+E           ValueError: role 'worker' not resolvable in pipeline 'default': FileNotFoundError("pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml"). Define it in .orchestra/pipelines/default/pipeline.yaml + prompts/roles/worker.md
+
+app/manager.py:294: ValueError
+----------------------------- Captured stderr call -----------------------------
+Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+------------------------------ Captured log call -------------------------------
+WARNING  app.private_folder:private_folder.py:168 Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+_______________________ test_flush_path_carries_the_fact _______________________
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+>           base = build_system_prompt(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/manager.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:647: in build_system_prompt
+    rr = resolve_role(load_pipeline(pipeline_name), role)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '<workspace>/app/db.py'>
+session_id = 'a73f9ef3-c758-4a04-92fb-87b54666f076'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x748b4df02990>
+agent = <function agent.<locals>._make at 0x748b3ffe4ea0>
+
+    @pytest.mark.asyncio
+    async def test_flush_path_carries_the_fact(db, session_id, monkeypatch, agent):
+        """Путь рантайма БЕЗ mid-turn inject (Codex): сообщение уходит через _flush_pending."""
+        db.enqueue_fact(session_id, "bgjob:9", "результат фоновой задачи не доставлен")
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+>       session = await agent(send_impl=capture)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_undelivered_queue.py:236: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_undelivered_queue.py:99: in _make
+    session = await manager.ensure_loaded_any("worker")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1976: in ensure_loaded_any
+    return await self._ensure_loaded_row(row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1993: in _ensure_loaded_row
+    return await self._load_from_db(get_session(session_id) or db_row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:2124: in _load_from_db
+    current_prompt, prompt_overlay = self.assemble_prompt(
+app/manager.py:2011: in assemble_prompt
+    current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+            base = build_system_prompt(pipeline, role, scope)
+        except (FileNotFoundError, KeyError) as e:
+>           raise ValueError(
+                f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+                f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            ) from e
+E           ValueError: role 'worker' not resolvable in pipeline 'default': FileNotFoundError("pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml"). Define it in .orchestra/pipelines/default/pipeline.yaml + prompts/roles/worker.md
+
+app/manager.py:294: ValueError
+----------------------------- Captured stderr call -----------------------------
+Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+------------------------------ Captured log call -------------------------------
+WARNING  app.private_folder:private_folder.py:168 Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+____________ test_fact_lands_inside_current_user_message_on_handoff ____________
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+>           base = build_system_prompt(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/manager.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:647: in build_system_prompt
+    rr = resolve_role(load_pipeline(pipeline_name), role)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '<workspace>/app/db.py'>
+session_id = 'ac2195f8-3839-4284-8731-e2c82fef6b20'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x748b4dc24f50>
+agent = <function agent.<locals>._make at 0x748b4d1efe20>
+
+    @pytest.mark.asyncio
+    async def test_fact_lands_inside_current_user_message_on_handoff(db, session_id, monkeypatch, agent):
+        """При смене рантайма факт обязан быть ВНУТРИ <current-user-message>, а не над ним."""
+        db.enqueue_fact(session_id, "bug:5", "уведомление о баг-репорте не доставлено")
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+>       session = await agent(send_impl=capture)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_undelivered_queue.py:255: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_undelivered_queue.py:99: in _make
+    session = await manager.ensure_loaded_any("worker")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1976: in ensure_loaded_any
+    return await self._ensure_loaded_row(row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:1993: in _ensure_loaded_row
+    return await self._load_from_db(get_session(session_id) or db_row)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/manager.py:2124: in _load_from_db
+    current_prompt, prompt_overlay = self.assemble_prompt(
+app/manager.py:2011: in assemble_prompt
+    current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline = 'default', role = 'worker', scope = '/s'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+            base = build_system_prompt(pipeline, role, scope)
+        except (FileNotFoundError, KeyError) as e:
+>           raise ValueError(
+                f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+                f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            ) from e
+E           ValueError: role 'worker' not resolvable in pipeline 'default': FileNotFoundError("pipeline 'default' not found at <workspace>/.orchestra/pipelines/default/pipeline.yaml"). Define it in .orchestra/pipelines/default/pipeline.yaml + prompts/roles/worker.md
+
+app/manager.py:294: ValueError
+----------------------------- Captured stderr call -----------------------------
+Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+------------------------------ Captured log call -------------------------------
+WARNING  app.private_folder:private_folder.py:168 Could not prepare shared private folder for /s: git-common-dir failed in /s: fatal: cannot change to '/s': No such file or directory
+=========================== short test summary info ============================
+FAILED tests/test_undelivered_queue.py::test_failed_send_keeps_the_facts_in_the_queue
+FAILED tests/test_undelivered_queue.py::test_agent_sees_the_fact_in_its_context
+FAILED tests/test_undelivered_queue.py::test_overflow_line_is_visible_to_the_agent
+FAILED tests/test_undelivered_queue.py::test_broken_queue_does_not_block_the_message
+FAILED tests/test_undelivered_queue.py::test_mid_turn_inject_also_carries_the_fact
+FAILED tests/test_undelivered_queue.py::test_flush_path_carries_the_fact - Va...
+FAILED tests/test_undelivered_queue.py::test_fact_lands_inside_current_user_message_on_handoff
+7 failed, 207 passed in 19.15s

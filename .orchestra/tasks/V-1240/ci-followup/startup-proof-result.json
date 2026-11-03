@@ -1,0 +1,17 @@
+{
+  "exit_code": 0,
+  "command": [
+    "run",
+    "--frozen",
+    "python",
+    "-m",
+    "pytest",
+    "tests/test_hub_sol_only_v1240.py::test_auth_startup_refresh_without_endpoint_preserves_registry",
+    "tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child",
+    "-p",
+    "ci_startup_probe",
+    "-q",
+    "--timeout=60",
+    "-rfs"
+  ]
+}

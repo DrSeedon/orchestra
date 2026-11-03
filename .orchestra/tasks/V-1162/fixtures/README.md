@@ -1,0 +1,7 @@
+# V-1162 sanitized fixture pack
+
+Model-visible input is limited to each fixture's `prompt.md` and `seed/src/*`. The hidden `oracle/` and `reference/` directories are validators and positive controls; do not include them in model workspaces. The fixtures are synthetic reductions of #199 T3, #201, V-620 and V-543. No `.git` history, previous model output, live host details, user/account data or credentials are included.
+
+Final controls: all four unmodified seeds returned expected RED (exit 1), and all four reference implementations returned GREEN (exit 0); no control was skipped. `control-summary.json` contains the safe results and is included in the frozen manifest. The local receipt `validation/controls.json` points to stdout/stderr outputs under ignored `.orchestra/private/V-1162-fixture-validation/`; no trace or local worktree path is in the handoff archive. The first V-620 reference-control attempt exposed a fixture schema mismatch (`tasks.worker` did not exist); the schema/reference were corrected and all eight final controls passed.
+
+`manifest.json` hashes prompts, seeds, hidden validators/references, model metadata, metrics, randomized run order and control summary. `manifest.sha256` is the digest. Its `dispatch_ready` field is false: live registry activation, the owner-approved one-shot grant, and verified hard output-token enforcement are still prerequisites. Seed 1162 determines the order; one task invocation at a time is planned. No model/provider process was started.
