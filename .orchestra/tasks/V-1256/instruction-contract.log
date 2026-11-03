@@ -1,0 +1,6 @@
+Sanitized public evidence pointer; original supplied-copy result remains RED / exit 2.
+The instruction contract could not run because scripts/check_instruction_contract.py was absent.
+The parent preserved and hash-verified the full raw original privately at:
+.orchestra/private/V-1256/publish-guard-originals/instruction-contract.log
+Original SHA256: 3bb9a74b914183decda0241b576c2768b28151dd171ab147463dbda1f7fd6ff4
+Later host validation is recorded separately in stage.md; it does not relabel this failure.

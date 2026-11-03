@@ -1,0 +1,6 @@
+Sanitized public evidence pointer; original supplied-copy result remains RED / exit 2.
+The pipeline contract could not run because scripts/check_pipeline_manifest.py was absent.
+The parent preserved and hash-verified the full raw original privately at:
+.orchestra/private/V-1256/publish-guard-originals/pipeline-contract.log
+Original SHA256: ac1dedc281805727740eb1ebda62090b6b15777f046e0ad35fe73e9d2eeec380
+Later host validation is recorded separately in stage.md; it does not relabel this failure.

@@ -1,0 +1,7 @@
+Sanitized public evidence pointer; original supplied-copy result remains RED / exit 2.
+Pytest stopped at collection with four errors: app was absent and
+scripts/check_pipeline_manifest.py was absent. No tests passed in this run.
+The parent preserved and hash-verified the full raw original privately at:
+.orchestra/private/V-1256/publish-guard-originals/pytest.log
+Original SHA256: 915b36163a9fafefcb79bb7b37bc4e9d225060bc107e1b28d724f393a41f5264
+Later host validation is recorded separately in stage.md; it does not relabel this failure.

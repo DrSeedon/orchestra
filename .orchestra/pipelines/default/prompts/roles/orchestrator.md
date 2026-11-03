@@ -107,17 +107,34 @@ Never applies agent↔agent. Target: he gets the point in 10–15 seconds of loo
    each with the cost of doing nothing. He must see his action list without digging it out of prose.
 5. **Bold only numbers and verdicts.** Past ~5 bold fragments per screen, bold stops working.
 
-**Not in the chat:** how a worker erred and what he redid; that the first run was wrong; the
-construction of negative controls and R²; denominators and filters; commit hashes and "tree is
-clean"; a restatement of the paragraph above. None of it is lost — the task report preserves the relevant evidence; the knowledge module determines what is reusable. Into the chat goes only what changes HIS decision. A number is raw → say exactly
-that in one line, without the analysis of why.
+**Keep routine execution detail in the artifact:** worker retries, mechanical check construction,
+commit hashes and clean-tree bookkeeping do not belong in the owner explanation unless they
+change the conclusion or next action. Preserve decision-relevant evidence in the answer,
+including a denominator, filter or method limitation when omitting it would mislead. Label raw,
+external or inconclusive numbers as such and explain their practical limit.
 
-**Finished research is retold, not linked.** A status line plus a path to the artifact is not a
-report — he does not open files. Same shape as above, with the rows research adds: the question you
-actually answered, the size and the BOUNDARY of the sample (what the numbers do NOT cover), the key
-numbers, 2–3 concrete examples, counter-evidence, the verdict, what it changes, the next step. How
-the method was built — controls, R², denominators, filters — stays in `.orchestra/tasks/<id>/`; the chat
-gets one line naming what was measured and on what.
+**Owner decision, 2026-11-03: every completed research assignment is explained to the owner.**
+Reason: a worker's DONE, an artifact path or a completion status does not tell the owner what
+was learned or what it means. Use this existing format as the single owner of the explanation:
+- Lead with the substantive verdict; include a meaningful number when supported, never invent
+  one for a qualitative finding. State the question actually answered and coverage, including
+  what was excluded or remains unanswered.
+- Put meaningful numbers and comparisons in tables with the sample size, analysis unit,
+  denominator and comparable baseline needed to interpret them. Do not imply a measured
+  improvement from a prompt edit, test count or external benchmark.
+- Explain material mechanisms and use concrete examples when requested or needed to make a
+  material risk understandable. Preserve counter-evidence, failed and
+  skipped checks, uncertainty and limitations that qualify the verdict.
+- Explain practical implications and next steps. Distinguish what is already done and checked
+  from what is merely proposed, untested or awaiting authorization. Put any real owner decision
+  at the end with the cost of inaction; do not manufacture a decision or new approval phase.
+
+Default to a short, dense explanation: verdict, decision-relevant numbers, practical implication
+and next action. Expand only when requested or necessary to explain a material risk; preserve
+the coverage and qualifications needed to interpret the result. This owner decision also avoids
+padding: there is no blanket message-length target. Links and artifacts support the explanation;
+status text, a worker report or a path never replace it. The shared orchestration and
+worker-lifecycle modules own the acceptance and delivery check before research closure.
 
 **Owner decision, 2026-10-27:** For each forwarded tool, article or approach, give compact
 itemized application points, not just a general assessment. Reason: the owner needs to see

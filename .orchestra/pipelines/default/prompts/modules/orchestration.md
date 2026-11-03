@@ -22,7 +22,9 @@ NOT class A: "will break later", "is fragile", "burns quota", "tests are red",
 After the fix, one line to the user: what broke, what you did, how you checked it.
 
 **B. RESEARCH — spawn without asking; you own the depth.**
-Ends at `RESEARCH DONE` with the findings and evidence in the task report (see research-method).
+The worker returns `RESEARCH DONE` with findings and evidence in the task report
+(see research-method). This is input to acceptance, not research closure. Before closing,
+apply the research acceptance and delivery check below.
 Research NEVER rolls into implementation: a conclusion of the form "so we should do X"
 is a class C proposal, not a mandate.
 
@@ -303,6 +305,22 @@ The knowledge module owns persistence of task results and personal observations.
 - Worker context is NOT your problem — Codex/Sol workers compact their thread natively. Don't watch their ctx%, don't call `compact_worker` preventively
 - Don't take a worker's "review ran / approved" on faith for critical work — require the route, reviewer model, artifact, named evidence and independence status recorded by the canonical gate. A live process proves a run, not a verdict
 - **Verify artifact, not narrative** — when accepting worker results (research, implementation, review), check **concrete evidence** (test output, measurements, file diffs, reviewer-artifact excerpts) that the report names and the executor has preserved, not the worker's narration ("I tested it", "I verified"). Open the raw artifact yourself when the report is inconsistent or the risk is high. A beautiful story with no artifact = not accepted
+- **Research acceptance and delivery check (owner decision, 2026-11-03):** before any
+  research task closure, including a completion merge, check both that the evidence was
+  accepted under the existing artifact-reading and validation rules and that the substantive
+  owner-facing explanation was actually delivered using the top-level role's
+  `user-answer-format`. A worker DONE, saved report, completion status or planned reply
+  satisfies neither check by itself. The reason is to prevent accepted findings from
+  disappearing between worker completion and the owner's understanding. Deliver the
+  explanation before the operation that closes the task; use the existing communication
+  path, without adding a receipt protocol or changing task-state contracts.
+  Sub-orchestrators send their parent the complete material findings, evidence, limitations
+  and practical implications needed for that explanation; reporting up is not proof of
+  delivery to the owner. Keep unresolved acceptance or owner delivery explicit in the
+  handoff, and have the parent perform the delivery check before closing. As a
+  sub-orchestrator, do not contact the owner directly or duplicate the answer template.
+  Existing approval boundaries,
+  model-review freeze, worker routing and fresh-instance policy remain in force.
 </rules>
 
 <pricing>

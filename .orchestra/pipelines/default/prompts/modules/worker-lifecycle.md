@@ -20,7 +20,7 @@ Warm context, a possible future topic, a project backlog, and the native-worker 
 period do not justify keeping a completed hub worker. A further explicitly assigned task keeps
 the worker active.
 
-Pending required validation, acceptance, or an unfinished assigned phase means the task is not
+Pending required validation, acceptance, owner delivery of research findings, or an unfinished assigned phase means the task is not
 complete, even after a merge. Finish those steps promptly; once the completion conditions and
 kill gate are satisfied, archive immediately.
 
@@ -76,8 +76,13 @@ does not block the kill; the stale branch stays in Git and may be killed with fo
 accepted and merged before killing; use reversible `stop_worker` while that remains unresolved.
 A RESEARCH DONE, PLAN
 READY, “awaiting approval”, or STOP status does not establish completion while required
-validation, acceptance, or a later assigned phase remains unfinished. Accepted research with
-saved findings and no remaining assigned phase can satisfy the hub-worker completion rule.
+validation, acceptance, owner delivery of research findings, or a later assigned phase remains
+unfinished. For research, apply the shared orchestration acceptance and delivery check and the
+top-level role's `user-answer-format` before task closure or worker archival (owner decision,
+2026-11-03: saving accepted findings alone leaves the owner without the result). A
+sub-orchestrator forwards the result and any outstanding owner-delivery obligation to its
+parent. Accepted research with saved findings, the owner explanation actually delivered and
+no remaining assigned phase can satisfy the hub-worker completion rule.
 
 `stop_worker` preserves the session/worktree; `kill_worker` archives permanently. The gate applies
 even during requested cleanup. If you spawn children, you own their merge/kill lifecycle.

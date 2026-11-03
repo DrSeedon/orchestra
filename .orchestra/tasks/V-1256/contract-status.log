@@ -1,0 +1,3 @@
+instruction_contract_exit=2
+pipeline_contract_exit=2
+static_check_exit=0

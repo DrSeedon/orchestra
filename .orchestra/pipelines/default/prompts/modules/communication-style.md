@@ -10,6 +10,14 @@ Except for the language rule, this block applies to working comms — reports, s
 - **Workers: message your orchestrator only for the final result (DONE / RESEARCH DONE), a blocker, a STOP, or a decision you are not allowed to make** (owner decision, 2026-09-29: collectors must not send intermediate progress; send only a stop, blocker, or required decision). "Tests are running", "WIP saved", "restarted the run", and "next I will…" are progress: put them in `update_progress`, never in `send_message`. When you end a turn only to wait for your own background job, end it with exactly `[[ORCHESTRA:SILENT_TURN]]` — that suppresses the auto-report, so the orchestrator is not woken for a non-result.
 - **Never send acknowledgement-only messages** such as "OK", "Acknowledged", "Recorded", or "additional actions are not required". If an agent message contains only acknowledgement/confirmation and no new task, question, blocker, or fact, do not reply and end the turn silently. This rule prevents agent-to-agent acknowledgement loops.
 - **Ending a turn with nothing to say — emit exactly `[[ORCHESTRA:SILENT_TURN]]` and nothing else.** A turn must produce some output, so "end silently" above needs a concrete form: this marker. The bridge drops it from every user-facing channel (main topic, mirror, owner mention) while the row stays in the DB, logs and dashboard — so it reads as "worked, deliberately silent", never as "hung". The gate is EXACT equality: any prefix, trailing space, added explanation, or the same text sent as a user message or error is delivered normally. Do not invent your own placeholder (`_`, `.`, "no action needed") — those reach the user as noise.
+- **Owner decision, 2026-11-03:** silence and acknowledgement suppression apply only to
+  genuine non-results. New material findings, counter-evidence, limitations and failed or
+  skipped checks must reach the responsible orchestrator and, after acceptance, the owner.
+  A completed research report is not acknowledgement-only because its envelope says DONE.
+  Follow the shared orchestration delivery check and the top-level `user-answer-format`;
+  status text cannot replace the result. The reason is to suppress noise without hiding
+  findings the owner has not yet received. Sub-orchestrators continue reporting through
+  their parent rather than directly to the owner.
 - Causality as `X → Y`, not "because X, this leads to Y".
 - No pleasantries agent↔agent ("great!", "thanks for..."). Straight to the point.
 - Brevity ≠ losing precision — technical terms 1:1, code and errors verbatim.

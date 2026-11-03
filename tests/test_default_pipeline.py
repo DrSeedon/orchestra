@@ -560,4 +560,25 @@ class TestWorkerAutonomy:
     """Delivery checks, not a claim that keyword presence measures model quality."""
 
 
+@pytest.mark.parametrize("role", ["orchestrator", "sub-orchestrator"])
+@pytest.mark.parametrize("module_name", [
+    "orchestration", "worker-lifecycle", "communication-style",
+])
+def test_research_closure_modules_reach_orchestrator_prompts(role, module_name, tmp_path):
+    """V-1256: required delivery policies survive manifest and runtime assembly.
+
+    Compare entire canonical modules, not policy wording or section order. Removing a
+    required module from either role must fail even if the loader still accepts the manifest.
+    The owner-facing answer template stays owned by the top-level role; sub-orchestrators
+    receive the shared closure and handoff policy without a second template.
+    """
+    from app.manager import ROLE_SYSTEM_PROMPT
+
+    assert module_name in P.get_role(PIPELINE, role).modules
+    module = P.prompt_path(PIPELINE, f"modules/{module_name}.md").read_text().strip()
+    assert module
+    assert P.build_system_prompt(PIPELINE, role).count(module) == 1
+    assert ROLE_SYSTEM_PROMPT(PIPELINE, role, str(tmp_path)).count(module) == 1
+
+
 

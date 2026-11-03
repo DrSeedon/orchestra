@@ -1,0 +1,5 @@
+PASS: changed test file parses with the provisioned uv project interpreter
+PASS: answer-format and Telegram block ownership remain top-level only
+PASS: changed shared module wrappers remain singular and balanced
+NOT VERIFIED: real manifest, loader assembly, manager delivery, instruction contracts
+app import failed: No module named 'app'; no imported app path exists
