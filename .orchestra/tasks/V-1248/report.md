@@ -4,7 +4,7 @@
 
 The exact integrated source/test candidate a1d81f96837c3dc99f2fa7ee19116bd47ebf9720 received two native full-suite attempts. The first detached checkout run was RED: **7,894 passed, 60 skipped, 5 failed, 7 warnings** in 539.38 s. The root-authorized rerun used the existing named branch at the same HEAD and passed: **7,899 passed, 60 skipped, 5 warnings** in **578.03 s**, exit 0. No source or test file changed between these runs; only the test checkout's branch metadata differed. The initial detached-run reds and their five-node diagnostic remain recorded below.
 
-No product source changed after the successful run. No main merge, push, deployment, restart, close, kill, purge, provider/model/Telegram call, live DB copy or model review occurred.
+At the time of host QA no service action had been performed by this worker. Root later merged and published main d8fd509df0579f09b2f35c8ca88f54c933d664d6 and completed its owner-authorized restart; the activation receipt is recorded below.
 
 ## Candidate integration and preserved inputs
 
@@ -61,4 +61,13 @@ That preliminary retry was not dispatched: free disk was 12,597,731,328 B and th
 
 Earlier results remain distinct: the corrected cf2912 run was 9 failed / 7,807 passed / 60 skipped / 5 warnings; the prior integrated c38c19e run was 4 failed / 7,887 passed / 60 skipped / 1 error / 5 warnings. Those runs are not represented as green and do not replace the successful named-branch a1d81 run.
 
-Raw logs, timing/resource measurements, startup proof, screenshot diffs, invalid precheck output, retry preflight, and five-node diagnostic remain in ignored private V-1248 evidence. The worker branch is local and clean after the final report commit; latest full-tested source/test commit remains a1d81f96837c3dc99f2fa7ee19116bd47ebf9720.
+Raw logs, timing/resource measurements, startup proof, screenshot diffs, invalid precheck output, retry preflight, and five-node diagnostic remain in ignored private V-1248 evidence. The full suite tested source/test commit a1d81f96837c3dc99f2fa7ee19116bd47ebf9720 before integration. Root later merged/pushed d8fd509df0579f09b2f35c8ca88f54c933d664d6; GitHub CI run 41554641506 succeeded for that exact SHA. The activation check below is separate host evidence.
+
+
+## Activation acceptance after merge
+
+After root's exact-source merge, push and successful CI run, the owner-authorized restart was scheduled once at 2026-11-03 00:54:55 UTC. Its HTTP response was 200 with scheduled=true; cut_names contained only the initiating Orchestra orchestrator. No worker was cut. The recovery timer fired, the root returned, restart_cut_turns was empty, and no worker resumption was owed. The new MainPID started at 00:56:23 UTC. Main was clean at d8fd509df0579f09b2f35c8ca88f54c933d664d6 before the restart and remained clean afterward; the new process started after that commit. This links startup to the accepted source tree but is not a direct hash of every imported module in memory.
+
+Post-start checks returned HTTP 302, systemd active/running, parent cgroup MemoryHigh 14 GiB / MemoryMax 16 GiB, and oom_score_adj 800. The bounded restart journal reported 25 background jobs restored, 0 expired, and systemd readiness published; it contained no warnings or errors. The live MCP refusal check confirmed the negative hub-model admission path: ApiToolError hub_workers_require_sol, details.field=model, retryable=false, outcome_unknown=false; it created no worker and requested no provider submission. This checks only that negative MCP entry guard, not Sol provider capacity/readiness, a real provider turn, or every route.
+
+No Hub closure, kill or purge was attempted; the legacy close hold remains. The DB contains two unresolved historical merge records in PARTIAL/UNKNOWN states; they remain recorded separately and were not counted as PENDING/RUNNING. Actual runtime paths, database identities, cut identifiers, authentication material and raw responses remain in private V-1248 evidence. The private activation-preflight report records full coverage and limitations.
