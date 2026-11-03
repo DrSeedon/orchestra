@@ -276,6 +276,30 @@ class TestUniqueness:
 
 
 class TestDeleteArchivedSession:
+    def test_archive_session_expected_identity_rejects_stale_snapshot(self, db, sample_session):
+        from app.db import (
+            SessionArchiveConflict, archive_session, get_session, save_session,
+        )
+
+        save_session(sample_session)
+        before = get_session(sample_session["id"])
+        expected = {
+            key: before.get(key) for key in (
+                "name", "scope", "backend_type", "worktree_path", "branch",
+                "task_id", "status", "needs_switch",
+            )
+        }
+        changed = {**before, "branch": "task-99/reassigned"}
+        save_session(changed)
+
+        with pytest.raises(SessionArchiveConflict, match="identity changed"):
+            archive_session(sample_session["id"], expected=expected,
+                            preserve_pending_deliveries=True)
+
+        after = get_session(sample_session["id"])
+        assert after["status"] == changed["status"]
+        assert after["branch"] == "task-99/reassigned"
+
     def test_frees_slot_for_respawn(self, db, sample_session):
         """kill (archive) → re-spawn same name+scope must not hit UNIQUE(name,scope)."""
         from app.db import (

@@ -1297,6 +1297,129 @@ class SessionManager:
             retention=retention,
         )
 
+    async def _archive_missing_hub_thread_locally(
+        self, session: AgentSession, session_id: str,
+    ) -> bool:
+        """Archive only the local card after an exact read proves its Hub thread is absent."""
+        if session.backend_type != "hub" or not session.worktree_path:
+            return False
+        from app import hub_workspace as hw
+        from app.backend_hub import hub_configured
+        from app.multicode_client import MultiCodeClient, MultiCodeError
+        from app.db import SessionArchiveConflict, bg_get_jobs
+
+        async with self.get_session_lock(session_id):
+            async with session._lifecycle_lock:
+                row = get_session(session_id)
+                if row is None:
+                    raise hw.HubWorkspaceError("Hub local archive blocked: session record is missing")
+                expected_keys = (
+                    "name", "scope", "backend_type", "worktree_path", "branch",
+                    "task_id", "status", "needs_switch",
+                )
+                expected = {key: row.get(key) for key in expected_keys}
+                if (row.get("status") != AgentStatus.IDLE.value
+                        or session.status != AgentStatus.IDLE
+                        or session._compacting
+                        or any(getattr(session, key, None) != row.get(key)
+                               for key in ("name", "scope", "backend_type", "worktree_path",
+                                           "branch", "task_id"))):
+                    raise hw.HubWorkspaceError("Hub local archive blocked: session identity is not idle and stable")
+                if self.sessions.get(session_id) not in (None, session):
+                    raise hw.HubWorkspaceError("Hub local archive blocked: session owner changed")
+                if bg_get_jobs(session_id=session_id, active_only=True):
+                    raise hw.HubWorkspaceError("Hub local archive blocked: active background job")
+
+                states = hw.states_for_worktree(session.worktree_path)
+                active_states = [state for state in states if not state.archived]
+                if not active_states:
+                    return False
+                if len(active_states) != 1:
+                    raise hw.HubWorkspaceError("Hub local archive blocked: workspace generation is ambiguous")
+                state = active_states[0]
+                if not state.thread_id or not state.project_id or not state.remote_dir:
+                    return False
+                # This branch only archives the local card; it must preserve a latched
+                # incident without inspecting or transferring any retained workspace file.
+                if not state.file_policy_blocked:
+                    state.assert_file_policy()
+                if state.pending_sync:
+                    raise hw.HubWorkspaceError("Hub local archive blocked: pending sync must recover first")
+                if (os.path.realpath(state.worktree) != os.path.realpath(row["worktree_path"])):
+                    raise hw.HubWorkspaceError("Hub local archive blocked: workspace owner changed")
+                backend_state = getattr(getattr(session, "_backend", None), "_state", None)
+                if backend_state is not None and backend_state.ws_id != state.ws_id:
+                    raise hw.HubWorkspaceError("Hub local archive blocked: current workspace generation changed")
+                before_state = json.dumps(state.__dict__, ensure_ascii=False, sort_keys=True,
+                                          separators=(",", ":"))
+
+                problem = hub_configured()
+                if problem:
+                    raise hw.HubWorkspaceError(problem)
+                client = MultiCodeClient.from_env()
+                missing = False
+                async with client:
+                    try:
+                        result = await client.tool_call("t3_thread_read", {
+                            "threadId": state.thread_id,
+                            "view": "activity",
+                            "afterPosition": 9007199254740991,
+                            "limit": 1,
+                            "runLimit": 1,
+                        })
+                    except MultiCodeError as exc:
+                        if (exc.remote_code == "thread_not_found"
+                                and exc.remote_resource_id == state.thread_id):
+                            missing = True
+                        else:
+                            raise hw.HubWorkspaceError(
+                                "Hub local archive blocked: exact read-only thread status unavailable"
+                            ) from exc
+
+                if not missing:
+                    thread = result.get("thread") if isinstance(result, dict) else None
+                    if (not isinstance(thread, dict)
+                            or thread.get("threadId") != state.thread_id
+                            or thread.get("projectId") != state.project_id):
+                        raise hw.HubWorkspaceError("Hub local archive blocked: remote thread identity changed")
+                    if result.get("items"):
+                        raise hw.HubWorkspaceError("Hub local archive blocked: bounded read returned activity")
+                    pending = thread.get("pendingRequestCount")
+                    if type(pending) is not int or pending < 0:
+                        raise hw.HubWorkspaceError("Hub archive blocked: pending request count is unavailable")
+                    if pending:
+                        raise hw.HubWorkspaceError("Hub archive blocked: thread has pending requests")
+                    return False
+
+                latest_row = get_session(session_id)
+                latest_state = hw.WorkspaceState.load(state.ws_id)
+                latest_active = [item for item in hw.states_for_worktree(session.worktree_path)
+                                 if not item.archived]
+                if (latest_row is None
+                        or any(latest_row.get(key) != value for key, value in expected.items())
+                        or len(latest_active) != 1
+                        or latest_active[0].ws_id != state.ws_id
+                        or latest_state is None
+                        or json.dumps(latest_state.__dict__, ensure_ascii=False, sort_keys=True,
+                                      separators=(",", ":")) != before_state):
+                    raise hw.HubWorkspaceError("Hub local archive blocked: session or workspace generation changed")
+                if self.sessions.get(session_id) not in (None, session):
+                    raise hw.HubWorkspaceError("Hub local archive blocked: session owner changed")
+                if bg_get_jobs(session_id=session_id, active_only=True):
+                    raise hw.HubWorkspaceError("Hub local archive blocked: active background job appeared")
+                try:
+                    archive_session(session_id, expected=expected,
+                                    preserve_pending_deliveries=True)
+                except SessionArchiveConflict as exc:
+                    raise hw.HubWorkspaceError(
+                        f"Hub local archive blocked: {exc}"
+                    ) from exc
+                from app import fan_barrier
+                fan_barrier.on_child_killed(session.name)
+                session._cancel_precompact_timer("removed")
+                self.sessions.pop(session_id, None)
+                return True
+
     async def remove(self, session_id: str) -> None:
         session = self.sessions.get(session_id)
         if session is None:
@@ -1304,6 +1427,8 @@ class SessionManager:
             if row is None:
                 return
             session = self._hydrate_row(row)
+        if await self._archive_missing_hub_thread_locally(session, session_id):
+            return
         # For Hub workers, retained evidence or archival failure must block close
         # before jobs, the provider connection, worktree or lifecycle are touched.
         if session.worktree_path:

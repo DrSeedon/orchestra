@@ -118,6 +118,45 @@ async def test_json_rpc_error_does_not_emit_token():
     assert token not in str(error.value)
 
 
+@pytest.mark.asyncio
+async def test_thread_not_found_is_typed_only_for_exact_read_identity():
+    thread_id = "thread-exact"
+    payload = {
+        "_tag": "OrchestratorMcpFailure",
+        "code": "thread_not_found",
+        "message": f"Thread {thread_id} is no longer available.",
+    }
+    calls = []
+
+    async def handler(request):
+        body = json.loads(request.content)
+        if body["method"] == "initialize":
+            return _rpc_response(body["id"], {})
+        if body["method"] == "notifications/initialized":
+            return httpx.Response(202)
+        calls.append(body["params"]["name"])
+        return _rpc_response(body["id"], {
+            "isError": True,
+            "content": [{"type": "text", "text": json.dumps(payload)}],
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
+        client = MultiCodeClient("http://mock", "token", client=transport)
+        with pytest.raises(MultiCodeError) as missing:
+            await client.tool_call("t3_thread_read", {"threadId": thread_id})
+        assert missing.value.remote_code == "thread_not_found"
+        assert missing.value.remote_resource_id == thread_id
+        with pytest.raises(MultiCodeError) as mismatch:
+            await client.tool_call("t3_thread_read", {"threadId": "different-thread"})
+        assert mismatch.value.remote_code == ""
+        assert mismatch.value.remote_resource_id == ""
+        with pytest.raises(MultiCodeError) as wrong_tool:
+            await client.tool_call("t3_thread_interrupt", {"threadId": thread_id})
+        assert wrong_tool.value.remote_code == ""
+        assert wrong_tool.value.remote_resource_id == ""
+    assert calls == ["t3_thread_read", "t3_thread_read", "t3_thread_interrupt"]
+
+
 async def _launch_args(monkeypatch, **kwargs):
     monkeypatch.setenv("MULTICODE_MCP_BASE", "http://hub.local")
     monkeypatch.setenv("MULTICODE_MCP_TOKEN", "secret-token-xyz")

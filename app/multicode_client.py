@@ -25,12 +25,35 @@ class MultiCodeError(RuntimeError):
     """A safe-to-display MultiCode transport or protocol error."""
 
     def __init__(self, message: str, *, retryable: bool = False,
-                 invalid_params: bool = False):
+                 invalid_params: bool = False, remote_code: str = "",
+                 remote_resource_id: str = ""):
         super().__init__(message)
         # Retry only read operations: a failed send may already have reached the hub.
         self.retryable = retryable
         # A rejected payload says nothing about whether the existing thread is usable.
         self.invalid_params = invalid_params
+        self.remote_code = remote_code
+        self.remote_resource_id = remote_resource_id
+
+
+def _missing_thread_id(detail: str, requested_id: object) -> str:
+    if not isinstance(requested_id, str) or not requested_id:
+        return ""
+    try:
+        payload = json.loads(detail)
+    except (TypeError, json.JSONDecodeError):
+        return ""
+    if (not isinstance(payload, dict)
+            or payload.get("_tag") != "OrchestratorMcpFailure"
+            or payload.get("code") != "thread_not_found"):
+        return ""
+    message = payload.get("message")
+    prefix, suffix = "Thread ", " is no longer available."
+    if (not isinstance(message, str) or not message.startswith(prefix)
+            or not message.endswith(suffix)):
+        return ""
+    resource_id = message[len(prefix):-len(suffix)]
+    return resource_id if resource_id == requested_id else ""
 
 
 class MultiCodeClient:
@@ -167,9 +190,13 @@ class MultiCodeClient:
         if result.get("isError"):
             detail = " ".join(item.get("text", "") for item in result.get("content", [])
                                if isinstance(item, dict))
+            missing_thread = (_missing_thread_id(detail, arguments.get("threadId"))
+                              if name == "t3_thread_read" else "")
             raise MultiCodeError(f"MultiCode tool {name} failed: "
                                  f"{self._redact(detail) if detail else 'tool error'}",
-                                 invalid_params=_invalid_params(detail))
+                                 invalid_params=_invalid_params(detail),
+                                 remote_code="thread_not_found" if missing_thread else "",
+                                 remote_resource_id=missing_thread)
         if "structuredContent" in result:
             return self._redact_value(result["structuredContent"])
         content = result.get("content", [])

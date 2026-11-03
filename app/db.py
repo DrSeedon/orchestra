@@ -728,16 +728,55 @@ def delete_archived_session(name: str, scope: str) -> None:
         )
 
 
-def archive_session(session_id: str) -> None:
+class SessionArchiveConflict(RuntimeError):
+    """The session changed after a close path captured its identity."""
+
+
+def archive_session(session_id: str, *, expected: dict | None = None,
+                    preserve_pending_deliveries: bool = False) -> None:
     from app import tm
 
     from app import tm
+    allowed = {
+        "name", "scope", "backend_type", "worktree_path", "branch", "task_id",
+        "status", "needs_switch",
+    }
+    if expected is not None and (not expected or not set(expected) <= allowed):
+        raise ValueError("invalid expected session identity")
     with tm.active_runtime().operation():
         with _conn() as c:
+            where = "id=?"
+            values = [session_id]
+            if expected is not None:
+                where += " AND " + " AND ".join(f"{key} IS ?" for key in expected)
+                values.extend(expected.values())
+            if preserve_pending_deliveries:
+                c.execute("BEGIN IMMEDIATE")
+                pending = c.execute(
+                    """SELECT 1 FROM message_deliveries
+                       WHERE target_session_id=?
+                         AND state IN ('QUEUED','PREPARING','DISPATCHING',
+                                       'WAITING_NEXT_TURN','WAITING_QUOTA')
+                       LIMIT 1""",
+                    (session_id,),
+                ).fetchone()
+                if pending is not None:
+                    raise SessionArchiveConflict("queued delivery prevents retained archive")
+                initial_pending = c.execute(
+                    """SELECT 1 FROM initial_deliveries
+                       WHERE session_id=?
+                         AND state IN ('QUEUED','PREPARING','DISPATCHING','WAITING_QUOTA')
+                       LIMIT 1""",
+                    (session_id,),
+                ).fetchone()
+                if initial_pending is not None:
+                    raise SessionArchiveConflict("initial delivery prevents retained archive")
             cur = c.execute(
-                "UPDATE sessions SET status='archived', finished_at=? WHERE id=?",
-                (datetime.now(timezone.utc).isoformat(), session_id),
+                f"UPDATE sessions SET status='archived', finished_at=? WHERE {where}",
+                (datetime.now(timezone.utc).isoformat(), *values),
             )
+            if expected is not None and cur.rowcount != 1:
+                raise SessionArchiveConflict("session identity changed before archive")
             # Одна транзакция с архивацией: между «воркера больше нет» и «его задача
             # пересчитана» не должно существовать окна, в котором задача числится за мёртвым.
             tm.release_session_task_binding(c, session_id)
@@ -745,6 +784,8 @@ def archive_session(session_id: str) -> None:
                 logger.warning(
                     "UPDATE sessions changed 0 rows: session id=%r not archived", session_id,
                 )
+    if preserve_pending_deliveries:
+        return
     try:
         from app import message_deliveries
 

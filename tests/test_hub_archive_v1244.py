@@ -1,5 +1,6 @@
 """Approved V-1244 archival keeps actual history objects through lifecycle paths."""
 import copy
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,6 +10,8 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app import backend_hub as hub, hub_workspace as hw
+from app.events import MessageProvenance
+from app.multicode_client import MultiCodeError
 from tests.test_hub_workspace import FakeSsh, repo, _offline_hub_pool, _backend, _turn
 from tests.test_merge_operations import merge_db
 
@@ -20,6 +23,9 @@ class HistoryMc:
         self.thread = {'id': 'thread-owned', 'messages': ['accepted result'], 'turns': ['turn-1'],
                        'attachments': ['attachment-1'], 'archived': False}
         self.lost_archive_reply = False
+        self.missing_thread = False
+        self.pending_request_count = 0
+        self.read_error = None
 
     async def __aenter__(self):
         return self
@@ -29,7 +35,16 @@ class HistoryMc:
 
     async def tool_call(self, name, args):
         self.calls.append((name, dict(args)))
-        if name == 't3_thread_interrupt':
+        if name == 't3_thread_read':
+            if self.read_error:
+                raise self.read_error
+            if self.missing_thread:
+                raise MultiCodeError(
+                    f'MultiCode tool t3_thread_read failed: Thread {args["threadId"]} is no longer available.',
+                    remote_code='thread_not_found', remote_resource_id=args['threadId'])
+            return {'thread': {'threadId': self.thread['id'], 'projectId': self.project['id'],
+                               'pendingRequestCount': self.pending_request_count}, 'items': []}
+        elif name == 't3_thread_interrupt':
             assert args['threadId'] == self.thread['id']
         elif name == 't3_thread_wait':
             assert args['threadId'] == self.thread['id']
@@ -116,7 +131,7 @@ async def test_archive_lost_reply_retries_same_identity_without_purge(history):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('blocker', ['pending', 'privacy', 'transport'])
+@pytest.mark.parametrize('blocker', ['pending', 'privacy', 'path', 'transport'])
 async def test_blocked_close_leaves_lifecycle_jobs_and_history_intact(history, merge_db, monkeypatch, blocker):
     from app import db, manager as module
     from app.bg_jobs import bg_manager
@@ -130,6 +145,9 @@ async def test_blocked_close_leaves_lifecycle_jobs_and_history_intact(history, m
         h.ws.save()
     elif blocker == 'privacy':
         h.ws.file_policy_blocked = True
+        h.ws.save()
+    elif blocker == 'path':
+        h.ws.manifest['nested/COMPANY-DATA.md'] = 'synthetic-hash'
         h.ws.save()
     else:
         h.mc.tool_call = AsyncMock(side_effect=OSError('transport unavailable'))
@@ -149,6 +167,241 @@ async def test_blocked_close_leaves_lifecycle_jobs_and_history_intact(history, m
     assert h.wt.exists() and h.ws.path().exists()
     assert h.ws.path().with_suffix('.sync.tar').read_bytes() == b'recovery provenance'
     assert h.mc.project == h.project and h.mc.thread == h.thread
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(('thread_id', 'blocked'), [
+    ('synthetic-thread-a', True),
+    ('synthetic-thread-b', True),
+    ('synthetic-thread-c', False),
+])
+async def test_missing_thread_archives_only_local_card_and_preserves_retained_data(
+        history, merge_db, monkeypatch, thread_id, blocked):
+    from app import db, manager as module, message_deliveries
+    from app.bg_jobs import bg_manager
+    h = history
+    h.ws.thread_id = thread_id
+    h.ws.file_policy_blocked = blocked
+    h.ws.save()
+    h.mc.thread['id'] = thread_id
+    h.thread = copy.deepcopy(h.mc.thread)
+    h.mc.missing_thread = True
+    row = db.get_session('merge-session')
+    row.update(worktree_path=str(h.wt), backend_type='hub', model='hub-gpt-6.1-sol',
+               cost_usd=1.25, total_input_tokens=321, total_turns=2, total_tool_calls=3)
+    db.save_session(row)
+    db.add_log('merge-session', datetime.now(timezone.utc), 'text', 'retained local history')
+    before_row = db.get_session('merge-session')
+    delivery_id = f'00000000-0000-4000-8000-0000000126{int(thread_id[-1], 36):02d}'
+    await message_deliveries.accept_message_delivery(
+        delivery_id=delivery_id, source_principal='synthetic:parent', source_scope=str(h.wt),
+        target_session_id='merge-session', target_name='worker', target_scope=str(h.wt),
+        target_generation='session=merge-session|task=|branch=|needs_switch=0',
+        message='retained pending item', rendered_message='retained pending item', wake=False,
+        provenance=MessageProvenance(origin='user', senders=('user',), subtype='dashboard'))
+    message_deliveries.prepare_message_delivery(delivery_id)
+    message_deliveries.mark_message_delivery_dispatching(delivery_id)
+    message_deliveries.mark_message_delivery_unknown(delivery_id, RuntimeError('synthetic uncertain delivery'))
+    before_delivery = dict(message_deliveries._row(delivery_id))
+    with db._conn() as connection:
+        before_logs = [tuple(item) for item in connection.execute(
+            "SELECT * FROM logs WHERE session_id=? ORDER BY id", ('merge-session',))]
+    state_hash = hashlib.sha256(h.ws.path().read_bytes()).hexdigest()
+    sync_hash = hashlib.sha256(h.ws.path().with_suffix('.sync.tar').read_bytes()).hexdigest()
+    history_hash = hashlib.sha256((Path(h.ws.remote_dir) / 'provider.jsonl').read_bytes()).hexdigest()
+
+    manager = module.SessionManager()
+    remove_worktree = Mock()
+    cleanup_cli = Mock()
+    cancel_jobs = AsyncMock()
+    monkeypatch.setattr(bg_manager, 'cancel_by_session', cancel_jobs)
+    monkeypatch.setattr(module, 'remove_worktree', remove_worktree)
+    monkeypatch.setattr(manager, '_cleanup_cli_home', cleanup_cli)
+    session = manager._hydrate_row(db.get_session('merge-session'))
+
+    await manager.remove(session.id)
+
+    after_row = db.get_session('merge-session')
+    assert after_row['status'] == 'archived'
+    for key in ('cost_usd', 'total_input_tokens', 'total_turns', 'total_tool_calls'):
+        assert after_row[key] == before_row[key]
+    with db._conn() as connection:
+        after_logs = [tuple(item) for item in connection.execute(
+            "SELECT * FROM logs WHERE session_id=? ORDER BY id", ('merge-session',))]
+    assert after_logs == before_logs
+    assert dict(message_deliveries._row(delivery_id)) == before_delivery
+    assert hashlib.sha256(h.ws.path().read_bytes()).hexdigest() == state_hash
+    assert hw.WorkspaceState.load(h.ws.ws_id).file_policy_blocked is blocked
+    assert hashlib.sha256(h.ws.path().with_suffix('.sync.tar').read_bytes()).hexdigest() == sync_hash
+    assert hashlib.sha256((Path(h.ws.remote_dir) / 'provider.jsonl').read_bytes()).hexdigest() == history_hash
+    assert h.wt.is_dir() and Path(h.ws.remote_dir).is_dir()
+    assert h.mc.project == h.project and h.mc.thread == h.thread
+    assert [name for name, _ in h.mc.calls] == ['t3_thread_read']
+    assert remove_worktree.call_count == cleanup_cli.call_count == 0
+    cancel_jobs.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_missing_thread_close_refuses_pending_sync_and_ambiguous_generation(
+        history, merge_db, monkeypatch):
+    from app import db, manager as module
+    from app.hub_workspace import WorkspaceState
+    h = history
+    h.mc.missing_thread = True
+    row = db.get_session('merge-session')
+    row.update(worktree_path=str(h.wt), backend_type='hub', model='hub-gpt-6.1-sol')
+    db.save_session(row)
+    manager = module.SessionManager()
+    session = manager._hydrate_row(db.get_session('merge-session'))
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(db, 'bg_get_jobs', lambda **_: [{'id': 'synthetic-active-job'}])
+        with pytest.raises(hw.HubWorkspaceError, match='active background job'):
+            await manager.remove(session.id)
+    assert db.get_session('merge-session')['status'] == 'idle'
+    assert h.mc.calls == []
+
+    h.ws.pending_sync = {'phase': 'report', 'entries': [{'tool': 'send_message'}]}
+    h.ws.save()
+    with pytest.raises(hw.HubWorkspaceError, match='pending sync'):
+        await manager.remove(session.id)
+    assert db.get_session('merge-session')['status'] == 'idle'
+    assert h.mc.calls == []
+
+    h.ws.pending_sync = {}
+    h.ws.save()
+    extra = WorkspaceState(
+        'hub-bbbbbbbbbbbbbbbb', str(h.wt), str(h.ws.remote_dir) + '-other',
+        project_id='other-project', thread_id='other-thread')
+    extra.save()
+    with pytest.raises(hw.HubWorkspaceError, match='ambiguous'):
+        await manager.remove(session.id)
+    assert db.get_session('merge-session')['status'] == 'idle'
+    assert h.mc.calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('state', [
+    'QUEUED', 'PREPARING', 'DISPATCHING', 'WAITING_NEXT_TURN', 'WAITING_QUOTA',
+])
+async def test_missing_thread_close_refuses_dispatchable_delivery_states_without_mutating_them(
+        history, merge_db, state):
+    from app import db, manager as module, message_deliveries
+    h = history
+    h.mc.missing_thread = True
+    row = db.get_session('merge-session')
+    row.update(worktree_path=str(h.wt), backend_type='hub', model='hub-gpt-6.1-sol')
+    db.save_session(row)
+    delivery_id = '00000000-0000-4000-8000-000000012699'
+    await message_deliveries.accept_message_delivery(
+        delivery_id=delivery_id, source_principal='synthetic:parent', source_scope=str(h.wt),
+        target_session_id='merge-session', target_name='worker', target_scope=str(h.wt),
+        target_generation='session=merge-session|task=|branch=|needs_switch=0',
+        message='queued recovery', rendered_message='queued recovery', wake=False,
+        provenance=MessageProvenance(origin='user', senders=('user',), subtype='dashboard'))
+    if state != 'QUEUED':
+        message_deliveries.prepare_message_delivery(delivery_id)
+    if state == 'DISPATCHING':
+        message_deliveries.mark_message_delivery_dispatching(delivery_id)
+    elif state == 'WAITING_NEXT_TURN':
+        assert message_deliveries.hold_message_delivery_for_turn_end(delivery_id)
+    elif state == 'WAITING_QUOTA':
+        with db._conn() as connection:
+            connection.execute(
+                "UPDATE message_deliveries SET state='WAITING_QUOTA' WHERE delivery_id=?",
+                (delivery_id,),
+            )
+    before_delivery = dict(message_deliveries._row(delivery_id))
+    manager = module.SessionManager()
+    session = manager._hydrate_row(db.get_session('merge-session'))
+
+    with pytest.raises(hw.HubWorkspaceError, match='delivery prevents retained archive'):
+        await manager.remove(session.id)
+
+    assert db.get_session('merge-session')['status'] == 'idle'
+    assert dict(message_deliveries._row(delivery_id)) == before_delivery
+    assert h.wt.is_dir() and not h.ws.archived
+    assert [name for name, _ in h.mc.calls] == ['t3_thread_read']
+
+
+@pytest.mark.asyncio
+async def test_missing_thread_close_refuses_queued_initial_delivery_without_mutating_it(
+        history, merge_db, monkeypatch):
+    from app import db, initial_deliveries, manager as module
+    h = history
+    h.mc.missing_thread = True
+    row = db.get_session('merge-session')
+    row.update(worktree_path=str(h.wt), backend_type='hub', model='hub-gpt-6.1-sol')
+    db.save_session(row)
+    delivery_id = '00000000-0000-4000-8000-000000012698'
+    provenance = MessageProvenance(
+        origin='agent', senders=('synthetic-parent',), subtype='initial_delivery', ref=delivery_id)
+    monkeypatch.setattr(initial_deliveries, 'ensure_delivery_runner', Mock())
+    await initial_deliveries.accept_initial_delivery(
+        delivery_id=delivery_id, session_id='merge-session', worker_name='worker',
+        scope=str(h.wt), sender='synthetic-parent', message='queued initial task',
+        provenance=provenance)
+    with db._conn() as connection:
+        before = dict(connection.execute(
+            "SELECT * FROM initial_deliveries WHERE delivery_id=?", (delivery_id,)).fetchone())
+    manager = module.SessionManager()
+    session = manager._hydrate_row(db.get_session('merge-session'))
+
+    with pytest.raises(hw.HubWorkspaceError, match='initial delivery prevents retained archive'):
+        await manager.remove(session.id)
+
+    assert db.get_session('merge-session')['status'] == 'idle'
+    with db._conn() as connection:
+        after = dict(connection.execute(
+            "SELECT * FROM initial_deliveries WHERE delivery_id=?", (delivery_id,)).fetchone())
+    assert after == before
+    assert h.wt.is_dir() and not h.ws.archived
+    assert [name for name, _ in h.mc.calls] == ['t3_thread_read']
+
+
+@pytest.mark.asyncio
+async def test_missing_thread_close_refuses_transient_identity_race_and_pending_requests(
+        history, merge_db):
+    from app import db, manager as module
+    h = history
+    row = db.get_session('merge-session')
+    row.update(worktree_path=str(h.wt), backend_type='hub', model='hub-gpt-6.1-sol')
+    db.save_session(row)
+    manager = module.SessionManager()
+    session = manager._hydrate_row(db.get_session('merge-session'))
+
+    h.mc.read_error = MultiCodeError('read timeout', retryable=True)
+    with pytest.raises(hw.HubWorkspaceError, match='status unavailable'):
+        await manager.remove(session.id)
+    assert db.get_session('merge-session')['status'] == 'idle'
+    assert [name for name, _ in h.mc.calls] == ['t3_thread_read']
+
+    h.mc.calls.clear()
+    h.mc.read_error = None
+    h.mc.missing_thread = True
+    original_call = h.mc.tool_call
+    async def change_generation(name, args):
+        if name == 't3_thread_read':
+            current = hw.WorkspaceState.load(h.ws.ws_id)
+            current.thread_id = 'synthetic-new-generation'
+            current.save()
+        return await original_call(name, args)
+    h.mc.tool_call = change_generation
+    with pytest.raises(hw.HubWorkspaceError, match='generation changed'):
+        await manager.remove(session.id)
+    assert db.get_session('merge-session')['status'] == 'idle'
+    h.mc.tool_call = original_call
+
+    h.ws.thread_id = 'thread-owned'
+    h.ws.save()
+    h.mc.thread['id'] = 'thread-owned'
+    h.mc.missing_thread = False
+    h.mc.pending_request_count = 2
+    h.mc.calls.clear()
+    with pytest.raises(hw.HubWorkspaceError, match='pending requests'):
+        await manager.remove(session.id)
+    assert db.get_session('merge-session')['status'] == 'idle'
+    assert [name for name, _ in h.mc.calls] == ['t3_thread_read']
 
 
 @pytest.mark.asyncio
