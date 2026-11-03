@@ -3,6 +3,7 @@
 import pytest
 
 import app.mcp_stdio as mcp
+from app.models import HUB_SOL_MODEL, HUB_SOL_ONLY_RULE
 
 NOW = 2_000_000_000.0
 
@@ -67,7 +68,7 @@ def api(monkeypatch, tmp_path):
         if path == "/api/bg/jobs":
             return {"id": "bg-test"}
         if path.endswith("/change-model"):
-            return {"changed": True, "old_model": "claude-opus-5[1m]", "model": "gpt-5.6-sol"}
+            return {"changed": True, "old_model": "claude-opus-5[1m]", "model": kwargs["json"]["model"]}
         return {
             "role": "worker",
             "id": "gate-requester", "cwd": str(tmp_path),
@@ -200,11 +201,34 @@ async def test_review_defaults_to_luna_the_always_fast_lane(api):
 
 
 @pytest.mark.asyncio
-async def test_change_model_is_control_action_even_when_target_bucket_blocked(api):
-    api.state["readiness"] = _readiness("blocked")
+@pytest.mark.parametrize("model", [HUB_SOL_MODEL, "hubsol"])
+async def test_change_model_is_control_action_even_when_target_bucket_blocked(api, model):
+    # Historical readiness labels elsewhere are synthetic; this request must
+    # name a current model because change-model uses the real registry resolver.
+    api.state["readiness"] = {**_readiness("blocked"), "model": HUB_SOL_MODEL}
 
-    result = await mcp.change_worker_model(name="w", model="gpt-5.6-sol")
+    result = await mcp.change_worker_model(name="w", model=model)
 
     assert "Model changed" in result
+    assert f"→ {model}" in result
     assert not [path for path, _body in api.calls if path == "/api/usage/readiness"]
-    assert [path for path, _body in api.calls] == ["/api/sessions/w/change-model"]
+    assert api.calls == [("/api/sessions/w/change-model", {
+        "scope": str(api.tmp_path), "model": model, "via": "mcp",
+    })]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model,message", [
+    ("gpt-5.6-sol", "unknown model"),
+    ("not-a-registered-model", "unknown model"),
+    ("hub-unregistered-model", "unknown model"),
+    ("hub-gpt-6-luna", HUB_SOL_ONLY_RULE),
+])
+async def test_change_model_rejects_invalid_target_without_forwarding(api, model, message):
+    api.state["readiness"] = _readiness("blocked")
+
+    with pytest.raises(mcp.ApiToolError, match=message) as caught:
+        await mcp.change_worker_model(name="w", model=model, model_reason="owner requests it")
+
+    assert caught.value.code == HUB_SOL_ONLY_RULE
+    assert api.calls == []

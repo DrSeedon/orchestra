@@ -1,0 +1,80 @@
+Using CPython 3.12.3 interpreter [absolute original path SHA-256: 31f2aee4e71d21fbe5cf8b01ff0e069b9275f58929596ceb00d14d90e3e16cd6; original: .orchestra/private/V-1261/publication-originals/first-red.log; file SHA-256: 18ee586a9179fa4d1a5bf51f460e30a22b9492eb038996fe91f318954b813afe]
+Creating virtual environment at: .venv
+Installed 76 packages in 197ms
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_change_model_is_control_action_even_when_target_bucket_blocked ______
+
+name = 'w', model = 'gpt-5.6-sol', model_reason = ''
+
+    @mcp.tool()
+    async def change_worker_model(name: str, model: str, model_reason: str = "") -> str:
+        """Change an idle worker's model while preserving its dialog. Within one runtime the
+        native session continues. Between Claude and Codex, recent chat history is handed off
+        (chat_history_v1); a refused transfer returns an error. Refused while the worker is
+        running or compacting. Ordinary Hub workers use hubsol; only the persisted default-pipeline specialist with a bound task/scope may select hub-gemini-4-argon. The server checks that identity; model_reason cannot grant it. Protected local luna retains its reason requirement. No native, model or API fallback."""
+        from app.models import validate_model_reason, HUB_SOL_ONLY_RULE, HUB_ARGON_MODEL, resolve_model
+    
+        try:
+>           if resolve_model(model) == HUB_ARGON_MODEL:
+               ^^^^^^^^^^^^^^^^^^^^
+
+app/mcp_stdio.py:2452: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'gpt-5.6-sol'
+
+    def resolve_model(model: str) -> str:
+        m = model.lower().strip()
+        if m in ALIASES:
+            resolved = ALIASES[m]
+            if resolved in MODEL_SPECS:
+                return resolved
+        if m in MODELS:
+            return m
+        registered = ", ".join(sorted(MODELS)) or "(none)"
+>       raise ValueError(f"unknown model '{model}'; registered models: {registered}")
+E       ValueError: unknown model 'gpt-5.6-sol'; registered models: GigaChat-2, GigaChat-2-Max, GigaChat-2-Pro, GigaChat-3-Lightning, GigaChat-3-Pro, GigaChat-3-Ultra, claude-fable-5-1[1m], claude-haiku-5-5, claude-opus-4-6[1m], claude-opus-5-5[1m], claude-sonnet-5-5[1m], gpt-5.3-codex-spark, gpt-6-astra, gpt-6-luna, gpt-6.1-sol, gpt-6.1-terra, grok-4.6, hub-claude-haiku-5-5, hub-claude-opus-5-5, hub-claude-sonnet-5-5, hub-gemini-4-argon, hub-gpt-6-luna, hub-gpt-6.1-sol, hub-grok-4.7
+
+app/models.py:1159: ValueError
+
+The above exception was the direct cause of the following exception:
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+
+    @pytest.mark.asyncio
+    async def test_change_model_is_control_action_even_when_target_bucket_blocked(api):
+        api.state["readiness"] = _readiness("blocked")
+    
+>       result = await mcp.change_worker_model(name="w", model="gpt-5.6-sol")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:206: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'w', model = 'gpt-5.6-sol', model_reason = ''
+
+    @mcp.tool()
+    async def change_worker_model(name: str, model: str, model_reason: str = "") -> str:
+        """Change an idle worker's model while preserving its dialog. Within one runtime the
+        native session continues. Between Claude and Codex, recent chat history is handed off
+        (chat_history_v1); a refused transfer returns an error. Refused while the worker is
+        running or compacting. Ordinary Hub workers use hubsol; only the persisted default-pipeline specialist with a bound task/scope may select hub-gemini-4-argon. The server checks that identity; model_reason cannot grant it. Protected local luna retains its reason requirement. No native, model or API fallback."""
+        from app.models import validate_model_reason, HUB_SOL_ONLY_RULE, HUB_ARGON_MODEL, resolve_model
+    
+        try:
+            if resolve_model(model) == HUB_ARGON_MODEL:
+                # Identity belongs to the target session, not this caller or reason.
+                # REST and AgentSession both check the persisted/current context.
+                model_reason = ""
+            else:
+                model_reason = validate_model_reason(model, model_reason)
+        except ValueError as exc:
+>           raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
+                               details={"field": "model"}) from exc
+E           app.mcp_stdio.ApiToolError: unknown model 'gpt-5.6-sol'; registered models: GigaChat-2, GigaChat-2-Max, GigaChat-2-Pro, GigaChat-3-Lightning, GigaChat-3-Pro, GigaChat-3-Ultra, claude-fable-5-1[1m], claude-haiku-5-5, claude-opus-4-6[1m], claude-opus-5-5[1m], claude-sonnet-5-5[1m], gpt-5.3-codex-spark, gpt-6-astra, gpt-6-luna, gpt-6.1-sol, gpt-6.1-terra, grok-4.6, hub-claude-haiku-5-5, hub-claude-opus-5-5, hub-claude-sonnet-5-5, hub-gemini-4-argon, hub-gpt-6-luna, hub-gpt-6.1-sol, hub-grok-4.7
+
+app/mcp_stdio.py:2459: ApiToolError
+=========================== short test summary info ============================
+FAILED tests/test_mcp_quota_gate.py::test_change_model_is_control_action_even_when_target_bucket_blocked
+1 failed in 18.73s

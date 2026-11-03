@@ -1,0 +1,16 @@
+app import: app/__init__.py [absolute original path SHA-256: cd91312a67a28f9ffcc2cf5506eb06c1b149a8f5a4215e3185200d74463bf362; original: .orchestra/private/V-1261/publication-originals/copy-verification.log; file SHA-256: cd385178f722a24dc96140ef9c2a2719f95d4de8419cda38c86646ecdb692b11]
+git metadata: absent; broker owns commit
+diff lines: 60
+UNCHANGED app/mcp_stdio.py 68c4d6c0e3b4c023083a80b5e0ef71f1e8e2d7d0d521efde6dea746c56c37399
+UNCHANGED app/models.py 74977768df7684eb9c46ed7aa0f843d3f6b357ea5dce17d0a57d46a0268d6172
+CHANGED tests/test_mcp_quota_gate.py 4739b55089ede2ea2a73932454be2e4d3b683c955b88969596f947f3fc515bbe
+UNCHANGED tests/test_gemini_specialist_v1257.py 0c2fe412212cf1fa7041fb19a7d8647ab7ddbe1d46f38dd1585e4cb2b89c7150
+UNCHANGED tests/test_hub_sol_only_v1240.py 6d73de54d9994f07cd162aa48f58f33973db1e126be99088cd12d5fa7846a012
+UNCHANGED .orchestra/pipelines/default/pipeline.yaml 69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6
+UNCHANGED pyproject.toml 91ad056de186c4be6d744474f12bb80a1763d883db0ba14916009dbad8c8d463
+UNCHANGED uv.lock b1b9364dd130ddc03376563d83c14d8ef15bc9753d3f421e682df1588a558a70
+Phase A: worker hub-gpt-6.1-sol
+Phase A: full-cycle hub-gpt-6.1-sol
+Phase A: reducer hub-gpt-6.1-sol
+Phase A: specialist hub-gpt-6.1-sol
+diff whitespace/conflict check: passed
