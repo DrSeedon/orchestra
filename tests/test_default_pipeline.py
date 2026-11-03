@@ -50,7 +50,7 @@ class TestDefaultManifestLoads:
         cfg = P.load_pipeline(PIPELINE)
         assert set(cfg.roles) == {
             "orchestrator", "sub-orchestrator", "worker",
-            "full-cycle", "reducer"}
+            "full-cycle", "reducer", "specialist"}
 
     def test_kinds_match_upstream(self):
         """orchestrator и sub-orchestrator — kind:orchestrator; worker/full-cycle — kind:worker."""

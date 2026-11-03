@@ -1,0 +1,6 @@
+{
+  "scanner": "app.secret_mask.mask_secrets (form-only; no secret inventory)",
+  "flagged_paths": [],
+  "all_new_artifacts_including_final_report_scanned": true,
+  "task_scratch_removed": true
+}

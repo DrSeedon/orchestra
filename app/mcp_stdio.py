@@ -1132,7 +1132,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None,
                        model_reason: str = "") -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Every hub worker must use hubsol (GPT-6.1 Sol), including creative and research work; other hub models are forbidden even with model_reason. Protected local luna retains its reason requirement. If Sol is unavailable, report the blocker or wait; no native or API fallback. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Ordinary Hub workers use hubsol (GPT-6.1 Sol). The dedicated default-pipeline specialist with an existing task/scope may use hub-gemini-4-argon; reasons/names/tags cannot grant this exception. Protected local luna retains its reason requirement. If the selected route is unavailable, report the blocker or wait; no native, model or API fallback. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation. If the gate closes after creation, the initial task is held durably until it opens."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -1142,7 +1142,12 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     from app.models import validate_model_reason, HUB_SOL_ONLY_RULE
 
     try:
-        model_reason = validate_model_reason(model, model_reason)
+        # The server resolves the actual inherited pipeline and validates task
+        # ownership before allocation. This client check grants no runtime work.
+        model_reason = validate_model_reason(
+            model, model_reason, role=role, pipeline="default",
+            scope=SCOPE or repo_path, task_id=task_id,
+        )
     except ValueError as exc:
         raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
                            details={"field": "model"}) from exc
@@ -2440,11 +2445,16 @@ async def change_worker_model(name: str, model: str, model_reason: str = "") -> 
     """Change an idle worker's model while preserving its dialog. Within one runtime the
     native session continues. Between Claude and Codex, recent chat history is handed off
     (chat_history_v1); a refused transfer returns an error. Refused while the worker is
-    running or compacting. Every hub worker must use hubsol (GPT-6.1 Sol), including creative and research work; other hub models are forbidden even with model_reason. Protected local luna retains its reason requirement. No native or API fallback."""
-    from app.models import validate_model_reason, HUB_SOL_ONLY_RULE
+    running or compacting. Ordinary Hub workers use hubsol; only the persisted default-pipeline specialist with a bound task/scope may select hub-gemini-4-argon. The server checks that identity; model_reason cannot grant it. Protected local luna retains its reason requirement. No native, model or API fallback."""
+    from app.models import validate_model_reason, HUB_SOL_ONLY_RULE, HUB_ARGON_MODEL, resolve_model
 
     try:
-        model_reason = validate_model_reason(model, model_reason)
+        if resolve_model(model) == HUB_ARGON_MODEL:
+            # Identity belongs to the target session, not this caller or reason.
+            # REST and AgentSession both check the persisted/current context.
+            model_reason = ""
+        else:
+            model_reason = validate_model_reason(model, model_reason)
     except ValueError as exc:
         raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
                            details={"field": "model"}) from exc

@@ -1,0 +1,1311 @@
+--- a/app/models.py
++++ b/app/models.py
+@@ -9,6 +9,7 @@
+ import os
+ import re
+ import sqlite3
++from collections.abc import Mapping
+ from dataclasses import dataclass
+ 
+ import httpx
+@@ -155,6 +156,13 @@
+     ModelSpec(
+         id="hub-gpt-6.1-sol", name="Hub: GPT-6.1 Sol",
+         runtime="hub", provider="multicode",
++    ),
++    # Owner 2026-11-03: existing paid Hub pool, specialist role only. The live
++    # catalog supplies no context window, modality or token-price metadata.
++    ModelSpec(
++        id="hub-gemini-4-argon", name="Hub: Gemini 4 Argon (specialist)",
++        runtime="hub", provider="multicode", context_length=0,
++        input_modalities=(),
+     ),
+     ModelSpec(
+         id="hub-grok-4.7", name="Hub: Grok 4.7",
+@@ -691,7 +699,8 @@
+         if runtime not in ("claude", "codex"):
+             return ""
+     return ("The MultiCode hub pool has its own quota: spawn the worker with model='hubsol'. "
+-            "It is the only permitted hub worker model, including creative and research work. "
++            "Ordinary hub workers, including creative and research work, use Sol; only "
++            "the dedicated task-bound specialist may use its Gemini route. "
+             "If Sol is unavailable, report the blocker or wait; no model or API fallback.")
+ 
+ 
+@@ -699,13 +708,43 @@
+ LOCAL_LUNA_MODEL = "gpt-6-luna"
+ HUB_SOL_ONLY_RULE = "hub_workers_require_sol"
+ HUB_SOL_MODEL = "hub-gpt-6.1-sol"
+-
+-
+-def ensure_hub_worker_allowed(model: str) -> None:
++HUB_ARGON_MODEL = "hub-gemini-4-argon"
++HUB_SPECIALIST_ROLE = "specialist"
++
++
++def hub_worker_context(worker) -> dict:
++    """Read existing session identity; text, names and reasons grant no admission."""
++    keys = ("role", "pipeline", "scope", "task_id")
++    if isinstance(worker, Mapping):
++        return {key: worker.get(key, "") for key in keys}
++    return {key: getattr(worker, key, "") for key in keys}
++
++
++def _hub_specialist_context_valid(role, pipeline, scope, task_id) -> bool:
++    if role != HUB_SPECIALIST_ROLE or pipeline != "default":
++        return False
++    if not isinstance(scope, str) or not os.path.isabs(scope) or not scope.strip("/"):
++        return False
++    if not isinstance(task_id, str) or not task_id.strip():
++        return False
++    from app.task_refs import parse_task_ref
++
++    try:
++        parse_task_ref(task_id)
++    except ValueError:
++        return False
++    return True
++
++
++def ensure_hub_worker_allowed(
++    model: str, *, role: str = "", pipeline: str = "", scope: str = "", task_id: str = "",
++) -> None:
+     """Canonical hub routing admission, including old rows and backend recovery.
+ 
+     Owner decision 2026-11-02 17:27 UTC, clarified 17:29 UTC: every hub worker
+-    in every scope uses GPT-6.1 Sol, including creative/research work. Catalog
++    in every scope uses GPT-6.1 Sol. Owner exception 2026-11-03 admits exact
++    Hub Argon only for a default-pipeline specialist with an existing task/scope
++    identity. Callers without context and old rows remain closed. Catalog
+     flags and task reasons cannot restore another hub route. Native routing,
+     manual native orchestrators and protected local Luna keep their own guards.
+     This pure check never rewrites a model, thread, queue or recovery latch.
+@@ -723,10 +762,14 @@
+     is_hub = normalized.startswith("hub-") or model_id.lower().startswith("hub-") or (
+         spec is not None and spec.runtime == "hub"
+     )
+-    if is_hub and model_id != HUB_SOL_MODEL:
++    specialist_allowed = model_id == HUB_ARGON_MODEL and _hub_specialist_context_valid(
++        role, pipeline, scope, task_id,
++    )
++    if is_hub and model_id != HUB_SOL_MODEL and not specialist_allowed:
+         raise ValueError(
+             f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
+-            "use model='hubsol' (GPT-6.1 Sol), including creative and research work. "
++            "use model='hubsol' (GPT-6.1 Sol). Only the default-pipeline specialist "
++            "with a bound task and scope may select hub-gemini-4-argon. "
+             "model_reason and catalog flags do not grant an exception. If Sol is at "
+             "capacity or unavailable, report the blocker or wait; do not fall back to "
+             "Claude, another hub model, native workers or API credits. Existing work "
+@@ -736,6 +779,7 @@
+ 
+ def ensure_spawn_allowed(
+     model_id: str, *, billing: str = "subscription", model_reason: str = "",
++    role: str = "", pipeline: str = "", scope: str = "", task_id: str = "",
+ ) -> None:
+     """Gate agent dispatch; explicit Claude API-credit tasks retain their own admission.
+ 
+@@ -750,7 +794,7 @@
+     non-empty model_reason naming the protection constraint; every other native
+     route stays refused and the catalog flag, quota and role guards still apply.
+     """
+-    ensure_hub_worker_allowed(model_id)
++    ensure_hub_worker_allowed(model_id, role=role, pipeline=pipeline, scope=scope, task_id=task_id)
+     spec = get_model_spec(model_id)
+     if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
+         raise ValueError("billing must be 'subscription' or 'api_credit'")
+@@ -844,8 +888,8 @@
+                 f"{model_id}: provider '{spec.provider}' is not registered for "
+                 f"runtime '{spec.runtime}'"
+             )
+-        if spec.context_length <= 0:
+-            errors.append(f"{model_id}: context_length must be positive")
++        if spec.context_length < 0 or (spec.context_length == 0 and spec.runtime != "hub"):
++            errors.append(f"{model_id}: context_length must be positive (zero means unknown on Hub)")
+ 
+     for model_id, spec in MODEL_SPECS.items():
+         if MODELS.get(model_id) != spec.name:
+@@ -1139,8 +1183,8 @@
+     return "unknown"
+ 
+ 
+-def validate_model_reason(model: str, reason: str = "") -> str:
+-    ensure_hub_worker_allowed(model)
++def validate_model_reason(model: str, reason: str = "", **context) -> str:
++    ensure_hub_worker_allowed(model, **context)
+     try:
+         local_luna = resolve_model(model) == LOCAL_LUNA_MODEL
+     except (ValueError, AttributeError):
+--- a/app/backend_hub.py
++++ b/app/backend_hub.py
+@@ -29,7 +29,7 @@
+ from app.hub_activity import HubActivityStream
+ from app.hub_outbox import OUTBOX_NAME, OutboxReport, parse_outbox, _request_for
+ from app.events import AgentEvent
+-from app.models import ensure_hub_worker_allowed
++from app.models import ensure_hub_worker_allowed, hub_worker_context, HUB_ARGON_MODEL, HUB_SPECIALIST_ROLE, get_model_spec
+ from app.multicode_client import MultiCodeClient, MultiCodeError, _last_assistant_text
+ from app.usage_contract import AggregateUsage, TurnUsage, current_context
+ 
+@@ -42,6 +42,7 @@
+     "hub-claude-opus-5-5": ("claudeAgent", "claude-opus-5-5"),
+     "hub-gpt-6-luna": ("codex", "gpt-6-luna"),
+     "hub-gpt-6.1-sol": ("codex", "gpt-6.1-sol"),
++    "hub-gemini-4-argon": ("antigravity", "gemini-4-argon"),
+     "hub-grok-4.7": ("grok", "grok-4.7"),
+ }
+ TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
+@@ -77,7 +78,17 @@
+ )
+ 
+ 
+-def hub_preamble(who, task_ref: str = "", *, has_link: bool = False) -> str:
++def _specialist_instructions(who) -> str:
++    """The same role file reaches both native assembly and the trimmed Hub path."""
++    context = hub_worker_context(who)
++    if context["role"] != HUB_SPECIALIST_ROLE:
++        return ""
++    from app.pipeline import DEFAULT_PIPELINE, prompt_path
++
++    return prompt_path(context["pipeline"] or DEFAULT_PIPELINE, "roles/specialist.md").read_text().rstrip() + "\n\n"
++
++
++def hub_preamble(who, task_ref: str = "", *, has_link: bool = False, specialist_context=None) -> str:
+     """The trimmed prompt a hub model gets: role, task rules, the outbox tools, the report
+     contract. It leaves out everything that assumes native MCP tools or the full pipeline."""
+     from app.pipeline import DEFAULT_PIPELINE, prompt_path
+@@ -102,7 +113,8 @@
+         send = (f'- `{{"tool":"send_message","args":{{"message":"..."}}}}` goes to your orchestrator '
+                 f'{parent} only; any "to" is ignored\n') if parent else ""
+         link = OUTBOX_SECTION.replace("{{", "{").replace("}}", "}").replace("{send_line}", send)
+-    return f"{role}{hw.HUB_UV_INSTRUCTIONS}{where}{link}Task:\n"
++    specialist = _specialist_instructions(who if specialist_context is None else specialist_context)
++    return f"{role}{specialist}{hw.HUB_UV_INSTRUCTIONS}{where}{link}Task:\n"
+ 
+ 
+ _slots: asyncio.Semaphore | None = None
+@@ -250,13 +262,15 @@
+     def __init__(self, model: str, cwd: str, system_prompt: str = "",
+                  resume_session_id: str | None = None, effort: str | None = None,
+                  paths: list[str] | None = None, scope: str = "", paths_source=None, bridge=None,
+-                 pipeline: str = "", role: str = ""):
++                 pipeline: str = "", role: str = "", task_id: str = "", context_source=None):
+         if model not in HUB_MODELS:
+             raise ValueError(f"unknown hub model '{model}'")
+         self.model = model
+         self._effort = effort
+         self._pipeline = pipeline
+         self._role = role
++        self._task_id = task_id
++        self._context_source = context_source
+         self._effort_options: dict[tuple[str, str], tuple[str, tuple[str, ...]]] | None = None
+         self.cwd = cwd
+         self._resume = resume_session_id
+@@ -287,8 +301,22 @@
+     def session_id(self) -> Optional[str]:
+         return self._state.ws_id if self._state else self._resume
+ 
++    def _worker_context(self) -> dict:
++        return hub_worker_context(self._context_source()) if self._context_source else {
++            "role": self._role, "pipeline": self._pipeline,
++            "scope": self._scope, "task_id": self._task_id,
++        }
++
++    def _ensure_model_allowed(self, model: str | None = None) -> None:
++        target = self.model if model is None else model
++        context = self._worker_context()
++        # A backend for an earlier project must not submit under a new identity.
++        if target == HUB_ARGON_MODEL and context["scope"] != self._scope:
++            raise ValueError("hub_workers_require_sol: specialist scope changed; rebuild the backend")
++        ensure_hub_worker_allowed(target, **context)
++
+     async def connect(self) -> None:
+-        ensure_hub_worker_allowed(self.model)
++        self._ensure_model_allowed()
+         problem = hub_configured()
+         if problem:
+             raise RuntimeError(problem)
+@@ -337,7 +365,7 @@
+         return selection
+ 
+     async def send(self, message: str) -> None:
+-        ensure_hub_worker_allowed(self.model)
++        self._ensure_model_allowed()
+         if self._ssh is None:
+             raise RuntimeError("HubBackend not connected")
+         if not self._turn_active:
+@@ -367,7 +395,7 @@
+         next turn opens a new thread and says so, instead of failing the switch."""
+         if model not in HUB_MODELS:
+             raise ValueError(f"unknown hub model '{model}'")
+-        ensure_hub_worker_allowed(model)
++        self._ensure_model_allowed(model)
+         if self._turn_active:
+             raise RuntimeError("cannot retarget a hub worker while a turn is active")
+         if self._state is not None:
+@@ -420,7 +448,7 @@
+             self._mc = None
+ 
+     async def reconnect(self) -> None:
+-        ensure_hub_worker_allowed(self.model)
++        self._ensure_model_allowed()
+         await self.disconnect()
+         await self.connect()
+ 
+@@ -429,7 +457,7 @@
+     async def events(self) -> AsyncIterator[AgentEvent]:
+         if not self._turn_active or self._pending is None or self._ssh is None:
+             return
+-        ensure_hub_worker_allowed(self.model)
++        self._ensure_model_allowed()
+         message, self._pending = self._pending, None
+         self._turn_started = time.perf_counter()
+         ok, stop_reason, detail = True, "end_turn", ""
+@@ -472,7 +500,7 @@
+         from app.hub_pool import require_hub_capacity
+         from app.quota_gate import QuotaGateError
+ 
+-        ensure_hub_worker_allowed(self.model)
++        self._ensure_model_allowed()
+         # Check retained evidence before replacing a released record or cleaning
+         # up an older workspace. A new thread must not erase the incident trail.
+         options = hw.project_options(self._scope)
+@@ -732,13 +760,15 @@
+         body = "\n\n".join(parts)
+         if not first:
+             # Also update a thread that predates uv provisioning, or resumed without PATH.
+-            return (hw.HUB_UV_INSTRUCTIONS if self._uv_ready else "") + body
++            return (_specialist_instructions(self._worker_context())
++                    + (hw.HUB_UV_INSTRUCTIONS if self._uv_ready else "") + body)
+         return self._preamble() + body
+ 
+     def _preamble(self) -> str:
+         task = _branch_task_ref(self.cwd).lstrip("#")
+         who = self._bridge.identity() if self._bridge is not None else None
+-        return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None)
++        return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None,
++                            specialist_context=self._worker_context())
+ 
+     def _worker_title(self) -> str | None:
+         """Visible label only: storage and resume keep their unique workspace identity."""
+@@ -770,7 +800,7 @@
+         )
+ 
+     async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
+-        ensure_hub_worker_allowed(self.model)
++        self._ensure_model_allowed()
+         # A reconstructed backend can resume a thread created with an older effort.
+         selection = await self._model_selection(mc, self.model, self._effort)
+         if state.thread_id:
+@@ -794,11 +824,15 @@
+                     raise MultiCodeError("MultiCode send returned no runId")
+                 return sent["runId"]
+         wire = await self._wire_message(mc, state, prompt)
+-        launched = await mc.tool_call("t3_thread_launch", {
++        launch_args = {
+             "title": self._worker_title() or state.ws_id, "projectId": state.project_id, "message": wire,
+-            "runtimeMode": "full-access",
+             "modelSelection": selection,
+-        })
++        }
++        # Antigravity advertises no runtimeModes. Let Hub select a supported
++        # inherited mode; never force the other providers' full-access contract.
++        if self.model != HUB_ARGON_MODEL:
++            launch_args["runtimeMode"] = "full-access"
++        launched = await mc.tool_call("t3_thread_launch", launch_args)
+         if not isinstance(launched, dict) or not launched.get("threadId"):
+             raise MultiCodeError("MultiCode launch returned no threadId")
+         state.thread_id = launched["threadId"]
+@@ -1134,7 +1168,7 @@
+     def _turn_end(self, ok: bool, stop_reason: str, detail: str) -> AgentEvent:
+         usage = TurnUsage(
+             AggregateUsage.normalized(),
+-            current_context(None, 200000,
++            current_context(None, get_model_spec(self.model).context_length,
+                             unknown_reason="the hub does not report token usage to the broker"),
+         )
+         elapsed = (None if self._turn_started is None
+@@ -1164,7 +1198,7 @@
+         from app.runtime_history import build_model_visible_manifest
+ 
+         return build_model_visible_manifest(
+-            runtime="hub", model=self.model, effective_window=200000, system_prompt="",
++            runtime="hub", model=self.model, effective_window=get_model_spec(self.model).context_length, system_prompt="",
+             prepared=prepared, validation_profile=validation_profile,
+             project_docs=getattr(prepared, "project_docs", ()), mcp_servers={})
+ 
+--- a/app/hub_pool.py
++++ b/app/hub_pool.py
+@@ -20,7 +20,7 @@
+ CACHE_TTL = 300.0          # a successful read is reused for 5 minutes
+ FAILURE_TTL = 60.0         # an unreachable hub is not retried on every dashboard poll
+ FETCH_TIMEOUT = 25.0
+-PROVIDERS = ("claude", "codex", "grok")
++PROVIDERS = ("claude", "codex", "grok", "antigravity")
+ _RELAY_LIMITS_CMD = "curl -s --max-time 10 http://127.0.0.1:8080/relay/limits"
+ 
+ _cache: dict = {"payload": None, "ts": 0.0, "ttl": 0.0}
+@@ -75,10 +75,14 @@
+         instance = HUB_MODELS.get(resolve_model(model), (None, None))[0]
+     except (AttributeError, TypeError, ValueError):
+         return None
+-    return {"claudeAgent": "claude", "codex": "codex"}.get(instance)
++    return {"claudeAgent": "claude", "codex": "codex", "antigravity": "antigravity"}.get(instance)
+ 
+ 
+ def alternative_model(model: str) -> str:
++    from app.models import HUB_ARGON_MODEL, resolve_model
++
++    if resolve_model(model) == HUB_ARGON_MODEL:
++        return HUB_ARGON_MODEL  # Retain the selected design route; no Sol fallback.
+     return "hubsol"
+ 
+ 
+@@ -96,7 +100,9 @@
+     if not pool.get("available") or block is None:
+         reason = f"Hub {provider} pool unavailable; capacity was not checked (turn allowed)"
+         logger.warning(reason)
+-        return replace(base, state="unknown", reason=reason, reason_key="hub_pool_unavailable")
++        return replace(base, state="unknown", provider=f"hub_{provider}",
++                       provider_label=f"Hub {provider}", gated=True,
++                       reason=reason, reason_key="hub_pool_unavailable")
+     usable = block["usable"]
+     threshold = block["threshold_pct"]
+     reason = (f"Hub {provider} pool has {usable}/{block['accounts']} usable accounts "
+@@ -104,7 +110,10 @@
+     if block.get("unknown", 0):
+         reason += f"; {block['unknown']} accounts have unknown window data and do not count as usable"
+     if not usable:
+-        reason += "; use model='hubsol' only; if Sol is unavailable, report the blocker or wait (no fallback)"
++        if provider == "antigravity":
++            reason += "; report the blocker or wait; do not fall back to another model or API"
++        else:
++            reason += "; use model='hubsol' only; if Sol is unavailable, report the blocker or wait (no fallback)"
+     return replace(base, state="available" if usable else "blocked",
+                    provider=f"hub_{provider}", provider_label=f"Hub {provider}", gated=True,
+                    utilization=threshold if not usable else None, limit_pct=threshold,
+--- a/app/runtime_registry.py
++++ b/app/runtime_registry.py
+@@ -74,6 +74,7 @@
+     owned_dirs: tuple = ()
+     hub_bridge: object | None = None            # hub_outbox.HubBridge, only read by the hub runtime
+     owned_dirs_source: Callable[[], object] | None = None   # live owned_dirs for backends that outlive a turn
++    hub_context_source: Callable[[], dict] | None = None   # existing role/task/scope identity, re-read per boundary
+ 
+ 
+ @dataclass(frozen=True)
+@@ -344,6 +345,7 @@
+         bridge=context.hub_bridge,
+         pipeline=context.pipeline,
+         role=context.role,
++        context_source=context.hub_context_source,
+     )
+ 
+ 
+--- a/app/session.py
++++ b/app/session.py
+@@ -23,7 +23,7 @@
+ 
+ from app import agentic_compact, temp_rules
+ from app.events import AgentEvent, InjectedMessage, MessageProvenance
+-from app.models import backend_for_model, get_model_spec, ensure_hub_worker_allowed
++from app.models import backend_for_model, get_model_spec, ensure_hub_worker_allowed, hub_worker_context
+ from app.prompting import (
+     codex_project_doc_preflight, inject_skills_to_worktree,
+     inject_skills_to_worktree_report, is_orchestrator_role,
+@@ -1000,6 +1000,7 @@
+             owned_dirs=tuple(self.owned_dirs or ()),
+             owned_dirs_source=lambda: tuple(self.owned_dirs or ()),
+             hub_bridge=self._hub_bridge() if runtime == "hub" else None,
++            hub_context_source=lambda: hub_worker_context(self),
+             config_dir_override=(
+                 self._handoff_config_dir
+                 if config_dir_override is None
+@@ -1180,14 +1181,14 @@
+ 
+     async def preflight_delivery_admission(self) -> None:
+         """Check a new direct delivery before its durable receipt is accepted."""
+-        ensure_hub_worker_allowed(self.model)
++        ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+         decision = None
+         admitted_model = ""
+         admitted_stop_gen = -1
+         while True:
+             await self._lifecycle_lock.acquire()
+             try:
+-                ensure_hub_worker_allowed(self.model)
++                ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+             except BaseException:
+                 self._lifecycle_lock.release()
+                 raise
+@@ -1418,7 +1419,7 @@
+         while True:
+             await self._lifecycle_lock.acquire()
+             try:
+-                ensure_hub_worker_allowed(self.model)
++                ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+             except BaseException:
+                 self._lifecycle_lock.release()
+                 raise
+@@ -2372,7 +2373,7 @@
+         activate: bool = True,
+         _allow_codex_oversize_retry: bool = True,
+     ):
+-        ensure_hub_worker_allowed(self.model)
++        ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+         if self._backend is not None:
+             if not force_fresh:
+                 if self._runtime_error:
+@@ -2603,7 +2604,7 @@
+     MAX_CONSECUTIVE_FAILURES = 5
+ 
+     async def _reconnect_backend(self) -> None:
+-        ensure_hub_worker_allowed(self.model)
++        ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+         backend = self._backend
+         if backend is None:
+             raise RuntimeError("backend is unavailable for reconnect")
+@@ -3093,7 +3094,7 @@
+                 self._lifecycle_lock.release()
+                 return
+             try:
+-                ensure_hub_worker_allowed(self.model)
++                ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+             except BaseException:
+                 self._lifecycle_lock.release()
+                 raise
+@@ -4312,7 +4313,7 @@
+             if self._compacting:
+                 return {"ok": False, "error": "cannot change model while compacting"}
+             try:
+-                reason = validate_model_reason(new_model, model_reason)
++                reason = validate_model_reason(new_model, model_reason, **hub_worker_context(self))
+             except ValueError as exc:
+                 return {"ok": False, "error": str(exc), "error_code": HUB_SOL_ONLY_RULE}
+             self._pending_model_reason = (new_model, reason)
+@@ -4484,7 +4485,7 @@
+         attempts: list[dict],
+     ) -> None:
+         """Resolve one unfinished switch without guessing or replaying a user turn."""
+-        ensure_hub_worker_allowed(self.model)
++        ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+         handoff_id = str(handoff.get("handoff_id") or "")
+         status = str(handoff.get("status") or "")
+         source = {
+--- a/app/manager.py
++++ b/app/manager.py
+@@ -45,7 +45,7 @@
+     cache_policy_for_runtime,
+     ensure_dashboard_visible,
+     ensure_spawn_allowed,
+-    ensure_hub_worker_allowed,
++    ensure_hub_worker_allowed, hub_worker_context,
+     get_model_spec,
+     resolve_model,
+     runtime_for_record,
+@@ -693,12 +693,13 @@
+         model = resolve_model(model)
+         from app.models import validate_model_reason
+ 
+-        model_reason = validate_model_reason(model, model_reason)
++        route_context = dict(role=role, pipeline=pipeline or DEFAULT_PIPELINE, scope=scope, task_id=task_id)
++        model_reason = validate_model_reason(model, model_reason, **route_context)
+         # #366: agent-spawned workers are gated by the `agents` level; anything
+         # created from the dashboard (orchestrators, manual sessions) — by the
+         # `dashboard` level. Internal routes never pass through here.
+         if parent_name:
+-            ensure_spawn_allowed(model, model_reason=model_reason)
++            ensure_spawn_allowed(model, model_reason=model_reason, **route_context)
+         else:
+             ensure_dashboard_visible(model)
+         if not Path(cwd).is_dir():
+@@ -774,6 +775,10 @@
+         # (fail loud, единый источник = .orchestra/pipelines/).
+         parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
+         validate_spawn(pipeline, parent_role, role if explicit_role else "")
++
++        # Recheck the effective inherited identity before quota, task or worktree
++        # allocation; the early request check used only the requested pipeline.
++        ensure_hub_worker_allowed(model, role=role, pipeline=pipeline, scope=scope, task_id=task_id)
+ 
+         # Idle creation is a control action; gate only a planned initial turn.
+         # Refuse before allocating a task, session or worktree (V-1036).
+@@ -1129,7 +1134,7 @@
+             async with self.get_session_lock(session_id):
+                 if self.sessions.get(session_id) is not session:
+                     raise KeyError(f"session changed before delivery: {session_id}")
+-                ensure_hub_worker_allowed(session.model)
++                ensure_hub_worker_allowed(session.model, **hub_worker_context(session))
+                 await self._auto_switch_before_delivery(session)
+                 return await session.send(message, provenance=provenance, **send_options)
+ 
+@@ -1151,7 +1156,7 @@
+             async with self.get_session_lock(session_id):
+                 if self.sessions.get(session_id) is not session:
+                     raise KeyError(f"session changed before delivery: {session_id}")
+-                ensure_hub_worker_allowed(session.model)
++                ensure_hub_worker_allowed(session.model, **hub_worker_context(session))
+                 await self._auto_switch_before_delivery(session)
+                 await session.send(
+                     message, delivery=delivery, provenance=provenance,
+@@ -1197,7 +1202,7 @@
+ 
+                 if provenance.subtype == "limit_wake" and is_codex_wake_ref(provenance.ref):
+                     validate_codex_wake(session, provenance.ref)
+-                ensure_hub_worker_allowed(session.model)
++                ensure_hub_worker_allowed(session.model, **hub_worker_context(session))
+                 await self._auto_switch_before_delivery(session)
+                 check_generation()
+                 await session.send(
+@@ -1216,7 +1221,7 @@
+             session = self._hydrate_row(row) if row else None
+         if session is None:
+             raise KeyError(f"session not found: {session_id}")
+-        ensure_hub_worker_allowed(session.model)
++        ensure_hub_worker_allowed(session.model, **hub_worker_context(session))
+         await self._auto_switch_before_delivery(session)
+         await session.preflight_delivery_admission()
+ 
+--- a/app/mcp_stdio.py
++++ b/app/mcp_stdio.py
+@@ -1132,7 +1132,7 @@
+                        delivery_id: str = "",
+                        disabled_tools: list[str] | None = None,
+                        model_reason: str = "") -> str:
+-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Every hub worker must use hubsol (GPT-6.1 Sol), including creative and research work; other hub models are forbidden even with model_reason. Protected local luna retains its reason requirement. If Sol is unavailable, report the blocker or wait; no native or API fallback. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
++    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Ordinary Hub workers use hubsol (GPT-6.1 Sol). The dedicated default-pipeline specialist with an existing task/scope may use hub-gemini-4-argon; reasons/names/tags cannot grant this exception. Protected local luna retains its reason requirement. If the selected route is unavailable, report the blocker or wait; no native, model or API fallback. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation. If the gate closes after creation, the initial task is held durably until it opens."""
+     if not model:
+         raise ApiToolError(
+             code="invalid_argument",
+@@ -1142,7 +1142,12 @@
+     from app.models import validate_model_reason, HUB_SOL_ONLY_RULE
+ 
+     try:
+-        model_reason = validate_model_reason(model, model_reason)
++        # The server resolves the actual inherited pipeline and validates task
++        # ownership before allocation. This client check grants no runtime work.
++        model_reason = validate_model_reason(
++            model, model_reason, role=role, pipeline="default",
++            scope=SCOPE or repo_path, task_id=task_id,
++        )
+     except ValueError as exc:
+         raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
+                            details={"field": "model"}) from exc
+@@ -2440,11 +2445,16 @@
+     """Change an idle worker's model while preserving its dialog. Within one runtime the
+     native session continues. Between Claude and Codex, recent chat history is handed off
+     (chat_history_v1); a refused transfer returns an error. Refused while the worker is
+-    running or compacting. Every hub worker must use hubsol (GPT-6.1 Sol), including creative and research work; other hub models are forbidden even with model_reason. Protected local luna retains its reason requirement. No native or API fallback."""
+-    from app.models import validate_model_reason, HUB_SOL_ONLY_RULE
++    running or compacting. Ordinary Hub workers use hubsol; only the persisted default-pipeline specialist with a bound task/scope may select hub-gemini-4-argon. The server checks that identity; model_reason cannot grant it. Protected local luna retains its reason requirement. No native, model or API fallback."""
++    from app.models import validate_model_reason, HUB_SOL_ONLY_RULE, HUB_ARGON_MODEL, resolve_model
+ 
+     try:
+-        model_reason = validate_model_reason(model, model_reason)
++        if resolve_model(model) == HUB_ARGON_MODEL:
++            # Identity belongs to the target session, not this caller or reason.
++            # REST and AgentSession both check the persisted/current context.
++            model_reason = ""
++        else:
++            model_reason = validate_model_reason(model, model_reason)
+     except ValueError as exc:
+         raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
+                            details={"field": "model"}) from exc
+--- a/app/routes/sessions.py
++++ b/app/routes/sessions.py
+@@ -41,7 +41,7 @@
+ from app.backend_codex import CodexWriterConflictError
+ from app.errtext import err_text
+ from app.events import MessageProvenance
+-from app.models import ensure_dashboard_visible, ensure_spawn_allowed, ensure_hub_worker_allowed, resolve_model, MODELS
++from app.models import ensure_dashboard_visible, ensure_spawn_allowed, ensure_hub_worker_allowed, resolve_model, MODELS, HUB_ARGON_MODEL, hub_worker_context
+ from app.manager import LifecycleQuarantineError
+ from app.quota_gate import QuotaGateError
+ from app.routes.errors import keyed_auth_required
+@@ -2065,10 +2065,17 @@
+     new_model = resolve_model(new_model)
+     if new_model not in MODELS:
+         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
++    context = {}
++    if new_model == HUB_ARGON_MODEL and isinstance(scope, str) and scope:
++        # Only persisted identity grants the role exception. Request-supplied
++        # role/task/reason/name cannot create it, nor can a lookup in another scope.
++        row = get_session_by_name(name, scope)
++        if row and row.get("scope") == scope.rstrip("/"):
++            context = hub_worker_context(row)
+     try:
+-        ensure_hub_worker_allowed(new_model)
++        ensure_hub_worker_allowed(new_model, **context)
+         if via == "mcp":
+-            ensure_spawn_allowed(new_model, model_reason=req.get("model_reason") or "")
++            ensure_spawn_allowed(new_model, model_reason=req.get("model_reason") or "", **context)
+         else:
+             ensure_dashboard_visible(new_model)
+     except ValueError as exc:
+--- a/.orchestra/pipelines/default/pipeline.yaml
++++ b/.orchestra/pipelines/default/pipeline.yaml
+@@ -67,7 +67,7 @@
+     effort: &effort_policy {gpt-6.1-terra: high, "claude-opus-5-5[1m]": high, "claude-sonnet-5-5[1m]": medium, claude-haiku-5-5: low, hub-gpt-6.1-sol: high, hub-claude-opus-5-5: high, hub-claude-sonnet-5-5: medium, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
+     skills: [grill-me, orchestra-agents, laptop-access, vps-deploy]
+     modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
+-    can_spawn: [worker, full-cycle, reducer]
++    can_spawn: [worker, full-cycle, reducer, specialist]
+     allow_unrouted_workers: true
+     tg: {emoji: "👑"}
+     when: Managing a team of workers, decomposing tasks, approving plans
+@@ -85,7 +85,7 @@
+     modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
+     # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
+     # заспавнить ни одной роли.
+-    can_spawn: [worker, full-cycle, reducer]
++    can_spawn: [worker, full-cycle, reducer, specialist]
+     allow_unrouted_workers: true
+     tg: {emoji: "🎯"}
+     when: Managing a sub-team within a larger hierarchy (department lead, tech lead, team lead)
+@@ -125,7 +125,7 @@
+     effort: *worker_effort_policy
+     skills: [laptop-access]
+     modules: [safety, project-maintenance, dynamic-workflows, model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, knowledge, communication-style, user-values]
+-    can_spawn: [worker, full-cycle, reducer]
++    can_spawn: [worker, full-cycle, reducer, specialist]
+     allow_unrouted_workers: false
+     tg: {emoji: "🔄"}
+     when: New feature with unknowns, large refactoring (5+ files), external integration, deep research (find out everything about X), empirical measurement / benchmarks, anything where wrong approach = wasted day
+@@ -150,3 +150,23 @@
+     description: >
+       Cheap fan-out report collector. Receives child reports, preserves every report,
+       and sends one combined handoff to the parent without selecting or interpreting it.
++  specialist:
++    kind: worker
++    label: Gemini Specialist
++    order: 5
++    # V-1257 Phase A activation stage ONLY: keep a model known to old Python.
++    # Apply the separate Phase B patch after root verifies the live registry.
++    model: hub-gpt-6.1-sol
++    effort: {default: high}
++    skills: []
++    modules: [safety, project-maintenance, code-quality, model-routing, git-workflow, report-format, knowledge, communication-style, user-values]
++    disabled_tools: [hub_generate_image]
++    can_spawn: []
++    allow_unrouted_workers: false
++    tg: {emoji: "🎨"}
++    when: Bounded design, document synthesis/comparison, and financial/legal reasoning on safe public or synthetic text; video only after Hub input support is verified
++    not_for: General terminal/repository coding, protected data, live infrastructure, unverified media inputs or paid auxiliary tools
++    description: >
++      Dedicated non-spawning specialist for one bound task and project. Uses the existing
++      paid Hub pool only. Phase A stages the role on Sol; Phase B activates Gemini
++      after the new registry is live. This stage is not an operational Gemini specialist.
+--- a/.orchestra/pipelines/default/prompts/modules/model-routing.md
++++ b/.orchestra/pipelines/default/prompts/modules/model-routing.md
+@@ -18,18 +18,18 @@
+ running Python registry recognizes it; an offline host must activate the registry with
+ the old manifest before receiving the new default.
+ 
+-### Hub workers: Sol only
++### Hub workers: Sol and the bounded Argon specialist
+ 
+ **Permanent owner decision, 2026-11-02 17:27 UTC (2026-11-03 00:27 KRS), clarified
+-at 17:29 UTC:** every hub worker in every scope must use `hubsol` (GPT-6.1 Sol).
++at 17:29 UTC:** ordinary hub workers in every scope must use `hubsol` (GPT-6.1 Sol).
+ The owner requires this enforced in Orchestra to prevent hub Opus creation and keep
+ all hub work on Sol. This includes creative work, research and existing workers on
+-send, queued delivery, resume and recovery. It supersedes all earlier hub Claude
++send, queued delivery, resume and recovery, subject only to the narrow design exception below. It supersedes all earlier hub Claude
+ creative permissions and other hub-model choices.
+ 
+ - Pass `model="hubsol"` explicitly to `spawn_worker` or `change_worker_model`.
+   Aliases, direct/versioned IDs, stored flags and `model_reason` cannot permit hub
+-  Opus, Sonnet, Haiku, Luna, Grok or any other non-Sol hub model.
++  Opus, Sonnet, Haiku, Luna, Grok or any non-Sol model outside that exception.
+ - Keep the pipeline's existing effort. This decision does not change effort defaults,
+   native orchestrator defaults or the owner's manual native orchestrator choice.
+ - The canonical routing guard in `app/models.py` refuses with
+@@ -40,6 +40,50 @@
+   Do not choose another hub model, native worker or API fallback.
+ - Do not migrate live workers, remote workspaces or held queues to apply this rule.
+   Activation follows the owner's idle watcher; code on disk is not live activation.
++
++**Owner decisions 2026-11-03, V-1257:** 14:52 approved the separately funded
++Hub designer; 15:31 expanded the SAME integration to bounded specialist work.
++A separate `specialist` role in the `default` pipeline may use exact Orchestra model
++`hub-gemini-4-argon`, mapped only to Hub provider `antigravity` and model
++`gemini-4-argon` (Gemini 4 Argon). Use the existing paid Hub pool with no extra
++charges to us. All other roles stay on Sol; this is not permission for Google
++APIs, DostupAI, Carbon, purchased overages, auxiliary image models (including Nano Banana),
++other paid tools or a model/API fallback.
++
++- The specialist does bounded design, long-document synthesis/comparison, and
++  financial/legal reasoning over safe public or synthetic material. Video analysis
++  is within the intended scope only after required Hub input support is proven.
++  Use text prompts and safe textual source bundles now. Public transcripts can be
++  analyzed as text, without claiming to have watched video. Preserve source coverage
++  and name unread material. Small HTML/CSS/SVG design-artifact edits are allowed;
++  general terminal/repository coding stays on Sol and native Codex orchestration
++  is unchanged. No agent spawning, protected data or live-infrastructure access.
++- Google publishes a [model card](https://deepmind.google/models/model-cards/gemini-4-argon/)
++  and [API model documentation](https://ai.google.dev/gemini-api/docs/models/gemini-4-argon).
++  Their long-context, multimodal, finance/legal and long-decode descriptions are
++  maker-reported API/model capabilities, not our Hub measurements. Hub video,
++  image/audio/PDF ingestion, large context, long-decode and Google-app integration
++  remain explicitly unverified. Do not expose those inputs/features, copy vendor
++  benchmark percentages or prices into platform guarantees, or invent registry metadata.
++- Admission uses existing persisted role, pipeline, bound task and project scope.
++  Empty/unknown/old roles or task identity refuse. A name, tag, task description,
++  `model_reason` or catalog toggle cannot grant Gemini. Every send/connect/change,
++  queued delivery and recovery rechecks the same canonical rule; missing context
++  fails closed. Never change identity to evade a refusal.
++- Use `high` effort, supported by the live Hub catalog. Do not invent a context
++  window, modality, price or quota percentage. Antigravity goes through Hub
++  provider-capacity admission and the shared turn limit. Exhaustion holds work;
++  absent telemetry is visibly `unknown` under the existing canonical quota policy,
++  not proof of spare capacity. Preserve privacy, ownership, history and recovery.
++- Activation is staged: Phase A installs code/rules and stages the role with a
++  known Sol model in the live manifest. This is not a working Gemini specialist.
++  Root first verifies the registry after the normal owner idle watcher, then
++  applies Phase B selecting Gemini. Never hot-load an unknown model in the manifest,
++  restart manually, launch early, or migrate existing workers/queues.
++- After accepted code and authorized activation, verify one tiny safe file-writing
++  smoke through the normal admitted specialist. No real infrastructure, protected
++  inputs, image models or extra paid tools. A model listing or offline mock is not
++  that operational verification; specialist quality needs separate actual samples.
+ 
+ ### Keep protected work local
+ 
+@@ -79,7 +123,7 @@
+ model follows the pipeline; the owner may select another model manually. Agent tools do
+ not gain permission to start auxiliary native Terra, Astra, Sol, Claude, Spark, Grok or
+ Harness workers. Manual native model selection keeps its existing boundaries; persisted hub-session
+-recovery must pass the Sol-only guard before another provider submission.
++recovery must pass the canonical context-aware Hub guard before another provider submission.
+ 
+ ### Explicit API-credit tasks and workflows
+ 
+--- a/tests/test_default_pipeline.py
++++ b/tests/test_default_pipeline.py
+@@ -50,7 +50,7 @@
+         cfg = P.load_pipeline(PIPELINE)
+         assert set(cfg.roles) == {
+             "orchestrator", "sub-orchestrator", "worker",
+-            "full-cycle", "reducer"}
++            "full-cycle", "reducer", "specialist"}
+ 
+     def test_kinds_match_upstream(self):
+         """orchestrator и sub-orchestrator — kind:orchestrator; worker/full-cycle — kind:worker."""
+--- a/tests/test_models.py
++++ b/tests/test_models.py
+@@ -83,7 +83,7 @@
+         "gpt-6.1-sol", "gpt-6.1-terra", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
+         "GigaChat-2-Pro", "GigaChat-3-Lightning", "GigaChat-3-Pro",
+         "hub-claude-haiku-5-5", "hub-claude-sonnet-5-5", "hub-claude-opus-5-5",
+-        "hub-gpt-6-luna", "hub-gpt-6.1-sol", "hub-grok-4.7",
++        "hub-gpt-6-luna", "hub-gpt-6.1-sol", "hub-grok-4.7", "hub-gemini-4-argon",
+     }
+     assert {spec.id for spec in SELECTABLE_MODEL_SPECS} == expected
+     assert set(MODELS) == expected
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -6,6 +6,7 @@
+ 
+ ## Unreleased
+ 
++- **Bounded Argon specialist through the existing paid Hub pool** (V-1257; owner decisions 2026-11-03 14:52 and 15:31). Only the default-pipeline specialist with a bound task/project scope may use `hub-gemini-4-argon`, mapped to `antigravity/gemini-4-argon`, for design, document synthesis/comparison and financial/legal reasoning on public or synthetic text. General terminal/repository coding stays on Hub Sol; native Codex orchestration is unchanged. Video, media ingestion, large context, long-decode and Google-app integration remain unverified in Hub; maker-reported API capabilities are not platform guarantees. Canonical admission rechecks existing identity at creation, model changes, deliveries, backend submission and recovery; the same specialist instructions reach initial and resumed Hub turns. Antigravity retains provider-capacity admission and the shared turn limit; absent telemetry is visible as unknown and context/modality/prices are not invented. Phase A stages the role with known Sol; the separate Phase B patch selects Gemini only after root verifies the live registry through normal idle activation. No manual restart, worker/queue migration, API/Carbon/overage/auxiliary-image fallback or early inference. Offline checks do not substitute for the post-activation safe file-writing smoke.
+ - **Research closure requires an explanation delivered to the owner** (V-1256; owner decision 2026-11-03). The existing user-answer-format owns the substantive verdict, coverage, interpretable numbers, mechanisms, examples, counter-evidence, failed/skipped checks, limits and practical implications. Default replies are short and dense: verdict, decision-relevant numbers and practical implication/next action; expand only on request or to explain a material risk. Shared orchestration and lifecycle instructions check evidence acceptance and actual owner delivery before research closure; sub-orchestrators pass complete findings and outstanding delivery obligations through their parent. DONE, an artifact path, status text and acknowledgement suppression cannot replace or hide the result. Approval boundaries, artifact reading, model-review freeze, worker routing and fresh-instance policy remain unchanged. Prompt-only correction; no task-state/runtime contract, new approval phase, provider call, deployment or adherence measurement.
+ 
+ - **Hub close preserves history; merge observation cannot close a later generation** (V-1244; owner retention decision 2026-11-03 01:42 KRS). Task transition and explicit close own known Hub generation archival, retaining project/provider history, accounting and recovery provenance. Optional post-merge cleanup never archives Hub workspaces and holds Hub/unknown/history; native cleanup spans existing session/lifecycle locks and repository ownership through identity check and deletion. Cancellation now drains the actual native executor future with the existing owned-wait primitive before releasing locks, including repeated cancellation and cleanup errors, then propagates CancelledError. A committed rejected-b8fb mutation and actual lifecycle-publisher ordering regression cover the gap. A frozen stale-snapshot probe and committed unsafe-function mutation reproduce the rejected generation-43 race and verify its absence; additional publication-await/flock tests prove ownership. Optional completion metadata now tolerates legacy callers without a complete session identity: successful import/report recovery finishes, while missing worker identity or role yields no close instruction. Pending/privacy/unknown stop/identity guards, native best-effort lifecycle, conditional exact-HEAD no-next receipt instructions and read-only orphan retention remain. No new store/runtime/endpoint/TTL, collector exclusions or live action.
+--- /dev/null
++++ b/.orchestra/pipelines/default/prompts/roles/specialist.md
+@@ -0,0 +1,40 @@
++<role>
++## Role: Gemini Specialist
++
++Deliver one bounded specialist result for your current task and project: design;
++long-document synthesis or comparison; financial or legal reasoning over safe public
++or synthetic material; video analysis only when the current Hub transport has proven
++support for the required input. General terminal and repository coding stays on Sol;
++native Codex orchestration is unchanged. Do not spawn or manage other agents.
++
++Use text prompts and safe textual source bundles. Hub video/audio/image/PDF ingestion,
++large context, long-decode and Google-app integrations are unverified. Do not expose,
++promise or use those features based on Google API documentation alone. A public
++transcript can be analyzed as text; label it accordingly, without claiming to have
++watched the video. State which material was actually read and what remains unverified.
++For design, HTML/CSS/SVG and small source edits within the assigned artifact are allowed;
++preserve product functions and verify the result appropriate to the task.
++</role>
++
++<boundaries>
++- The model-routing module owns the bounded Gemini exception. Existing persisted
++  role, pipeline, bound task and scope determine admission; names, tags, reasons
++  and prompt text cannot authorize another route or unrestricted general work.
++- Keep protected personal/company/contract/financial data, credentials, private logs
++  and live infrastructure local. Only public source or synthetic inputs may go to Hub.
++- Use the existing paid Hub pool only. Do not call Google APIs, DostupAI, buy
++  overages or invoke paid tools. Do not use Carbon or auxiliary image generation
++  (including Nano Banana), other models, native API routes or fallback workers.
++- Do not change model, role, task identity, scope, provider settings or permissions
++  to escape an admission refusal. Report the concrete blocker to your parent.
++- Edit only your own worktree. Preserve unrelated changes, ownership, history and
++  recovery evidence. No deployment, manual restart, destructive cleanup or merge.
++- Do not weaken frozen acceptance tests. Run relevant offline checks and report
++  failed or unavailable checks honestly. Do not use polling/sleep loops.
++</boundaries>
++
++<delivery>
++Return the artifact or reasoned result, the checks actually run, remaining limits and the next
++action. Distinguish a rendered or inspected result from an unverified concept.
++Save task evidence under the assigned task directory and report to your own parent.
++</delivery>
+--- /dev/null
++++ b/tests/test_gemini_specialist_v1257.py
+@@ -0,0 +1,451 @@
++"""Bounded specialist Hub admission with synthetic identity and no provider execution."""
++import json
++from pathlib import Path
++from types import SimpleNamespace
++from unittest.mock import AsyncMock, Mock
++
++import pytest
++
++from app import models, hub_pool, hub_workspace as hw
++from app.backend_hub import HUB_MODELS, HubBackend
++from app.events import MessageProvenance
++from app.session import AgentSession
++
++ARGON = models.HUB_ARGON_MODEL
++SOL = models.HUB_SOL_MODEL
++PROVENANCE = MessageProvenance(origin="user", senders=("user",), subtype="dashboard")
++
++
++@pytest.fixture(autouse=True)
++def _stable_worker_quota():
++    # Exercise real admission with the offline Hub-pool fixture, not conftest's
++    # generic not-applicable quota stub. No telemetry/provider calls are made.
++    pass
++
++
++def identity(scope="/synthetic/design"):
++    return dict(role="specialist", pipeline="default", scope=scope, task_id="V-1257")
++
++
++@pytest.fixture
++def admission(monkeypatch):
++    monkeypatch.setattr(models, "_load_model_flags", lambda: {
++        m: {"agents": True, "dashboard": True} for m in models.MODELS})
++    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
++    monkeypatch.setattr(hw, "known_secret_values", lambda *args: [])
++
++
++@pytest.mark.parametrize("field,value", [
++    ("role", ""), ("role", "worker"), ("role", "full-cycle"),
++    ("role", "reducer"), ("role", "old-specialist"), ("role", "Specialist"), ("role", "designer"),
++    ("pipeline", ""), ("pipeline", "other"),
++    ("scope", ""), ("scope", "relative"), ("scope", "/"),
++    ("task_id", ""), ("task_id", "design"), ("task_id", "0"), ("task_id", None),
++])
++def test_only_exact_role_pipeline_and_task_scope_admit(admission, field, value):
++    context = identity()
++    models.ensure_spawn_allowed(ARGON, **context)
++    context[field] = value
++    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
++        models.ensure_spawn_allowed(ARGON, model_reason="owner design request", **context)
++    models.ensure_spawn_allowed(SOL, **context)
++
++
++def test_registry_mapping_and_unknown_metadata_are_honest():
++    assert HUB_MODELS[ARGON] == ("antigravity", "gemini-4-argon")
++    spec = models.get_model_spec(ARGON)
++    assert (spec.runtime, spec.provider) == ("hub", "multicode")
++    assert spec.context_length == 0 and spec.input_modalities == ()
++    assert spec.price_input is None and spec.price_output is None
++    assert ARGON not in models.ALIASES.values()
++    models.validate_model_registry()
++
++
++def test_specialist_does_not_restore_other_models_or_credit_routes(admission):
++    for spec in models.SELECTABLE_MODEL_SPECS:
++        if spec.runtime == "hub" and spec.id not in {SOL, ARGON}:
++            with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
++                models.ensure_spawn_allowed(spec.id, **identity())
++    with pytest.raises(ValueError, match="billing"):
++        models.ensure_spawn_allowed(ARGON, billing="api_credit", **identity())
++    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
++        models.validate_model_reason(ARGON, "specialist tag or worker name")
++    assert models.validate_model_reason(ARGON, "not a permission", **identity()) == ""
++
++
++def test_catalog_and_configuration_remain_required(admission, monkeypatch):
++    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: "synthetic unconfigured hub")
++    with pytest.raises(ValueError, match="unconfigured"):
++        models.ensure_spawn_allowed(ARGON, **identity())
++    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
++    monkeypatch.setattr(models, "_load_model_flags", lambda: {ARGON: {"agents": False}})
++    with pytest.raises(ValueError, match="disabled for agents"):
++        models.ensure_spawn_allowed(ARGON, **identity())
++
++
++def test_real_pipeline_assembles_terminal_specialist_and_keeps_activation_staged():
++    from app import pipeline
++    from app.manager import ROLE_SYSTEM_PROMPT
++
++    pipeline.load_pipeline.cache_clear()
++    cfg = pipeline.load_pipeline("default")
++    role = pipeline.get_role("default", "specialist")
++    assert cfg.roles["specialist"].model == SOL
++    assert ARGON not in Path(pipeline.PIPELINES_DIR / "default/pipeline.yaml").read_text()
++    assert role.can_spawn == []
++    assert set(role.skills) == set(cfg.defaults.skills)
++    assert "hub_generate_image" in role.disabled_tools
++    assert pipeline.resolve_effort(role.effort, ARGON, "hub") == "high"
++    assembled = ROLE_SYSTEM_PROMPT("default", "specialist")
++    for rel in ("base.md", "roles/specialist.md", "modules/model-routing.md"):
++        assert pipeline.prompt_path("default", rel).read_text().strip() in assembled
++    for parent in ("orchestrator", "sub-orchestrator", "full-cycle"):
++        pipeline.validate_spawn("default", parent, "specialist")
++    with pytest.raises(ValueError):
++        pipeline.validate_spawn("default", "specialist", "worker")
++    for name in ("worker", "full-cycle", "reducer"):
++        assert cfg.roles[name].model == SOL
++
++
++class CatalogHub:
++    def __init__(self):
++        self.calls = []
++
++    async def tool_call(self, name, args):
++        self.calls.append((name, args))
++        if name == "orchestrator_capabilities":
++            return {"providers": [{"providerInstanceId": "antigravity", "models": [{
++                "id": "gemini-4-argon", "options": [{
++                    "id": "reasoningEffort", "type": "select",
++                    "options": [{"id": v} for v in ("low", "medium", "high")],
++                }],
++            }]}]}
++        return {"threadId": "synthetic-thread", "runId": "synthetic-run"}
++
++
++def backend_fixture(context=None, effort="high"):
++    context = identity() if context is None else context
++    backend = HubBackend(ARGON, ".", scope=context["scope"], effort=effort,
++                         context_source=lambda: context)
++    hub = CatalogHub()
++    backend._mc = hub
++    backend._ssh = SimpleNamespace(assert_file_policy=AsyncMock())
++    state = hw.WorkspaceState("synthetic-workspace", ".", "/synthetic/copy",
++                              project_id="synthetic-project")
++    state.save = lambda: None
++    backend._state = state
++    return backend, hub, state, context
++
++
++def test_specialist_role_reaches_trimmed_hub_prompt_and_resumed_turn(monkeypatch):
++    from app import backend_hub, pipeline
++
++    monkeypatch.setattr(backend_hub, "_branch_task_ref", lambda *args: "#V-1257")
++    backend, _, _, _ = backend_fixture()
++    source = pipeline.prompt_path("default", "roles/specialist.md").read_text().strip()
++    assert backend._prompt("safe design task", first=True).count(source) == 1
++    assert backend._prompt("continue design", first=False).count(source) == 1
++    ordinary = HubBackend(SOL, ".", role="worker", pipeline="default")
++    assert source not in ordinary._prompt("ordinary task", first=True)
++    assert source not in ordinary._prompt("ordinary continuation", first=False)
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("effort", ["low", "medium", "high"])
++async def test_argon_selection_and_resume_use_exact_catalog_effort(admission, effort):
++    backend, hub, state, _ = backend_fixture(effort=effort)
++    assert await backend._start(hub, state, "safe design source") == "synthetic-run"
++    launch = hub.calls[-1][1]
++    assert launch["modelSelection"] == {
++        "instanceId": "antigravity", "model": "gemini-4-argon",
++        "options": {"reasoningEffort": effort},
++    }
++    assert "runtimeMode" not in launch
++    await backend._start(hub, state, "continue the same design")
++    assert [name for name, _ in hub.calls][-2:] == ["t3_thread_configure", "t3_thread_send"]
++    assert sum(name == "orchestrator_capabilities" for name, _ in hub.calls) == 1
++    event = backend._turn_end(True, "end_turn", "")
++    assert event.metadata["max_tokens"] == 0
++
++
++@pytest.mark.asyncio
++async def test_unsupported_effort_never_launches(admission):
++    backend, hub, state, _ = backend_fixture(effort="xhigh")
++    with pytest.raises(ValueError, match="allowed values"):
++        await backend._start(hub, state, "safe design")
++    assert [name for name, _ in hub.calls] == ["orchestrator_capabilities"]
++    assert not state.thread_id
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("operation", ["connect", "send", "retarget", "reconnect", "events", "turn", "start"])
++@pytest.mark.parametrize("field,value", [("role", "worker"), ("task_id", ""), ("scope", "/other/project")])
++async def test_backend_rechecks_live_identity_before_side_effects(admission, operation, field, value):
++    backend, hub, state, context = backend_fixture()
++    backend._pending = "retained design input"
++    backend._turn_active = True
++    before = (backend.model, backend._pending, backend._turn_active, dict(state.__dict__))
++    context[field] = value
++    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
++        if operation == "connect":
++            await backend.connect()
++        elif operation == "send":
++            await backend.send("new input")
++        elif operation == "retarget":
++            await backend.retarget_model(ARGON)
++        elif operation == "reconnect":
++            await backend.reconnect()
++        elif operation == "events":
++            _ = [event async for event in backend.events()]
++        elif operation == "turn":
++            _ = [event async for event in backend._run_turn("new input")]
++        else:
++            await backend._start(hub, state, "new input")
++    assert before == (backend.model, backend._pending, backend._turn_active, state.__dict__)
++    assert hub.calls == []
++
++
++def test_factory_observes_current_task_and_role_without_new_store(admission):
++    worker = AgentSession(id="specialist", name="specialist", cwd="/synthetic/design", model=ARGON,
++                          backend_type="hub", **identity())
++    backend = worker._make_backend()
++    backend._ensure_model_allowed()
++    worker.task_id = ""
++    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
++        backend._ensure_model_allowed()
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("operation", ["preflight", "send", "flush", "backend", "reconnect", "handoff"])
++async def test_old_session_role_refuses_and_preserves_recovery(admission, operation):
++    context = identity()
++    context["role"] = "worker"
++    worker = AgentSession(id="old", name="specialist-by-name", cwd=context["scope"],
++                          model=ARGON, backend_type="hub", model_reason="specialist", **context)
++    worker.session_id = "retained-workspace"
++    worker._session_limit_hit = worker._manually_interrupted = True
++    worker._handoff_recovery_required = True
++    worker._pending_messages = ["retained design"]
++    worker._pending_owner_texts = ["retained design"]
++    worker.session_id_history = [{"session_id": "retained-history"}]
++    provider = AsyncMock()
++    worker._backend = provider
++    before = (worker.model, worker.session_id, list(worker.session_id_history),
++              worker._session_limit_hit, worker._manually_interrupted, worker._handoff_recovery_required)
++    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
++        if operation == "preflight":
++            await worker.preflight_delivery_admission()
++        elif operation == "send":
++            await worker.send("new design", provenance=PROVENANCE)
++        elif operation == "flush":
++            await worker._flush_pending()
++        elif operation == "backend":
++            await worker._ensure_backend(force_fresh=True)
++        elif operation == "reconnect":
++            await worker._reconnect_backend()
++        else:
++            await worker.recover_runtime_handoff({"status": "source_released"}, [])
++    assert before == (worker.model, worker.session_id, worker.session_id_history,
++                      worker._session_limit_hit, worker._manually_interrupted, worker._handoff_recovery_required)
++    assert worker._pending_messages == worker._pending_owner_texts == ["retained design"]
++    assert not worker._lifecycle_lock.locked()
++    assert provider.mock_calls == []
++
++
++@pytest.mark.asyncio
++async def test_persisted_specialist_reloads_and_passes_normal_preflight(admission, tmp_path):
++    from app import db
++    from app.manager import SessionManager
++
++    db.init_db()
++    worker = AgentSession(id="persisted", name="specialist", cwd=str(tmp_path), model=ARGON,
++                          backend_type="hub", **identity(str(tmp_path)))
++    worker.session_id = "retained-workspace"
++    worker.session_id_history = [{"session_id": "prior-history"}]
++    db.save_session(worker._to_db_dict())
++    manager = SessionManager()
++    restored = await manager._load_from_db(db.get_session(worker.id))
++    assert models.hub_worker_context(restored) == identity(str(tmp_path))
++    assert restored.session_id == worker.session_id
++    assert restored.session_id_history == worker.session_id_history
++    await restored.preflight_delivery_admission()
++    assert not restored._lifecycle_lock.locked()
++
++
++@pytest.mark.asyncio
++async def test_old_argon_queued_delivery_refuses_before_submit_and_keeps_payload(admission, tmp_path, monkeypatch):
++    from app import db, message_deliveries as deliveries
++    from app.manager import SessionManager
++
++    db.init_db()
++    context = identity(str(tmp_path))
++    context["role"] = "worker"
++    worker = AgentSession(id="old-argon", name="specialist-by-name", cwd=str(tmp_path),
++                          model=ARGON, backend_type="hub", session_id="retained-workspace", **context)
++    worker.session_id_history = [{"session_id": "retained-history"}]
++    db.save_session(worker._to_db_dict())
++    manager = SessionManager()
++    restored = await manager._load_from_db(db.get_session(worker.id))
++    await restored._drain_persist()
++    provider = AsyncMock()
++    restored._backend = provider
++    manager.sessions[restored.id] = restored
++    delivery_id = "7b34bf37-c388-48c7-8071-13a2cf1ef70b"
++    monkeypatch.setattr(deliveries, "ensure_target_runner", Mock())
++    monkeypatch.setattr(deliveries, "notify_message_delivery_failure", AsyncMock())
++    _, status = await deliveries.accept_message_delivery(
++        delivery_id=delivery_id, source_principal="synthetic:owner", source_scope=str(tmp_path),
++        target_session_id=restored.id, target_name=restored.name, target_scope=restored.scope,
++        target_generation=(f"session={restored.id}|task={restored.task_id}|"
++                           f"branch={restored.branch}|needs_switch=0"),
++        message="retained queued design", rendered_message="retained queued design", provenance=PROVENANCE,
++    )
++    assert status == 202
++    await deliveries.recover_message_deliveries(target_session_id=restored.id)
++    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
++        await deliveries.run_message_delivery(delivery_id, manager)
++    row = dict(deliveries._row(delivery_id))
++    assert row["state"] == "FAILED_BEFORE_SUBMIT"
++    assert row["message"] == row["rendered_message"] == "retained queued design"
++    assert db.get_session(worker.id)["session_id"] == "retained-workspace"
++    assert restored.session_id_history == worker.session_id_history
++    assert provider.mock_calls == []
++
++
++@pytest.mark.asyncio
++async def test_spawn_resolves_task_and_publishes_dedicated_role(admission, monkeypatch, tmp_path):
++    from app import db, manager as module, tm
++
++    db.init_db()
++    task = {"id": "synthetic-task", "ref_prefix": "V", "par_number": 1257}
++    resolve = Mock(return_value=task)
++    publish = Mock()
++    start = AsyncMock()
++    monkeypatch.setattr(tm, "resolve_scoped_task_identity", resolve)
++    monkeypatch.setattr(module, "publish_ready_session", publish)
++    monkeypatch.setattr(module.AgentSession, "start", start)
++    monkeypatch.setattr(module.private_folder, "ensure_main_private", Mock())
++    monkeypatch.setattr(module, "_scaffold_role_docs", Mock())
++    manager = module.SessionManager()
++    worker = await manager.create_session(
++        "specialist", str(tmp_path), str(tmp_path), ARGON, parent_name="root",
++        role="specialist", pipeline="default", task_id="V-1257", owned_dirs=["design"],
++    )
++    assert models.hub_worker_context(worker) == identity(str(tmp_path))
++    assert worker.model == ARGON and worker.effort == "high"
++    resolve.assert_called_once_with(str(tmp_path), "V-1257")
++    assert publish.call_args.args[1] == task
++    start.assert_awaited_once_with(persist=False)
++
++
++@pytest.mark.asyncio
++async def test_spawn_keeps_task_ownership_refusal_before_backend(admission, monkeypatch, tmp_path):
++    from app import db, manager as module, tm
++
++    db.init_db()
++    start = AsyncMock()
++    publish = Mock()
++    monkeypatch.setattr(module.AgentSession, "start", start)
++    monkeypatch.setattr(module, "publish_ready_session", publish)
++    monkeypatch.setattr(tm, "resolve_scoped_task_identity", Mock(side_effect=ValueError("task belongs to another scope")))
++    manager = module.SessionManager()
++    with pytest.raises(ValueError, match="another scope"):
++        await manager.create_session("specialist", str(tmp_path), str(tmp_path), ARGON,
++                                     parent_name="root", role="specialist", task_id="V-1257")
++    assert not manager.sessions
++    start.assert_not_awaited()
++    publish.assert_not_called()
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("role", ["specialist", "worker"])
++async def test_direct_model_change_checks_current_session(admission, monkeypatch, role):
++    context = identity()
++    context["role"] = role
++    worker = AgentSession(id="target", name="target", cwd=context["scope"], model=SOL,
++                          backend_type="hub", **context)
++    change = AsyncMock(return_value={"ok": True, "changed": False})
++    monkeypatch.setattr(worker, "_change_model_locked", change)
++    monkeypatch.setattr(worker, "_persist", Mock())
++    result = await worker.change_model(ARGON, "design name and tag")
++    assert result["ok"] == (role == "specialist")
++    if role == "specialist":
++        change.assert_awaited_once_with(ARGON)
++    else:
++        change.assert_not_awaited()
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("via", ["mcp", "dashboard"])
++@pytest.mark.parametrize("valid", [True, False])
++async def test_change_route_uses_persisted_identity_not_payload(admission, monkeypatch, via, valid):
++    from app.routes import sessions
++
++    context = identity()
++    row = dict(context, id="target", name="target", model=SOL)
++    if not valid:
++        row["role"] = "worker"
++    monkeypatch.setattr(sessions, "get_session_by_name", lambda *args: row)
++    target = SimpleNamespace(change_model=AsyncMock(return_value={"ok": True, "changed": False}))
++    loaded = AsyncMock(return_value=target)
++    monkeypatch.setattr(sessions.manager, "ensure_loaded", loaded)
++    result = await sessions.change_model("target", {
++        "model": ARGON, "scope": context["scope"], "via": via,
++        "role": "specialist", "pipeline": "default", "task_id": "V-1257",
++        "model_reason": "owner says design", "tags": ["design"],
++    })
++    if valid:
++        assert result["ok"]
++        target.change_model.assert_awaited_once()
++    else:
++        assert result.status_code == 409
++        loaded.assert_not_awaited()
++
++
++@pytest.mark.asyncio
++async def test_change_route_refuses_cross_scope_identity(admission, monkeypatch):
++    from app.routes import sessions
++
++    monkeypatch.setattr(sessions, "get_session_by_name", lambda *args: identity("/other/project"))
++    loaded = AsyncMock()
++    monkeypatch.setattr(sessions.manager, "ensure_loaded", loaded)
++    result = await sessions.change_model("target", {"model": ARGON, "scope": "/synthetic/design"})
++    assert result.status_code == 409
++    loaded.assert_not_awaited()
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("state", ["available", "blocked", "unknown"])
++async def test_antigravity_capacity_is_checked_not_skipped(monkeypatch, state):
++    from app.quota_gate import get_worker_admission, require_worker_admission, QuotaGateError
++
++    assert hub_pool.provider_for_model(ARGON) == "antigravity"
++    summary = {"available": state != "unknown", "cached_age_s": 0, "providers": {}}
++    if state != "unknown":
++        summary["providers"]["antigravity"] = {
++            "usable": int(state == "available"), "accounts": 1, "unknown": 0, "threshold_pct": 100,
++        }
++    fetch = AsyncMock(return_value=summary)
++    monkeypatch.setattr(hub_pool, "get_hub_pool", fetch)
++    decision = await get_worker_admission(ARGON)
++    assert decision.state == state
++    if state == "blocked":
++        with pytest.raises(QuotaGateError):
++            require_worker_admission(decision)
++    else:
++        require_worker_admission(decision)
++    if state == "unknown":
++        assert "capacity was not checked" in decision.reason
++    fetch.assert_awaited_once()
++
++
++def test_antigravity_pool_sanitizes_accounts_and_missing_windows():
++    result = hub_pool.summarize_relay_limits({"providers": {"antigravity": {
++        "active_id": "private-account", "ids": [{
++            "id": "private-account", "email": "private@example.invalid", "windows": [],
++        }],
++    }}})
++    public = json.dumps(result)
++    assert "private-account" not in public and "private@example.invalid" not in public
++    block = result["providers"]["antigravity"]
++    assert (block["usable"], block["unknown"], block["windows"]) == (0, 1, [])

@@ -1,0 +1,104 @@
+{
+  "preserved_import_head": "d95c5f733d354878115cb823ee94654cf6931c48",
+  "logs": [
+    {
+      "path": "artifact-checks.log",
+      "original_sha256": "29cabcefa2fcc4eda884ac48cbc4962efb8dff7df34626890eaccbf998ec3406",
+      "bytes": 572,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "checks.log",
+      "original_sha256": "8688b2b72dfd01f008c1003d8ce426bd0152f4c85796ea0ae1a6a8ddc073b459",
+      "bytes": 19611,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "final-artifact-checks.log",
+      "original_sha256": "eb6355331c172a9e74137a7d040ac5d139c9952dd9d993fbf6a8bcbb42b91193",
+      "bytes": 484,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-a-focused-2.log",
+      "original_sha256": "278a802fd3d8d04892005bb40b3c3d3b184c62ff56195377f85a685db99b614a",
+      "bytes": 1824,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-a-focused.log",
+      "original_sha256": "e3e6b9ca443f9fcb20bbcf307fd18dc9a46fa093c53d9667c39605c92b6dee2e",
+      "bytes": 21979,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-a-integration-final.log",
+      "original_sha256": "cc3cf00c95efc01c87e66f33c593ad07419448d7e3258ebccf64b19183297a54",
+      "bytes": 594,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-a-integration.log",
+      "original_sha256": "87c74ca866b3bd0113a9b6c7be58f325c3f4dbd32505fc84475a4b1ddc29441a",
+      "bytes": 14820,
+      "potential_private_paths": 1,
+      "public_sanitized_sha256": "6a92790c7bbd87c5e0de09ce9fe1079b6773d5b5e60c347edc41608812dbec44",
+      "private_original_reference": "recovery-private-log-reference.json"
+    },
+    {
+      "path": "phase-a-queued-case.log",
+      "original_sha256": "7a25a40d2638a380355bb3a485efc027862c1930686a3e1856ff9898a29edf33",
+      "bytes": 15,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-a-queued-trace.log",
+      "original_sha256": "7136b5ab67f908e69e79321d237b9f4fe645e4dae1335e2a394a8ce0e0f9de6d",
+      "bytes": 13705,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-a-release-check.log",
+      "original_sha256": "d5ba27757920ad1362a0ecbbc29e93a94cec4ee574cbe2722f77f70e3e84cd58",
+      "bytes": 579,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-a-remaining-verified.log",
+      "original_sha256": "baf42373b9aa6cb1a37dca1e99f626d8ac1066b7bfe31240519db0f007e7df8f",
+      "bytes": 503,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-a-role-verified.log",
+      "original_sha256": "c5625ba8b42b64cbd83787602fa29954bf24111cb170eb0c0bd25a69c30be588",
+      "bytes": 113,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-a-specialist-final.log",
+      "original_sha256": "9a7c23a9ac68b196d65eb8695a702d70386d1c8eb960d70fa37a5e2bafd28559",
+      "bytes": 4464,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-a-specialist-verified.log",
+      "original_sha256": "e56e60096372fc70cbdc15a07f1ac4697a1037ec9e2114b8416557865f8c3df8",
+      "bytes": 4399,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "phase-b-patch-check.log",
+      "original_sha256": "14a0e57207cfc791512bfa8bcd9e3b4f046b87ecac2cc891b7e47dff89c69f97",
+      "bytes": 57,
+      "potential_private_paths": 0
+    },
+    {
+      "path": "pipeline-static-check.log",
+      "original_sha256": "ec6672640571c72a3c4bca9a943870f7e1b1ed35be4d657b6f527778c293dd77",
+      "bytes": 97,
+      "potential_private_paths": 0
+    }
+  ],
+  "note": "Original returned historical logs retained without rewriting; root-local raw originals are separate private evidence."
+}

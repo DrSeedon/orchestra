@@ -1,0 +1,33 @@
+....................................................F................... [ 30%]
+........................................................................ [ 60%]
+........................................................................ [ 90%]
+.......................                                                  [100%]
+=================================== FAILURES ===================================
+____________ test_spawn_resolves_task_and_publishes_dedicated_role _____________
+
+admission = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a009281adb0>
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused-2/test_spawn_resolves_task_and_p0')
+
+    @pytest.mark.asyncio
+    async def test_spawn_resolves_task_and_publishes_dedicated_role(admission, monkeypatch, tmp_path):
+        from app import db, manager as module, tm
+    
+        db.init_db()
+        task = {"id": "synthetic-task", "ref_prefix": "V", "par_number": 1257}
+        resolve = Mock(return_value=task)
+        publish = Mock()
+        start = AsyncMock()
+        monkeypatch.setattr(tm, "resolve_scoped_task_identity", resolve)
+        monkeypatch.setattr(module, "publish_ready_session", publish)
+        monkeypatch.setattr(module.AgentSession, "start", start)
+        monkeypatch.setattr(module.private_folder, "ensure_main_private", Mock())
+>       monkeypatch.setattr(module, "_scaffold_worker_docs", Mock())
+E       AttributeError: <module 'app.manager' from '<WORKSPACE>/app/manager.py'> has no attribute '_scaffold_worker_docs'
+
+tests/test_gemini_designer_v1257.py:275: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_gemini_designer_v1257.py::test_spawn_resolves_task_and_publishes_dedicated_role
+1 failed, 238 passed in 5.64s
+
+EXIT_CODE=1

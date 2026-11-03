@@ -1,0 +1,131 @@
+{
+  "reported_accepted_generation": "6f7f5117de49a59dab6c5d108e3f3d42b5b1f1d4",
+  "generation_source": "root follow-up message; this no-.git copy cannot verify commit identity",
+  "new_import_head": null,
+  "merged": false,
+  "exactly_two_test_sources_changed_this_followup": [
+    {
+      "path": "tests/test_default_pipeline.py",
+      "before_sha256": "2cac94a46a07cf592af3e4a358426e3d6b92a857437d2aaf641d571b579be74e",
+      "final_sha256": "975557b8880a48cffb0122cefacd05aaa6a782f01a87d9a53461b2ed7cf8a97b",
+      "added_lines": 21,
+      "removed_lines": 0
+    },
+    {
+      "path": "tests/test_gemini_specialist_v1257.py",
+      "before_sha256": "0508b14d761afb84f6a4a33ff1239d46416dc7302082782ee627f13d0399a49b",
+      "final_sha256": "0c2fe412212cf1fa7041fb19a7d8647ab7ddbe1d46f38dd1585e4cb2b89c7150",
+      "added_lines": 3,
+      "removed_lines": 4
+    }
+  ],
+  "accepted_five_recovery_files_unchanged": [
+    {
+      "path": ".orchestra/pipelines/default/pipeline.yaml",
+      "before_sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16",
+      "canonical_sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16",
+      "final_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+      "changed": true,
+      "equals_canonical": false
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+      "before_sha256": "2b4071cd3586f407bc7975bcf9d51ba4a3f003d72c527f217f49d36b15a7a6e9",
+      "canonical_sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+      "final_sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+      "changed": true,
+      "equals_canonical": true
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/communication-style.md",
+      "before_sha256": "037a6d2adf0591a1a28c5a8f2ed64a273f849d37cc16376b12eaa359c8a03d98",
+      "canonical_sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+      "final_sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+      "changed": true,
+      "equals_canonical": true
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+      "before_sha256": "6d4e5b034b1ba0e896ff102c22aa7207fdd682236bdc5260067d0e2329937675",
+      "canonical_sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+      "final_sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+      "changed": true,
+      "equals_canonical": true
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/orchestrator.md",
+      "before_sha256": "0fb06cbb9400be81cec2841c8fa83cf61287b00cbc194094968d8526d0aae57e",
+      "canonical_sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+      "final_sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+      "changed": true,
+      "equals_canonical": true
+    }
+  ],
+  "all_other_initial_sources_unchanged": true,
+  "prior_task_artifacts_byte_identical": 75,
+  "prior_625_log_unchanged": true,
+  "frozen_v1256_byte_exact_except_role_set_addition": true,
+  "phases": {
+    "a": {
+      "phase": "A",
+      "app_exact_workspace_import": true,
+      "app_absolute_import_path_sha256": "8ef0a8cbe986782edfa305e6c8c4010ee8c4bc09bdd579390bc7d62f38af3dc2",
+      "phase_a_source_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+      "phase_b_patch_sha256": "c7d4d7ee534211f6b436ef02568820ffca46253fe762380bbe46528f1d16b562",
+      "active_manifest_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+      "actual_loaded_specialist_model": "hub-gpt-6.1-sol",
+      "pipeline_contract_exit_code": 0,
+      "actual_phase_b_manifest": false,
+      "frozen_v1256_collected_nodeids": [
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[orchestration-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[orchestration-sub-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[worker-lifecycle-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[worker-lifecycle-sub-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[communication-style-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[communication-style-sub-orchestrator]"
+      ],
+      "total_collected": 149,
+      "pytest_exit_code": 0,
+      "passed": 149,
+      "root_manifest_bytes_and_inode_mtime_size_unchanged": true,
+      "process_pipeline_pointer_restored": true,
+      "restored_loaded_specialist_model": "hub-gpt-6.1-sol",
+      "wall_seconds_from_pytest": 33.5
+    },
+    "b": {
+      "phase": "B",
+      "app_exact_workspace_import": true,
+      "app_absolute_import_path_sha256": "8ef0a8cbe986782edfa305e6c8c4010ee8c4bc09bdd579390bc7d62f38af3dc2",
+      "phase_a_source_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+      "phase_b_patch_sha256": "c7d4d7ee534211f6b436ef02568820ffca46253fe762380bbe46528f1d16b562",
+      "active_manifest_sha256": "7af87574909ff66a8e99b915bfe7f4a912fa0cdefa5ad9207da6a788713c9493",
+      "actual_loaded_specialist_model": "hub-gemini-4-argon",
+      "pipeline_contract_exit_code": 1,
+      "actual_phase_b_manifest": true,
+      "frozen_v1256_collected_nodeids": [
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[orchestration-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[orchestration-sub-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[worker-lifecycle-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[worker-lifecycle-sub-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[communication-style-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[communication-style-sub-orchestrator]"
+      ],
+      "total_collected": 149,
+      "pytest_exit_code": 0,
+      "passed": 149,
+      "temporary_phase_b_tree_exactly_restored_to_phase_a": true,
+      "root_manifest_bytes_and_inode_mtime_size_unchanged": true,
+      "process_pipeline_pointer_restored": true,
+      "restored_loaded_specialist_model": "hub-gpt-6.1-sol",
+      "wall_seconds_from_pytest": 42.3
+    }
+  },
+  "root_instruction_contract_exit_code": 1,
+  "root_instruction_contract_blocker": "CLAUDE.md absent on arrival",
+  "scratch_removed": true,
+  "root_manifest_never_written": true,
+  "phase_b_integration_ready": false,
+  "additional_integration_blocker": "Phase B static manifest contract rejects existing model-routing.md:47 quoting hub-gemini-4-argon; no source expansion authorized",
+  "phase_b_initial_pretest_attempt_exit_code": 3,
+  "verification_python_executable_workspace_relative": ".venv/bin/python3"
+}

@@ -1,0 +1,3 @@
+PASS: one prompt changed; Phase A 149 and Phase B 149 tests passed
+PASS: actual static checks in BOTH phases; 102 prior artifacts unchanged
+Root instruction contract remains RED: missing CLAUDE.md; complete-host check belongs to root

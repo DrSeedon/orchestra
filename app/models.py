@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import sqlite3
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 import httpx
@@ -155,6 +156,13 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
         id="hub-gpt-6.1-sol", name="Hub: GPT-6.1 Sol",
         runtime="hub", provider="multicode",
+    ),
+    # Owner 2026-11-03: existing paid Hub pool, specialist role only. The live
+    # catalog supplies no context window, modality or token-price metadata.
+    ModelSpec(
+        id="hub-gemini-4-argon", name="Hub: Gemini 4 Argon (specialist)",
+        runtime="hub", provider="multicode", context_length=0,
+        input_modalities=(),
     ),
     ModelSpec(
         id="hub-grok-4.7", name="Hub: Grok 4.7",
@@ -691,7 +699,8 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
         if runtime not in ("claude", "codex"):
             return ""
     return ("The MultiCode hub pool has its own quota: spawn the worker with model='hubsol'. "
-            "It is the only permitted hub worker model, including creative and research work. "
+            "Ordinary hub workers, including creative and research work, use Sol; only "
+            "the dedicated task-bound specialist may use its Gemini route. "
             "If Sol is unavailable, report the blocker or wait; no model or API fallback.")
 
 
@@ -699,13 +708,43 @@ AGENT_HUB_ROUTE_RULE = "agent_workers_require_hub"
 LOCAL_LUNA_MODEL = "gpt-6-luna"
 HUB_SOL_ONLY_RULE = "hub_workers_require_sol"
 HUB_SOL_MODEL = "hub-gpt-6.1-sol"
+HUB_ARGON_MODEL = "hub-gemini-4-argon"
+HUB_SPECIALIST_ROLE = "specialist"
 
 
-def ensure_hub_worker_allowed(model: str) -> None:
+def hub_worker_context(worker) -> dict:
+    """Read existing session identity; text, names and reasons grant no admission."""
+    keys = ("role", "pipeline", "scope", "task_id")
+    if isinstance(worker, Mapping):
+        return {key: worker.get(key, "") for key in keys}
+    return {key: getattr(worker, key, "") for key in keys}
+
+
+def _hub_specialist_context_valid(role, pipeline, scope, task_id) -> bool:
+    if role != HUB_SPECIALIST_ROLE or pipeline != "default":
+        return False
+    if not isinstance(scope, str) or not os.path.isabs(scope) or not scope.strip("/"):
+        return False
+    if not isinstance(task_id, str) or not task_id.strip():
+        return False
+    from app.task_refs import parse_task_ref
+
+    try:
+        parse_task_ref(task_id)
+    except ValueError:
+        return False
+    return True
+
+
+def ensure_hub_worker_allowed(
+    model: str, *, role: str = "", pipeline: str = "", scope: str = "", task_id: str = "",
+) -> None:
     """Canonical hub routing admission, including old rows and backend recovery.
 
     Owner decision 2026-11-02 17:27 UTC, clarified 17:29 UTC: every hub worker
-    in every scope uses GPT-6.1 Sol, including creative/research work. Catalog
+    in every scope uses GPT-6.1 Sol. Owner exception 2026-11-03 admits exact
+    Hub Argon only for a default-pipeline specialist with an existing task/scope
+    identity. Callers without context and old rows remain closed. Catalog
     flags and task reasons cannot restore another hub route. Native routing,
     manual native orchestrators and protected local Luna keep their own guards.
     This pure check never rewrites a model, thread, queue or recovery latch.
@@ -723,10 +762,14 @@ def ensure_hub_worker_allowed(model: str) -> None:
     is_hub = normalized.startswith("hub-") or model_id.lower().startswith("hub-") or (
         spec is not None and spec.runtime == "hub"
     )
-    if is_hub and model_id != HUB_SOL_MODEL:
+    specialist_allowed = model_id == HUB_ARGON_MODEL and _hub_specialist_context_valid(
+        role, pipeline, scope, task_id,
+    )
+    if is_hub and model_id != HUB_SOL_MODEL and not specialist_allowed:
         raise ValueError(
             f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
-            "use model='hubsol' (GPT-6.1 Sol), including creative and research work. "
+            "use model='hubsol' (GPT-6.1 Sol). Only the default-pipeline specialist "
+            "with a bound task and scope may select hub-gemini-4-argon. "
             "model_reason and catalog flags do not grant an exception. If Sol is at "
             "capacity or unavailable, report the blocker or wait; do not fall back to "
             "Claude, another hub model, native workers or API credits. Existing work "
@@ -736,6 +779,7 @@ def ensure_hub_worker_allowed(model: str) -> None:
 
 def ensure_spawn_allowed(
     model_id: str, *, billing: str = "subscription", model_reason: str = "",
+    role: str = "", pipeline: str = "", scope: str = "", task_id: str = "",
 ) -> None:
     """Gate agent dispatch; explicit Claude API-credit tasks retain their own admission.
 
@@ -750,7 +794,7 @@ def ensure_spawn_allowed(
     non-empty model_reason naming the protection constraint; every other native
     route stays refused and the catalog flag, quota and role guards still apply.
     """
-    ensure_hub_worker_allowed(model_id)
+    ensure_hub_worker_allowed(model_id, role=role, pipeline=pipeline, scope=scope, task_id=task_id)
     spec = get_model_spec(model_id)
     if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
         raise ValueError("billing must be 'subscription' or 'api_credit'")
@@ -844,8 +888,8 @@ def validate_model_registry() -> None:
                 f"{model_id}: provider '{spec.provider}' is not registered for "
                 f"runtime '{spec.runtime}'"
             )
-        if spec.context_length <= 0:
-            errors.append(f"{model_id}: context_length must be positive")
+        if spec.context_length < 0 or (spec.context_length == 0 and spec.runtime != "hub"):
+            errors.append(f"{model_id}: context_length must be positive (zero means unknown on Hub)")
 
     for model_id, spec in MODEL_SPECS.items():
         if MODELS.get(model_id) != spec.name:
@@ -1139,8 +1183,8 @@ def runtime_for_record(record: dict) -> str:
     return "unknown"
 
 
-def validate_model_reason(model: str, reason: str = "") -> str:
-    ensure_hub_worker_allowed(model)
+def validate_model_reason(model: str, reason: str = "", **context) -> str:
+    ensure_hub_worker_allowed(model, **context)
     try:
         local_luna = resolve_model(model) == LOCAL_LUNA_MODEL
     except (ValueError, AttributeError):

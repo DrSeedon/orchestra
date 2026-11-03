@@ -45,7 +45,7 @@ from app.models import (
     cache_policy_for_runtime,
     ensure_dashboard_visible,
     ensure_spawn_allowed,
-    ensure_hub_worker_allowed,
+    ensure_hub_worker_allowed, hub_worker_context,
     get_model_spec,
     resolve_model,
     runtime_for_record,
@@ -693,12 +693,13 @@ class SessionManager:
         model = resolve_model(model)
         from app.models import validate_model_reason
 
-        model_reason = validate_model_reason(model, model_reason)
+        route_context = dict(role=role, pipeline=pipeline or DEFAULT_PIPELINE, scope=scope, task_id=task_id)
+        model_reason = validate_model_reason(model, model_reason, **route_context)
         # #366: agent-spawned workers are gated by the `agents` level; anything
         # created from the dashboard (orchestrators, manual sessions) — by the
         # `dashboard` level. Internal routes never pass through here.
         if parent_name:
-            ensure_spawn_allowed(model, model_reason=model_reason)
+            ensure_spawn_allowed(model, model_reason=model_reason, **route_context)
         else:
             ensure_dashboard_visible(model)
         if not Path(cwd).is_dir():
@@ -774,6 +775,10 @@ class SessionManager:
         # (fail loud, единый источник = .orchestra/pipelines/).
         parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
         validate_spawn(pipeline, parent_role, role if explicit_role else "")
+
+        # Recheck the effective inherited identity before quota, task or worktree
+        # allocation; the early request check used only the requested pipeline.
+        ensure_hub_worker_allowed(model, role=role, pipeline=pipeline, scope=scope, task_id=task_id)
 
         # Idle creation is a control action; gate only a planned initial turn.
         # Refuse before allocating a task, session or worktree (V-1036).
@@ -1129,7 +1134,7 @@ class SessionManager:
             async with self.get_session_lock(session_id):
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
-                ensure_hub_worker_allowed(session.model)
+                ensure_hub_worker_allowed(session.model, **hub_worker_context(session))
                 await self._auto_switch_before_delivery(session)
                 return await session.send(message, provenance=provenance, **send_options)
 
@@ -1151,7 +1156,7 @@ class SessionManager:
             async with self.get_session_lock(session_id):
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
-                ensure_hub_worker_allowed(session.model)
+                ensure_hub_worker_allowed(session.model, **hub_worker_context(session))
                 await self._auto_switch_before_delivery(session)
                 await session.send(
                     message, delivery=delivery, provenance=provenance,
@@ -1197,7 +1202,7 @@ class SessionManager:
 
                 if provenance.subtype == "limit_wake" and is_codex_wake_ref(provenance.ref):
                     validate_codex_wake(session, provenance.ref)
-                ensure_hub_worker_allowed(session.model)
+                ensure_hub_worker_allowed(session.model, **hub_worker_context(session))
                 await self._auto_switch_before_delivery(session)
                 check_generation()
                 await session.send(
@@ -1216,7 +1221,7 @@ class SessionManager:
             session = self._hydrate_row(row) if row else None
         if session is None:
             raise KeyError(f"session not found: {session_id}")
-        ensure_hub_worker_allowed(session.model)
+        ensure_hub_worker_allowed(session.model, **hub_worker_context(session))
         await self._auto_switch_before_delivery(session)
         await session.preflight_delivery_admission()
 

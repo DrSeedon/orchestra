@@ -1,0 +1,62 @@
+......................................................F................. [ 11%]
+........................................................................ [ 23%]
+........................................................................ [ 35%]
+........................................................................ [ 47%]
+........................................................................ [ 59%]
+........................................................................ [ 71%]
+........................................................................ [ 83%]
+........................................................................ [ 95%]
+..............................                                           [100%]
+=================================== FAILURES ===================================
+____ test_old_argon_queued_delivery_refuses_before_submit_and_keeps_payload ____
+
+admission = None
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/specialist-final/test_old_argon_queued_delivery0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77cc3c592a50>
+
+    @pytest.mark.asyncio
+    async def test_old_argon_queued_delivery_refuses_before_submit_and_keeps_payload(admission, tmp_path, monkeypatch):
+        from app import db, message_deliveries as deliveries
+        from app.manager import SessionManager
+    
+        db.init_db()
+        context = identity(str(tmp_path))
+        context["role"] = "worker"
+        worker = AgentSession(id="old-argon", name="specialist-by-name", cwd=str(tmp_path),
+                              model=ARGON, backend_type="hub", session_id="retained-workspace", **context)
+        worker.session_id_history = [{"session_id": "retained-history"}]
+        db.save_session(worker._to_db_dict())
+        manager = SessionManager()
+        restored = await manager._load_from_db(db.get_session(worker.id))
+        provider = AsyncMock()
+        restored._backend = provider
+        manager.sessions[restored.id] = restored
+        delivery_id = "7b34bf37-c388-48c7-8071-13a2cf1ef70b"
+>       status, _ = deliveries.accept_message_delivery(
+        ^^^^^^^^^
+            delivery_id=delivery_id, source_principal="synthetic:owner", source_scope=str(tmp_path),
+            target_session_id=restored.id, target_name=restored.name, target_scope=restored.scope,
+            target_generation=(f"session={restored.id}|task={restored.task_id}|"
+                               f"branch={restored.branch}|needs_switch=0"),
+            message="retained queued design", rendered_message="retained queued design", provenance=PROVENANCE,
+        )
+E       TypeError: cannot unpack non-iterable coroutine object
+
+tests/test_gemini_specialist_v1257.py:293: TypeError
+----------------------------- Captured stderr call -----------------------------
+Could not prepare shared private folder for <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/specialist-final/test_old_argon_queued_delivery0: git-common-dir failed in <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/specialist-final/test_old_argon_queued_delivery0: fatal: not a git repository (or any of the parent directories): .git
+------------------------------ Captured log call -------------------------------
+WARNING  app.private_folder:private_folder.py:168 Could not prepare shared private folder for <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/specialist-final/test_old_argon_queued_delivery0: git-common-dir failed in <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/specialist-final/test_old_argon_queued_delivery0: fatal: not a git repository (or any of the parent directories): .git
+=============================== warnings summary ===============================
+tests/test_gemini_specialist_v1257.py::test_old_argon_queued_delivery_refuses_before_submit_and_keeps_payload
+  <WORKSPACE>/tests/test_gemini_specialist_v1257.py:293: RuntimeWarning: coroutine 'accept_message_delivery' was never awaited
+    status, _ = deliveries.accept_message_delivery(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_gemini_specialist_v1257.py::test_old_argon_queued_delivery_refuses_before_submit_and_keeps_payload
+1 failed, 605 passed, 1 warning in 27.94s
+
+EXIT_CODE=1

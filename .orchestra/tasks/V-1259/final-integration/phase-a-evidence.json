@@ -1,0 +1,25 @@
+{
+  "phase": "A",
+  "app_exact_workspace_import": true,
+  "app_absolute_import_path_sha256": "8ef0a8cbe986782edfa305e6c8c4010ee8c4bc09bdd579390bc7d62f38af3dc2",
+  "phase_a_source_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+  "phase_b_patch_sha256": "c7d4d7ee534211f6b436ef02568820ffca46253fe762380bbe46528f1d16b562",
+  "active_manifest_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+  "actual_loaded_specialist_model": "hub-gpt-6.1-sol",
+  "pipeline_contract_exit_code": 0,
+  "actual_phase_b_manifest": false,
+  "frozen_v1256_collected_nodeids": [
+    "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[orchestration-orchestrator]",
+    "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[orchestration-sub-orchestrator]",
+    "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[worker-lifecycle-orchestrator]",
+    "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[worker-lifecycle-sub-orchestrator]",
+    "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[communication-style-orchestrator]",
+    "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[communication-style-sub-orchestrator]"
+  ],
+  "total_collected": 149,
+  "pytest_exit_code": 0,
+  "passed": 149,
+  "root_manifest_bytes_and_inode_mtime_size_unchanged": true,
+  "process_pipeline_pointer_restored": true,
+  "restored_loaded_specialist_model": "hub-gpt-6.1-sol"
+}

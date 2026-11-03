@@ -1,0 +1,4 @@
+{
+  "scanner": "app.secret_mask.mask_secrets (form-only, no secret inventory)",
+  "flagged_paths": []
+}

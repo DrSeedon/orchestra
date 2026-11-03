@@ -1,0 +1,8 @@
+{
+  "raw_log_sha256": "6270fac8dfb0edd6d3b297a9e889e74cac37ace4a57e9dd492eeb997ace0c856",
+  "raw_log_bytes": 2399,
+  "public_log_normalization": "workspace account path replaced by <WORKSPACE>; no other changes",
+  "pytest_exit_code": 3,
+  "test_cases_run": 0,
+  "static_contract_exit_code": 1
+}

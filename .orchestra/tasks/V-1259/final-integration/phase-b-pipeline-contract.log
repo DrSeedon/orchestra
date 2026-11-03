@@ -1,0 +1,4 @@
+FAIL: manifest disagrees with prompt files:
+  prompts/modules/model-routing.md: quotes manifest model 'hub-gemini-4-argon'
+
+EXIT_CODE=1

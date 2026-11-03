@@ -1,0 +1,584 @@
+"""Тесты дефолтного пайплайна ``.orchestra/pipelines/default/``.
+
+Проверяют реальный локальный манифест на базе mccalpink/orchestra v2.18:
+4 роли (orchestrator/sub-orchestrator/worker/full-cycle), локальные модели,
+fail-open валидацию, сборку промпта без слоя ``_pipeline.md`` и инлайн ``modules``
+после слоёв роли.
+
+В отличие от test_pipeline.py (tmp-фикстуры), здесь тесты идут по РЕАЛЬНОМУ
+``.orchestra/pipelines/default/`` на диске. Уровень loader'а: БД/manager НЕ задействованы.
+"""
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+import pytest
+import yaml
+
+import app.pipeline as P
+
+PIPELINE = "default"
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    """lru_cache load_pipeline чистится до/после, чтобы реальный default читался
+    с диска (а не из кэша, который мог оставить tmp-фикстуры других тестов)."""
+    P.load_pipeline.cache_clear()
+    yield
+    P.load_pipeline.cache_clear()
+
+
+# ── Манифест: загрузка и состав ролей ──────────────────────────────────────
+
+class TestDefaultManifestLoads:
+    def test_load_pipeline_default_is_valid(self):
+        """Манифест проходит pydantic-валидацию loader'а без ошибок."""
+        cfg = P.load_pipeline(PIPELINE)
+        assert cfg.name == "default"
+        assert cfg.validation == "fail-open"  # дух апстрима — мягкая валидация
+
+    def test_role_set_is_exactly_this(self):
+        """4 роли апстрима v2.18 + `reducer` (#231 T5).
+
+        Набор ТОЧНЫЙ, а не «не меньше»: тест затем и существует, чтобы роль нельзя
+        было добавить незаметно. `reducer` добавлен осознанно — дешёвый сборщик
+        отчётов веера, `can_spawn: []`, права отняты отсутствием тулов (#231 T4).
+        Обновляется РУКАМИ вместе с каждой новой ролью; ослаблять до `>=` нельзя.
+        """
+        cfg = P.load_pipeline(PIPELINE)
+        assert set(cfg.roles) == {
+            "orchestrator", "sub-orchestrator", "worker",
+            "full-cycle", "reducer"}
+
+    def test_kinds_match_upstream(self):
+        """orchestrator и sub-orchestrator — kind:orchestrator; worker/full-cycle — kind:worker."""
+        cfg = P.load_pipeline(PIPELINE)
+        assert cfg.roles["orchestrator"].kind == "orchestrator"
+        assert cfg.roles["sub-orchestrator"].kind == "orchestrator"
+        assert cfg.roles["worker"].kind == "worker"
+        assert cfg.roles["full-cycle"].kind == "worker"
+
+    def test_defaults_reproduce_upstream(self):
+        """Worker defaults follow Sol-only policy; other upstream defaults stay intact:
+        base_branch_strategy main, docs_scaffold off, слои БЕЗ _pipeline.md."""
+        cfg = P.load_pipeline(PIPELINE)
+        d = cfg.defaults
+        assert d.model == "hubsol"
+        assert d.skills
+        assert d.mcp_servers == []  # апстрим не прокидывает user-MCP
+        assert d.base_branch_strategy == "main"  # все worktree от main
+        assert d.docs_scaffold is False  # апстрим не скаффолдит doc-папки
+        assert d.inherit_claude_md is True  # CLAUDE.md проекта копируется в worktree
+
+    def test_prompt_layers_have_no_pipeline_layer(self):
+        """У апстрима НЕТ _pipeline.md — только base + роль."""
+        cfg = P.load_pipeline(PIPELINE)
+        assert cfg.defaults.prompt_layers.orchestrator == ["base.md", "roles/{role}.md"]
+        assert cfg.defaults.prompt_layers.worker == ["base.md", "roles/{role}.md"]
+        assert "_pipeline.md" not in cfg.defaults.prompt_layers.orchestrator
+        assert "_pipeline.md" not in cfg.defaults.prompt_layers.worker
+
+    def test_worktree_copies_match_upstream_project_files(self):
+        """worktree.copies = его PROJECT_FILES (workspace.py:14), симлинков нет."""
+        cfg = P.load_pipeline(PIPELINE)
+        assert cfg.defaults.worktree.copies == [
+            "CLAUDE.md", ".mcp.json", ".env", ".worktreeinclude"]
+        assert cfg.defaults.worktree.symlinks == []
+
+    def test_listed_as_valid(self):
+        """list_pipelines() видит default и помечает valid=True."""
+        entries = {p["name"]: p for p in P.list_pipelines()}
+        assert PIPELINE in entries
+        assert entries[PIPELINE]["valid"] is True
+
+
+# ── resolve_role: локальные модели и kind ──────────────────────────────────
+
+def _manifest_model(role: str) -> str:
+    """Модель роли прямо из pipeline.yaml: тест проверяет, что resolve отдаёт значение манифеста,
+    а не конкретный литерал, который устаревает с каждой сменой модели."""
+    raw = yaml.safe_load((Path(__file__).parents[1] / ".orchestra/pipelines/default/pipeline.yaml").read_text())
+    return raw["roles"][role]["model"]
+
+
+class TestDefaultRolesResolve:
+    def test_worker_model_resolves_to_opus5(self):
+        rr = P.get_role(PIPELINE, "worker")
+        assert rr is not None
+        assert rr.model == _manifest_model("worker")
+
+    def test_orchestrator_is_orchestrator(self):
+        rr = P.get_role(PIPELINE, "orchestrator")
+        assert rr is not None
+        assert rr.is_orchestrator is True
+        assert rr.model == _manifest_model("orchestrator")
+
+    def test_worker_and_full_cycle_are_not_orchestrators(self):
+        """worker И full-cycle — воркеры (оркестратор спавнит их как исполнителей)."""
+        assert P.get_role(PIPELINE, "worker").is_orchestrator is False
+        assert P.get_role(PIPELINE, "full-cycle").is_orchestrator is False
+        assert P.get_role(PIPELINE, "worker").can_spawn == []
+        assert "sub-orchestrator" not in P.get_role(PIPELINE, "full-cycle").can_spawn
+
+    def test_full_cycle_model_opus5(self):
+        rr = P.get_role(PIPELINE, "full-cycle")
+        assert rr is not None
+        assert rr.model == _manifest_model("full-cycle")
+
+    def test_sub_orchestrator_is_orchestrator_opus5(self):
+        """sub-orchestrator — kind:orchestrator, Opus 5, can_spawn=['*']."""
+        rr = P.get_role(PIPELINE, "sub-orchestrator")
+        assert rr is not None
+        assert rr.is_orchestrator is True
+        assert rr.model == _manifest_model("sub-orchestrator")
+        assert "sub-orchestrator" not in rr.can_spawn
+        assert rr.allow_unrouted_workers is True
+
+    def test_every_role_has_an_effort_policy(self):
+        """У каждой роли есть карта модель→ступень с default. Содержимое и равенство карт
+        между ролями НЕ фиксируем: с 29.09 оркестраторы и воркеры намеренно на разных
+        ступенях Opus (решение владельца, V-670), а значения меняются по замерам.
+        Ловится потеря карты или default."""
+        cfg = P.load_pipeline(PIPELINE)
+        for name, spec in cfg.roles.items():
+            assert isinstance(spec.effort, dict) and spec.effort, name
+            assert "default" in spec.effort, f"{name}: без default новая модель останется без ступени"
+
+    def test_modules_resolve_from_manifest(self):
+        import yaml
+
+        manifest = yaml.safe_load((P.PIPELINES_DIR / PIPELINE / "pipeline.yaml").read_text())
+        for role, spec in manifest["roles"].items():
+            assert P.get_role(PIPELINE, role).modules == spec.get("modules", [])
+
+    def test_shared_conduct_modules_reach_every_role(self):
+        """#490: блоки из base.md стали модулями — роль без них теряет действующие правила."""
+        shared = {"safety", "knowledge", "communication-style", "user-values"}
+        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
+            assert shared <= set(P.get_role(PIPELINE, role).modules), role
+
+    @pytest.mark.parametrize("module_name,readers", [
+        ("safety", {"orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"}),
+        ("project-maintenance", {"orchestrator", "sub-orchestrator", "worker", "full-cycle"}),
+    ])
+    def test_shared_project_rules_are_delivered_once_to_their_readers(self, module_name, readers):
+        """Missing routing leaves a role without filesystem or maintenance rules."""
+        module = P.prompt_path(PIPELINE, f"modules/{module_name}.md").read_text().strip()
+        assert module
+        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
+            out = P.build_system_prompt(PIPELINE, role)
+            assert out.count(module) == int(role in readers), (module_name, role)
+
+    def test_git_workflow_module_reaches_agents_that_edit_repositories(self):
+        module = P.prompt_path(PIPELINE, "modules/git-workflow.md").read_text().strip()
+        for role in ("worker", "full-cycle", "orchestrator", "sub-orchestrator"):
+            assert P.build_system_prompt(PIPELINE, role).count(module) == 1, role
+
+    def test_code_quality_has_one_owner_and_reaches_implementation_roles(self):
+        """#prompt-cleanup: блок жил ДВУМЯ дословными копиями в roles/worker.md и
+        roles/full-cycle.md. Копия расходится молча, поэтому владелец теперь модуль.
+
+        Проверяются обе стороны: текст доезжает до рабочих ролей ровно один раз И его
+        больше нет в файлах ролей. Без второй половины тест зелёный и на возвращённой копии.
+        """
+        module = P.prompt_path(PIPELINE, "modules/code-quality.md").read_text().strip()
+        for role in ("worker", "full-cycle", "orchestrator", "sub-orchestrator"):
+            out = P.build_system_prompt(PIPELINE, role)
+            assert out.count(module) == 1, f"{role}: code-quality должен прийти ровно из модуля"
+            src = P.prompt_path(PIPELINE, f"roles/{role}.md").read_text()
+            assert "<code-quality>" not in src, (
+                f"roles/{role}.md: копия блока вернулась в файл роли"
+            )
+
+        for role in ("reducer",):
+            out = P.build_system_prompt(PIPELINE, role)
+            assert "<code-quality>" not in out, f"{role}: правила написания кода протекли"
+
+    def test_model_routing_reaches_only_spawn_capable_roles(self):
+        """The canonical module reaches spawning roles once and not terminal workers."""
+        module = P.prompt_path(PIPELINE, "modules/model-routing.md").read_text().strip()
+        for role in ("orchestrator", "sub-orchestrator", "full-cycle"):
+            spec = P.get_role(PIPELINE, role)
+            assert spec.can_spawn
+            assert "model-routing" in spec.modules
+            assert P.build_system_prompt(PIPELINE, role).count(module) == 1
+        worker = P.get_role(PIPELINE, "worker")
+        assert worker.can_spawn == []
+        assert "model-routing" not in worker.modules
+        assert module not in P.build_system_prompt(PIPELINE, "worker")
+
+    def test_tg_emoji_for_v216_roles(self):
+        assert P.get_role(PIPELINE, "sub-orchestrator").tg.emoji == "🎯"
+
+    def test_orchestrator_skills_from_manifest(self):
+        rr = P.get_role(PIPELINE, "orchestrator")
+        manifest = yaml.safe_load((P.PIPELINES_DIR / PIPELINE / "pipeline.yaml").read_text())
+        expected = set(manifest["defaults"]["skills"]) | set(
+            manifest["roles"]["orchestrator"]["skills"]
+        )
+        assert set(rr.skills) == expected
+
+    def test_orchestrator_can_spawn_wildcard_and_unrouted(self):
+        """Апстрим не ограничивает оркестратора: can_spawn=['*'], дефолтный
+        role='worker'/пустая роль допустима."""
+        rr = P.get_role(PIPELINE, "orchestrator")
+        assert "worker" in rr.can_spawn
+        assert rr.allow_unrouted_workers is True
+
+    def test_orchestrator_layers_substituted_no_pipeline(self):
+        """Резолвнутые слои оркестратора: base + roles/orchestrator.md, БЕЗ _pipeline.md."""
+        rr = P.get_role(PIPELINE, "orchestrator")
+        assert rr.prompt_layers == ["base.md", "roles/orchestrator.md"]
+
+    def test_worker_layers_substituted(self):
+        rr = P.get_role(PIPELINE, "worker")
+        assert rr.prompt_layers == ["base.md", "roles/worker.md"]
+
+
+# ── build_system_prompt: композиция base + роль (без _pipeline.md) ──────────
+
+class TestDefaultBuildSystemPrompt:
+    def test_orchestrator_prompt_is_base_plus_role(self):
+        """Сборка orchestrator = base.md + тело orchestrator.md (2 слоя), непустая."""
+        out = P.build_system_prompt(PIPELINE, "orchestrator")
+        assert out
+        # base.md идёт первым слоем — начинается с его <platform>
+        assert out.startswith("<platform>")
+        # тело роли подклеено вторым слоем
+        assert "## Role: Orchestrator" in out
+
+    def test_orchestrator_prompt_has_no_pipeline_layer_content(self):
+        """В default НЕТ _pipeline.md — слой не существует и не подмешивается."""
+        # файла нет физически
+        assert not P.prompt_path(PIPELINE, "_pipeline.md").is_file()
+        out = P.build_system_prompt(PIPELINE, "orchestrator")
+        # маркеров нашего сквозного слоя быть не должно (его в default нет вовсе)
+        assert "_pipeline" not in out
+
+
+
+
+    def test_orchestrator_prompt_contains_role_body_markers(self):
+        """Характеризация: ключевые XML-секции тела orchestrator.md на месте."""
+        out = P.build_system_prompt(PIPELINE, "orchestrator")
+        # v2.16 upstream убрал секцию <parallel-tasks> из тела orchestrator —
+        # её содержимое переехало в "Merge & kill safety"/правила.
+        for marker in ("<decision-tree>", "<tools>", "<worker-management>",
+                       "<task-workflow>"):
+            assert marker in out, f"missing orchestrator marker {marker}"
+
+    def test_worker_prompt_is_base_plus_role(self):
+        """Сборка worker = base.md + тело worker.md; identity-плейсхолдеры сохранены."""
+        out = P.build_system_prompt(PIPELINE, "worker")
+        assert out.startswith("<platform>")
+        assert "## Role: Worker" in out
+        assert "<identity>" in out
+        # manager подставит плейсхолдеры при спавне — на уровне loader они сырые
+        assert "{worker_name}" in out
+        assert "{orchestrator_name}" in out
+
+
+    def test_orchestrator_prompt_excludes_other_roles_bodies(self):
+        """ИЗОЛЯЦИЯ слоёв: в промпте orchestrator НЕ должно быть тел worker/full-cycle
+        (каталог ролей добавляет manager динамически, не build_system_prompt)."""
+        out = P.build_system_prompt(PIPELINE, "orchestrator")
+        assert "## Role: Worker" not in out
+        assert "## Role: Full-Cycle Worker" not in out
+
+
+class TestTelegramFormattingOwnership:
+    """#221: Telegram presentation rules belong only to the user-facing role."""
+
+    OPEN = "<telegram-formatting>"
+    CLOSE = "</telegram-formatting>"
+    USER_ROLE = "orchestrator"
+    OTHER_ROLES = ("sub-orchestrator", "worker", "full-cycle")
+
+    def _source_block(self) -> tuple[str, list[str]]:
+        source = P.prompt_path(PIPELINE, "roles/orchestrator.md").read_text(encoding="utf-8")
+        start = source.find(self.OPEN)
+        end = source.find(self.CLOSE, start)
+        assert start != -1 and end != -1, "Telegram formatting section is missing from its owner"
+        block = source[start:end + len(self.CLOSE)]
+        clauses = [line.strip() for line in block.splitlines() if line.strip()]
+        assert len(clauses) >= 10, "Telegram formatting section is unexpectedly short"
+        return block, clauses
+
+    def test_every_source_clause_reaches_the_assembled_user_prompt(self):
+        """The source file, not hand-written test phrases, supplies the delivery anchors."""
+        _block, clauses = self._source_block()
+        assembled = P.build_system_prompt(PIPELINE, self.USER_ROLE)
+        for clause in clauses:
+            assert clause in assembled, f"Telegram formatting clause did not assemble: {clause!r}"
+
+    def test_telegram_formatting_does_not_leak_to_non_user_roles(self):
+        block, _clauses = self._source_block()
+        assert self.OPEN in P.build_system_prompt(PIPELINE, self.USER_ROLE)
+        for role in self.OTHER_ROLES:
+            assembled = P.build_system_prompt(PIPELINE, role)
+            assert self.OPEN not in assembled, f"Telegram rules leaked into {role}"
+            assert block not in assembled, f"Telegram rules leaked into {role}"
+
+
+class TestUserAnswerFormatOwnership:
+    """#346: формат ответа ЮЗЕРУ доезжает до роли, которая говорит с ним, и только до неё."""
+
+    OPEN = "<user-answer-format>"
+    CLOSE = "</user-answer-format>"
+    USER_ROLE = "orchestrator"
+    OTHER_ROLES = ("sub-orchestrator", "worker", "full-cycle")
+    # Разметочный шум (заборы, разделители таблиц) якорем быть не может: он есть в любом промпте.
+    NOISE = ("```", "|---|--:|--:|")
+
+    def _source_block(self) -> tuple[str, list[str]]:
+        source = P.prompt_path(PIPELINE, "roles/orchestrator.md").read_text(encoding="utf-8")
+        start = source.find(self.OPEN)
+        end = source.find(self.CLOSE, start)
+        assert start != -1 and end != -1, "User answer format section is missing from its owner"
+        block = source[start:end + len(self.CLOSE)]
+        clauses = [
+            line.strip() for line in block.splitlines()
+            if line.strip() and line.strip() not in self.NOISE
+        ]
+        assert len(clauses) >= 20, "User answer format section is unexpectedly short"
+        return block, clauses
+
+    def test_every_source_clause_reaches_the_assembled_user_prompt(self):
+        """Якоря даёт файл-источник, а не выписанные руками фразы."""
+        _block, clauses = self._source_block()
+        assembled = P.build_system_prompt(PIPELINE, self.USER_ROLE)
+        for clause in clauses:
+            assert clause in assembled, f"User answer format clause did not assemble: {clause!r}"
+
+    def test_user_answer_format_does_not_leak_to_non_user_roles(self):
+        block, _clauses = self._source_block()
+        assert self.OPEN in P.build_system_prompt(PIPELINE, self.USER_ROLE)
+        for role in self.OTHER_ROLES:
+            assembled = P.build_system_prompt(PIPELINE, role)
+            assert self.OPEN not in assembled, f"User answer format leaked into {role}"
+            assert block not in assembled, f"User answer format leaked into {role}"
+
+
+
+# ── modules: инлайн переиспользуемых блоков после слоёв роли ────────────────
+
+class TestDefaultModulesInline:
+    GIT_MARKER = "Each worker runs in an isolated"
+    ORCH_MARKER = "## Role: Orchestrator"
+    REPORT_MARKER = "## Report format"
+
+    def test_worker_prompt_inlines_modules(self):
+        out = P.build_system_prompt(PIPELINE, "worker")
+        assert self.GIT_MARKER in out
+        assert self.REPORT_MARKER in out
+
+    def test_full_cycle_prompt_inlines_modules(self):
+        out = P.build_system_prompt(PIPELINE, "full-cycle")
+        assert self.GIT_MARKER in out
+        assert self.REPORT_MARKER in out
+
+    def test_orchestrator_inlines_git_and_orchestration(self):
+        out = P.build_system_prompt(PIPELINE, "orchestrator")
+        assert self.GIT_MARKER in out
+        assert "orchestration" in out.lower() or "<decision-tree>" in out
+        assert self.REPORT_MARKER not in out
+
+
+    def test_modules_appended_after_role_layers(self):
+        """Модули идут ПОСЛЕ тела роли: маркер роли встречается раньше git-блока."""
+        out = P.build_system_prompt(PIPELINE, "worker")
+        assert out.index("## Role: Worker") < out.index(self.GIT_MARKER)
+
+    def test_unsafe_module_name_rejected(self):
+        """Безопасность изоляции: modules с '..' → ValidationError на загрузке."""
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            P.RoleSpec(kind="worker", label="X", modules=["../escape"])
+        with pytest.raises(ValidationError):
+            P.RoleSpec(kind="worker", label="X", modules=["/abs/path"])
+
+
+# ── Характеризация 1:1 с апстримом: содержимое слоёв = его файлы ───────────
+
+class TestUpstreamCharacterization:
+    def test_base_layer_file_starts_at_platform(self):
+        """base.md портирован дословно (frontmatter у него нет) — начинается с <platform>,
+        заканчивается закрывающим </rules>."""
+        base = P.prompt_path(PIPELINE, "base.md").read_text()
+        assert base.startswith("<platform>")
+        assert "</rules>" in base
+        # critical-правила апстрима (NEVER ...) — характеризация base.md (v2.16: 5)
+        assert base.count("- NEVER ") >= 5
+
+    def test_role_files_have_frontmatter_stripped(self):
+        """У ролей frontmatter срезан — тело начинается с <role>, без YAML '---'/'name:'."""
+        for role in ("orchestrator", "sub-orchestrator", "worker",
+                     "full-cycle"):
+            body = P.prompt_path(PIPELINE, f"roles/{role}.md").read_text()
+            assert body.startswith("<role>"), f"{role}.md must start with <role>"
+            # метаданные переехали в yaml — в теле их быть не должно как frontmatter
+            assert not body.lstrip().startswith("---")
+            assert "\nname:" not in body[:200]
+
+    def test_every_resolved_skill_has_native_frontmatter(self):
+        """Pipeline skill references resolve to the native files copied to CLI worktrees."""
+        skills = set(P.load_pipeline(PIPELINE).defaults.skills)
+        for spec in P.load_pipeline(PIPELINE).roles.values():
+            if isinstance(spec.skills, list):
+                skills.update(spec.skills)
+        for skill in skills:
+            text = P.prompt_path(PIPELINE, f"skills/{skill}.md").read_text()
+            assert text.lstrip().startswith("---"), f"{skill}.md must keep frontmatter"
+            assert f"name: {skill}" in text
+
+    def test_vps_deploy_skill_routes_only_to_orchestrators(self):
+        expected = {"orchestrator", "sub-orchestrator"}
+        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
+            assert ("vps-deploy" in P.get_role(PIPELINE, role).skills) == (role in expected)
+
+    def test_build_prompt_matches_concatenation_of_layers(self):
+        """build_system_prompt(orchestrator) = base.md + role + modules."""
+        base = P.prompt_path(PIPELINE, "base.md").read_text()
+        role = P.prompt_path(PIPELINE, "roles/orchestrator.md").read_text()
+        modules = [
+            P.prompt_path(PIPELINE, f"modules/{name}.md").read_text().strip()
+            for name in P.get_role(PIPELINE, "orchestrator").modules
+        ]
+        expected = "\n\n".join([base, role, *modules])
+        assert P.build_system_prompt(PIPELINE, "orchestrator") == expected
+
+
+# ── validate_spawn: fail-open + can_spawn=['*'] + allow_unrouted_workers ────
+
+class TestDefaultValidateSpawn:
+    def test_orchestrator_spawns_worker_ok(self):
+        """orchestrator can_spawn=['*'] → спавн worker разрешён."""
+        assert P.validate_spawn(PIPELINE, "orchestrator", "worker") is None
+
+    def test_orchestrator_spawns_full_cycle_ok(self):
+        assert P.validate_spawn(PIPELINE, "orchestrator", "full-cycle") is None
+
+    def test_orchestrator_spawns_v216_roles_ok(self):
+        """Роли-исполнители спавнятся оркестратором; sub-orchestrator заморожен (#V-598)."""
+        for child in ("worker", "full-cycle", "reducer"):
+            assert P.validate_spawn(PIPELINE, "orchestrator", child) is None
+
+    def test_sub_orchestrator_spawns_worker_ok(self):
+        """sub-orchestrator тоже can_spawn=['*'] — делегирует вниз."""
+        assert P.validate_spawn(PIPELINE, "sub-orchestrator", "worker") is None
+
+    def test_orchestrator_unrouted_worker_ok(self):
+        """allow_unrouted_workers=true → пустая роль (генерик-воркер) допустима."""
+        assert P.validate_spawn(PIPELINE, "orchestrator", "") is None
+
+    def test_root_spawn_allowed(self):
+        """Корневой спавн (нет родителя) — от юзера/UI, всегда ок."""
+        assert P.validate_spawn(PIPELINE, "", "orchestrator") is None
+        assert P.validate_spawn(PIPELINE, None, "orchestrator") is None
+
+    def test_fail_open_unknown_child_raises(self):
+        """#36: '*' — любая известная роль, не любая строка."""
+        with pytest.raises(ValueError, match="unknown role"):
+            P.validate_spawn(PIPELINE, "orchestrator", "nonexistent-role")
+
+    def test_fail_open_unknown_parent_raises(self):
+        """#36: неизвестный parent не обходит whitelist."""
+        with pytest.raises(ValueError, match="unknown parent"):
+            P.validate_spawn(PIPELINE, "phantom", "worker")
+
+
+class TestSubOrchestratorGetsKnowledgeModule:
+    """#137: sub-orchestrators work in worktrees and search the same project memory.
+
+    Проверяется ДОСТАВКА модуля целиком, а не его формулировки: текст правил переписывается
+    владельцем, и тест на цитату краснел бы от каждой такой правки (решение 06.09.2026).
+    """
+
+    def test_module_text_reaches_the_assembled_prompt(self):
+        from app.manager import ROLE_SYSTEM_PROMPT
+        from app import pipeline as P
+
+        module = P.prompt_path(PIPELINE, "modules/knowledge.md").read_text().strip()
+        prompt = ROLE_SYSTEM_PROMPT(PIPELINE, "sub-orchestrator", "/tmp")
+        assert prompt.count(module) == 1, (
+            "listing the module in pipeline.yaml is not enough — its whole text must assemble in "
+            "exactly once"
+        )
+
+
+class TestPremortemReachesWorkingRolesOnly:
+    """#198 T1: шаг премортема доставляется РАБОЧИМ ролям и не течёт к оркестраторам.
+
+    Инвариант структурный (кто получает шаг), а не текстовый (как он сформулирован):
+    переписывать формулировку шага можно свободно, тест это переживёт.
+    """
+
+    # Якорь намеренно короткий и устойчивый — заголовок шага, не предложение.
+    # Меняешь заголовок в roles/full-cycle.md и roles/worker.md — меняй и здесь.
+    ANCHOR = "Pre-mortem"
+
+    WORKING_ROLES = ("worker", "full-cycle")
+    ORCHESTRATOR_ROLES = ("orchestrator", "sub-orchestrator")
+
+    def test_step_is_owned_by_the_working_role_files(self):
+        """Якорь общий, поэтому одной проверки собранного промпта мало: она прошла бы
+        и в случае, когда шаг из роли исчез, а слово приехало из base.md или модуля.
+        Поэтому источник проверяется отдельно от доставки."""
+        for role in self.WORKING_ROLES:
+            src = P.prompt_path(PIPELINE, f"roles/{role}.md").read_text(encoding="utf-8")
+            assert self.ANCHOR in src, (
+                f"roles/{role}.md: шаг должен жить в файле САМОЙ роли, а не приезжать "
+                "из общего слоя — иначе роль потеряет его при перекомпоновке слоёв"
+            )
+
+    def test_working_roles_receive_the_step(self):
+        for role in self.WORKING_ROLES:
+            out = P.build_system_prompt(PIPELINE, role)
+            assert self.ANCHOR in out, (
+                f"{role}: премортем должен доехать до СОБРАННОГО промпта; "
+                "наличия строки в roles/*.md недостаточно"
+            )
+
+    def test_orchestrator_roles_do_not_receive_the_step(self):
+        """Односторонняя проверка «есть» пропустила бы утечку в промпты
+        оркестраторов, а она опаснее пропажи: премортем — шаг исполнителя.
+
+        Побочный эффект: пока якорь общий, это ещё и запрет слова в промптах
+        оркестраторов. Если оркестратору однажды понадобится говорить о премортеме
+        законно — не ослаблять проверку, а сделать якорь уникальным (свой тег/ID)
+        в обоих рабочих файлах и здесь."""
+        for role in self.ORCHESTRATOR_ROLES:
+            out = P.build_system_prompt(PIPELINE, role)
+            assert self.ANCHOR not in out, (
+                f"{role}: шаг исполнителя протёк в промпт оркестратора"
+            )
+
+
+class TestWorkerAutonomy:
+    """Delivery checks, not a claim that keyword presence measures model quality."""
+
+
+@pytest.mark.parametrize("role", ["orchestrator", "sub-orchestrator"])
+@pytest.mark.parametrize("module_name", [
+    "orchestration", "worker-lifecycle", "communication-style",
+])
+def test_research_closure_modules_reach_orchestrator_prompts(role, module_name, tmp_path):
+    """V-1256: required delivery policies survive manifest and runtime assembly.
+
+    Compare entire canonical modules, not policy wording or section order. Removing a
+    required module from either role must fail even if the loader still accepts the manifest.
+    The owner-facing answer template stays owned by the top-level role; sub-orchestrators
+    receive the shared closure and handoff policy without a second template.
+    """
+    from app.manager import ROLE_SYSTEM_PROMPT
+
+    assert module_name in P.get_role(PIPELINE, role).modules
+    module = P.prompt_path(PIPELINE, f"modules/{module_name}.md").read_text().strip()
+    assert module
+    assert P.build_system_prompt(PIPELINE, role).count(module) == 1
+    assert ROLE_SYSTEM_PROMPT(PIPELINE, role, str(tmp_path)).count(module) == 1
+
+
+

@@ -74,6 +74,7 @@ class BackendBuildContext:
     owned_dirs: tuple = ()
     hub_bridge: object | None = None            # hub_outbox.HubBridge, only read by the hub runtime
     owned_dirs_source: Callable[[], object] | None = None   # live owned_dirs for backends that outlive a turn
+    hub_context_source: Callable[[], dict] | None = None   # existing role/task/scope identity, re-read per boundary
 
 
 @dataclass(frozen=True)
@@ -344,6 +345,7 @@ def _hub_factory(context: BackendBuildContext) -> BackendLike:
         bridge=context.hub_bridge,
         pipeline=context.pipeline,
         role=context.role,
+        context_source=context.hub_context_source,
     )
 
 

@@ -1,0 +1,122 @@
+[
+  {
+    "path": ".orchestra/pipelines/default/pipeline.yaml",
+    "sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": ".orchestra/pipelines/default/prompts/modules/communication-style.md",
+    "sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": ".orchestra/pipelines/default/prompts/modules/model-routing.md",
+    "sha256": "7c5e7412bdef52c731fb7b4e625b1dd4476f739d4f32a7cea4eb174dd6ec4de1",
+    "unchanged_this_followup": false
+  },
+  {
+    "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+    "sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+    "sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": ".orchestra/pipelines/default/prompts/roles/orchestrator.md",
+    "sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": ".orchestra/pipelines/default/prompts/roles/specialist.md",
+    "sha256": "538b0254a98d07521ceae9275cbbf79f0e77e348e1bf9549a60b244a6da1348b",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "CHANGELOG.md",
+    "sha256": "a294fbd2d5d9bc863f819bb93834520be8a4683562f2d1c7d595d3b5b69fd2c9",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "app/backend_hub.py",
+    "sha256": "3e5f0dfd8e3cc311ec49207fb7d877c045ca8d81b1381b93d67a5f3ecea5b1ec",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "app/hub_pool.py",
+    "sha256": "f720c310848d4d88bab5445aee35b3ab6c45da267596207fe7c6f91265eefe5e",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "app/manager.py",
+    "sha256": "56053a81b77b0441a2d9d7f5b9c378a5354965aea793352a3fc075afb692d643",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "app/mcp_stdio.py",
+    "sha256": "68c4d6c0e3b4c023083a80b5e0ef71f1e8e2d7d0d521efde6dea746c56c37399",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "app/models.py",
+    "sha256": "74977768df7684eb9c46ed7aa0f843d3f6b357ea5dce17d0a57d46a0268d6172",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "app/routes/sessions.py",
+    "sha256": "8752b5b3ec2712c5efdec49275cbda7843a392f39bdffe83cdfc7e3c8b9b5aed",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "app/runtime_registry.py",
+    "sha256": "d5ab0dcffd252d0e24904688d00ec591339cd4b24a6f0bcea8244ea580d396bb",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "app/session.py",
+    "sha256": "f5d7f55c12681500ea90f63aeb568b11397b018efb5d3a4dbee475e1fb904a6c",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "pyproject.toml",
+    "sha256": "91ad056de186c4be6d744474f12bb80a1763d883db0ba14916009dbad8c8d463",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "scripts/check_instruction_contract.py",
+    "sha256": "6f8fd1dce4cdca72cac3fa197731d0f70c0cac5724be2fa0fb497adf25e1d69f",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "scripts/check_pipeline_manifest.py",
+    "sha256": "14937306f72fdeb579f1779f0e8b804992eda5cb68ce529e7dd0084667bef0b8",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "tests/conftest.py",
+    "sha256": "c0572b6f743a695dd910159d5793ed7792ec3cf69195ac5bb499df855919e875",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "tests/test_default_pipeline.py",
+    "sha256": "975557b8880a48cffb0122cefacd05aaa6a782f01a87d9a53461b2ed7cf8a97b",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "tests/test_gemini_specialist_v1257.py",
+    "sha256": "0c2fe412212cf1fa7041fb19a7d8647ab7ddbe1d46f38dd1585e4cb2b89c7150",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "tests/test_models.py",
+    "sha256": "c83a059cf7986ee16710ca1f32313a939b1bcc6620c51d7bd013b016bce01e57",
+    "unchanged_this_followup": true
+  },
+  {
+    "path": "uv.lock",
+    "sha256": "b1b9364dd130ddc03376563d83c14d8ef15bc9753d3f421e682df1588a558a70",
+    "unchanged_this_followup": true
+  }
+]

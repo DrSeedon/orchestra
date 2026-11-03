@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 CACHE_TTL = 300.0          # a successful read is reused for 5 minutes
 FAILURE_TTL = 60.0         # an unreachable hub is not retried on every dashboard poll
 FETCH_TIMEOUT = 25.0
-PROVIDERS = ("claude", "codex", "grok")
+PROVIDERS = ("claude", "codex", "grok", "antigravity")
 _RELAY_LIMITS_CMD = "curl -s --max-time 10 http://127.0.0.1:8080/relay/limits"
 
 _cache: dict = {"payload": None, "ts": 0.0, "ttl": 0.0}
@@ -75,10 +75,14 @@ def provider_for_model(model: str) -> str | None:
         instance = HUB_MODELS.get(resolve_model(model), (None, None))[0]
     except (AttributeError, TypeError, ValueError):
         return None
-    return {"claudeAgent": "claude", "codex": "codex"}.get(instance)
+    return {"claudeAgent": "claude", "codex": "codex", "antigravity": "antigravity"}.get(instance)
 
 
 def alternative_model(model: str) -> str:
+    from app.models import HUB_ARGON_MODEL, resolve_model
+
+    if resolve_model(model) == HUB_ARGON_MODEL:
+        return HUB_ARGON_MODEL  # Retain the selected design route; no Sol fallback.
     return "hubsol"
 
 
@@ -96,7 +100,9 @@ async def hub_admission(model: str):
     if not pool.get("available") or block is None:
         reason = f"Hub {provider} pool unavailable; capacity was not checked (turn allowed)"
         logger.warning(reason)
-        return replace(base, state="unknown", reason=reason, reason_key="hub_pool_unavailable")
+        return replace(base, state="unknown", provider=f"hub_{provider}",
+                       provider_label=f"Hub {provider}", gated=True,
+                       reason=reason, reason_key="hub_pool_unavailable")
     usable = block["usable"]
     threshold = block["threshold_pct"]
     reason = (f"Hub {provider} pool has {usable}/{block['accounts']} usable accounts "
@@ -104,7 +110,10 @@ async def hub_admission(model: str):
     if block.get("unknown", 0):
         reason += f"; {block['unknown']} accounts have unknown window data and do not count as usable"
     if not usable:
-        reason += "; use model='hubsol' only; if Sol is unavailable, report the blocker or wait (no fallback)"
+        if provider == "antigravity":
+            reason += "; report the blocker or wait; do not fall back to another model or API"
+        else:
+            reason += "; use model='hubsol' only; if Sol is unavailable, report the blocker or wait (no fallback)"
     return replace(base, state="available" if usable else "blocked",
                    provider=f"hub_{provider}", provider_label=f"Hub {provider}", gated=True,
                    utilization=threshold if not usable else None, limit_pct=threshold,

@@ -1,0 +1,47 @@
+{
+  "canonical_main_head": "b9d893ec8babd4b2052ac1f497962e1966206bcb",
+  "files": [
+    {
+      "path": ".orchestra/pipelines/default/pipeline.yaml",
+      "before_sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16",
+      "canonical_sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16",
+      "final_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+      "changed": true,
+      "equals_canonical": false
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+      "before_sha256": "2b4071cd3586f407bc7975bcf9d51ba4a3f003d72c527f217f49d36b15a7a6e9",
+      "canonical_sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+      "final_sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+      "changed": true,
+      "equals_canonical": true
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/communication-style.md",
+      "before_sha256": "037a6d2adf0591a1a28c5a8f2ed64a273f849d37cc16376b12eaa359c8a03d98",
+      "canonical_sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+      "final_sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+      "changed": true,
+      "equals_canonical": true
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+      "before_sha256": "6d4e5b034b1ba0e896ff102c22aa7207fdd682236bdc5260067d0e2329937675",
+      "canonical_sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+      "final_sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+      "changed": true,
+      "equals_canonical": true
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/orchestrator.md",
+      "before_sha256": "0fb06cbb9400be81cec2841c8fa83cf61287b00cbc194094968d8526d0aae57e",
+      "canonical_sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+      "final_sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+      "changed": true,
+      "equals_canonical": true
+    }
+  ],
+  "broker_import_head": null,
+  "git_directory_present": false
+}

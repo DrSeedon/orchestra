@@ -1,0 +1,22 @@
+--- a/.orchestra/pipelines/default/pipeline.yaml
++++ b/.orchestra/pipelines/default/pipeline.yaml
+@@ -154,9 +154,8 @@
+     kind: worker
+     label: Gemini Specialist
+     order: 5
+-    # V-1257 Phase A activation stage ONLY: keep a model known to old Python.
+-    # Apply the separate Phase B patch after root verifies the live registry.
+-    model: hub-gpt-6.1-sol
++    # V-1257 Phase B: root verified the live registry after normal idle activation.
++    model: hub-gemini-4-argon
+     effort: {default: high}
+     skills: []
+     modules: [safety, project-maintenance, code-quality, model-routing, git-workflow, report-format, knowledge, communication-style, user-values]
+@@ -168,5 +167,5 @@
+     not_for: General terminal/repository coding, protected data, live infrastructure, unverified media inputs or paid auxiliary tools
+     description: >
+       Dedicated non-spawning specialist for one bound task and project. Uses the existing
+-      paid Hub pool only. Phase A stages the role on Sol; Phase B activates Gemini
+-      after the new registry is live. This stage is not an operational Gemini specialist.
++      paid Hub pool only, through exact Hub Antigravity / Gemini 4 Argon.
++      Other roles remain on Sol; no API, image-model or paid-tool fallback.

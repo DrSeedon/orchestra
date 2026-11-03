@@ -1,0 +1,14 @@
+app_import=<WORKSPACE>/app/__init__.py
+catalog_projection=PASS; categories=8; Argon_delegation_categories=0
+source_unchanged=app/models.py
+source_unchanged=app/backend_hub.py
+source_unchanged=app/hub_pool.py
+source_unchanged=app/runtime_registry.py
+source_unchanged=app/session.py
+source_unchanged=app/task_store.py
+source_unchanged=app/mcp_stdio.py
+source_unchanged=app/routes/sessions.py
+source_unchanged=app/manager.py
+report_and_check_log=PASS
+form_secret_scan_flagged_lines=0; no known-secret inventory or credentials accessed
+own_generated_test_scratch_removed=PASS

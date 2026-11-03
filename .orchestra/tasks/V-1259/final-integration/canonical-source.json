@@ -1,0 +1,8 @@
+{
+  "url": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/tests/test_default_pipeline.py",
+  "commit": "b9d893ec8babd4b2052ac1f497962e1966206bcb",
+  "canonical_sha256": "da74966cc853a6911080646c2d6b8abf5beef844b3c88d886ed01586767da15b",
+  "final_sha256": "975557b8880a48cffb0122cefacd05aaa6a782f01a87d9a53461b2ed7cf8a97b",
+  "only_canonical_delta": "add specialist to exact expected role set",
+  "research_closure_test_and_decorators_byte_exact": true
+}

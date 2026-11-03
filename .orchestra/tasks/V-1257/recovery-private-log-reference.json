@@ -1,0 +1,13 @@
+{
+  "artifact": "phase-a-integration.log",
+  "original_sha256": "87c74ca866b3bd0113a9b6c7be58f325c3f4dbd32505fc84475a4b1ddc29441a",
+  "original_bytes": 14820,
+  "private_root_local_reference": {
+    "commit": "d95c5f733d354878115cb823ee94654cf6931c48",
+    "path": ".orchestra/tasks/V-1257/phase-a-integration.log",
+    "provenance": "root reported this import, with only five other conflicted paths; preserve d95/e835 locally/private",
+    "root_hash_verification": "root must verify original bytes against this SHA before public publication; this private copy has no .git"
+  },
+  "sanitized_path_occurrences": 1,
+  "public_sha256": "6a92790c7bbd87c5e0de09ce9fe1079b6773d5b5e60c347edc41608812dbec44"
+}

@@ -1,0 +1,344 @@
+..................F................................F.....FFF............ [ 30%]
+........................................................................ [ 61%]
+.......................................F................................ [ 91%]
+...................                                                      [100%]
+=================================== FAILURES ===================================
+__ test_real_pipeline_assembles_terminal_designer_and_keeps_activation_staged __
+
+    def test_real_pipeline_assembles_terminal_designer_and_keeps_activation_staged():
+        from app import pipeline
+        from app.manager import ROLE_SYSTEM_PROMPT
+    
+        pipeline.load_pipeline.cache_clear()
+        cfg = pipeline.load_pipeline("default")
+        role = pipeline.get_role("default", "designer")
+        assert cfg.roles["designer"].model == SOL
+        assert ARGON not in Path(pipeline.PIPELINES_DIR / "default/pipeline.yaml").read_text()
+>       assert role.can_spawn == [] and role.skills == []
+E       AssertionError: assert ([] == []
+E         
+E         Use -v to get more diff and ['explainer-c...deo-artifact'] == []
+E         
+E         Left contains 3 more items, first extra item: 'explainer-craft'
+E         Use -v to get more diff)
+
+tests/test_gemini_designer_v1257.py:88: AssertionError
+_________ test_persisted_designer_reloads_and_passes_normal_preflight __________
+
+pipeline = 'default', role = 'designer'
+scope = '<WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_designer_reload0'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+>           base = build_system_prompt(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/manager.py:297: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:653: in build_system_prompt
+    module_text = build_prompt_modules(pipeline_name, rr.modules)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline_name = 'default'
+modules = ['safety', 'project-maintenance', 'code-quality', 'model-routing', 'git-workflow', 'report-format', ...]
+
+    def build_prompt_modules(pipeline_name: str, modules: list[str] | tuple[str, ...]) -> str:
+        """Assemble named modules from the canonical pipeline prompt library."""
+        parts: list[str] = []
+        for module in modules:
+            if not _is_safe_rel(module):
+                raise ValueError(f"unsafe module name '{module}' (abs или '..')")
+            path = prompt_path(pipeline_name, f"modules/{module}.md")
+            if not path.is_file():
+>               raise FileNotFoundError(
+                    f"pipeline '{pipeline_name}' module '{module}' not found at {path}"
+                )
+E               FileNotFoundError: pipeline 'default' module 'safety' not found at <WORKSPACE>/.orchestra/pipelines/default/prompts/modules/safety.md
+
+app/pipeline.py:624: FileNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+admission = None
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_designer_reload0')
+
+    @pytest.mark.asyncio
+    async def test_persisted_designer_reloads_and_passes_normal_preflight(admission, tmp_path):
+        from app import db
+        from app.manager import SessionManager
+    
+        db.init_db()
+        worker = AgentSession(id="persisted", name="designer", cwd=str(tmp_path), model=ARGON,
+                              backend_type="hub", **identity(str(tmp_path)))
+        worker.session_id = "retained-workspace"
+        worker.session_id_history = [{"session_id": "prior-history"}]
+        db.save_session(worker._to_db_dict())
+        manager = SessionManager()
+>       restored = await manager._load_from_db(db.get_session(worker.id))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_gemini_designer_v1257.py:244: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/manager.py:2158: in _load_from_db
+    current_prompt, prompt_overlay = self.assemble_prompt(
+app/manager.py:2045: in assemble_prompt
+    current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline = 'default', role = 'designer'
+scope = '<WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_designer_reload0'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+            base = build_system_prompt(pipeline, role, scope)
+        except (FileNotFoundError, KeyError) as e:
+>           raise ValueError(
+                f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+                f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            ) from e
+E           ValueError: role 'designer' not resolvable in pipeline 'default': FileNotFoundError("pipeline 'default' module 'safety' not found at <WORKSPACE>/.orchestra/pipelines/default/prompts/modules/safety.md"). Define it in .orchestra/pipelines/default/pipeline.yaml + prompts/roles/designer.md
+
+app/manager.py:299: ValueError
+----------------------------- Captured stderr call -----------------------------
+Could not prepare shared private folder for <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_designer_reload0: git-common-dir failed in <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_designer_reload0: fatal: not a git repository (or any of the parent directories): .git
+------------------------------ Captured log call -------------------------------
+WARNING  app.private_folder:private_folder.py:168 Could not prepare shared private folder for <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_designer_reload0: git-common-dir failed in <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_designer_reload0: fatal: not a git repository (or any of the parent directories): .git
+_________ test_antigravity_capacity_is_checked_not_skipped[available] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ce6a231b500>
+state = 'available'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("state", ["available", "blocked", "unknown"])
+    async def test_antigravity_capacity_is_checked_not_skipped(monkeypatch, state):
+        from app.quota_gate import get_worker_admission, require_worker_admission, QuotaGateError
+    
+        assert hub_pool.provider_for_model(ARGON) == "antigravity"
+        summary = {"available": state != "unknown", "cached_age_s": 0, "providers": {}}
+        if state != "unknown":
+            summary["providers"]["antigravity"] = {
+                "usable": int(state == "available"), "accounts": 1, "unknown": 0, "threshold_pct": 100,
+            }
+        fetch = AsyncMock(return_value=summary)
+        monkeypatch.setattr(hub_pool, "get_hub_pool", fetch)
+        decision = await get_worker_admission(ARGON)
+>       assert decision.state == state
+E       AssertionError: assert 'not_applicable' == 'available'
+E         
+E         - available
+E         + not_applicable
+
+tests/test_gemini_designer_v1257.py:305: AssertionError
+__________ test_antigravity_capacity_is_checked_not_skipped[blocked] ___________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ce6a1cf67e0>
+state = 'blocked'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("state", ["available", "blocked", "unknown"])
+    async def test_antigravity_capacity_is_checked_not_skipped(monkeypatch, state):
+        from app.quota_gate import get_worker_admission, require_worker_admission, QuotaGateError
+    
+        assert hub_pool.provider_for_model(ARGON) == "antigravity"
+        summary = {"available": state != "unknown", "cached_age_s": 0, "providers": {}}
+        if state != "unknown":
+            summary["providers"]["antigravity"] = {
+                "usable": int(state == "available"), "accounts": 1, "unknown": 0, "threshold_pct": 100,
+            }
+        fetch = AsyncMock(return_value=summary)
+        monkeypatch.setattr(hub_pool, "get_hub_pool", fetch)
+        decision = await get_worker_admission(ARGON)
+>       assert decision.state == state
+E       AssertionError: assert 'not_applicable' == 'blocked'
+E         
+E         - blocked
+E         + not_applicable
+
+tests/test_gemini_designer_v1257.py:305: AssertionError
+__________ test_antigravity_capacity_is_checked_not_skipped[unknown] ___________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ce6a1cf6150>
+state = 'unknown'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("state", ["available", "blocked", "unknown"])
+    async def test_antigravity_capacity_is_checked_not_skipped(monkeypatch, state):
+        from app.quota_gate import get_worker_admission, require_worker_admission, QuotaGateError
+    
+        assert hub_pool.provider_for_model(ARGON) == "antigravity"
+        summary = {"available": state != "unknown", "cached_age_s": 0, "providers": {}}
+        if state != "unknown":
+            summary["providers"]["antigravity"] = {
+                "usable": int(state == "available"), "accounts": 1, "unknown": 0, "threshold_pct": 100,
+            }
+        fetch = AsyncMock(return_value=summary)
+        monkeypatch.setattr(hub_pool, "get_hub_pool", fetch)
+        decision = await get_worker_admission(ARGON)
+>       assert decision.state == state
+E       AssertionError: assert 'not_applicable' == 'unknown'
+E         
+E         - unknown
+E         + not_applicable
+
+tests/test_gemini_designer_v1257.py:305: AssertionError
+_ test_persisted_queued_delivery_recovery_fails_before_submit_and_keeps_payload _
+
+pipeline = 'default', role = 'worker'
+scope = '<WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_queued_delivery0'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+>           base = build_system_prompt(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/manager.py:297: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:653: in build_system_prompt
+    module_text = build_prompt_modules(pipeline_name, rr.modules)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline_name = 'default'
+modules = ['safety', 'project-maintenance', 'code-quality', 'git-workflow', 'report-format', 'knowledge', ...]
+
+    def build_prompt_modules(pipeline_name: str, modules: list[str] | tuple[str, ...]) -> str:
+        """Assemble named modules from the canonical pipeline prompt library."""
+        parts: list[str] = []
+        for module in modules:
+            if not _is_safe_rel(module):
+                raise ValueError(f"unsafe module name '{module}' (abs или '..')")
+            path = prompt_path(pipeline_name, f"modules/{module}.md")
+            if not path.is_file():
+>               raise FileNotFoundError(
+                    f"pipeline '{pipeline_name}' module '{module}' not found at {path}"
+                )
+E               FileNotFoundError: pipeline 'default' module 'safety' not found at <WORKSPACE>/.orchestra/pipelines/default/prompts/modules/safety.md
+
+app/pipeline.py:624: FileNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+admission = None
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_queued_delivery0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ce6a0ec7da0>
+
+    @pytest.mark.asyncio
+    async def test_persisted_queued_delivery_recovery_fails_before_submit_and_keeps_payload(
+        admission, tmp_path, monkeypatch,
+    ):
+        from app import db, message_deliveries as deliveries, pipeline
+        from app.manager import SessionManager
+        db.init_db()
+        monkeypatch.setattr(pipeline, 'PIPELINES_DIR', Path(__file__).resolve().parents[1] / '.orchestra/pipelines')
+        pipeline.load_pipeline.cache_clear()
+        manager = SessionManager()
+        worker = AgentSession(id='worker', name='worker', scope=str(tmp_path), cwd=str(tmp_path),
+                              model=FORBIDDEN[0], model_reason='old permission', backend_type='hub',
+                              session_id='retained-workspace', runtime_handoff='old handoff')
+        db.save_session(worker._to_db_dict())
+>       worker = await manager._load_from_db(db.get_session(worker.id))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_sol_only_v1240.py:241: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/manager.py:2158: in _load_from_db
+    current_prompt, prompt_overlay = self.assemble_prompt(
+app/manager.py:2045: in assemble_prompt
+    current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pipeline = 'default', role = 'worker'
+scope = '<WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_queued_delivery0'
+
+    def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+        """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+    
+        Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+        :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+        (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+        поэтому изменения БД не переписывают кешируемый префикс.
+    
+        Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+        принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+        эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+        Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+        ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+    
+        Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+        Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+        """
+        try:
+            base = build_system_prompt(pipeline, role, scope)
+        except (FileNotFoundError, KeyError) as e:
+>           raise ValueError(
+                f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+                f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            ) from e
+E           ValueError: role 'worker' not resolvable in pipeline 'default': FileNotFoundError("pipeline 'default' module 'safety' not found at <WORKSPACE>/.orchestra/pipelines/default/prompts/modules/safety.md"). Define it in .orchestra/pipelines/default/pipeline.yaml + prompts/roles/worker.md
+
+app/manager.py:299: ValueError
+----------------------------- Captured stderr call -----------------------------
+Could not prepare shared private folder for <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_queued_delivery0: git-common-dir failed in <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_queued_delivery0: fatal: not a git repository (or any of the parent directories): .git
+------------------------------ Captured log call -------------------------------
+WARNING  app.private_folder:private_folder.py:168 Could not prepare shared private folder for <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_queued_delivery0: git-common-dir failed in <WORKSPACE>/.orchestra/tasks/V-1257/check-tmp/focused/test_persisted_queued_delivery0: fatal: not a git repository (or any of the parent directories): .git
+=========================== short test summary info ============================
+FAILED tests/test_gemini_designer_v1257.py::test_real_pipeline_assembles_terminal_designer_and_keeps_activation_staged
+FAILED tests/test_gemini_designer_v1257.py::test_persisted_designer_reloads_and_passes_normal_preflight
+FAILED tests/test_gemini_designer_v1257.py::test_antigravity_capacity_is_checked_not_skipped[available]
+FAILED tests/test_gemini_designer_v1257.py::test_antigravity_capacity_is_checked_not_skipped[blocked]
+FAILED tests/test_gemini_designer_v1257.py::test_antigravity_capacity_is_checked_not_skipped[unknown]
+FAILED tests/test_hub_sol_only_v1240.py::test_persisted_queued_delivery_recovery_fails_before_submit_and_keeps_payload
+6 failed, 229 passed in 5.75s
+
+EXIT_CODE=1

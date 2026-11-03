@@ -29,7 +29,7 @@ from app import hub_workspace as hw
 from app.hub_activity import HubActivityStream
 from app.hub_outbox import OUTBOX_NAME, OutboxReport, parse_outbox, _request_for
 from app.events import AgentEvent
-from app.models import ensure_hub_worker_allowed
+from app.models import ensure_hub_worker_allowed, hub_worker_context, HUB_ARGON_MODEL, HUB_SPECIALIST_ROLE, get_model_spec
 from app.multicode_client import MultiCodeClient, MultiCodeError, _last_assistant_text
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
@@ -42,6 +42,7 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
     "hub-claude-opus-5-5": ("claudeAgent", "claude-opus-5-5"),
     "hub-gpt-6-luna": ("codex", "gpt-6-luna"),
     "hub-gpt-6.1-sol": ("codex", "gpt-6.1-sol"),
+    "hub-gemini-4-argon": ("antigravity", "gemini-4-argon"),
     "hub-grok-4.7": ("grok", "grok-4.7"),
 }
 TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
@@ -77,7 +78,17 @@ OUTBOX_SECTION = (
 )
 
 
-def hub_preamble(who, task_ref: str = "", *, has_link: bool = False) -> str:
+def _specialist_instructions(who) -> str:
+    """The same role file reaches both native assembly and the trimmed Hub path."""
+    context = hub_worker_context(who)
+    if context["role"] != HUB_SPECIALIST_ROLE:
+        return ""
+    from app.pipeline import DEFAULT_PIPELINE, prompt_path
+
+    return prompt_path(context["pipeline"] or DEFAULT_PIPELINE, "roles/specialist.md").read_text().rstrip() + "\n\n"
+
+
+def hub_preamble(who, task_ref: str = "", *, has_link: bool = False, specialist_context=None) -> str:
     """The trimmed prompt a hub model gets: role, task rules, the outbox tools, the report
     contract. It leaves out everything that assumes native MCP tools or the full pipeline."""
     from app.pipeline import DEFAULT_PIPELINE, prompt_path
@@ -102,7 +113,8 @@ def hub_preamble(who, task_ref: str = "", *, has_link: bool = False) -> str:
         send = (f'- `{{"tool":"send_message","args":{{"message":"..."}}}}` goes to your orchestrator '
                 f'{parent} only; any "to" is ignored\n') if parent else ""
         link = OUTBOX_SECTION.replace("{{", "{").replace("}}", "}").replace("{send_line}", send)
-    return f"{role}{hw.HUB_UV_INSTRUCTIONS}{where}{link}Task:\n"
+    specialist = _specialist_instructions(who if specialist_context is None else specialist_context)
+    return f"{role}{specialist}{hw.HUB_UV_INSTRUCTIONS}{where}{link}Task:\n"
 
 
 _slots: asyncio.Semaphore | None = None
@@ -250,13 +262,15 @@ class HubBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None, effort: str | None = None,
                  paths: list[str] | None = None, scope: str = "", paths_source=None, bridge=None,
-                 pipeline: str = "", role: str = ""):
+                 pipeline: str = "", role: str = "", task_id: str = "", context_source=None):
         if model not in HUB_MODELS:
             raise ValueError(f"unknown hub model '{model}'")
         self.model = model
         self._effort = effort
         self._pipeline = pipeline
         self._role = role
+        self._task_id = task_id
+        self._context_source = context_source
         self._effort_options: dict[tuple[str, str], tuple[str, tuple[str, ...]]] | None = None
         self.cwd = cwd
         self._resume = resume_session_id
@@ -287,8 +301,22 @@ class HubBackend:
     def session_id(self) -> Optional[str]:
         return self._state.ws_id if self._state else self._resume
 
+    def _worker_context(self) -> dict:
+        return hub_worker_context(self._context_source()) if self._context_source else {
+            "role": self._role, "pipeline": self._pipeline,
+            "scope": self._scope, "task_id": self._task_id,
+        }
+
+    def _ensure_model_allowed(self, model: str | None = None) -> None:
+        target = self.model if model is None else model
+        context = self._worker_context()
+        # A backend for an earlier project must not submit under a new identity.
+        if target == HUB_ARGON_MODEL and context["scope"] != self._scope:
+            raise ValueError("hub_workers_require_sol: specialist scope changed; rebuild the backend")
+        ensure_hub_worker_allowed(target, **context)
+
     async def connect(self) -> None:
-        ensure_hub_worker_allowed(self.model)
+        self._ensure_model_allowed()
         problem = hub_configured()
         if problem:
             raise RuntimeError(problem)
@@ -337,7 +365,7 @@ class HubBackend:
         return selection
 
     async def send(self, message: str) -> None:
-        ensure_hub_worker_allowed(self.model)
+        self._ensure_model_allowed()
         if self._ssh is None:
             raise RuntimeError("HubBackend not connected")
         if not self._turn_active:
@@ -367,7 +395,7 @@ class HubBackend:
         next turn opens a new thread and says so, instead of failing the switch."""
         if model not in HUB_MODELS:
             raise ValueError(f"unknown hub model '{model}'")
-        ensure_hub_worker_allowed(model)
+        self._ensure_model_allowed(model)
         if self._turn_active:
             raise RuntimeError("cannot retarget a hub worker while a turn is active")
         if self._state is not None:
@@ -420,7 +448,7 @@ class HubBackend:
             self._mc = None
 
     async def reconnect(self) -> None:
-        ensure_hub_worker_allowed(self.model)
+        self._ensure_model_allowed()
         await self.disconnect()
         await self.connect()
 
@@ -429,7 +457,7 @@ class HubBackend:
     async def events(self) -> AsyncIterator[AgentEvent]:
         if not self._turn_active or self._pending is None or self._ssh is None:
             return
-        ensure_hub_worker_allowed(self.model)
+        self._ensure_model_allowed()
         message, self._pending = self._pending, None
         self._turn_started = time.perf_counter()
         ok, stop_reason, detail = True, "end_turn", ""
@@ -472,7 +500,7 @@ class HubBackend:
         from app.hub_pool import require_hub_capacity
         from app.quota_gate import QuotaGateError
 
-        ensure_hub_worker_allowed(self.model)
+        self._ensure_model_allowed()
         # Check retained evidence before replacing a released record or cleaning
         # up an older workspace. A new thread must not erase the incident trail.
         options = hw.project_options(self._scope)
@@ -732,13 +760,15 @@ class HubBackend:
         body = "\n\n".join(parts)
         if not first:
             # Also update a thread that predates uv provisioning, or resumed without PATH.
-            return (hw.HUB_UV_INSTRUCTIONS if self._uv_ready else "") + body
+            return (_specialist_instructions(self._worker_context())
+                    + (hw.HUB_UV_INSTRUCTIONS if self._uv_ready else "") + body)
         return self._preamble() + body
 
     def _preamble(self) -> str:
         task = _branch_task_ref(self.cwd).lstrip("#")
         who = self._bridge.identity() if self._bridge is not None else None
-        return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None)
+        return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None,
+                            specialist_context=self._worker_context())
 
     def _worker_title(self) -> str | None:
         """Visible label only: storage and resume keep their unique workspace identity."""
@@ -770,7 +800,7 @@ class HubBackend:
         )
 
     async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
-        ensure_hub_worker_allowed(self.model)
+        self._ensure_model_allowed()
         # A reconstructed backend can resume a thread created with an older effort.
         selection = await self._model_selection(mc, self.model, self._effort)
         if state.thread_id:
@@ -794,11 +824,15 @@ class HubBackend:
                     raise MultiCodeError("MultiCode send returned no runId")
                 return sent["runId"]
         wire = await self._wire_message(mc, state, prompt)
-        launched = await mc.tool_call("t3_thread_launch", {
+        launch_args = {
             "title": self._worker_title() or state.ws_id, "projectId": state.project_id, "message": wire,
-            "runtimeMode": "full-access",
             "modelSelection": selection,
-        })
+        }
+        # Antigravity advertises no runtimeModes. Let Hub select a supported
+        # inherited mode; never force the other providers' full-access contract.
+        if self.model != HUB_ARGON_MODEL:
+            launch_args["runtimeMode"] = "full-access"
+        launched = await mc.tool_call("t3_thread_launch", launch_args)
         if not isinstance(launched, dict) or not launched.get("threadId"):
             raise MultiCodeError("MultiCode launch returned no threadId")
         state.thread_id = launched["threadId"]
@@ -1134,7 +1168,7 @@ class HubBackend:
     def _turn_end(self, ok: bool, stop_reason: str, detail: str) -> AgentEvent:
         usage = TurnUsage(
             AggregateUsage.normalized(),
-            current_context(None, 200000,
+            current_context(None, get_model_spec(self.model).context_length,
                             unknown_reason="the hub does not report token usage to the broker"),
         )
         elapsed = (None if self._turn_started is None
@@ -1164,7 +1198,7 @@ class HubBackend:
         from app.runtime_history import build_model_visible_manifest
 
         return build_model_visible_manifest(
-            runtime="hub", model=self.model, effective_window=200000, system_prompt="",
+            runtime="hub", model=self.model, effective_window=get_model_spec(self.model).context_length, system_prompt="",
             prepared=prepared, validation_profile=validation_profile,
             project_docs=getattr(prepared, "project_docs", ()), mcp_servers={})
 

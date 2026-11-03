@@ -1,0 +1,178 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- <WORKSPACE>/.venv/bin/python3
+cachedir: .orchestra/tasks/V-1257/check-tmp/cache-queued-trace
+rootdir: <WORKSPACE>
+configfile: pyproject.toml
+plugins: anyio-4.13.0, timeout-2.4.0, playwright-0.8.0, xdist-3.8.0, base-url-2.1.0, asyncio-1.4.0
+timeout: 8.0s
+timeout method: thread
+timeout func_only: False
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+tests/test_gemini_specialist_v1257.py::test_old_argon_queued_delivery_refuses_before_submit_and_keeps_payload +++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~ Stack of MainThread (127213256720512) ~~~~~~~~~~~~~~~~~~~~~
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pytest/__main__.py", line 9, in <module>
+    raise SystemExit(pytest.console_main())
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py", line 223, in console_main
+    code = main()
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py", line 199, in main
+    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/main.py", line 365, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/main.py", line 318, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/main.py", line 372, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/main.py", line 396, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 118, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 131, in runtestprotocol
+    rep = call_and_report(item, "setup", log)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 244, in call_and_report
+    call = CallInfo.from_call(
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 353, in from_call
+    result: TResult | None = func()
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 245, in <lambda>
+    lambda: runtest_hook(item=item, **kwds),
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 165, in pytest_runtest_setup
+    item.session._setupstate.setup(item)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 523, in setup
+    col.setup()
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py", line 558, in setup
+    return super().setup()
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/python.py", line 1723, in setup
+    self._request._fillfixtures()
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 707, in _fillfixtures
+    item.funcargs[argname] = self.getfixturevalue(argname)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 539, in getfixturevalue
+    fixturedef = self._get_active_fixturedef(argname)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 627, in _get_active_fixturedef
+    fixturedef.execute(request=subrequest)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1110, in execute
+    result: FixtureValue = ihook.pytest_fixture_setup(
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 1202, in pytest_fixture_setup
+    result = call_fixture_func(fixturefunc, request, kwargs)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/_pytest/fixtures.py", line 915, in call_fixture_func
+    fixture_result = fixturefunc(**kwargs)
+  File "<WORKSPACE>/tests/conftest.py", line 389, in _no_tg_bridge
+    import app.tg_bridge as tb
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<WORKSPACE>/app/tg_bridge.py", line 21, in <module>
+    from aiogram import Bot, Dispatcher, types, F
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/aiogram/__init__.py", line 3, in <module>
+    from . import enums, methods, types
+  File "<frozen importlib._bootstrap>", line 1415, in _handle_fromlist
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/aiogram/methods/__init__.py", line 1, in <module>
+    from .add_sticker_to_set import AddStickerToSet
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/aiogram/methods/add_sticker_to_set.py", line 5, in <module>
+    from ..types import InputSticker
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/aiogram/types/__init__.py", line 703, in <module>
+    _entity.model_rebuild(
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/main.py", line 683, in model_rebuild
+    return _model_construction.complete_model_class(
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_model_construction.py", line 667, in complete_model_class
+    schema = gen_schema.generate_schema(cls)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 744, in generate_schema
+    schema = self._generate_schema_inner(obj)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 1038, in _generate_schema_inner
+    return self._model_schema(obj)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 868, in _model_schema
+    {k: self._generate_md_field_schema(k, v, decorators) for k, v in fields.items()},
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 1245, in _generate_md_field_schema
+    schema, metadata = self._common_field_schema(name, field_info, decorators)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 1299, in _common_field_schema
+    schema = self._apply_annotations(
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 2252, in _apply_annotations
+    schema = get_inner_schema(source_type)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_schema_generation_shared.py", line 83, in __call__
+    schema = self._handler(source_type)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 2231, in inner_handler
+    schema = self._generate_schema_inner(obj)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 1043, in _generate_schema_inner
+    return self.match_type(obj)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 1161, in match_type
+    return self._match_generic_type(obj, origin)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 1184, in _match_generic_type
+    return self._union_schema(obj)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 1344, in _union_schema
+    choices.append(self.generate_schema(arg))
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 744, in generate_schema
+    schema = self._generate_schema_inner(obj)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 1038, in _generate_schema_inner
+    return self._model_schema(obj)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 868, in _model_schema
+    {k: self._generate_md_field_schema(k, v, decorators) for k, v in fields.items()},
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 1245, in _generate_md_field_schema
+    schema, metadata = self._common_field_schema(name, field_info, decorators)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 1299, in _common_field_schema
+    schema = self._apply_annotations(
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 2252, in _apply_annotations
+    schema = get_inner_schema(source_type)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_schema_generation_shared.py", line 83, in __call__
+    schema = self._handler(source_type)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 2228, in inner_handler
+    schema = self._generate_schema_from_get_schema_method(obj, source_type)
+  File "<WORKSPACE>/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py", line 901, in _generate_schema_from_get_schema_method
+    def _generate_schema_from_get_schema_method(self, obj: Any, source: Any) -> core_schema.CoreSchema | None:
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+
+EXIT_CODE=1

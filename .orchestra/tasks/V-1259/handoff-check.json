@@ -1,0 +1,9 @@
+{
+  "source_scope": "PASS: exactly 5 authorized files changed",
+  "other_initial_files_unchanged": 815,
+  "all_v1257_history_unchanged": true,
+  "new_artifact_form_secret_flags": [],
+  "task_scratch_removed": true,
+  "pipeline_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+  "app_exact_workspace_import": true
+}

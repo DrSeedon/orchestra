@@ -1,0 +1,358 @@
+
+SOURCE: app/models.py
+140:    ),
+141:    ModelSpec(
+142:        id="hub-claude-sonnet-5-5", name="Hub: Sonnet 5.5",
+143:        runtime="hub", provider="multicode", default_agents=False,
+144:    ),
+145:    ModelSpec(
+146:        id="hub-claude-opus-5-5", name="Hub: Opus 5.5",
+147:        runtime="hub", provider="multicode", default_agents=False,
+148:    ),
+149:    ModelSpec(
+150:        id="hub-gpt-6-luna", name="Hub: GPT-6 Luna",
+151:        runtime="hub", provider="multicode", default_agents=False,
+152:    ),
+153:    # Sol on the hub pool is not our Codex pool: the owner allowed it for agents (22.10.2026),
+154:    # while MANUAL_ONLY_MODEL_IDS keeps refusing the plain gpt-6.1-sol of our own subscription.
+155:    ModelSpec(
+156:        id="hub-gpt-6.1-sol", name="Hub: GPT-6.1 Sol",
+157:        runtime="hub", provider="multicode",
+158:    ),
+159:    ModelSpec(
+160:        id="hub-grok-4.7", name="Hub: Grok 4.7",
+161:        runtime="hub", provider="multicode", default_agents=False,
+162:    ),
+163:    ModelSpec(
+164:        id="GigaChat-2", name="GigaChat 2",
+165:        runtime="harness", provider="gigachat", context_length=128000,
+166:        supported_parameters=("functions", "function_call"),
+167:    ),
+168:    ModelSpec(
+169:        id="GigaChat-2-Max", name="GigaChat 2 Max",
+170:        runtime="harness", provider="gigachat", context_length=128000,
+171:        supported_parameters=("functions", "function_call"),
+172:    ),
+173:    ModelSpec(
+174:        id="GigaChat-3-Ultra", name="GigaChat 3 Ultra",
+175:        runtime="harness", provider="gigachat", context_length=128000,
+176:        supported_parameters=("functions", "function_call"),
+177:    ),
+704:def ensure_hub_worker_allowed(model: str) -> None:
+705:    """Canonical hub routing admission, including old rows and backend recovery.
+706:
+707:    Owner decision 2026-11-02 17:27 UTC, clarified 17:29 UTC: every hub worker
+708:    in every scope uses GPT-6.1 Sol, including creative/research work. Catalog
+709:    flags and task reasons cannot restore another hub route. Native routing,
+710:    manual native orchestrators and protected local Luna keep their own guards.
+711:    This pure check never rewrites a model, thread, queue or recovery latch.
+712:    """
+713:    normalized = model.lower().strip()
+714:    model_id = ALIASES.get(normalized, model.strip())
+715:    # Registry validity for native/opaque runtime identities belongs to their
+716:    # existing admission/runtime owners, not this Hub-only policy. Unknown Hub
+717:    # identities still fail closed; a future Hub spec need not use the prefix.
+718:    spec = MODEL_SPECS.get(model_id) or COMPAT_MODEL_SPECS.get(model_id)
+719:    if spec is None:
+720:        spec = MODEL_SPECS.get(normalized) or COMPAT_MODEL_SPECS.get(normalized)
+721:        if spec is not None:
+722:            model_id = spec.id
+723:    is_hub = normalized.startswith("hub-") or model_id.lower().startswith("hub-") or (
+724:        spec is not None and spec.runtime == "hub"
+725:    )
+726:    if is_hub and model_id != HUB_SOL_MODEL:
+727:        raise ValueError(
+728:            f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
+729:            "use model='hubsol' (GPT-6.1 Sol), including creative and research work. "
+730:            "model_reason and catalog flags do not grant an exception. If Sol is at "
+731:            "capacity or unavailable, report the blocker or wait; do not fall back to "
+732:            "Claude, another hub model, native workers or API credits. Existing work "
+733:            "and history are retained; model changes require explicit action."
+734:        )
+735:
+736:
+737:def ensure_spawn_allowed(
+738:    model_id: str, *, billing: str = "subscription", model_reason: str = "",
+739:) -> None:
+740:    """Gate agent dispatch; explicit Claude API-credit tasks retain their own admission.
+741:
+742:    Owner routing decision, 2026-10-29: ordinary workers use the hub. This is
+743:    independent of stored catalog flags and keeps native manual selection intact.
+744:    The Sol-only guard also applies before persisted hub recovery submits work.
+745:    Billing is supplied only by opt-in eval callers;
+746:    worker spawn and agent model changes use the subscription default.
+747:
+748:    Owner decision, 2026-10-31: the one native exception is local GPT-6 Luna for
+749:    protected work that cannot safely go to the hub. It is admitted only with a
+750:    non-empty model_reason naming the protection constraint; every other native
+751:    route stays refused and the catalog flag, quota and role guards still apply.
+752:    """
+753:    ensure_hub_worker_allowed(model_id)
+754:    spec = get_model_spec(model_id)
+755:    if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
+756:        raise ValueError("billing must be 'subscription' or 'api_credit'")
+757:    if billing == "api_credit":
+758:        if spec.runtime != "claude":
+759:            raise ValueError("billing='api_credit' requires a Claude model")
+760:    elif spec.runtime != "hub" and not (
+761:        model_id == LOCAL_LUNA_MODEL and isinstance(model_reason, str) and model_reason.strip()
+762:    ):
+763:        raise ValueError(
+764:            f"{AGENT_HUB_ROUTE_RULE}: model '{model_id}' is disabled for agents on "
+765:            "subscription routes; use hubsol for all hub work. The only native route "
+766:            "is model='luna' for protected "
+767:            "work that cannot safely go to the hub, with a non-empty model_reason "
+768:            "naming the protection constraint. If neither is possible (or this process "
+1142:def validate_model_reason(model: str, reason: str = "") -> str:
+1143:    ensure_hub_worker_allowed(model)
+1144:    try:
+1145:        local_luna = resolve_model(model) == LOCAL_LUNA_MODEL
+1146:    except (ValueError, AttributeError):
+1147:        local_luna = False
+1148:    if local_luna:
+1149:        # Optional metadata here: ensure_spawn_allowed refuses an agent route without
+1150:        # it, while manual selection keeps working without a reason.
+1151:        return reason.strip() if isinstance(reason, str) else ""
+1152:    return ""
+
+SOURCE: app/backend_hub.py
+37:
+38:# Orchestra model id -> (hub provider instance, hub model id). The only place that maps them.
+39:HUB_MODELS: dict[str, tuple[str, str]] = {
+40:    "hub-claude-haiku-5-5": ("claudeAgent", "claude-haiku-5-5"),
+41:    "hub-claude-sonnet-5-5": ("claudeAgent", "claude-sonnet-5-5"),
+42:    "hub-claude-opus-5-5": ("claudeAgent", "claude-opus-5-5"),
+43:    "hub-gpt-6-luna": ("codex", "gpt-6-luna"),
+44:    "hub-gpt-6.1-sol": ("codex", "gpt-6.1-sol"),
+45:    "hub-grok-4.7": ("grok", "grok-4.7"),
+46:}
+311:    async def _model_selection(self, mc: MultiCodeClient, model: str,
+312:                               effort: str | None) -> dict:
+313:        instance, hub_model = HUB_MODELS[model]
+314:        selection = {"instanceId": instance, "model": hub_model}
+315:        if effort is None:
+316:            return selection
+317:        if self._effort_options is None:
+318:            capabilities = await mc.tool_call("orchestrator_capabilities", {})
+319:            if not isinstance(capabilities, dict) or not isinstance(capabilities.get("providers"), list):
+320:                raise ValueError("hub capabilities contain no provider model options")
+321:            options = {}
+322:            for provider in capabilities["providers"]:
+323:                for advertised in provider.get("models", []):
+324:                    for option in advertised.get("options", []):
+325:                        # Codex/Grok use reasoningEffort; Claude advertises effort.
+326:                        if option.get("id") in ("reasoningEffort", "effort") and option.get("type") == "select":
+327:                            options[(provider["providerInstanceId"], advertised["id"])] = (
+328:                                option["id"], tuple(value["id"] for value in option.get("options", [])))
+329:                            break
+330:            self._effort_options = options
+331:        option_id, allowed = self._effort_options.get((instance, hub_model), ("reasoningEffort", ()))
+332:        if effort not in allowed:
+333:            raise ValueError(
+334:                f"hub model '{model}' does not support effort '{effort}'; "
+335:                f"allowed values: {', '.join(allowed) or '(none advertised)'}")
+336:        selection["options"] = {option_id: effort}
+337:        return selection
+771:
+772:    async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
+773:        ensure_hub_worker_allowed(self.model)
+774:        # A reconstructed backend can resume a thread created with an older effort.
+775:        selection = await self._model_selection(mc, self.model, self._effort)
+776:        if state.thread_id:
+777:            try:
+778:                wire = await self._wire_message(mc, state, prompt)
+779:                if self._effort is not None:
+780:                    await mc.tool_call("t3_thread_configure", {
+781:                        "threadId": state.thread_id, "modelSelection": selection})
+782:                sent = await mc.tool_call("t3_thread_send", {
+783:                    "threadId": state.thread_id, "message": wire, "mode": "auto"})
+784:            except MultiCodeError as exc:
+785:                # Delivery is uncertain on transport errors. Launching again can duplicate work.
+786:                if exc.retryable or exc.invalid_params:
+787:                    raise
+788:                logger.warning("hub thread %s unusable (%s); starting a new one", state.thread_id, exc)
+789:                preamble = self._preamble()
+790:                if not prompt.startswith(preamble):
+791:                    prompt = preamble + prompt
+792:            else:
+793:                if not isinstance(sent, dict) or not sent.get("runId"):
+794:                    raise MultiCodeError("MultiCode send returned no runId")
+795:                return sent["runId"]
+796:        wire = await self._wire_message(mc, state, prompt)
+797:        launched = await mc.tool_call("t3_thread_launch", {
+798:            "title": self._worker_title() or state.ws_id, "projectId": state.project_id, "message": wire,
+799:            "runtimeMode": "full-access",
+800:            "modelSelection": selection,
+801:        })
+802:        if not isinstance(launched, dict) or not launched.get("threadId"):
+803:            raise MultiCodeError("MultiCode launch returned no threadId")
+804:        state.thread_id = launched["threadId"]
+805:        state.save()
+806:        run_id = launched.get("runId")
+807:        if not run_id:
+808:            raise MultiCodeError("MultiCode launch returned no runId")
+809:        return run_id
+810:
+811:    async def _watch(self, mc: MultiCodeClient, thread_id: str, run_id: str,
+812:                     stream: HubActivityStream) -> AsyncIterator[AgentEvent]:
+1145:            "session_id": self.session_id,
+1146:            "ok": ok,
+1147:            "stop_reason": stop_reason,
+1148:            "num_turns": 1,
+1149:            "cost_usd": 0.0,
+1150:            "cost_usd_cached": 0.0,
+1151:            "cost_is_delta": True,
+1152:            "cache_hit": 0.0,
+1153:            "billing_mode": "free",
+1154:            "cost_unaccounted": False,
+1155:            "provider_source_records": [],
+
+SOURCE: app/hub_pool.py
+25:
+26:_cache: dict = {"payload": None, "ts": 0.0, "ttl": 0.0}
+27:_lock: asyncio.Lock | None = None
+28:
+29:
+69:
+70:def provider_for_model(model: str) -> str | None:
+71:    from app.backend_hub import HUB_MODELS
+72:    from app.models import resolve_model
+73:
+74:    try:
+75:        instance = HUB_MODELS.get(resolve_model(model), (None, None))[0]
+76:    except (AttributeError, TypeError, ValueError):
+77:        return None
+78:    return {"claudeAgent": "claude", "codex": "codex"}.get(instance)
+79:
+87:    from dataclasses import replace
+88:    from app.quota_gate import evaluate_worker_admission
+89:
+90:    base = evaluate_worker_admission(model, {}, {})
+91:    provider = provider_for_model(model)
+92:    if provider is None:
+93:        return base
+94:    pool = await get_hub_pool()
+95:    block = pool.get("providers", {}).get(provider)
+96:    if not pool.get("available") or block is None:
+97:        reason = f"Hub {provider} pool unavailable; capacity was not checked (turn allowed)"
+98:        logger.warning(reason)
+114:
+115:async def require_hub_capacity(model: str) -> str | None:
+116:    """Refuse exhausted hub pools, return a visible warning when the relay is unavailable."""
+117:    if provider_for_model(model) is None:
+118:        return None
+119:    from app.quota_gate import require_worker_admission
+120:
+121:    decision = await hub_admission(model)
+122:    require_worker_admission(decision)
+123:    return decision.reason if decision.state == "unknown" else None
+
+SOURCE: app/runtime_registry.py
+332:def _hub_factory(context: BackendBuildContext) -> BackendLike:
+333:    from app.backend_hub import HubBackend
+334:
+335:    return HubBackend(
+336:        model=context.model,
+337:        cwd=context.cwd,
+338:        system_prompt=context.system_prompt,
+339:        resume_session_id=context.resume_session_id,
+340:        effort=context.effort,
+341:        paths=list(context.owned_dirs),
+342:        scope=context.scope,
+343:        paths_source=context.owned_dirs_source,
+344:        bridge=context.hub_bridge,
+345:        pipeline=context.pipeline,
+346:        role=context.role,
+350:BUILTIN_RUNTIMES = ("claude", "codex", "grok", "harness", "hub")
+405:register_runtime(RuntimeDefinition(
+406:    id="hub",
+407:    capabilities=RuntimeCapabilities(
+408:        # The model runs on the MultiCode hub; one send() feeds one events() turn. A message
+409:        # sent mid-turn is steered into the running hub thread. Sessions resume by workspace id.
+410:        event_stream="per_turn",
+411:        mid_turn_inject=True,
+412:        reconnect=True,
+413:        hibernate=False,
+414:        resume_across_models=True,
+415:        model_retarget=True,
+416:        subagents=False,
+417:    ),
+418:    factory=_hub_factory,
+419:))
+
+SOURCE: app/session.py
+442:    cwd: str
+443:    model: str = "claude-sonnet-5-5[1m]"
+444:    model_reason: str = field(default="", kw_only=True)
+445:    _pending_model_reason: tuple[str, str] | None = field(default=None, init=False, repr=False)
+446:    system_prompt: str = ""
+447:    prompt_overlay: str | None = None
+448:    status: AgentStatus = AgentStatus.IDLE
+449:    session_id: str | None = None
+450:    session_id_history: list = field(default_factory=list, repr=False)
+451:    cost_usd: float = 0.0
+452:    cost_usd_cached: float = 0.0
+453:    worktree_path: str | None = None
+454:    branch: str | None = None
+455:    base_branch: str = ""
+456:    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+457:    role: str = "worker"
+458:    parent_id: str = ""
+459:    parent_name: str = ""
+460:    pipeline: str = ""
+461:    profile: str = ""
+462:    _is_orchestrator: bool | None = field(default=None, repr=False)
+463:    color: str = ""
+464:    mcp_servers: dict = field(default_factory=dict, repr=False)
+465:    disabled_tools: list[str] = field(default_factory=list)
+466:    mcp_servers_custom: dict = field(default_factory=dict, repr=False)
+467:    on_error: Optional[callable] = field(default=None, repr=False)
+468:    backend_type: str = "claude"
+469:    effort: str | None = None
+470:    runtime_handoff: str = ""
+471:    history_import_source: str | None = None
+472:    last_summary: str = ""
+473:    task_id: str = ""
+474:    description: str = ""
+475:    owned_dirs: list = field(default_factory=list, repr=False)
+476:    tg_topic: bool = False
+477:
+478:    needs_switch: bool = False
+479:    last_task_sender: str = ""
+480:
+481:    # Имя сменилось, пока жил этот коннект. env MCP-подпроцесса замораживается при его
+482:    # старте, поэтому подпроцесс надо поднять заново — но только на ГРАНИЦЕ хода:
+483:    # дисконнект внутри хода оборвал бы живой ход. Флаг идемпотентен: два переименования
+484:    # за ход дают одну пересборку.
+485:    _identity_stale: bool = field(default=False, repr=False)
+
+SOURCE: app/task_store.py
+34:
+35:_DEFAULTS = {
+36:    'description': '', 'status': 'new', 'priority': 2, 'assignee': '', 'price_rub': 0,
+37:    'acceptance': {'command': '', 'manifest_paths': [], 'required': False},
+38:    'git_commits': [], 'evidence_refs': [], 'completed_at': None, 'tags': [],
+39:}
+40:_MUTABLE = frozenset({'title', *_DEFAULTS})
+41:_STATUSES = frozenset({'backlog', 'new', 'in_progress', 'done', 'cancelled', 'paid'})
+42:
+43:
+
+SOURCE: app/mcp_stdio.py
+1118:        raise verdict from cause
+1119:
+1120:
+1121:@mcp.tool()
+1122:async def spawn_worker(name: str, task: str, repo_path: str,
+1123:                       model: str,
+1124:                       description: str = "",
+1125:                       system_prompt: str = "",
+1126:                       task_id: str = "",
+1127:                       base_branch: str = "",
+1128:                       role: str = "worker",
+1129:                       mcp_servers: str = "",
+1130:                       owned_dirs: str = "",
+1131:                       tg_topic: bool = False,
+1132:                       delivery_id: str = "",
+1133:                       disabled_tools: list[str] | None = None,
+1134:                       model_reason: str = "") -> str:

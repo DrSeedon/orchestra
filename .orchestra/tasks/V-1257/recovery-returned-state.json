@@ -1,0 +1,35 @@
+{
+  "root_reported_imported_head": "d95c5f733d354878115cb823ee94654cf6931c48",
+  "earlier_preserved_ref": "e835 (short ref supplied by root; full SHA not available here)",
+  "root_main_head": "b9d893ec8babd4b2052ac1f497962e1966206bcb",
+  "returned_files": [
+    {
+      "path": ".orchestra/pipelines/default/pipeline.yaml",
+      "sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+      "bytes": 11674
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+      "sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+      "bytes": 23264
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/communication-style.md",
+      "sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+      "bytes": 5471
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+      "sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+      "bytes": 9946
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/orchestrator.md",
+      "sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+      "bytes": 11835
+    }
+  ],
+  "checks_log_original_sha256": "8688b2b72dfd01f008c1003d8ce426bd0152f4c85796ea0ae1a6a8ddc073b459",
+  "checks_log_bytes": 19611,
+  "potential_private_path_occurrences": 0
+}

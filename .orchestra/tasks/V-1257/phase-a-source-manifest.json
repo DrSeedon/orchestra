@@ -1,0 +1,144 @@
+{
+  "context_source_head": "b9d893ec8babd4b2052ac1f497962e1966206bcb",
+  "baseline": "initial task copy; supplied canonical pipeline; exact test catalog/role expectations before addition; V-1256 changelog retained",
+  "files": [
+    {
+      "path": "app/models.py",
+      "before_sha256": "0644a7304db57887096f86ce9db0255abc6f5b2f8c46e92a822c8d47096cc78a",
+      "after_sha256": "74977768df7684eb9c46ed7aa0f843d3f6b357ea5dce17d0a57d46a0268d6172"
+    },
+    {
+      "path": "app/backend_hub.py",
+      "before_sha256": "391c2ca3094b10ad75befa5acef47f4a6ca087d5999e81c876ea73821ca0f4f1",
+      "after_sha256": "3e5f0dfd8e3cc311ec49207fb7d877c045ca8d81b1381b93d67a5f3ecea5b1ec"
+    },
+    {
+      "path": "app/hub_pool.py",
+      "before_sha256": "aacb9d8690b01de4e9cca0a3d93571a5ce2aa85c4398299da699e721464003be",
+      "after_sha256": "f720c310848d4d88bab5445aee35b3ab6c45da267596207fe7c6f91265eefe5e"
+    },
+    {
+      "path": "app/runtime_registry.py",
+      "before_sha256": "8dc46ccb3a469a9c388a504d218604d15cd6facecdecf955d26a881fc58166f1",
+      "after_sha256": "d5ab0dcffd252d0e24904688d00ec591339cd4b24a6f0bcea8244ea580d396bb"
+    },
+    {
+      "path": "app/session.py",
+      "before_sha256": "f7976b1e5a1fb28086783f376560880268796ece7582404b8f22f7916467ae61",
+      "after_sha256": "f5d7f55c12681500ea90f63aeb568b11397b018efb5d3a4dbee475e1fb904a6c"
+    },
+    {
+      "path": "app/manager.py",
+      "before_sha256": "314b9f9da8283f97e20e69a39ff58e24dc572374c1fdd2659621faee66b635fd",
+      "after_sha256": "56053a81b77b0441a2d9d7f5b9c378a5354965aea793352a3fc075afb692d643"
+    },
+    {
+      "path": "app/mcp_stdio.py",
+      "before_sha256": "c46ce2cf45b2f252fd6cb192c053700ae97050f4a158db0c37c91fc582be5c27",
+      "after_sha256": "68c4d6c0e3b4c023083a80b5e0ef71f1e8e2d7d0d521efde6dea746c56c37399"
+    },
+    {
+      "path": "app/routes/sessions.py",
+      "before_sha256": "df3fdaede7ceb8a3ff33d22a73f1ef167826e345148058083c3826c52e0a1877",
+      "after_sha256": "8752b5b3ec2712c5efdec49275cbda7843a392f39bdffe83cdfc7e3c8b9b5aed"
+    },
+    {
+      "path": ".orchestra/pipelines/default/pipeline.yaml",
+      "before_sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16",
+      "after_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/model-routing.md",
+      "before_sha256": "11f1eb940f5308637bcc478fbae80acd00d605ca4198b4dbd0f0a05aab077475",
+      "after_sha256": "e71535084b1c6f2e1f4c712df9ee49a942bc2b066780aedb3209022f1afab1c4"
+    },
+    {
+      "path": "tests/test_default_pipeline.py",
+      "before_sha256": "a4f41f862ad427a902abdcbaab2bd4dd8bc0f3036831c1b6f7d6fd0613f73198",
+      "after_sha256": "2cac94a46a07cf592af3e4a358426e3d6b92a857437d2aaf641d571b579be74e"
+    },
+    {
+      "path": "tests/test_models.py",
+      "before_sha256": "5713f7ddefd9bb9ed1b22bf768f8bb81e98eb76cb528f556b89dbb001e3807f7",
+      "after_sha256": "c83a059cf7986ee16710ca1f32313a939b1bcc6620c51d7bd013b016bce01e57"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "before_sha256": "22b9be152ffa0a5f3ce383904f73db4202eda083ddf49665612f916d171df0a3",
+      "after_sha256": "a294fbd2d5d9bc863f819bb93834520be8a4683562f2d1c7d595d3b5b69fd2c9"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/specialist.md",
+      "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "after_sha256": "538b0254a98d07521ceae9275cbbf79f0e77e348e1bf9549a60b244a6da1348b"
+    },
+    {
+      "path": "tests/test_gemini_specialist_v1257.py",
+      "before_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "after_sha256": "0508b14d761afb84f6a4a33ff1239d46416dc7302082782ee627f13d0399a49b"
+    }
+  ],
+  "last_actual_imported_head": "d95c5f733d354878115cb823ee94654cf6931c48",
+  "root_main_head": "b9d893ec8babd4b2052ac1f497962e1966206bcb",
+  "recovery_scope": "actual source in this Hub copy, reconstructed pipeline; does not claim broker applied it",
+  "unchanged_canonical_conflict_files": [
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+      "canonical_sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+      "returned_sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+      "returned_equals_canonical": true,
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/orchestration.md",
+      "final_sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/communication-style.md",
+      "canonical_sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+      "returned_sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+      "returned_equals_canonical": true,
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/communication-style.md",
+      "final_sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+      "canonical_sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+      "returned_sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+      "returned_equals_canonical": true,
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+      "final_sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/orchestrator.md",
+      "canonical_sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+      "returned_sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+      "returned_equals_canonical": true,
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/roles/orchestrator.md",
+      "final_sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b"
+    }
+  ],
+  "completed_check": {
+    "command": "uv run --frozen python -m pytest tests/test_gemini_specialist_v1257.py tests/test_hub_sol_only_v1240.py tests/test_hub_effort.py tests/test_hub_pool.py tests/test_backend_hub.py tests/test_model_registry_503.py tests/test_models.py tests/test_model_gates.py tests/test_backend_routing.py tests/test_default_pipeline.py tests/test_pipeline.py tests/test_hub_file_policy_v1073.py tests/test_hub_snapshot_v1213.py tests/test_hub_archive_v1244.py tests/test_hub_cleanup_generation_v1244.py -q",
+    "result": "606 passed",
+    "elapsed_wall_seconds": 29.47,
+    "exit_code": 0,
+    "log": "recovery-final-check.log",
+    "scope": "reconstructed current Hub copy, not a claim that root importer applied conflicts",
+    "test_paths": [
+      "tests/test_gemini_specialist_v1257.py",
+      "tests/test_hub_sol_only_v1240.py",
+      "tests/test_hub_effort.py",
+      "tests/test_hub_pool.py",
+      "tests/test_backend_hub.py",
+      "tests/test_model_registry_503.py",
+      "tests/test_models.py",
+      "tests/test_model_gates.py",
+      "tests/test_backend_routing.py",
+      "tests/test_default_pipeline.py",
+      "tests/test_pipeline.py",
+      "tests/test_hub_file_policy_v1073.py",
+      "tests/test_hub_snapshot_v1213.py",
+      "tests/test_hub_archive_v1244.py",
+      "tests/test_hub_cleanup_generation_v1244.py"
+    ]
+  },
+  "historical_implementation_sha256": "e3038f4ae96c2e93b63c31adabe0dde12957dd88407fb7b7abac4c63cafcf9f4"
+}

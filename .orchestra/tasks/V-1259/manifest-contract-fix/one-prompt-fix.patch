@@ -1,0 +1,15 @@
+--- a/.orchestra/pipelines/default/prompts/modules/model-routing.md
++++ b/.orchestra/pipelines/default/prompts/modules/model-routing.md
+@@ -43,9 +43,9 @@
+ 
+ **Owner decisions 2026-11-03, V-1257:** 14:52 approved the separately funded
+ Hub designer; 15:31 expanded the SAME integration to bounded specialist work.
+-A separate `specialist` role in the `default` pipeline may use exact Orchestra model
+-`hub-gemini-4-argon`, mapped only to Hub provider `antigravity` and model
+-`gemini-4-argon` (Gemini 4 Argon). Use the existing paid Hub pool with no extra
++A separate `specialist` role in the `default` pipeline uses the model configured
++by that role in the pipeline manifest. Its Gemini route maps only to Hub provider
++`antigravity` and wire model `gemini-4-argon` (Gemini 4 Argon). Use the existing paid Hub pool with no extra
+ charges to us. All other roles stay on Sol; this is not permission for Google
+ APIs, DostupAI, Carbon, purchased overages, auxiliary image models (including Nano Banana),
+ other paid tools or a model/API fallback.

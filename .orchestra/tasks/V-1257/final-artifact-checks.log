@@ -1,0 +1,9 @@
+app_import_relative=app/__init__.py
+app_absolute_import_path_sha256=219a16b3509f3ee508b9cfee50869f95cf25e50c1fea191f32c781f16ec3d6b8
+app_import_inside_workspace=PASS
+phase_a_source_manifest=PASS; changed_paths=15
+readonly_canonical_context_preserved=PASS; restored_public_files=25
+registry_and_phase_a_known_model_default=PASS
+completed_check_logs=PASS; incomplete_runs_preserved
+form_secret_scan_flagged_lines=0
+own_generated_scratch_removed=PASS; source/tests/logs/patches retained

@@ -1,0 +1,49 @@
+{
+  "canonical_main_head": "b9d893ec8babd4b2052ac1f497962e1966206bcb",
+  "last_actual_imported_head": "d95c5f733d354878115cb823ee94654cf6931c48",
+  "files": [
+    {
+      "path": ".orchestra/pipelines/default/pipeline.yaml",
+      "canonical_sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16",
+      "returned_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+      "returned_equals_canonical": false,
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/pipeline.yaml",
+      "final_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+      "canonical_sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+      "returned_sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+      "returned_equals_canonical": true,
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/orchestration.md",
+      "final_sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/communication-style.md",
+      "canonical_sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+      "returned_sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+      "returned_equals_canonical": true,
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/communication-style.md",
+      "final_sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+      "canonical_sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+      "returned_sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+      "returned_equals_canonical": true,
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+      "final_sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/orchestrator.md",
+      "canonical_sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+      "returned_sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+      "returned_equals_canonical": true,
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/roles/orchestrator.md",
+      "final_sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b"
+    }
+  ],
+  "pipeline_delta_applied_to_exact_canonical": true,
+  "pipeline_semantic_delta": "only new specialist role plus can_spawn on orchestrator/sub-orchestrator/full-cycle",
+  "reconstructed_pipeline_equal_to_returned_phase_a": true
+}

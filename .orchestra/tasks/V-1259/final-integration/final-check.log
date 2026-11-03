@@ -1,0 +1,4 @@
+Affected tests: phase A 149 passed, phase B 149 passed; exactly two test changes
+PASS: five accepted recovery files and 75 prior artifacts unchanged
+Root instruction contract RED: missing CLAUDE.md; root full-host check remains
+Phase B static manifest contract RED: model-routing.md:47 quotes hub-gemini-4-argon; source scope not expanded

@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app import agentic_compact, temp_rules
 from app.events import AgentEvent, InjectedMessage, MessageProvenance
-from app.models import backend_for_model, get_model_spec, ensure_hub_worker_allowed
+from app.models import backend_for_model, get_model_spec, ensure_hub_worker_allowed, hub_worker_context
 from app.prompting import (
     codex_project_doc_preflight, inject_skills_to_worktree,
     inject_skills_to_worktree_report, is_orchestrator_role,
@@ -1000,6 +1000,7 @@ class AgentSession:
             owned_dirs=tuple(self.owned_dirs or ()),
             owned_dirs_source=lambda: tuple(self.owned_dirs or ()),
             hub_bridge=self._hub_bridge() if runtime == "hub" else None,
+            hub_context_source=lambda: hub_worker_context(self),
             config_dir_override=(
                 self._handoff_config_dir
                 if config_dir_override is None
@@ -1180,14 +1181,14 @@ class AgentSession:
 
     async def preflight_delivery_admission(self) -> None:
         """Check a new direct delivery before its durable receipt is accepted."""
-        ensure_hub_worker_allowed(self.model)
+        ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
         decision = None
         admitted_model = ""
         admitted_stop_gen = -1
         while True:
             await self._lifecycle_lock.acquire()
             try:
-                ensure_hub_worker_allowed(self.model)
+                ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
             except BaseException:
                 self._lifecycle_lock.release()
                 raise
@@ -1418,7 +1419,7 @@ class AgentSession:
         while True:
             await self._lifecycle_lock.acquire()
             try:
-                ensure_hub_worker_allowed(self.model)
+                ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
             except BaseException:
                 self._lifecycle_lock.release()
                 raise
@@ -2372,7 +2373,7 @@ class AgentSession:
         activate: bool = True,
         _allow_codex_oversize_retry: bool = True,
     ):
-        ensure_hub_worker_allowed(self.model)
+        ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
         if self._backend is not None:
             if not force_fresh:
                 if self._runtime_error:
@@ -2603,7 +2604,7 @@ class AgentSession:
     MAX_CONSECUTIVE_FAILURES = 5
 
     async def _reconnect_backend(self) -> None:
-        ensure_hub_worker_allowed(self.model)
+        ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
         backend = self._backend
         if backend is None:
             raise RuntimeError("backend is unavailable for reconnect")
@@ -3093,7 +3094,7 @@ class AgentSession:
                 self._lifecycle_lock.release()
                 return
             try:
-                ensure_hub_worker_allowed(self.model)
+                ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
             except BaseException:
                 self._lifecycle_lock.release()
                 raise
@@ -4312,7 +4313,7 @@ class AgentSession:
             if self._compacting:
                 return {"ok": False, "error": "cannot change model while compacting"}
             try:
-                reason = validate_model_reason(new_model, model_reason)
+                reason = validate_model_reason(new_model, model_reason, **hub_worker_context(self))
             except ValueError as exc:
                 return {"ok": False, "error": str(exc), "error_code": HUB_SOL_ONLY_RULE}
             self._pending_model_reason = (new_model, reason)
@@ -4484,7 +4485,7 @@ class AgentSession:
         attempts: list[dict],
     ) -> None:
         """Resolve one unfinished switch without guessing or replaying a user turn."""
-        ensure_hub_worker_allowed(self.model)
+        ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
         handoff_id = str(handoff.get("handoff_id") or "")
         status = str(handoff.get("status") or "")
         source = {

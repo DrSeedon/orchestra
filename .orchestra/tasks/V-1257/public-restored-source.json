@@ -1,0 +1,130 @@
+{
+  "source_head": "b9d893ec8babd4b2052ac1f497962e1966206bcb",
+  "files": [
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/background-jobs.md",
+      "sha256": "272abb91243ae7c2474527ddcb9d04ab6786c8e424c2b1c191ccc78c979263d1",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/background-jobs.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/code-quality.md",
+      "sha256": "1a7fda907336c9c46d2e7ead3f0ea48483cc503704e752c78820e1ab438dfadd",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/code-quality.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/communication-style.md",
+      "sha256": "325dd65bea0fd7ffc440d6a5cf9afad998f2a5a5a75bf7494bacda0aada4bd43",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/communication-style.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/dynamic-workflows.md",
+      "sha256": "e9e47f6c87e7ea4d5bac8c9e3f6c948c422a25fa400c66c4f0fa6983c2cf6301",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/dynamic-workflows.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/git-workflow.md",
+      "sha256": "fc195de41eb4c31026b734316c056f6c030c6ac3e8537f0312b5c5bc37c106b3",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/git-workflow.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/knowledge.md",
+      "sha256": "ce2d5957025132a9bbf1cbe93a453db8b5b92af73f1956d79d1f16b38d09031b",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/knowledge.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+      "sha256": "eea635d296c2764c7facea05fe17800ddd28f9917dad57a1960c9cc88d5e29ef",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/orchestration.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/project-maintenance.md",
+      "sha256": "eebfd5507070c8ad9a88b9067b2c8fec8ff47aa5e8bc2813a5bac6fc9928dec6",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/project-maintenance.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/report-format.md",
+      "sha256": "60dfa923fb188fea5b066f31224b64e13be394e43cc2a2cfc0c198935065fb50",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/report-format.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/research-method.md",
+      "sha256": "956f373c5c7ac8a6993fa8d26c4bff4ecd8f7455675e8f5bdb6c014d1f217f72",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/research-method.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/safety.md",
+      "sha256": "196b45fc627f56dfae82c0ccf29f306c5ec18067cce5fed1d8d1d5405ecb7eeb",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/safety.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/task-management.md",
+      "sha256": "35b21fcfe72f66442000e9c7055415af643683cd11db8ea5e60ca2cd21be1a67",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/task-management.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/user-values.md",
+      "sha256": "4e272c81a7599f04a9e6641e718875ba3b4bd94ea68ad98d1513c4ee3ebc7396",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/user-values.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+      "sha256": "f9fe5313a4f61736e924e4c1706311e0eee334fb0804abb5e98ad13defe627d0",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/modules/worker-lifecycle.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/orchestrator.md",
+      "sha256": "64095a73004598b73a428d68750ecc4e6086ad239e37b6b6f6f70bbb88f7c68b",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/roles/orchestrator.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/reducer.md",
+      "sha256": "950017c0e0d41726e7823411186ba987e15d1b8f5677c0fbd646927a4a33739d",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/roles/reducer.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/roles/sub-orchestrator.md",
+      "sha256": "358e5e2e3524dd34f0d87bf070d475e5b8dde2ab9dad08acf6cb897e91e9bb79",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/roles/sub-orchestrator.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/explainer-craft.md",
+      "sha256": "2eb9a34feaa08dab5f59ef404981a4ae6e57636228092b0ca30b7e008f695846",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/skills/explainer-craft.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/grill-me.md",
+      "sha256": "3e4fa8cea452610c4a250e5405f0a59c038b92173b85859bc88f4504dda68991",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/skills/grill-me.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/html-artifacts.md",
+      "sha256": "1b384e83ad2422e68de3ac90b74d396c872218fad23cf30b3e71b0fe3ace6ff9",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/skills/html-artifacts.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/laptop-access.md",
+      "sha256": "e4e1a55b514726113af690633693b3cf4d248fcf3ad3c501aa8be13a43b927cf",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/skills/laptop-access.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/orchestra-agents.md",
+      "sha256": "50333ff692d6d44e65c9807adc43b80c03c0e02f210bd6d630231a8d352fe201",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/skills/orchestra-agents.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/video-artifact.md",
+      "sha256": "649d463a5891034ecf3cf4d76888961fe9b134586b71358c32e6bc857bfacfbb",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/skills/video-artifact.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/vps-deploy.md",
+      "sha256": "64ad423abfea799695b46660cc927210cb472882327474f63506f27a131a39f2",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/skills/vps-deploy.md"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/hub/worker.md",
+      "sha256": "95a0dae651b58852412431074ae3977b59e8eba97f2012c1d50438826880ae66",
+      "source": "https://raw.githubusercontent.com/DrSeedon/orchestra/b9d893ec8babd4b2052ac1f497962e1966206bcb/.orchestra/pipelines/default/prompts/hub/worker.md"
+    }
+  ]
+}

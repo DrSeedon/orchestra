@@ -1,0 +1,78 @@
+{
+  "changed_source_paths": [
+    ".orchestra/pipelines/default/prompts/modules/model-routing.md"
+  ],
+  "only_three_v1257_lines_replaced": true,
+  "before_model_routing_sha256": "e71535084b1c6f2e1f4c712df9ee49a942bc2b066780aedb3209022f1afab1c4",
+  "final_model_routing_sha256": "7c5e7412bdef52c731fb7b4e625b1dd4476f739d4f32a7cea4eb174dd6ec4de1",
+  "canonical_model_routing_sha256": "11f1eb940f5308637bcc478fbae80acd00d605ca4198b4dbd0f0a05aab077475",
+  "all_other_initial_files_byte_identical": 819,
+  "prior_artifacts_byte_identical": 102,
+  "app_registry_backend_and_checker_unchanged": true,
+  "frozen_v1256_six_cases_unchanged_and_pass_in_both_states": true,
+  "no_internal_argon_id_copy_in_prompt_files_checked": 33,
+  "phases": {
+    "a": {
+      "phase": "A",
+      "app_exact_workspace_import": true,
+      "app_absolute_import_path_sha256": "8ef0a8cbe986782edfa305e6c8c4010ee8c4bc09bdd579390bc7d62f38af3dc2",
+      "phase_a_source_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+      "phase_b_patch_sha256": "c7d4d7ee534211f6b436ef02568820ffca46253fe762380bbe46528f1d16b562",
+      "active_manifest_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+      "actual_loaded_specialist_model": "hub-gpt-6.1-sol",
+      "pipeline_contract_exit_code": 0,
+      "actual_phase_b_manifest": false,
+      "frozen_v1256_collected_nodeids": [
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[orchestration-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[orchestration-sub-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[worker-lifecycle-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[worker-lifecycle-sub-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[communication-style-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[communication-style-sub-orchestrator]"
+      ],
+      "total_collected": 149,
+      "pytest_exit_code": 0,
+      "passed": 149,
+      "root_manifest_bytes_and_inode_mtime_size_unchanged": true,
+      "process_pipeline_pointer_restored": true,
+      "restored_loaded_specialist_model": "hub-gpt-6.1-sol",
+      "wall_seconds_from_pytest": 34.6
+    },
+    "b": {
+      "phase": "B",
+      "app_exact_workspace_import": true,
+      "app_absolute_import_path_sha256": "8ef0a8cbe986782edfa305e6c8c4010ee8c4bc09bdd579390bc7d62f38af3dc2",
+      "phase_a_source_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+      "phase_b_patch_sha256": "c7d4d7ee534211f6b436ef02568820ffca46253fe762380bbe46528f1d16b562",
+      "active_manifest_sha256": "7af87574909ff66a8e99b915bfe7f4a912fa0cdefa5ad9207da6a788713c9493",
+      "actual_loaded_specialist_model": "hub-gemini-4-argon",
+      "pipeline_contract_exit_code": 0,
+      "actual_phase_b_manifest": true,
+      "frozen_v1256_collected_nodeids": [
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[orchestration-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[orchestration-sub-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[worker-lifecycle-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[worker-lifecycle-sub-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[communication-style-orchestrator]",
+        "tests/test_default_pipeline.py::test_research_closure_modules_reach_orchestrator_prompts[communication-style-sub-orchestrator]"
+      ],
+      "total_collected": 149,
+      "pytest_exit_code": 0,
+      "passed": 149,
+      "temporary_phase_b_tree_exactly_restored_to_phase_a": true,
+      "root_manifest_bytes_and_inode_mtime_size_unchanged": true,
+      "process_pipeline_pointer_restored": true,
+      "restored_loaded_specialist_model": "hub-gpt-6.1-sol",
+      "wall_seconds_from_pytest": 43.7
+    }
+  },
+  "root_instruction_contract_exit_code": 1,
+  "root_instruction_contract_blocker": "CLAUDE.md absent in sparse copy",
+  "phase_b_hot_applied": false,
+  "root_manifest_never_written": true,
+  "scratch_removed": true,
+  "broker_import_head": null,
+  "merged_or_activated": false,
+  "app_absolute_import_path_sha256": "8ef0a8cbe986782edfa305e6c8c4010ee8c4bc09bdd579390bc7d62f38af3dc2",
+  "verification_python_executable_workspace_relative": ".venv/bin/python3"
+}

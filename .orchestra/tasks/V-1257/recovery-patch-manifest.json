@@ -1,0 +1,12 @@
+{
+  "last_actual_imported_head": "d95c5f733d354878115cb823ee94654cf6931c48",
+  "phase_a_baseline_sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16",
+  "phase_a_result_sha256": "69af96dc84e32751257824e8cdbad493a63d9126e88d3268a304c132363a8df6",
+  "phase_b_result_sha256": "7af87574909ff66a8e99b915bfe7f4a912fa0cdefa5ad9207da6a788713c9493",
+  "phase_b_applied": false,
+  "patches": {
+    "phase-a-review.patch": "95f894523fe1bad851f666e43034b6196f56019fc35b319112972a04aa7e1e5f",
+    "recovery-against-d95.patch": "b3ee26c79db00d7dc83b87e468aded4e8cdef11d9c7427447fcd824bc0e1a59f",
+    "phase-b-specialist.patch": "c7d4d7ee534211f6b436ef02568820ffca46253fe762380bbe46528f1d16b562"
+  }
+}
