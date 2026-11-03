@@ -1,0 +1,62 @@
+{
+  "kind": "accepted integration evidence",
+  "producer_candidate": "cf1a86568677a6a5b77db015a98e91ff04c9bb6f",
+  "host_delivery": "db415c9efd6c3047e1117ed33e9173d7c05dec1a",
+  "full_tested_source": "a1d81f96837c3dc99f2fa7ee19116bd47ebf9720",
+  "accepted_runtime_commit": "d8fd509df0579f09b2f35c8ca88f54c933d664d6",
+  "runtime_source_ci": {
+    "run_id": 41554641506,
+    "conclusion": "success"
+  },
+  "producer_manifest": {
+    "path": "candidate-source.sha256",
+    "sha256": "8825239827e0b5013e33d96f86bedad6440fad1506c827bb388b7ee138b0d1fe",
+    "entries": 29,
+    "integrated_direct_matches": 27,
+    "basis": "Exact producer snapshot; two already-approved integration pins differ."
+  },
+  "approved_integrated_exceptions": [
+    {
+      "path": "tests/test_cron_drain_delivery_v1074.py",
+      "producer_sha256": "878c6693eb4cd36703d5ac43863bc69b81d0d27f2aca0a5d91eedce240bb2a80",
+      "integrated_sha256": "ba7013d1284c3ad4e371c2d2711717cad0477a5163091f319d5dba8983030aa9",
+      "approved_pin": "40c368a130e86d6113e58daae6a62dd8795d5152"
+    },
+    {
+      "path": "tests/test_default_pipeline.py",
+      "producer_sha256": "5e59872aa07e65d99442ea32a696ae2908adcc2f611053818ed7e6972c568dfe",
+      "integrated_sha256": "a4f41f862ad427a902abdcbaab2bd4dd8bc0f3036831c1b6f7d6fd0613f73198",
+      "approved_pin": "40c368a130e86d6113e58daae6a62dd8795d5152"
+    }
+  ],
+  "producer_report_states_are_historical": true,
+  "restored_producer_artifacts": [
+    ".orchestra/tasks/V-1244/candidate-source.sha256",
+    ".orchestra/tasks/V-1244/implementation.md",
+    ".orchestra/tasks/V-1244/notes.md",
+    ".orchestra/tasks/V-1244/product-equivalence.json",
+    ".orchestra/tasks/V-1247/host-receipt.md"
+  ],
+  "previous_published_evidence_commit": "108f75f64998762c8244bb35ece112cccefe6d61",
+  "activation_receipt": ".orchestra/tasks/V-1248/report.md",
+  "live_close": {
+    "coverage": "One exact V-1244 producer thread; independent bounded before/after metadata.",
+    "thread_items_before": 1143,
+    "thread_items_after": 1143,
+    "runs_before": 7,
+    "runs_after": 7,
+    "local_manifest_entries": 992,
+    "local_manifest_hash_unchanged": true,
+    "remote_directory_retained": true,
+    "full_remote_file_byte_audit": false,
+    "accounting_before_after_audit": false,
+    "private_report": ".orchestra/private/V-1247/post-retention-report.md",
+    "private_report_sha256": "95476ea0c673d820103cadca332ecee76cd7e1b41fa5b40ac5ddf8bf4d57a511"
+  },
+  "host_receipt_sha256": "d8e5f352713f44e22e47ee62730042f21ee87dc80c67c7bd030ef800b69cae53",
+  "v1240_archive_hold": {
+    "pending_request_count": 2,
+    "request_kind_and_association": "unknown",
+    "requests_mutated": false
+  }
+}

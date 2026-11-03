@@ -35,3 +35,6 @@ Any earlier wording implying optional post-merge Hub archival is superseded. The
 ## Superseding cancellation correction after rejectedb8fb
 
 Holding async locks lexically was insufficient when a to_thread await was cancelled while its real thread/flock continued. The critical native future now preserves copied context and is shield-drained by the existing _wait_owned_task inside those locks, through repeated cancellation. Only after actual thread completion/error retrieval does the caller receive the saved cancellation. The actual transition_lifecycle/new Hub-record ordering matrix and committed rejected-function mutation are current proof; earlier green counts are historical.
+
+## Current integrated-host correction
+Supersedes current-delivery claims in earlier sections: five c38c19 host outcomes reproduced and resolved by the minimal backend optional-identity hunk plus input/native/fixture regression corrections. Production owners/guards outside backend completion block unchanged. Fresh manifests and exact patch are in host-outcomes-*; current report/checks are stage.md (106 two-worker +63 serial passes after three red mutations). Historical source/check hashes above are not the final delivery identity.

@@ -1,69 +1,21 @@
 {
-  "baseline_commit": "0bbb0b96eb9b50cacee41023542d1d25cb560310",
-  "last_imported_head_reported_by_parent": "63e90fafae1bbd3a3e0ab497c73395c597ef4f2b",
-  "verification": "Exact accepted-owner bytes and normalized admission guard ASTs; no whole-checkout/live equivalence claim.",
-  "preserved": {
-    "app/models.py": {
-      "byte_equal_to_pinned_main": true,
-      "sha256": "b745ff54a695407e87509b0987827b65b2cf75dae309f3ec29a8d3a3e1cf9ab6"
-    },
-    "app/hub_pool.py": {
-      "byte_equal_to_pinned_main": true,
-      "sha256": "aacb9d8690b01de4e9cca0a3d93571a5ce2aa85c4398299da699e721464003be"
-    },
-    "app/report_holds.py": {
-      "byte_equal_to_pinned_main": true,
-      "sha256": "dc60cb6ff1758ce761c9bae1446ae5fc19c11c7acfe0837e7b6de806dd5cc2a2"
-    },
-    "app/routes/sessions.py": {
-      "byte_equal_to_pinned_main": true,
-      "sha256": "df3fdaede7ceb8a3ff33d22a73f1ef167826e345148058083c3826c52e0a1877"
-    },
-    ".orchestra/pipelines/default/pipeline.yaml": {
-      "byte_equal_to_pinned_main": true,
-      "sha256": "76240fd6d9b15ae1de739306c75f9f22bec6ab0db47adc59863c2dad6e1a2a16"
-    },
-    ".orchestra/pipelines/default/prompts/modules/model-routing.md": {
-      "byte_equal_to_pinned_main": true,
-      "sha256": "11f1eb940f5308637bcc478fbae80acd00d605ca4198b4dbd0f0a05aab077475"
-    },
-    "app/backend_hub.py": {
-      "guard_calls_ast_equal_to_pinned_main": true,
-      "guard_call_count": 7
-    },
-    "app/manager.py": {
-      "guard_calls_ast_equal_to_pinned_main": true,
-      "guard_call_count": 7
-    },
-    "app/session.py": {
-      "guard_calls_ast_equal_to_pinned_main": true,
-      "guard_call_count": 8
-    },
-    "app/mcp_stdio.py": {
-      "guard_calls_ast_equal_to_pinned_main": true,
-      "guard_call_count": 3
-    }
-  },
-  "intentional_changes": [
-    "ordinary Hub history-preserving archive",
-    "strict Hub recovery/identity/privacy barriers and native best-effort parity",
-    "retained legacy/orphan provenance",
-    "conditional same-worker completion/merge instruction",
-    "defer optional cleanup on late/next assignments",
-    "fixture parity with accepted default/session model",
-    "pipeline transport repair to accepted exact pin"
+  "source_manifest_sha256": "8825239827e0b5013e33d96f86bedad6440fad1506c827bb388b7ee138b0d1fe",
+  "integrated_host_candidate": "c38c19e7411885c7e37f9db969010daf001a0f42",
+  "new_production_change": "backend_hub._finish_sync only: optional canonical worker identity reads, missing role/id/name gives no directive; no fabricated identity",
+  "unchanged_production": [
+    "Hub retention/archive paths",
+    "native cleanup critical ownership/cancellation",
+    "privacy/pending/WIP/UNKNOWN/no-next/exact-HEAD guards",
+    "Sol-only routing",
+    "models/manager/session/merge_operations/pipeline/app.js/i18n.js/cron fixtures"
   ],
-  "new_runtime_store_endpoint_scheduler_ttl": false,
-  "image_cleanup_changed": false,
-  "other_worker_wip_imported": false,
-  "source_manifest_sha256": "610d23667476552d60e3ce2c37cae866fcc604acac24322988fa3979e3255f61",
-  "live_activation_verified": false,
-  "rejected_parent_candidate": "b8fb98bbeb52b44647d493e16530ac8be4dd4679",
-  "ownership_correction": "No optional Hub archival; native session/lifecycle/repository ownership spans awaits and cleanup.",
-  "protected_three_inputs": "Read/hash only; parent preserves V1247 canonicalization; no whole-file overlay or private QA access.",
-  "current_validation": "unsafe4red/order single1red; fixed4green; committed rejected-function4red; restored mapped163passed",
-  "cancellation_boundary": "Existing owned future drain keeps session/lifecycle ownership through actual thread/repository-flock completion; repeated cancellation propagated afterward.",
-  "pipeline_contract_exit": 0,
-  "instruction_contract_exit": 1,
-  "publication_payloads_clean": 32
+  "protected_hashes": "raw/host-outcomes/protected-unchanged.json",
+  "new_validation": [
+    "input continuation retains state/thread/manifests and input bytes",
+    "native positive uses real owned Git generation and real output cleanup",
+    "frozen stale-snapshot body unchanged, explicit fixture imports",
+    "six optional identity missing/empty cases",
+    "three bounded committed-regression mutations"
+  ],
+  "activation": "Not accepted, merged or live; root owns broker SHA, integrated host run and approved idlewatch activation"
 }

@@ -39,6 +39,15 @@ All three runs reached their intended assertion/setup outcomes without timeouts;
 
 The seven-path delta is generated from exact Git range `23bd5155d9b4d57046432e0b59c57f9adad99652` → `cf1a86568677a6a5b77db015a98e91ff04c9bb6f` using `git diff --binary --full-index`; actual stats are **188 additions / 29 deletions**. `changed-files.json`, `host-outcomes-proof.json`, `stage.md`, `integration.md`, `summary.md`, and `artifact-hashes.sha256` now bind to this range and count. The prior captured patch was relative to a slightly different Git-free baseline and remains reachable at `cf1a86568677a6a5b77db015a98e91ff04c9bb6f:.orchestra/tasks/V-1244/host-outcomes-delta.patch`; it and raw evidence were not deleted. The 29-file source manifest and seven-file source delta manifest are unchanged.
 
+Publication scan: staged eight changed delivery files with `uv run --frozen python scripts/secret_scan.py --staged`; exit 0, empty output. No distinct `rootpubscan` executable or MCP tool was available in this worker environment. No product tests or suite were rerun for this report/patch-only correction.
+
 No live close, kill, purge, merge, push, restart, or activation occurred. Detailed raw output remains local in the private V-1247 area.
 
 Machine-local execution provenance is retained privately for verification; absolute paths and identifier values are omitted from this public receipt.
+
+
+## Root acceptance of the first live ordinary close
+
+After the accepted source was activated, root performed one ordinary close of the finished V-1244 producer. An independent bounded before/after read retained the exact workspace/project/thread identity, local manifest (992 entries) and input-manifest hashes, and the own remote directory. The thread remained readable with 1,143 items and 7 runs before and after; its archived flag changed to true and the first bounded timeline item hash stayed equal. This establishes the observed identity, directory and provenance retention for one closed thread; it is not a full remote-file byte audit or a before/after accounting-row audit. Exact responses and identifiers remain private.
+
+The V-1240 producer remains held with two pending requests whose kind and run association are unavailable in the bounded schema. Neither request was changed, cancelled, answered or replayed. Its completed last run was not treated as resolution of that hold.
