@@ -44,9 +44,11 @@ def test_task_store_push_scans_new_history_before_advancing_remote(
 ):
     repo, remote = _task_repo(tmp_path, "tasks")
     monkeypatch.setattr(backup, "TASK_REMOTE_URL", str(remote))
+    monkeypatch.setattr(backup, "TASK_REMOTE_HTTPS_URL", str(remote))
 
     backup._scan_and_push_tasks(repo)
     safe_sha = _git(remote, "rev-parse", "refs/heads/main")
+    assert _git(repo, "remote", "get-url", backup.TASK_REMOTE) == str(remote)
     secret = "github" + "_pat_" + "A" * 72
     (repo / "secret.json").write_text(json.dumps({"value": secret}), encoding="utf-8")
     _git(repo, "add", "secret.json")
@@ -56,6 +58,74 @@ def test_task_store_push_scans_new_history_before_advancing_remote(
         backup._scan_and_push_tasks(repo)
 
     assert _git(remote, "rev-parse", "refs/heads/main") == safe_sha
+
+
+def test_task_store_push_does_not_overwrite_a_diverged_remote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    repo, remote = _task_repo(tmp_path, "tasks")
+    monkeypatch.setattr(backup, "TASK_REMOTE_URL", str(remote))
+    monkeypatch.setattr(backup, "TASK_REMOTE_HTTPS_URL", str(remote))
+    backup._scan_and_push_tasks(repo)
+    base = _git(repo, "rev-parse", "HEAD")
+    _git(remote, "symbolic-ref", "HEAD", "refs/heads/main")
+
+    (repo / "local.json").write_text('{"id":"local"}\n', encoding="utf-8")
+    _git(repo, "add", "local.json")
+    _git(repo, "commit", "-qm", "local update")
+
+    other = tmp_path / "other"
+    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
+    _git(other, "config", "user.name", "backup-test")
+    _git(other, "config", "user.email", "backup-test@example.invalid")
+    (other / "remote.json").write_text('{"id":"remote"}\n', encoding="utf-8")
+    _git(other, "add", "remote.json")
+    _git(other, "commit", "-qm", "remote update")
+    _git(other, "push", "origin", "main")
+    _git(repo, "fetch", "backup", "main")
+    remote_sha = _git(remote, "rev-parse", "refs/heads/main")
+    ancestor = subprocess.run(
+        ["git", "-C", str(repo), "merge-base", "--is-ancestor", remote_sha, "HEAD"]
+    )
+    assert ancestor.returncode == 1
+
+    with pytest.raises(RuntimeError, match="rejected|non-fast-forward"):
+        backup._scan_and_push_tasks(repo)
+
+    assert _git(remote, "rev-parse", "refs/heads/main") == remote_sha
+    assert _git(repo, "rev-parse", "HEAD") != base
+
+
+def test_task_store_https_transport_uses_ephemeral_gh_credential_helper(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    calls = []
+    monkeypatch.setattr(backup, "_run", lambda args, **_kwargs: calls.append(args) or "ok")
+    monkeypatch.setattr(backup.shutil, "which", lambda _name: None)
+
+    assert backup._git_https(tmp_path, "ls-remote", "--heads", backup.TASK_REMOTE_HTTPS_URL) == "ok"
+
+    assert calls == [[
+        "git", "-C", str(tmp_path), "-c", "credential.helper=",
+        "-c", f"credential.helper=!{Path.home() / '.local' / 'bin' / 'gh'} auth git-credential",
+        "ls-remote", "--heads", backup.TASK_REMOTE_HTTPS_URL,
+    ]]
+
+
+def test_task_store_backup_keeps_the_exact_ssh_destination_guard(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    assert backup.TASK_REMOTE_URL == "git@github.com:DrSeedon/orchestra-task-store-backup.git"
+    assert backup.TASK_REMOTE_HTTPS_URL == "https://github.com/DrSeedon/orchestra-task-store-backup.git"
+    repo, remote = _task_repo(tmp_path, "tasks")
+    monkeypatch.setattr(
+        backup, "_git_https", lambda *_args: pytest.fail("unexpected remote was contacted")
+    )
+
+    with pytest.raises(RuntimeError, match="unexpected task-store remote URL"):
+        backup._scan_and_push_tasks(repo)
+
+    assert _git(repo, "remote", "get-url", backup.TASK_REMOTE) == str(remote)
 
 
 def test_daily_sqlite_backup_restores_and_matches_all_table_counts(tmp_path: Path):

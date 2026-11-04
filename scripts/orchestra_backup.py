@@ -23,6 +23,7 @@ from typing import Any
 
 TASK_REMOTE = "backup"
 TASK_REMOTE_URL = "git@github.com:DrSeedon/orchestra-task-store-backup.git"
+TASK_REMOTE_HTTPS_URL = "https://github.com/DrSeedon/orchestra-task-store-backup.git"
 ZERO_SHA = "0" * 40
 LAPTOP = "maxim@127.0.0.1"
 LAPTOP_PORT = "2222"
@@ -82,6 +83,21 @@ def _git(repo: Path, *args: str, input_text: str | None = None) -> str:
     return _run(["git", "-C", str(repo), *args], input_text=input_text)
 
 
+def _gh_credential_helper() -> str:
+    executable = shutil.which("gh") or str(Path.home() / ".local" / "bin" / "gh")
+    return f"!{shlex.quote(executable)} auth git-credential"
+
+
+def _git_https(repo: Path, *args: str) -> str:
+    """Use the already authenticated gh account without persisting Git credentials."""
+    return _run([
+        "git", "-C", str(repo),
+        "-c", "credential.helper=",
+        "-c", f"credential.helper={_gh_credential_helper()}",
+        *args,
+    ])
+
+
 def _scan_and_push_tasks(repo: Path) -> None:
     remote_url = _git(repo, "remote", "get-url", TASK_REMOTE).strip()
     if remote_url != TASK_REMOTE_URL:
@@ -90,7 +106,9 @@ def _scan_and_push_tasks(repo: Path) -> None:
     if branch != "main":
         raise RuntimeError(f"task-store branch is {branch!r}, expected 'main'")
     local_sha = _git(repo, "rev-parse", "refs/heads/main").strip()
-    refs = _git(repo, "ls-remote", "--heads", TASK_REMOTE, "refs/heads/main").split()
+    refs = _git_https(
+        repo, "ls-remote", "--heads", TASK_REMOTE_HTTPS_URL, "refs/heads/main"
+    ).split()
     remote_sha = refs[0] if refs else ZERO_SHA
     if remote_sha == local_sha:
         return
@@ -107,7 +125,12 @@ def _scan_and_push_tasks(repo: Path) -> None:
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()[-3000:]
         raise RuntimeError(f"task-store secret scan rejected push: {detail}")
-    _git(repo, "push", "--porcelain", TASK_REMOTE, f"{local_sha}:refs/heads/main")
+    # Keep the configured SSH URL as the destination guard above; HTTPS transports
+    # the same private GitHub repository through gh's existing credential store.
+    _git_https(
+        repo, "push", "--porcelain", TASK_REMOTE_HTTPS_URL,
+        f"{local_sha}:refs/heads/main",
+    )
 
 
 def _table_counts(db_path: Path) -> dict[str, int]:
