@@ -1,0 +1,9 @@
+PRESERVED ed4142073535a2b5e266c169d9b3a46f58cf766ae990b03ac7cd20a29f1780b5 .orchestra/pipelines/default/prompts/modules/model-routing.md
+PRESERVED bc0710546f99ca05505b712a302fed988ca0b92f069711726a516089c376d1da .orchestra/pipelines/default/prompts/roles/orchestrator.md
+PRESERVED 0484f105a7f6722b4fcd472fe0e66e70ff51fed3c7cf7a7d50170543c1f850d9 app/static/css/vendor/tailwind.css
+HTML inputs: 3
+JS inputs: 14
+app.__file__: <WORKSPACE>/app/__init__.py
+.git exists: False
+CLAUDE.md is symlink: False
+No checkout .env supplied: True

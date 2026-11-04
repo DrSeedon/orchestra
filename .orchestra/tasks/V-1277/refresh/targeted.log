@@ -1,0 +1,37 @@
+........................................................................ [ 45%]
+..........................F............................................. [ 91%]
+..............                                                           [100%]
+=================================== FAILURES ===================================
+_ TestCodexProjectDocPreflight.test_multibyte_overflow_reports_first_incomplete_line_and_bounded_fallback _
+
+self = <tests.test_prompting.TestCodexProjectDocPreflight object at 0x7c23f62b3020>
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1277/refresh/tmp/pytest-of-<ACCOUNT>/pytest-2/test_multibyte_overflow_report0')
+
+    def test_multibyte_overflow_reports_first_incomplete_line_and_bounded_fallback(
+        self, tmp_path,
+    ):
+        from app.prompting import codex_project_doc_preflight
+    
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        content = "α\nβ\nγ\n"
+        (repo / "AGENTS.md").write_text(content, encoding="utf-8")
+    
+        result = codex_project_doc_preflight(
+            str(repo), codex_home=str(self._config(tmp_path / "codex", 4)),
+        )
+    
+        assert result.actual_bytes == len(content.encode("utf-8"))
+        assert result.first_truncated_line == 2
+        assert "4" in result.diagnostic
+        assert "line 2" in result.diagnostic
+        assert "from line 2 through EOF once" in result.instruction
+>       assert len(result.instruction) < 600
+E       AssertionError: assert 665 < 600
+E        +  where 665 = len('[Orchestra project-doc warning: Codex auto-load is incomplete. <ACCOUNT_HOME>/orchestra-ws/vm...0/repo/AGENTS.md from line 2 through EOF once; that line may overlap the auto-loaded prefix. Do not rewrite the file.]')
+E        +    where '[Orchestra project-doc warning: Codex auto-load is incomplete. <ACCOUNT_HOME>/orchestra-ws/vm...0/repo/AGENTS.md from line 2 through EOF once; that line may overlap the auto-loaded prefix. Do not rewrite the file.]' = CodexProjectDocPreflight(path='<WORKSPACE>/.or...verflow_report0/repo/AGENTS.md is 9 bytes, project_doc_max_bytes=4; first line not fully inside the budget is line 2.').instruction
+
+tests/test_prompting.py:313: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_prompting.py::TestCodexProjectDocPreflight::test_multibyte_overflow_reports_first_incomplete_line_and_bounded_fallback
+1 failed, 157 passed in 16.57s

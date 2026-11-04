@@ -1,0 +1,16 @@
+app.__file__: None
+app.__path__: ['<WORKSPACE>/app']
+app is a namespace package only; application Python sources not supplied.
+CHANGED .orchestra/pipelines/default/prompts/modules/model-routing.md
+CHANGED .orchestra/pipelines/default/prompts/roles/orchestrator.md
+UNCHANGED .orchestra/pipelines/default/pipeline.yaml
+UNCHANGED scripts/check_pipeline_manifest.py
+UNCHANGED scripts/build-tailwind.sh
+UNCHANGED tests/test_check_pipeline_manifest.py
+UNCHANGED tests/test_tailwind_css.py
+UNCHANGED app/static/css/vendor/tailwind.css
+UNCHANGED tailwind.config.js
+UNCHANGED app/static/css/tailwind.src.css
+UNCHANGED pyproject.toml
+UNCHANGED uv.lock
+No template files: True

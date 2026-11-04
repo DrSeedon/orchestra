@@ -1,0 +1,33 @@
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+__________________ test_committed_css_matches_current_sources __________________
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1277/refresh/tmp/pytest-of-<ACCOUNT>/pytest-0/test_committed_css_matches_cur0')
+
+    @pytest.mark.timeout(330)
+    @pytest.mark.skipif(shutil.which("npx") is None, reason="npx недоступен — сборку не проверить")
+    def test_committed_css_matches_current_sources(tmp_path):
+        """Пересборка из текущих исходников должна дать байт-в-байт закоммиченный файл."""
+        out = tmp_path / "tailwind.css"
+        proc = subprocess.run(
+            ["npx", "--yes", TAILWIND, "-c", "tailwind.config.js",
+             "-i", "app/static/css/tailwind.src.css", "-o", str(out), "--minify"],
+            cwd=ROOT, capture_output=True, text=True, timeout=300,
+        )
+        assert proc.returncode == 0, proc.stderr[-2000:]
+>       assert out.read_text(encoding="utf-8") == CSS.read_text(encoding="utf-8"), (
+            "собранный CSS разошёлся с закоммиченным — в исходниках появились или пропали "
+            "классы. Почини запуском: bash scripts/build-tailwind.sh"
+        )
+E       AssertionError: собранный CSS разошёлся с закоммиченным — в исходниках появились или пропали классы. Почини запуском: bash scripts/build-tailwind.sh
+E       assert '*,:after,:be...e-offset:2px}' == '*,:after,:be...e-offset:2px}'
+E         
+E         Skipping 9171 identical leading characters in diff, use -v to show
+E         - )}.border-indigo-400{--tw-border-opacity:1;border-color:rgb(129 140 248/var(--tw-border-opacity,1))}.border-indigo-500{--tw-border-opacity:1;border-color:rgb(99 102 241/var(--tw-border-opacity,1))}.border-indigo-500\/30{border-color:rgba(99,102,241,.3)}.border-purple-800\/60{border-color:rgba(107,33,168,.6)}.border-red-900\/50{border-color:rgba(127,29,29,.5)}.border-slate-700{--tw-border-opacity:1;border-color:rgb(51 65 85/var(--tw-border-opacity,1))}.border-slate-700\/30{border-color:rgba(51,65,85,.3)}...
+E         
+E         ...Full output truncated (4 lines hidden), use '-vv' to show
+
+tests/test_tailwind_css.py:47: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_tailwind_css.py::test_committed_css_matches_current_sources
+1 failed, 1 passed in 32.31s

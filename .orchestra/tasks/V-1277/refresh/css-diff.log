@@ -1,0 +1,12 @@
+{
+  "beforeBytes": 20940,
+  "afterBytes": 21129,
+  "added": [
+    " | .border-emerald-700",
+    " | .border-red-700"
+  ],
+  "removed": [],
+  "changed": []
+}
+ADDED  | .border-emerald-700 --tw-border-opacity:1;border-color:rgb(4 120 87/var(--tw-border-opacity,1))
+ADDED  | .border-red-700 --tw-border-opacity:1;border-color:rgb(185 28 28/var(--tw-border-opacity,1))

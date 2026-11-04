@@ -1,0 +1,27 @@
+
+==================================== ERRORS ====================================
+_______________ ERROR collecting tests/test_default_pipeline.py ________________
+ImportError while importing test module '<WORKSPACE>/tests/test_default_pipeline.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_default_pipeline.py:19: in <module>
+    import app.pipeline as P
+E   ModuleNotFoundError: No module named 'app.pipeline'
+___________ ERROR collecting tests/test_local_delegation_prompts.py ____________
+ImportError while importing test module '<WORKSPACE>/tests/test_local_delegation_prompts.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_local_delegation_prompts.py:10: in <module>
+    from app import pipeline
+E   ImportError: cannot import name 'pipeline' from 'app' (unknown location)
+=========================== short test summary info ============================
+ERROR tests/test_default_pipeline.py
+ERROR tests/test_local_delegation_prompts.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!
+2 errors in 1.79s

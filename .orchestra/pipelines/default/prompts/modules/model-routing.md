@@ -4,21 +4,22 @@
 Choose a model for the task, then check that the running registry, role, provider settings,
 quota and canonical admission guards permit that exact route. A recommendation is not
 permission to override a disabled route. The manifest owns defaults and effort; the user's
-explicit orchestrator selection takes precedence. Native gpt-6.1-sol and gpt-6.1-terra
+explicit orchestrator selection takes precedence. Native Sol and Terra
 orchestrators use the same operating rules; do not change their model merely to match a worker.
 
 ### Task fit
 
 | Route | Use when admitted | Boundary |
 |---|---|---|
-| gpt-6-luna | Default fast local implementation, focused tests and deterministic collection | Local worker admission must permit the task; currently protected local work only |
-| gpt-6-astra | Hard coding, debugging, architecture or difficult reasoning | Native manual-only admission currently prevents automatic worker selection |
-| hub-gpt-6.1-sol | General Hub implementation; deep read-only audits and synthesis when assigned that scope | Ordinary admitted Hub route; read-only assignments must remain read-only |
-| hub-gpt-6.1-terra | Deep read-only audit or synthesis when exposed and admitted | Not in the current registry; do not invent an alias or dispatch an unknown route |
+| Native Luna | Default fast local implementation, focused tests and deterministic collection | Local worker admission must permit the task; currently protected local work only |
+| Native Astra | Hard coding, debugging, architecture or difficult reasoning | Native manual-only admission currently prevents automatic worker selection |
+| Hub Sol (`hubsol`) | General Hub implementation; deep read-only audits and synthesis when assigned that scope | Ordinary admitted Hub route; read-only assignments must remain read-only |
+| Hub Terra | Deep read-only audit or synthesis when exposed and admitted | Not in the current registry; do not invent an alias or dispatch an unknown route |
 | hub-gemini-4-argon | Independent second opinion, bounded audit, frontend/UI design or document comparison | Dedicated specialist role with bound task/scope; no general repository coding or spawning |
 
+Resolve family names to exact versioned IDs using the live manifest/catalog.
 These are task-fit preferences, not new runtime permissions. The current guards in
-app/models.py admit ordinary Hub workers on hub-gpt-6.1-sol (`hubsol`), Argon only as a
+app/models.py admit ordinary Hub workers on Hub Sol (`hubsol`), Argon only as a
 bound default-pipeline specialist, and native Luna only for protected local work with
 a non-empty model_reason naming the constraint. If broader routing is not activated,
 use an admitted route fitting the assignment or report the precise blocker. Never rename
@@ -46,7 +47,7 @@ source, history or conversation content safe to upload. Set owned_dirs for sourc
 scope and check accompanying repository-level files. Whole-worktree upload requires the
 existing persistent-project contract and still cannot include protected material.
 
-If safe separation is impossible, use an admitted local gpt-6-luna worker with model_reason
+If safe separation is impossible, use an admitted local Luna worker with model_reason
 identifying why Hub cannot receive the task. Reuse a suitable idle native worker under
 worker-lifecycle. This is not a fallback for Hub quota failure. If the running process
 rejects the route, report once and preserve WIP; do not select another native model or

@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "<WORKSPACE>/scripts/check_instruction_contract.py", line 13, in <module>
+    from app.kb_index import kb_topic_files, kb_topic_index
+ModuleNotFoundError: No module named 'app.kb_index'

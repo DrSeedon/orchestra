@@ -1,0 +1,65 @@
+...........FF                                                            [100%]
+=================================== FAILURES ===================================
+________________________ test_play_cdn_compiler_is_gone ________________________
+
+    def test_play_cdn_compiler_is_gone():
+        """Возврат 407 КБ компилятора в браузер — регрессия #64, а не «починка стилей»."""
+        assert not (ROOT / "app/static/css/vendor/tailwind.js").exists()
+>       dashboard = (ROOT / "app/templates/dashboard.html").read_text(encoding="utf-8")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_tailwind_css.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('<WORKSPACE>/app/templates/dashboard.html')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '<WORKSPACE>/app/templates/dashboard.html'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+__________________ test_committed_css_matches_current_sources __________________
+
+tmp_path = PosixPath('<WORKSPACE>/.orchestra/tasks/V-1277/tmp/pytest-of-<ACCOUNT>/pytest-1/test_committed_css_matches_cur0')
+
+    @pytest.mark.timeout(330)
+    @pytest.mark.skipif(shutil.which("npx") is None, reason="npx недоступен — сборку не проверить")
+    def test_committed_css_matches_current_sources(tmp_path):
+        """Пересборка из текущих исходников должна дать байт-в-байт закоммиченный файл."""
+        out = tmp_path / "tailwind.css"
+        proc = subprocess.run(
+            ["npx", "--yes", TAILWIND, "-c", "tailwind.config.js",
+             "-i", "app/static/css/tailwind.src.css", "-o", str(out), "--minify"],
+            cwd=ROOT, capture_output=True, text=True, timeout=300,
+        )
+        assert proc.returncode == 0, proc.stderr[-2000:]
+>       assert out.read_text(encoding="utf-8") == CSS.read_text(encoding="utf-8"), (
+            "собранный CSS разошёлся с закоммиченным — в исходниках появились или пропали "
+            "классы. Почини запуском: bash scripts/build-tailwind.sh"
+        )
+E       AssertionError: собранный CSS разошёлся с закоммиченным — в исходниках появились или пропали классы. Почини запуском: bash scripts/build-tailwind.sh
+E       assert '*,:after,:be...r{opacity:.7}' == '*,:after,:be...e-offset:2px}'
+E         
+E         Skipping 5391 identical leading characters in diff, use -v to show
+E         - :-.25rem}.right-0{right:0}.top-full{top:100%}.z-50{z-index:50}.mx-2{margin-left:.5rem;margin-right:.5rem}.my-1{margin-top:.25rem;margin-bottom:.25rem}.my-2{margin-top:.5rem;margin-bottom:.5rem}.mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}.mb-5{margin-bottom:1.25rem}.ml-16{margin-left:4rem}.ml-2{margin-left:.5rem}.ml-3{margin-left:.75rem}.ml-4{margin-left:1rem}.ml-auto{margin-left:auto}.mr-auto{margin-right:auto}.mt-0\.5{margin-top:.125rem}.mt-1...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+tests/test_tailwind_css.py:47: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_tailwind_css.py::test_play_cdn_compiler_is_gone - FileNotFo...
+FAILED tests/test_tailwind_css.py::test_committed_css_matches_current_sources
+2 failed, 11 passed in 10.20s

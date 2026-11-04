@@ -1,0 +1,8 @@
+App source files checked: 176
+Only app source changed: ['app/static/css/vendor/tailwind.css']
+All 17 HTML/JS inputs match pre-build hashes.
+Both initial prompt edits preserved; manifest/checker/tests/build/config/lock unchanged.
+Imported app: <WORKSPACE>/app/__init__.py
+CSS: b212419b713867a62efd0daab4c356f11198b54d1a445b71f8b47e534b67ef5f 21129 bytes
+CLAUDE.md exists: False symlink: False
+.git exists: False
