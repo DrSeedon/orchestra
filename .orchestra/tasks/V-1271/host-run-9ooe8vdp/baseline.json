@@ -1,0 +1,64 @@
+{
+  "variant": "baseline",
+  "result": "PASS",
+  "executions": 1,
+  "responses": [
+    {
+      "path": "/static/js/chat.js",
+      "status": 200,
+      "sha256": "6fed637f43c20cc3b0ed2679536cac6f580d34d9bf1320af6b8672c40af739f3",
+      "bytes": 295386
+    },
+    {
+      "path": "/static/js/app.js",
+      "status": 200,
+      "sha256": "4b83b28dfda71cb1116869c863596f6f48ce14cbb4d1e1ec7cd6317afbaa8a7a",
+      "bytes": 249292
+    }
+  ],
+  "capture_errors": [],
+  "page_errors": 0,
+  "blocked_browser_requests": 0,
+  "expected_app_sha256": "4b83b28dfda71cb1116869c863596f6f48ce14cbb4d1e1ec7cd6317afbaa8a7a",
+  "startup_profile": "source-only",
+  "server": {
+    "event": "ready",
+    "injections": [
+      "no_app_import",
+      "real_template_raw_checkout_assets",
+      "chat_init_after_dom_ready",
+      "no_api"
+    ],
+    "denied": {},
+    "denial_details": [],
+    "diagnostics": [],
+    "startup_profile": "source-only",
+    "phase": "serving"
+  },
+  "runtime_finalizer_sha256": "9f872bc3ff675407aa25995e416a938f6fa8be63a21d00eaae6cc5c312dd2489",
+  "state": {
+    "node": {
+      "type": "text",
+      "kind": "final",
+      "answer": null,
+      "service": false,
+      "connected": true,
+      "textLength": 255
+    },
+    "streamBubble": false,
+    "streamConnected": false,
+    "streamContentLength": 0,
+    "streamPendingLength": 0,
+    "deferred": false,
+    "selectionCollapsed": true,
+    "selectionRanges": 0,
+    "selectionTouchesStream": false,
+    "finalMarkers": 3,
+    "generation": 1,
+    "loading": false,
+    "snapshotReady": false,
+    "agentSelected": false,
+    "scopeSelected": false,
+    "guardCalls": 0
+  }
+}

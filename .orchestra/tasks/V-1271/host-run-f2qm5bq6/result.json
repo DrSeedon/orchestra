@@ -1,0 +1,316 @@
+{
+  "rc": 0,
+  "issues": [],
+  "sources": {
+    "baseline_blob": "82c065aaada5f9758cf829987bc888b327c7ae8e",
+    "baseline_sha256": "4b83b28dfda71cb1116869c863596f6f48ce14cbb4d1e1ec7cd6317afbaa8a7a",
+    "final_sha256": "f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3",
+    "chat_disk_sha256": "6fed637f43c20cc3b0ed2679536cac6f580d34d9bf1320af6b8672c40af739f3",
+    "runtime_finalizer_sha256": "9f872bc3ff675407aa25995e416a938f6fa8be63a21d00eaae6cc5c312dd2489",
+    "frozen_body_sha256": "25806023526988271f17539d0ca98ebb885ce082c7b35c12920d684b65c0a1ff",
+    "frozen_wait_line": 5127,
+    "startup_profile": "source-only"
+  },
+  "scope": "isolated source HTTP/frozen-body comparison; NO backend/middleware/startup/API acceptance",
+  "startup_profile": "source-only",
+  "source_hashes_before": {
+    "app/static/js/app.js": "f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3",
+    "app/static/js/chat.js": "6fed637f43c20cc3b0ed2679536cac6f580d34d9bf1320af6b8672c40af739f3",
+    "app/static/js/i18n.js": "5858a94e4156a3617a1de8740f1e1a740442a4d66b4913db1a32ca23530eaff8",
+    "app/static/css/style.css": "104c9714586dcccbe5593d8d6c94963f99754c7f5402483c4ed0dd00ea5b29c1",
+    "CHANGELOG.md": "6506ce90325dc2deff3132bb3e13e5287011110e949cd5711b074ab25b740adf",
+    "tests/test_chat_answers_v1271.py": "58b1c1bafeac93e395021255f58bc5b74360b626b6c42ed6b024c6edc845ddd0",
+    "tests/test_frontend.py": "1e187e9f635b30c170693331428c46222060538a4e6c9854af86274fdda05b95"
+  },
+  "source_hashes_after": {
+    "app/static/js/app.js": "f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3",
+    "app/static/js/chat.js": "6fed637f43c20cc3b0ed2679536cac6f580d34d9bf1320af6b8672c40af739f3",
+    "app/static/js/i18n.js": "5858a94e4156a3617a1de8740f1e1a740442a4d66b4913db1a32ca23530eaff8",
+    "app/static/css/style.css": "104c9714586dcccbe5593d8d6c94963f99754c7f5402483c4ed0dd00ea5b29c1",
+    "CHANGELOG.md": "6506ce90325dc2deff3132bb3e13e5287011110e949cd5711b074ab25b740adf",
+    "tests/test_chat_answers_v1271.py": "58b1c1bafeac93e395021255f58bc5b74360b626b6c42ed6b024c6edc845ddd0",
+    "tests/test_frontend.py": "1e187e9f635b30c170693331428c46222060538a4e6c9854af86274fdda05b95"
+  },
+  "cases": [
+    {
+      "variant": "baseline",
+      "result": "PASS",
+      "executions": 1,
+      "responses": [
+        {
+          "path": "/static/js/chat.js",
+          "status": 200,
+          "sha256": "6fed637f43c20cc3b0ed2679536cac6f580d34d9bf1320af6b8672c40af739f3",
+          "bytes": 295386
+        },
+        {
+          "path": "/static/js/app.js",
+          "status": 200,
+          "sha256": "4b83b28dfda71cb1116869c863596f6f48ce14cbb4d1e1ec7cd6317afbaa8a7a",
+          "bytes": 249292
+        }
+      ],
+      "capture_errors": [],
+      "page_errors": 0,
+      "blocked_browser_requests": 0,
+      "expected_app_sha256": "4b83b28dfda71cb1116869c863596f6f48ce14cbb4d1e1ec7cd6317afbaa8a7a",
+      "startup_profile": "source-only",
+      "server": {
+        "event": "ready",
+        "injections": [
+          "no_app_import",
+          "real_template_raw_checkout_assets",
+          "chat_init_after_dom_ready",
+          "no_api"
+        ],
+        "denied": {},
+        "denial_details": [],
+        "diagnostics": [],
+        "startup_profile": "source-only",
+        "phase": "serving"
+      },
+      "runtime_finalizer_sha256": "9f872bc3ff675407aa25995e416a938f6fa8be63a21d00eaae6cc5c312dd2489",
+      "state": {
+        "node": {
+          "type": "text",
+          "kind": "final",
+          "answer": null,
+          "service": false,
+          "connected": true,
+          "textLength": 255
+        },
+        "streamBubble": false,
+        "streamConnected": false,
+        "streamContentLength": 0,
+        "streamPendingLength": 0,
+        "deferred": false,
+        "selectionCollapsed": true,
+        "selectionRanges": 0,
+        "selectionTouchesStream": false,
+        "finalMarkers": 3,
+        "generation": 1,
+        "loading": false,
+        "snapshotReady": false,
+        "agentSelected": false,
+        "scopeSelected": false,
+        "guardCalls": 0
+      },
+      "server_policy": {
+        "capture_enabled": true,
+        "denied": {},
+        "denial_details": [],
+        "diagnostics": [],
+        "phase": "serving"
+      },
+      "server_policy_denials": {}
+    },
+    {
+      "variant": "final",
+      "result": "PASS",
+      "executions": 1,
+      "responses": [
+        {
+          "path": "/static/js/chat.js",
+          "status": 200,
+          "sha256": "6fed637f43c20cc3b0ed2679536cac6f580d34d9bf1320af6b8672c40af739f3",
+          "bytes": 295386
+        },
+        {
+          "path": "/static/js/app.js",
+          "status": 200,
+          "sha256": "f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3",
+          "bytes": 251045
+        }
+      ],
+      "capture_errors": [],
+      "page_errors": 0,
+      "blocked_browser_requests": 0,
+      "expected_app_sha256": "f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3",
+      "startup_profile": "source-only",
+      "server": {
+        "event": "ready",
+        "injections": [
+          "no_app_import",
+          "real_template_raw_checkout_assets",
+          "chat_init_after_dom_ready",
+          "no_api"
+        ],
+        "denied": {},
+        "denial_details": [],
+        "diagnostics": [],
+        "startup_profile": "source-only",
+        "phase": "serving"
+      },
+      "runtime_finalizer_sha256": "9f872bc3ff675407aa25995e416a938f6fa8be63a21d00eaae6cc5c312dd2489",
+      "state": {
+        "node": {
+          "type": "text",
+          "kind": "final",
+          "answer": "1",
+          "service": false,
+          "connected": true,
+          "textLength": 255
+        },
+        "streamBubble": false,
+        "streamConnected": false,
+        "streamContentLength": 0,
+        "streamPendingLength": 0,
+        "deferred": false,
+        "selectionCollapsed": true,
+        "selectionRanges": 0,
+        "selectionTouchesStream": false,
+        "finalMarkers": 3,
+        "generation": 1,
+        "loading": false,
+        "snapshotReady": false,
+        "agentSelected": false,
+        "scopeSelected": false,
+        "guardCalls": 0
+      },
+      "server_policy": {
+        "capture_enabled": true,
+        "denied": {},
+        "denial_details": [],
+        "diagnostics": [],
+        "phase": "serving"
+      },
+      "server_policy_denials": {}
+    },
+    {
+      "variant": "guard",
+      "result": "FAIL",
+      "executions": 1,
+      "responses": [
+        {
+          "path": "/static/js/chat.js",
+          "status": 200,
+          "sha256": "6fed637f43c20cc3b0ed2679536cac6f580d34d9bf1320af6b8672c40af739f3",
+          "bytes": 295386
+        },
+        {
+          "path": "/static/js/app.js",
+          "status": 200,
+          "sha256": "f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3",
+          "bytes": 251045
+        }
+      ],
+      "capture_errors": [],
+      "page_errors": 0,
+      "blocked_browser_requests": 0,
+      "expected_app_sha256": "f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3",
+      "startup_profile": "source-only",
+      "server": {
+        "event": "ready",
+        "injections": [
+          "no_app_import",
+          "real_template_raw_checkout_assets",
+          "chat_init_after_dom_ready",
+          "no_api"
+        ],
+        "denied": {},
+        "denial_details": [],
+        "diagnostics": [],
+        "startup_profile": "source-only",
+        "phase": "serving"
+      },
+      "runtime_finalizer_sha256": "9f872bc3ff675407aa25995e416a938f6fa8be63a21d00eaae6cc5c312dd2489",
+      "error": {
+        "type": "TimeoutError",
+        "frames": [
+          {
+            "file": ".orchestra/tasks/V-1271/host-acceptance.py",
+            "line": 672,
+            "function": "run_case"
+          },
+          {
+            "file": "tests/test_frontend.py",
+            "line": 5127,
+            "function": "test_chat_timeline_navigates_final_agent_answers_only"
+          },
+          {
+            "file": ".venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py",
+            "line": 12436,
+            "function": "wait_for_function"
+          },
+          {
+            "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_sync_base.py",
+            "line": 115,
+            "function": "_sync"
+          },
+          {
+            "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_page.py",
+            "line": 1136,
+            "function": "wait_for_function"
+          },
+          {
+            "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_frame.py",
+            "line": 910,
+            "function": "wait_for_function"
+          },
+          {
+            "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_connection.py",
+            "line": 69,
+            "function": "send"
+          },
+          {
+            "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_connection.py",
+            "line": 559,
+            "function": "wrap_api_call"
+          }
+        ],
+        "causes": [
+          {
+            "type": "TimeoutError",
+            "frames": [
+              {
+                "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_connection.py",
+                "line": 557,
+                "function": "wrap_api_call"
+              },
+              {
+                "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_connection.py",
+                "line": 132,
+                "function": "_inner_send"
+              }
+            ],
+            "causes": []
+          }
+        ]
+      },
+      "state": {
+        "node": {
+          "type": "text",
+          "kind": "agent",
+          "answer": "1",
+          "service": false,
+          "connected": true,
+          "textLength": 255
+        },
+        "streamBubble": false,
+        "streamConnected": false,
+        "streamContentLength": 0,
+        "streamPendingLength": 0,
+        "deferred": false,
+        "selectionCollapsed": true,
+        "selectionRanges": 0,
+        "selectionTouchesStream": false,
+        "finalMarkers": 1,
+        "generation": 1,
+        "loading": false,
+        "snapshotReady": false,
+        "agentSelected": false,
+        "scopeSelected": false,
+        "guardCalls": 1
+      },
+      "server_policy": {
+        "capture_enabled": true,
+        "denied": {},
+        "denial_details": [],
+        "diagnostics": [],
+        "phase": "serving"
+      },
+      "server_policy_denials": {}
+    }
+  ],
+  "sanitized_publication_copy": true
+}

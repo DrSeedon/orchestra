@@ -1,0 +1,19 @@
+{
+  "status": "BLOCKED",
+  "rc": 2,
+  "missing_full_checkout_files": [
+    "app/main.py",
+    "app/db.py",
+    "app/routes/sessions.py"
+  ],
+  "sources": {
+    "baseline_blob": "82c065aaada5f9758cf829987bc888b327c7ae8e",
+    "baseline_sha256": "4b83b28dfda71cb1116869c863596f6f48ce14cbb4d1e1ec7cd6317afbaa8a7a",
+    "final_sha256": "f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3",
+    "chat_disk_sha256": "6fed637f43c20cc3b0ed2679536cac6f580d34d9bf1320af6b8672c40af739f3",
+    "runtime_finalizer_sha256": "9f872bc3ff675407aa25995e416a938f6fa8be63a21d00eaae6cc5c312dd2489",
+    "frozen_body_sha256": "25806023526988271f17539d0ca98ebb885ce082c7b35c12920d684b65c0a1ff",
+    "frozen_wait_line": 5127,
+    "startup_profile": "chat-only"
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "variant": "guard",
+  "result": "FAIL",
+  "executions": 1,
+  "responses": [
+    {
+      "path": "/static/js/chat.js",
+      "status": 200,
+      "sha256": "6fed637f43c20cc3b0ed2679536cac6f580d34d9bf1320af6b8672c40af739f3",
+      "bytes": 295386
+    },
+    {
+      "path": "/static/js/app.js",
+      "status": 200,
+      "sha256": "f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3",
+      "bytes": 251045
+    }
+  ],
+  "capture_errors": [],
+  "page_errors": 0,
+  "blocked_browser_requests": 0,
+  "expected_app_sha256": "f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3",
+  "startup_profile": "source-only",
+  "server": {
+    "event": "ready",
+    "injections": [
+      "no_app_import",
+      "real_template_raw_checkout_assets",
+      "chat_init_after_dom_ready",
+      "no_api"
+    ],
+    "denied": {},
+    "denial_details": [],
+    "diagnostics": [],
+    "startup_profile": "source-only",
+    "phase": "serving"
+  },
+  "runtime_finalizer_sha256": "9f872bc3ff675407aa25995e416a938f6fa8be63a21d00eaae6cc5c312dd2489",
+  "error": {
+    "type": "TimeoutError",
+    "frames": [
+      {
+        "file": ".orchestra/tasks/V-1271/host-acceptance.py",
+        "line": 649,
+        "function": "run_case"
+      },
+      {
+        "file": "tests/test_frontend.py",
+        "line": 5127,
+        "function": "test_chat_timeline_navigates_final_agent_answers_only"
+      },
+      {
+        "file": ".venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py",
+        "line": 12436,
+        "function": "wait_for_function"
+      },
+      {
+        "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_sync_base.py",
+        "line": 115,
+        "function": "_sync"
+      },
+      {
+        "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_page.py",
+        "line": 1136,
+        "function": "wait_for_function"
+      },
+      {
+        "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_frame.py",
+        "line": 910,
+        "function": "wait_for_function"
+      },
+      {
+        "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_connection.py",
+        "line": 69,
+        "function": "send"
+      },
+      {
+        "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_connection.py",
+        "line": 559,
+        "function": "wrap_api_call"
+      }
+    ],
+    "causes": [
+      {
+        "type": "TimeoutError",
+        "frames": [
+          {
+            "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_connection.py",
+            "line": 557,
+            "function": "wrap_api_call"
+          },
+          {
+            "file": ".venv/lib/python3.12/site-packages/playwright/_impl/_connection.py",
+            "line": 132,
+            "function": "_inner_send"
+          }
+        ],
+        "causes": []
+      }
+    ]
+  },
+  "state": {
+    "node": {
+      "type": "text",
+      "kind": "agent",
+      "answer": "1",
+      "service": false,
+      "connected": true,
+      "textLength": 255
+    },
+    "streamBubble": false,
+    "streamConnected": false,
+    "streamContentLength": 0,
+    "streamPendingLength": 0,
+    "deferred": false,
+    "selectionCollapsed": true,
+    "selectionRanges": 0,
+    "selectionTouchesStream": false,
+    "finalMarkers": 1,
+    "generation": 1,
+    "loading": false,
+    "snapshotReady": false,
+    "agentSelected": false,
+    "scopeSelected": false,
+    "guardCalls": 1
+  }
+}

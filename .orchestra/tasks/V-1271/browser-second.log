@@ -1,0 +1,205 @@
+[Sanitized publication copy; root private original: .orchestra/private/tasks/V-1271/hub-originals/browser-second.log; manifest: .orchestra/private/tasks/V-1271/hub-original-manifest.json]
+FF.                                                                      [100%]
+=================================== FAILURES ===================================
+__________ test_answers_filter_preserves_history_paging_and_sse[1280] __________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=<BROWSER_CACHE>/chromium-1223/chrome-linux64/chrome> version=156.0.8078.4>
+width = 1280
+
+    @pytest.mark.parametrize("width", [1280, 390])
+    def test_answers_filter_preserves_history_paging_and_sse(browser, width):
+        page = browser.new_page(viewport={"width": width, "height": 800})
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        try:
+            _boot(page)
+            page.evaluate("""() => {
+                _renderHistory(selectedAgent, [
+                    row(10, 'user_message', 'Owner question', {
+                        origin: 'user', origin_detail: {senders: ['owner']},
+                    }),
+                    row(11, 'text', 'Ordinary assistant prose mentioning send_message and tools.'),
+                    row(12, 'user_message', 'Incoming inter-agent message', {
+                        origin: 'agent', origin_detail: {senders: ['colleague']},
+                    }),
+                    row(13, 'tool', 'mcp__orchestra__send_message: {"to":"colleague","message":"Outgoing delivery"}'),
+                    row(14, 'tool_result', 'Orphan receipt', {tool_use_id: 'old-orphan'}),
+                    row(15, 'thinking', 'Private reasoning'),
+                    row(16, 'status', 'working on synthetic task'),
+                    row(17, 'system', 'Delivery failed'),
+                    row(18, 'assistant', 'Short assistant reply'),
+                ]);
+                _addLoadMoreBtn();
+                window.initialNodes = [...$('#chat').children];
+                connectSSE();
+            }""")
+            toggle = page.locator("#chat-answers-toggle")
+            expect(toggle).to_have_attribute("aria-pressed", "false")
+            expect(page.locator('[data-chat-log-id="10"]')).to_be_visible()
+            toggle.click()
+            expect(toggle).to_have_attribute("aria-pressed", "true")
+            for id_ in [10, 12, 13, 14, 15, 16, 17]:
+                expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_hidden()
+            for id_ in [11, 18]:
+                expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_visible()
+            expect(page.locator("#load-more-btn")).to_be_visible()
+            expect(page.locator("#chat-timeline-track .is-tool:visible")).to_have_count(0)
+            expect(page.locator("#chat-timeline-track .is-user:visible")).to_have_count(0)
+    
+            # Exercise the actual lazy-page path with an offline API adapter.
+            page.evaluate("""async () => {
+                window.apiCalls = 0;
+                api = async () => { apiCalls++; return [
+                    row(1, 'text', 'Older assistant answer'),
+                    row(2, 'user_message', 'Older incoming message'),
+                    row(3, 'tool', 'Bash: {"command":"offline"}'),
+                ]; };
+                await loadMoreLogs();
+                deliver(row(19, 'user_message', 'New incoming message'));
+                deliver(row(20, 'tool', 'mcp__orchestra__send_message: {"to":"peer","message":"New outgoing"}'));
+                deliver(row(21, 'tool_result', 'New orphan receipt', {tool_use_id: 'new-orphan'}));
+                deliver(row(22, 'thinking_stream', 'New live reasoning', {item_id:'reason'}));
+                deliver(row(23, 'status', 'New live status'));
+                deliver(row(24, 'stream', 'Live assistant '));
+                deliver(row(25, 'stream', 'prose about tools'));
+            }""")
+            expect(page.locator('[data-chat-log-id="1"]')).to_be_visible()
+            for id_ in [2, 3, 19, 20, 21, 22, 23]:
+                expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_hidden()
+            expect(page.locator("#chat .streaming")).to_be_visible()
+            expect(page.locator("#chat .streaming")).to_contain_text("Live assistant prose about tools")
+            # Finalizing reuses the visible stream node; no answer is lost or duplicated.
+            page.evaluate("""() => {
+                window.streamNode = streamBubble;
+                deliver(row(26, 'text', 'Live assistant prose about tools, complete.'));
+                window.retained = [...$('#chat').children];
+                _chatFollow = true;
+                _chatTrimLimit = 500;
+            }""")
+            expect(page.locator('[data-chat-log-id="26"]')).to_be_visible()
+            assert page.evaluate("streamNode === document.querySelector('[data-chat-log-id=\"26\"]')")
+            # Same node identities and order on repeated toggles; no history fetch or SSE reconnect.
+            toggle.click()
+            expect(toggle).to_have_attribute("aria-pressed", "false")
+            assert page.evaluate("""() => retained.every((node, i) => $('#chat').children[i] === node)
+                && retained.length === $('#chat').children.length
+                && initialNodes.filter(n => n.id !== 'load-more-btn').every(n => n.isConnected)
+                && apiCalls === 1 && EventSource.opened === 1 && _chatTrimLimit === 500""")
+            for id_ in [2, 3, 10, 12, 13, 14, 15, 16, 17, 19, 20, 21, 23]:
+                expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_visible()
+            toggle.click()
+            expect(page.locator('[data-chat-log-id="26"]')).to_be_visible()
+            expect(page.locator('[data-chat-log-id="20"]')).to_be_hidden()
+            box = toggle.bounding_box()
+            assert box and box["x"] >= 0 and box["x"] + box["width"] <= width
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            if os.environ.get("CHAT_ANSWERS_SHOTS"):
+                page.screenshot(path=str(Path(os.environ["CHAT_ANSWERS_SHOTS"]) / f"answers-{width}.png"))
+>           assert not errors, errors
+E           AssertionError: ['marked is not defined']
+E           assert not ['marked is not defined']
+
+tests/test_chat_answers_v1271.py:143: AssertionError
+__________ test_answers_filter_preserves_history_paging_and_sse[390] ___________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=<BROWSER_CACHE>/chromium-1223/chrome-linux64/chrome> version=156.0.8078.4>
+width = 390
+
+    @pytest.mark.parametrize("width", [1280, 390])
+    def test_answers_filter_preserves_history_paging_and_sse(browser, width):
+        page = browser.new_page(viewport={"width": width, "height": 800})
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        try:
+            _boot(page)
+            page.evaluate("""() => {
+                _renderHistory(selectedAgent, [
+                    row(10, 'user_message', 'Owner question', {
+                        origin: 'user', origin_detail: {senders: ['owner']},
+                    }),
+                    row(11, 'text', 'Ordinary assistant prose mentioning send_message and tools.'),
+                    row(12, 'user_message', 'Incoming inter-agent message', {
+                        origin: 'agent', origin_detail: {senders: ['colleague']},
+                    }),
+                    row(13, 'tool', 'mcp__orchestra__send_message: {"to":"colleague","message":"Outgoing delivery"}'),
+                    row(14, 'tool_result', 'Orphan receipt', {tool_use_id: 'old-orphan'}),
+                    row(15, 'thinking', 'Private reasoning'),
+                    row(16, 'status', 'working on synthetic task'),
+                    row(17, 'system', 'Delivery failed'),
+                    row(18, 'assistant', 'Short assistant reply'),
+                ]);
+                _addLoadMoreBtn();
+                window.initialNodes = [...$('#chat').children];
+                connectSSE();
+            }""")
+            toggle = page.locator("#chat-answers-toggle")
+            expect(toggle).to_have_attribute("aria-pressed", "false")
+            expect(page.locator('[data-chat-log-id="10"]')).to_be_visible()
+            toggle.click()
+            expect(toggle).to_have_attribute("aria-pressed", "true")
+            for id_ in [10, 12, 13, 14, 15, 16, 17]:
+                expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_hidden()
+            for id_ in [11, 18]:
+                expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_visible()
+            expect(page.locator("#load-more-btn")).to_be_visible()
+            expect(page.locator("#chat-timeline-track .is-tool:visible")).to_have_count(0)
+            expect(page.locator("#chat-timeline-track .is-user:visible")).to_have_count(0)
+    
+            # Exercise the actual lazy-page path with an offline API adapter.
+            page.evaluate("""async () => {
+                window.apiCalls = 0;
+                api = async () => { apiCalls++; return [
+                    row(1, 'text', 'Older assistant answer'),
+                    row(2, 'user_message', 'Older incoming message'),
+                    row(3, 'tool', 'Bash: {"command":"offline"}'),
+                ]; };
+                await loadMoreLogs();
+                deliver(row(19, 'user_message', 'New incoming message'));
+                deliver(row(20, 'tool', 'mcp__orchestra__send_message: {"to":"peer","message":"New outgoing"}'));
+                deliver(row(21, 'tool_result', 'New orphan receipt', {tool_use_id: 'new-orphan'}));
+                deliver(row(22, 'thinking_stream', 'New live reasoning', {item_id:'reason'}));
+                deliver(row(23, 'status', 'New live status'));
+                deliver(row(24, 'stream', 'Live assistant '));
+                deliver(row(25, 'stream', 'prose about tools'));
+            }""")
+            expect(page.locator('[data-chat-log-id="1"]')).to_be_visible()
+            for id_ in [2, 3, 19, 20, 21, 22, 23]:
+                expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_hidden()
+            expect(page.locator("#chat .streaming")).to_be_visible()
+            expect(page.locator("#chat .streaming")).to_contain_text("Live assistant prose about tools")
+            # Finalizing reuses the visible stream node; no answer is lost or duplicated.
+            page.evaluate("""() => {
+                window.streamNode = streamBubble;
+                deliver(row(26, 'text', 'Live assistant prose about tools, complete.'));
+                window.retained = [...$('#chat').children];
+                _chatFollow = true;
+                _chatTrimLimit = 500;
+            }""")
+            expect(page.locator('[data-chat-log-id="26"]')).to_be_visible()
+            assert page.evaluate("streamNode === document.querySelector('[data-chat-log-id=\"26\"]')")
+            # Same node identities and order on repeated toggles; no history fetch or SSE reconnect.
+            toggle.click()
+            expect(toggle).to_have_attribute("aria-pressed", "false")
+            assert page.evaluate("""() => retained.every((node, i) => $('#chat').children[i] === node)
+                && retained.length === $('#chat').children.length
+                && initialNodes.filter(n => n.id !== 'load-more-btn').every(n => n.isConnected)
+                && apiCalls === 1 && EventSource.opened === 1 && _chatTrimLimit === 500""")
+            for id_ in [2, 3, 10, 12, 13, 14, 15, 16, 17, 19, 20, 21, 23]:
+                expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_visible()
+            toggle.click()
+            expect(page.locator('[data-chat-log-id="26"]')).to_be_visible()
+            expect(page.locator('[data-chat-log-id="20"]')).to_be_hidden()
+            box = toggle.bounding_box()
+            assert box and box["x"] >= 0 and box["x"] + box["width"] <= width
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            if os.environ.get("CHAT_ANSWERS_SHOTS"):
+                page.screenshot(path=str(Path(os.environ["CHAT_ANSWERS_SHOTS"]) / f"answers-{width}.png"))
+>           assert not errors, errors
+E           AssertionError: ['marked is not defined']
+E           assert not ['marked is not defined']
+
+tests/test_chat_answers_v1271.py:143: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_chat_answers_v1271.py::test_answers_filter_preserves_history_paging_and_sse[1280]
+FAILED tests/test_chat_answers_v1271.py::test_answers_filter_preserves_history_paging_and_sse[390]
+2 failed, 1 passed in 31.41s

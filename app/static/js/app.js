@@ -428,6 +428,7 @@ function _scrollChatToBottom(behavior = 'auto') {
 }
 
 let _chatTimelineObserver = null;
+let _chatAnswersOnly = false;
 let _chatTimelineSizeObserver = null;
 let _chatTimelineHeightRaf = 0;
 // Ниже метка перестаёт быть кликабельной мишенью; на длинной ленте пол ужимается
@@ -542,6 +543,36 @@ function _isChatTimelineAgentText(node) {
         && !node.dataset.chatTimelineService;
 }
 
+function _initChatAnswersToggle() {
+    const chat = $('#chat');
+    if (!chat || $('#chat-answers-toggle')) return;
+    const button = document.createElement('button');
+    button.id = 'chat-answers-toggle';
+    button.type = 'button';
+    button.className = 'chat-answers-toggle';
+    button.textContent = T('AI replies only');
+    button.setAttribute('aria-controls', 'chat');
+    try { _chatAnswersOnly = localStorage.getItem('chatAnswersOnly') === 'true'; } catch (_) {}
+    const sync = () => {
+        button.setAttribute('aria-pressed', String(_chatAnswersOnly));
+        $('#chat')?.classList.toggle('chat-answers-only', _chatAnswersOnly);
+        $('#chat-timeline')?.classList.toggle('chat-answers-only', _chatAnswersOnly);
+        _atBottomCache = null;
+        _syncChatTimelineControls();
+        _scheduleChatTimelineHeights();
+    };
+    button.addEventListener('click', () => {
+        const follow = _chatFollow;
+        _chatAnswersOnly = !_chatAnswersOnly;
+        try { localStorage.setItem('chatAnswersOnly', String(_chatAnswersOnly)); } catch (_) {}
+        sync();
+        if (follow) _pinChatBottom($('#chat'));
+        _syncChatJumpButton();
+    });
+    chat.parentElement.before(button);
+    sync();
+}
+
 function _chatTimelineLabel(node, kind) {
     const labels = {user: T('My message'), worker: T('Worker message'), tool: T('Tool'),
                     error: T('Error'), status: T('Status'), agent: T('Agent response'),
@@ -598,6 +629,7 @@ function _tagChatTimelineNode(node, type, ts) {
         if (!Number.isNaN(date.getTime())) time = `, ${date.toLocaleTimeString(orchLocale(), {hour: '2-digit', minute: '2-digit', hour12: false})}`;
     }
     node.dataset.chatTimelineType = type;
+    if (_isChatTimelineAgentText(node)) node.dataset.chatAnswer = '1';
     node.dataset.chatNavBaseKind = kind;
     node.dataset.chatNavTime = time;
     node.dataset.chatNavKind = kind;
@@ -611,6 +643,7 @@ function _addChatTimelineMarker(node) {
     const kind = node.dataset.chatNavKind;
     marker.type = 'button';
     marker.className = `chat-timeline-marker is-${kind}`;
+    if (_isChatTimelineAgentText(node)) marker.dataset.chatAnswer = '1';
     marker.title = node.dataset.chatNavLabel;
     marker.setAttribute('aria-label', node.dataset.chatNavLabel);
     marker.addEventListener('click', () => _jumpChatTimelineNode(node, marker));
@@ -646,6 +679,7 @@ function _syncChatTimelineHeights() {
     for (const node of chat.children) {          // сперва читаем все высоты,
         const marker = node._chatTimelineMarker; // потом пишем — иначе layout thrashing
         if (!marker) continue;
+        if (_chatAnswersOnly && marker.dataset.chatAnswer !== '1') continue;
         const height = node.offsetHeight;
         sized.push([marker, height]);
         total += height;
@@ -680,7 +714,8 @@ function _syncChatTimelineControls() {
         ['is-notify', '#chat-notify-count', '#chat-notify-prev', '#chat-notify-next', '🔔'],
         ['is-final', '#chat-final-count', '#chat-final-prev', '#chat-final-next', '🏁'],
     ]) {
-        const total = track ? track.querySelectorAll(`.${cls}`).length : 0;
+        const total = track ? [...track.querySelectorAll(`.${cls}`)]
+            .filter(marker => !_chatAnswersOnly || marker.dataset.chatAnswer === '1').length : 0;
         const count = $(countId);
         if (count) count.textContent = `${label} ${total}`;
         for (const id of [prevId, nextId]) {
@@ -697,6 +732,7 @@ function _syncChatTimelineControls() {
 
 function _jumpChatTimelineNode(node, marker) {
     if (!node?.isConnected) return;
+    if (_chatAnswersOnly && !_isChatTimelineAgentText(node)) return;
     clearTimeout(window._scrollResetTimer);
     scrollAfterLoad = false;
     _pendingChatRestore = null;
@@ -708,7 +744,8 @@ function _jumpChatTimelineNode(node, marker) {
 }
 
 function _jumpChatTimelineKind(markerClass, direction) {
-    const markers = [...document.querySelectorAll(`#chat-timeline-track .${markerClass}`)];
+    const markers = [...document.querySelectorAll(`#chat-timeline-track .${markerClass}`)]
+        .filter(marker => !_chatAnswersOnly || marker.dataset.chatAnswer === '1');
     if (!markers.length) return;
     const active = markers.findIndex(marker => marker.classList.contains('is-active'));
     const index = active < 0
@@ -750,6 +787,7 @@ function _addFinalNav() {
 function initChatTimeline() {
     const chat = $('#chat');
     if (!chat || _chatTimelineObserver) return;
+    _initChatAnswersToggle();
     _addNotifyPermissionBtn();
     _addNotifyNav();
     _addFinalNav();

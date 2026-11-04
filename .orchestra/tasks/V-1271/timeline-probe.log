@@ -1,0 +1,9 @@
+[Sanitized publication copy; offline probe stdout/stderr]
+{"variant": "baseline", "test": "test_chat_timeline_navigates_final_agent_answers_only", "result": "PASS"}
+{"variant": "final", "test": "test_chat_timeline_navigates_events_and_cycles_user_messages", "result": "PASS"}
+{"variant": "final", "test": "test_chat_timeline_marker_height_tracks_message_height", "result": "PASS"}
+{"variant": "final", "test": "test_chat_timeline_navigates_final_agent_answers_only", "result": "PASS"}
+{"variant": "baseline_without_finalize_hooks", "test": "test_chat_timeline_navigates_final_agent_answers_only", "result": "FAIL", "error_type": "TimeoutError", "error": "Page.wait_for_function: Timeout 8000ms exceeded.", "state": {"type": "stream", "kind": "agent", "textLength": 255, "bubble": false, "deferred": false, "finalMarkers": 1}}
+{"variant": "final_without_finalize_hooks", "test": "test_chat_timeline_navigates_final_agent_answers_only", "result": "FAIL", "error_type": "TimeoutError", "error": "Page.wait_for_function: Timeout 8000ms exceeded.", "state": {"type": "stream", "kind": "agent", "textLength": 255, "bubble": false, "deferred": false, "finalMarkers": 1}}
+
+probe exit_code=0

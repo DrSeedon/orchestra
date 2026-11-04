@@ -1,0 +1,1 @@
+{"rc": 0, "artifact": ".orchestra/tasks/V-1271/host-run-9ooe8vdp/result.json", "scope": "isolated source HTTP/frozen-body comparison; NO backend/middleware/startup/API acceptance", "startup_profile": "source-only", "cases": [{"variant": "baseline", "result": "PASS"}, {"variant": "final", "result": "PASS"}, {"variant": "guard", "result": "FAIL"}], "issues": []}

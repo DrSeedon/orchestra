@@ -1,0 +1,347 @@
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -428,6 +428,7 @@
+ }
+ 
+ let _chatTimelineObserver = null;
++let _chatAnswersOnly = false;
+ let _chatTimelineSizeObserver = null;
+ let _chatTimelineHeightRaf = 0;
+ // Ниже метка перестаёт быть кликабельной мишенью; на длинной ленте пол ужимается
+@@ -542,6 +543,36 @@
+         && !node.dataset.chatTimelineService;
+ }
+ 
++function _initChatAnswersToggle() {
++    const chat = $('#chat');
++    if (!chat || $('#chat-answers-toggle')) return;
++    const button = document.createElement('button');
++    button.id = 'chat-answers-toggle';
++    button.type = 'button';
++    button.className = 'chat-answers-toggle';
++    button.textContent = T('AI replies only');
++    button.setAttribute('aria-controls', 'chat');
++    try { _chatAnswersOnly = localStorage.getItem('chatAnswersOnly') === 'true'; } catch (_) {}
++    const sync = () => {
++        button.setAttribute('aria-pressed', String(_chatAnswersOnly));
++        $('#chat')?.classList.toggle('chat-answers-only', _chatAnswersOnly);
++        $('#chat-timeline')?.classList.toggle('chat-answers-only', _chatAnswersOnly);
++        _atBottomCache = null;
++        _syncChatTimelineControls();
++        _scheduleChatTimelineHeights();
++    };
++    button.addEventListener('click', () => {
++        const follow = _chatFollow;
++        _chatAnswersOnly = !_chatAnswersOnly;
++        try { localStorage.setItem('chatAnswersOnly', String(_chatAnswersOnly)); } catch (_) {}
++        sync();
++        if (follow) _pinChatBottom($('#chat'));
++        _syncChatJumpButton();
++    });
++    chat.parentElement.before(button);
++    sync();
++}
++
+ function _chatTimelineLabel(node, kind) {
+     const labels = {user: T('My message'), worker: T('Worker message'), tool: T('Tool'),
+                     error: T('Error'), status: T('Status'), agent: T('Agent response'),
+@@ -598,6 +629,7 @@
+         if (!Number.isNaN(date.getTime())) time = `, ${date.toLocaleTimeString(orchLocale(), {hour: '2-digit', minute: '2-digit', hour12: false})}`;
+     }
+     node.dataset.chatTimelineType = type;
++    if (_isChatTimelineAgentText(node)) node.dataset.chatAnswer = '1';
+     node.dataset.chatNavBaseKind = kind;
+     node.dataset.chatNavTime = time;
+     node.dataset.chatNavKind = kind;
+@@ -611,6 +643,7 @@
+     const kind = node.dataset.chatNavKind;
+     marker.type = 'button';
+     marker.className = `chat-timeline-marker is-${kind}`;
++    if (_isChatTimelineAgentText(node)) marker.dataset.chatAnswer = '1';
+     marker.title = node.dataset.chatNavLabel;
+     marker.setAttribute('aria-label', node.dataset.chatNavLabel);
+     marker.addEventListener('click', () => _jumpChatTimelineNode(node, marker));
+@@ -646,6 +679,7 @@
+     for (const node of chat.children) {          // сперва читаем все высоты,
+         const marker = node._chatTimelineMarker; // потом пишем — иначе layout thrashing
+         if (!marker) continue;
++        if (_chatAnswersOnly && marker.dataset.chatAnswer !== '1') continue;
+         const height = node.offsetHeight;
+         sized.push([marker, height]);
+         total += height;
+@@ -680,7 +714,8 @@
+         ['is-notify', '#chat-notify-count', '#chat-notify-prev', '#chat-notify-next', '🔔'],
+         ['is-final', '#chat-final-count', '#chat-final-prev', '#chat-final-next', '🏁'],
+     ]) {
+-        const total = track ? track.querySelectorAll(`.${cls}`).length : 0;
++        const total = track ? [...track.querySelectorAll(`.${cls}`)]
++            .filter(marker => !_chatAnswersOnly || marker.dataset.chatAnswer === '1').length : 0;
+         const count = $(countId);
+         if (count) count.textContent = `${label} ${total}`;
+         for (const id of [prevId, nextId]) {
+@@ -697,6 +732,7 @@
+ 
+ function _jumpChatTimelineNode(node, marker) {
+     if (!node?.isConnected) return;
++    if (_chatAnswersOnly && !_isChatTimelineAgentText(node)) return;
+     clearTimeout(window._scrollResetTimer);
+     scrollAfterLoad = false;
+     _pendingChatRestore = null;
+@@ -708,7 +744,8 @@
+ }
+ 
+ function _jumpChatTimelineKind(markerClass, direction) {
+-    const markers = [...document.querySelectorAll(`#chat-timeline-track .${markerClass}`)];
++    const markers = [...document.querySelectorAll(`#chat-timeline-track .${markerClass}`)]
++        .filter(marker => !_chatAnswersOnly || marker.dataset.chatAnswer === '1');
+     if (!markers.length) return;
+     const active = markers.findIndex(marker => marker.classList.contains('is-active'));
+     const index = active < 0
+@@ -750,6 +787,7 @@
+ function initChatTimeline() {
+     const chat = $('#chat');
+     if (!chat || _chatTimelineObserver) return;
++    _initChatAnswersToggle();
+     _addNotifyPermissionBtn();
+     _addNotifyNav();
+     _addFinalNav();
+--- a/app/static/js/i18n.js
++++ b/app/static/js/i18n.js
+@@ -567,6 +567,7 @@
+     'Tool failed': 'Инструмент не сработал',
+     'Tool health': 'Состояние инструментов',
+     'Tool view: compact. Switch to normal view': 'Вид инструментов: компактный. Переключить на обычный',
++    'AI replies only': 'Только ответы ИИ',
+     'Tool view: normal. Switch to compact view': 'Вид инструментов: обычный. Переключить на компактный',
+     'Tools': 'тулы',
+     'Turns': 'Ходы',
+--- a/app/static/css/style.css
++++ b/app/static/css/style.css
+@@ -45,6 +45,20 @@
+ .log-user_message { color: var(--accent); }
+ .log-notification { color: var(--warn-ink); }
+ #chat { user-select: text; -webkit-user-select: text; padding-right: 4rem; }
++/* Keep nodes and the older-page control intact: OFF restores the same journal. */
++#chat.chat-answers-only > :not([data-chat-answer="1"]):not(#load-more-btn):not(.chat-load-state),
++.chat-answers-only .chat-timeline-marker:not([data-chat-answer="1"]),
++.chat-answers-only > .chat-timeline-user-nav:not(.is-final-nav) { display: none !important; }
++.chat-answers-toggle {
++  align-self: flex-start; flex-shrink: 0; margin: 6px 12px;
++  padding: 4px 8px; border: 1px solid var(--border); border-radius: 8px;
++  background: var(--surface-2); color: var(--ink-muted); font-size: 12px;
++  cursor: pointer; line-height: 16px;
++}
++.chat-answers-toggle[aria-pressed="true"] {
++  border-color: var(--accent); color: var(--accent); background: var(--accent-soft);
++}
++.chat-answers-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ .chat-timeline {
+   position: absolute; top: 8px; right: 7px; bottom: 8px; z-index: 15;
+   width: 42px; display: flex; flex-direction: column; gap: 5px;
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -6,6 +6,7 @@
+ 
+ ## Unreleased
+ 
++- **Chat can show only AI text replies** (V-1271). The “AI replies only” toggle above the chat hides user/agent deliveries, tools/results, thinking and status rows while preserving ordinary assistant text and live streams. Existing history, older pages and new events share the timeline's text classification. Switching back restores retained DOM nodes without a reload; the existing localStorage preference pattern remembers the choice, with the full journal as the default. No server/API/history-store changes.
+ - **Local retained close when a Hub thread is absent** (V-1268). On a bounded `t3_thread_read` that returns the structured `thread_not_found` for the exact owned workspace thread, the existing session-removal path archives the local session card while retaining its logs, accounting, worktree, Hub state, privacy latch, manifest, provenance and unresolved non-dispatchable delivery records. It performs no remote mutation or workspace cleanup. Pending sync, active jobs, ambiguous or changed generation, transient read errors, pending Hub requests and dispatchable queued message/initial deliveries still block. Ordinary Hub archival and its privacy guards are unchanged; no new API or archive store is introduced.
+ - **Bounded Argon specialist through the existing paid Hub pool** (V-1257; owner decisions 2026-11-03 14:52 and 15:31). Only the default-pipeline specialist with a bound task/project scope may use `hub-gemini-4-argon`, mapped to `antigravity/gemini-4-argon`, for design, document synthesis/comparison and financial/legal reasoning on public or synthetic text. General terminal/repository coding stays on Hub Sol; native Codex orchestration is unchanged. Video, media ingestion, large context, long-decode and Google-app integration remain unverified in Hub; maker-reported API capabilities are not platform guarantees. Canonical admission rechecks existing identity at creation, model changes, deliveries, backend submission and recovery; the same specialist instructions reach initial and resumed Hub turns. Antigravity retains provider-capacity admission and the shared turn limit; absent telemetry is visible as unknown and context/modality/prices are not invented. Phase A stages the role with known Sol; the separate Phase B patch selects Gemini only after root verifies the live registry through normal idle activation. No manual restart, worker/queue migration, API/Carbon/overage/auxiliary-image fallback or early inference. Offline checks do not substitute for the post-activation safe file-writing smoke.
+ - **Research closure requires an explanation delivered to the owner** (V-1256; owner decision 2026-11-03). The existing user-answer-format owns the substantive verdict, coverage, interpretable numbers, mechanisms, examples, counter-evidence, failed/skipped checks, limits and practical implications. Default replies are short and dense: verdict, decision-relevant numbers and practical implication/next action; expand only on request or to explain a material risk. Shared orchestration and lifecycle instructions check evidence acceptance and actual owner delivery before research closure; sub-orchestrators pass complete findings and outstanding delivery obligations through their parent. DONE, an artifact path, status text and acknowledgement suppression cannot replace or hide the result. Approval boundaries, artifact reading, model-review freeze, worker routing and fresh-instance policy remain unchanged. Prompt-only correction; no task-state/runtime contract, new approval phase, provider call, deployment or adherence measurement.
+--- /dev/null
++++ b/tests/test_chat_answers_v1271.py
+@@ -0,0 +1,194 @@
++"""Offline browser regression: actual chat render/history/paging/SSE and stylesheet."""
++import os
++import re
++from pathlib import Path
++
++import pytest
++from jinja2 import Environment, FileSystemLoader
++from playwright.sync_api import expect, sync_playwright
++
++ROOT = Path(__file__).resolve().parents[1]
++STATIC = ROOT / "app/static"
++
++
++@pytest.fixture(scope="module")
++def browser():
++    with sync_playwright() as p:
++        instance = p.chromium.launch(executable_path=os.environ.get("CHAT_ANSWERS_CHROME") or None)
++        yield instance
++        instance.close()
++
++
++def _boot(page):
++    template = Environment(loader=FileSystemLoader(ROOT / "app/templates")).get_template("dashboard.html")
++    html = template.render(is_auth_enabled=False, hide_thinking=False)
++    # Load the real sources after DOMContentLoaded; start only the chat subsystem.
++    # No dashboard polling, server, credentials, provider or network requests.
++    html = re.sub(r"<script\b[^>]*>.*?</script>|<link\b[^>]*>", "", html, flags=re.S)
++    page.route("**/*", lambda route: route.fulfill(body=html, content_type="text/html")
++               if route.request.url == "http://chat-test.invalid/" else route.abort())
++    page.goto("http://chat-test.invalid/")
++    for css in ["design-system.css", "style.css", "vendor/tailwind.css"]:
++        page.add_style_tag(path=str(STATIC / "css" / css))
++    for js in ["marked.min.js", "purify.min.js"]:
++        page.add_script_tag(path=str(STATIC / "css/vendor" / js))
++    for js in ["i18n.js", "theme.js", "utils.js", "tool-renderers.js", "live-activity.js", "chat.js", "app.js"]:
++        page.add_script_tag(path=str(STATIC / "js" / js))
++    page.evaluate("""() => {
++        selectedAgent = 'synthetic'; currentScope = '/synthetic';
++        _chatSnapshotReady = true; scrollAfterLoad = false; _chatFollow = false;
++        window.EventSource = class {
++            static opened = 0;
++            constructor() { EventSource.opened++; }
++            close() {}
++        };
++        _wakeStatusRefreshFromStream = () => {};
++        initChatTimeline();
++        window.row = (id, type, content, extra = {}) => ({
++            id, type, content, ts: '2026-11-04T10:00:00Z', ...extra,
++        });
++        window.deliver = entry => eventSource.onmessage({data: JSON.stringify(entry)});
++    }""")
++
++
++@pytest.mark.parametrize("width", [1280, 390])
++def test_answers_filter_preserves_history_paging_and_sse(browser, width):
++    page = browser.new_page(viewport={"width": width, "height": 800})
++    errors = []
++    page.on("pageerror", lambda error: errors.append(str(error)))
++    try:
++        _boot(page)
++        page.evaluate("""() => {
++            _renderHistory(selectedAgent, [
++                row(10, 'user_message', 'Owner question', {
++                    origin: 'user', origin_detail: {senders: ['owner']},
++                }),
++                row(11, 'text', 'Ordinary assistant prose mentioning send_message and tools.'),
++                row(12, 'user_message', 'Incoming inter-agent message', {
++                    origin: 'agent', origin_detail: {senders: ['colleague']},
++                }),
++                row(13, 'tool', 'mcp__orchestra__send_message: {"to":"colleague","message":"Outgoing delivery"}'),
++                row(14, 'tool_result', 'Orphan receipt', {tool_use_id: 'old-orphan'}),
++                row(15, 'thinking', 'Private reasoning'),
++                row(16, 'status', 'working on synthetic task'),
++                row(17, 'system', 'Delivery failed'),
++                row(18, 'assistant', 'Short assistant reply'),
++            ]);
++            _addLoadMoreBtn();
++            window.initialNodes = [...$('#chat').children];
++            connectSSE();
++        }""")
++        toggle = page.locator("#chat-answers-toggle")
++        expect(toggle).to_have_attribute("aria-pressed", "false")
++        expect(page.locator('[data-chat-log-id="10"]')).to_be_visible()
++        toggle.click()
++        expect(toggle).to_have_attribute("aria-pressed", "true")
++        for id_ in [10, 12, 13, 14, 15, 16, 17]:
++            expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_hidden()
++        for id_ in [11, 18]:
++            expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_visible()
++        expect(page.locator("#load-more-btn")).to_be_visible()
++        expect(page.locator("#chat-timeline-track .is-tool:visible")).to_have_count(0)
++        expect(page.locator("#chat-timeline-track .is-user:visible")).to_have_count(0)
++
++        # Exercise the actual lazy-page path with an offline API adapter.
++        page.evaluate("""async () => {
++            window.apiCalls = 0;
++            api = async () => { apiCalls++; return [
++                row(1, 'text', 'Older assistant answer'),
++                row(2, 'user_message', 'Older incoming message'),
++                row(3, 'tool', 'Bash: {"command":"offline"}'),
++            ]; };
++            await loadMoreLogs();
++            deliver(row(19, 'user_message', 'New incoming message'));
++            deliver(row(20, 'tool', 'mcp__orchestra__send_message: {"to":"peer","message":"New outgoing"}'));
++            deliver(row(21, 'tool_result', 'New orphan receipt', {tool_use_id: 'new-orphan'}));
++            deliver(row(22, 'thinking_stream', 'New live reasoning', {item_id:'reason'}));
++            deliver(row(23, 'status', 'New live status'));
++            deliver(row(24, 'stream', 'Live assistant '));
++            deliver(row(25, 'stream', 'prose about tools'));
++        }""")
++        expect(page.locator('[data-chat-log-id="1"]')).to_be_visible()
++        for id_ in [2, 3, 19, 20, 21, 22, 23]:
++            expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_hidden()
++        expect(page.locator("#chat .streaming")).to_be_visible()
++        expect(page.locator("#chat .streaming")).to_contain_text("Live assistant prose about tools")
++        # Finalizing reuses the visible stream node; no answer is lost or duplicated.
++        page.evaluate("""() => {
++            window.streamNode = streamBubble;
++            deliver(row(26, 'text', 'Live assistant prose about tools, complete.'));
++            window.retained = [...$('#chat').children];
++            _chatFollow = true;
++            _chatTrimLimit = 500;
++        }""")
++        expect(page.locator('[data-chat-log-id="26"]')).to_be_visible()
++        assert page.evaluate("streamNode === document.querySelector('[data-chat-log-id=\"26\"]')")
++        # Same node identities and order on repeated toggles; no history fetch or SSE reconnect.
++        toggle.click()
++        expect(toggle).to_have_attribute("aria-pressed", "false")
++        assert page.evaluate("""() => retained.every((node, i) => $('#chat').children[i] === node)
++            && retained.length === $('#chat').children.length
++            && initialNodes.filter(n => n.id !== 'load-more-btn').every(n => n.isConnected)
++            && apiCalls === 1 && EventSource.opened === 1 && _chatTrimLimit === 500""")
++        for id_ in [2, 3, 10, 12, 13, 14, 15, 16, 17, 19, 20, 21, 23]:
++            expect(page.locator(f'[data-chat-log-id="{id_}"]')).to_be_visible()
++        toggle.click()
++        expect(page.locator('[data-chat-log-id="26"]')).to_be_visible()
++        expect(page.locator('[data-chat-log-id="20"]')).to_be_hidden()
++        box = toggle.bounding_box()
++        assert box and box["x"] >= 0 and box["x"] + box["width"] <= width
++        for id_ in ["compact-toggle-btn", "restart-btn", "logout-btn"]:
++            control_box = page.locator(f"#{id_}").bounding_box()
++            assert control_box and control_box["x"] >= 0 and control_box["x"] + control_box["width"] <= width
++        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
++        if os.environ.get("CHAT_ANSWERS_SHOTS"):
++            page.screenshot(path=str(Path(os.environ["CHAT_ANSWERS_SHOTS"]) / f"answers-{width}.png"))
++        assert not errors, errors
++    finally:
++        page.close()
++
++
++def test_answer_preference_reloads_and_storage_refusal_is_usable(browser):
++    page = browser.new_page()
++    try:
++        _boot(page)
++        page.locator("#chat-answers-toggle").click()
++        _boot(page)
++        expect(page.locator("#chat-answers-toggle")).to_have_attribute("aria-pressed", "true")
++        page.evaluate("""() => {
++            $('#chat-answers-toggle').remove();
++            _chatAnswersOnly = false;
++            Storage.prototype.getItem = () => { throw new Error('storage unavailable'); };
++            Storage.prototype.setItem = () => { throw new Error('storage unavailable'); };
++            _initChatAnswersToggle();
++        }""")
++        expect(page.locator("#chat-answers-toggle")).to_have_attribute("aria-pressed", "false")
++        page.locator("#chat-answers-toggle").click()
++        expect(page.locator("#chat-answers-toggle")).to_have_attribute("aria-pressed", "true")
++    finally:
++        page.close()
++
++
++def test_filter_keeps_load_retry_controls_available(browser):
++    page = browser.new_page()
++    try:
++        _boot(page)
++        page.locator("#chat-answers-toggle").click()
++        page.evaluate("_renderChatLoadState('synthetic')")
++        expect(page.locator("#chat .chat-load-state")).to_be_visible()
++        page.evaluate("""() => {
++            window.Connection = {ownsErrors: () => false};
++            _renderChatLoadState('synthetic', new Error('Synthetic load failure'));
++            _showChatFor = (name, scope) => { window.retryTarget = [name, scope]; };
++        }""")
++        expect(page.locator("#chat .chat-load-error")).to_be_visible()
++        page.locator("#chat .chat-load-error button").click()
++        assert page.evaluate("retryTarget") == ["synthetic", "/synthetic"]
++        page.evaluate("""_renderHistory(selectedAgent, [
++            row(1, 'text', 'Recovered assistant answer'),
++            row(2, 'user_message', 'Recovered incoming message'),
++        ])""")
++        expect(page.locator('[data-chat-log-id="1"]')).to_be_visible()
++        expect(page.locator('[data-chat-log-id="2"]')).to_be_hidden()
++    finally:
++        page.close()

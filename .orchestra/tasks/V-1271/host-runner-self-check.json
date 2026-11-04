@@ -1,0 +1,573 @@
+{
+  "result": "PASS",
+  "checks": [
+    "valid_control_bundle",
+    "no_test_execution",
+    "missing_http_chat",
+    "wrong_http_chat",
+    "wrong_runtime",
+    "guard_unexpected_pass",
+    "guard_wrong_failure_line",
+    "mixed_startup_profiles",
+    "missing_durable_diagnostics",
+    "normal_failure_rc1",
+    "source_drift_rc2"
+  ],
+  "policy": {
+    "result": "PASS",
+    "rejected_operations": 10,
+    "denials": {
+      "read_outside_fixture_roots_denied": 2,
+      "private_data_read_denied": 1,
+      "dotenv_read_denied": 1,
+      "write_outside_sandbox_denied": 3,
+      "native_process_denied": 1,
+      "non_fixture_socket_denied": 2
+    },
+    "denial_details": [
+      {
+        "reason": "read_outside_fixture_roots_denied",
+        "event": "open",
+        "phase": "self-check",
+        "frames": [
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 351,
+            "function": "block"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 393,
+            "function": "read"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 413,
+            "function": "audit"
+          },
+          {
+            "file": "<external>/mimetypes.py",
+            "line": 215,
+            "function": "read"
+          },
+          {
+            "file": "<external>/mimetypes.py",
+            "line": 382,
+            "function": "init"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 948,
+            "function": "policy_self_check"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 782,
+            "function": "main"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 1003,
+            "function": "<module>"
+          }
+        ],
+        "target": {
+          "scope": "external"
+        }
+      },
+      {
+        "reason": "private_data_read_denied",
+        "event": "open",
+        "phase": "self-check",
+        "frames": [
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 351,
+            "function": "block"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 389,
+            "function": "read"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 413,
+            "function": "audit"
+          },
+          {
+            "file": "<external>/pathlib.py",
+            "line": 1015,
+            "function": "open"
+          },
+          {
+            "file": "<external>/pathlib.py",
+            "line": 1029,
+            "function": "read_text"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 970,
+            "function": "<lambda>"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 983,
+            "function": "policy_self_check"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 782,
+            "function": "main"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 1003,
+            "function": "<module>"
+          }
+        ],
+        "target": {
+          "scope": "protected-source-state"
+        }
+      },
+      {
+        "reason": "dotenv_read_denied",
+        "event": "open",
+        "phase": "self-check",
+        "frames": [
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 351,
+            "function": "block"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 382,
+            "function": "read"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 413,
+            "function": "audit"
+          },
+          {
+            "file": "<external>/pathlib.py",
+            "line": 1015,
+            "function": "open"
+          },
+          {
+            "file": "<external>/pathlib.py",
+            "line": 1029,
+            "function": "read_text"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 971,
+            "function": "<lambda>"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 983,
+            "function": "policy_self_check"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 782,
+            "function": "main"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 1003,
+            "function": "<module>"
+          }
+        ],
+        "target": {
+          "scope": "protected-dotenv"
+        }
+      },
+      {
+        "reason": "write_outside_sandbox_denied",
+        "event": "open",
+        "phase": "self-check",
+        "frames": [
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 351,
+            "function": "block"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 398,
+            "function": "write"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 415,
+            "function": "audit"
+          },
+          {
+            "file": "<external>/pathlib.py",
+            "line": 1015,
+            "function": "open"
+          },
+          {
+            "file": "<external>/pathlib.py",
+            "line": 1049,
+            "function": "write_text"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 972,
+            "function": "<lambda>"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 983,
+            "function": "policy_self_check"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 782,
+            "function": "main"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 1003,
+            "function": "<module>"
+          }
+        ],
+        "target": {
+          "scope": "workspace",
+          "shape": "<component>"
+        }
+      },
+      {
+        "reason": "write_outside_sandbox_denied",
+        "event": "sqlite3.connect",
+        "phase": "self-check",
+        "frames": [
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 351,
+            "function": "block"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 398,
+            "function": "write"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 423,
+            "function": "audit"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 973,
+            "function": "<lambda>"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 983,
+            "function": "policy_self_check"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 782,
+            "function": "main"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 1003,
+            "function": "<module>"
+          }
+        ],
+        "target": {
+          "scope": "workspace",
+          "shape": "<component>"
+        }
+      },
+      {
+        "reason": "native_process_denied",
+        "event": "subprocess.Popen",
+        "phase": "self-check",
+        "frames": [
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 351,
+            "function": "block"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 429,
+            "function": "audit"
+          },
+          {
+            "file": "<external>/subprocess.py",
+            "line": 1823,
+            "function": "_execute_child"
+          },
+          {
+            "file": "<external>/subprocess.py",
+            "line": 1026,
+            "function": "__init__"
+          },
+          {
+            "file": "<external>/subprocess.py",
+            "line": 548,
+            "function": "run"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 974,
+            "function": "<lambda>"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 983,
+            "function": "policy_self_check"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 782,
+            "function": "main"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 1003,
+            "function": "<module>"
+          }
+        ],
+        "process": {
+          "program": "python3",
+          "verb": "<redacted>",
+          "argc": 3
+        }
+      },
+      {
+        "reason": "non_fixture_socket_denied",
+        "event": "socket.getaddrinfo",
+        "phase": "self-check",
+        "frames": [
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 351,
+            "function": "block"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 408,
+            "function": "address"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 433,
+            "function": "audit"
+          },
+          {
+            "file": "<external>/socket.py",
+            "line": 963,
+            "function": "getaddrinfo"
+          },
+          {
+            "file": "<external>/socket.py",
+            "line": 828,
+            "function": "create_connection"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 976,
+            "function": "<lambda>"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 983,
+            "function": "policy_self_check"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 782,
+            "function": "main"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 1003,
+            "function": "<module>"
+          }
+        ]
+      },
+      {
+        "reason": "non_fixture_socket_denied",
+        "event": "socket.connect",
+        "phase": "self-check",
+        "frames": [
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 351,
+            "function": "block"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 408,
+            "function": "address"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 431,
+            "function": "audit"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 968,
+            "function": "connect_nonfixture"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 983,
+            "function": "policy_self_check"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 782,
+            "function": "main"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 1003,
+            "function": "<module>"
+          }
+        ]
+      },
+      {
+        "reason": "read_outside_fixture_roots_denied",
+        "event": "open",
+        "phase": "self-check",
+        "frames": [
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 351,
+            "function": "block"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 393,
+            "function": "read"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 413,
+            "function": "audit"
+          },
+          {
+            "file": "<external>/pathlib.py",
+            "line": 1015,
+            "function": "open"
+          },
+          {
+            "file": "<external>/pathlib.py",
+            "line": 1029,
+            "function": "read_text"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 978,
+            "function": "<lambda>"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 983,
+            "function": "policy_self_check"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 782,
+            "function": "main"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 1003,
+            "function": "<module>"
+          }
+        ],
+        "target": {
+          "scope": "external"
+        }
+      },
+      {
+        "reason": "write_outside_sandbox_denied",
+        "event": "open",
+        "phase": "self-check",
+        "frames": [
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 351,
+            "function": "block"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 398,
+            "function": "write"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 415,
+            "function": "audit"
+          },
+          {
+            "file": "<external>/pathlib.py",
+            "line": 1015,
+            "function": "open"
+          },
+          {
+            "file": "<external>/pathlib.py",
+            "line": 1049,
+            "function": "write_text"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 979,
+            "function": "<lambda>"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 983,
+            "function": "policy_self_check"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 782,
+            "function": "main"
+          },
+          {
+            "file": "<external>/host-acceptance.py",
+            "line": 1003,
+            "function": "<module>"
+          }
+        ],
+        "target": {
+          "scope": "workspace",
+          "shape": "<component>/<component>"
+        }
+      }
+    ],
+    "mime": {
+      "negative_empty_init": "DENIED",
+      "initialized": {
+        "source": "python-stdlib-builtins-only",
+        "knownfiles_count": 0,
+        "registry_reader_disabled": true,
+        "javascript": "text/javascript",
+        "css": "text/css",
+        "svg": "image/svg+xml"
+      },
+      "file_response_status": 200
+    },
+    "allowed": [
+      "sandbox_file_write",
+      "sandbox_sqlite",
+      "sandbox_cwd_relative_write",
+      "builtin_mime_file_response"
+    ]
+  },
+  "scope": "Verdict/provenance and synthetic boundary checks only; no host/browser acceptance claimed."
+}

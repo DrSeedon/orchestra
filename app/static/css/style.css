@@ -45,6 +45,20 @@ code, pre, kbd, samp, .font-mono,
 .log-user_message { color: var(--accent); }
 .log-notification { color: var(--warn-ink); }
 #chat { user-select: text; -webkit-user-select: text; padding-right: 4rem; }
+/* Keep nodes and the older-page control intact: OFF restores the same journal. */
+#chat.chat-answers-only > :not([data-chat-answer="1"]):not(#load-more-btn):not(.chat-load-state),
+.chat-answers-only .chat-timeline-marker:not([data-chat-answer="1"]),
+.chat-answers-only > .chat-timeline-user-nav:not(.is-final-nav) { display: none !important; }
+.chat-answers-toggle {
+  align-self: flex-start; flex-shrink: 0; margin: 6px 12px;
+  padding: 4px 8px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface-2); color: var(--ink-muted); font-size: 12px;
+  cursor: pointer; line-height: 16px;
+}
+.chat-answers-toggle[aria-pressed="true"] {
+  border-color: var(--accent); color: var(--accent); background: var(--accent-soft);
+}
+.chat-answers-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .chat-timeline {
   position: absolute; top: 8px; right: 7px; bottom: 8px; z-index: 15;
   width: 42px; display: flex; flex-direction: column; gap: 5px;

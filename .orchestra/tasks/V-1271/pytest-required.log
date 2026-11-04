@@ -1,0 +1,78 @@
+EEE                                                                      [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_answers_filter_preserves_history_paging_and_sse[1280] _
+
+fixturedef = <FixtureDef argname='_bind_real_manager_into_route_modules' scope='session' baseid='tests'>
+request = <SubRequest '_bind_real_manager_into_route_modules' for <Function test_answers_filter_preserves_history_paging_and_sse[1280]>>
+
+    @pytest.hookimpl(wrapper=True)
+    def pytest_fixture_setup(fixturedef: FixtureDef, request) -> object | None:
+        if (
+            fixturedef.argname == "event_loop_policy"
+            and fixturedef.func.__module__ != __name__
+        ):
+            warnings.warn(
+                PytestDeprecationWarning(_EVENT_LOOP_POLICY_FIXTURE_DEPRECATION_WARNING),
+            )
+        asyncio_mode = _get_asyncio_mode(request.config)
+        if not _is_asyncio_fixture_function(fixturedef.func):
+            if asyncio_mode == Mode.STRICT:
+                # Ignore async fixtures without explicit asyncio mark in strict mode
+                # This applies to pytest_trio fixtures, for example
+>               return (yield)
+                        ^^^^^
+
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:924: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app.routes'
+
+tests/conftest.py:665: ModuleNotFoundError
+_ ERROR at setup of test_answers_filter_preserves_history_paging_and_sse[390] __
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app.routes'
+
+tests/conftest.py:665: ModuleNotFoundError
+_ ERROR at setup of test_answer_preference_reloads_and_storage_refusal_is_usable _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app.routes'
+
+tests/conftest.py:665: ModuleNotFoundError
+=========================== short test summary info ============================
+ERROR tests/test_chat_answers_v1271.py::test_answers_filter_preserves_history_paging_and_sse[1280]
+ERROR tests/test_chat_answers_v1271.py::test_answers_filter_preserves_history_paging_and_sse[390]
+ERROR tests/test_chat_answers_v1271.py::test_answer_preference_reloads_and_storage_refusal_is_usable
+3 errors in 1.62s

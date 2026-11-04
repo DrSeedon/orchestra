@@ -1,0 +1,153 @@
+{
+  "with_toggle": [
+    {
+      "id": "mobile-info-open",
+      "text": "ИНФО",
+      "x": 329.359375,
+      "right": 382,
+      "width": 52.640625
+    },
+    {
+      "id": "new-orch-btn",
+      "text": "+",
+      "x": 46.359375,
+      "right": 78.421875,
+      "width": 32.0625
+    },
+    {
+      "id": "hidden-tabs-btn",
+      "text": "👁",
+      "x": 0,
+      "right": 0,
+      "width": 0
+    },
+    {
+      "id": "",
+      "text": "RU",
+      "x": 32,
+      "right": 64.09375,
+      "width": 32.09375
+    },
+    {
+      "id": "",
+      "text": "EN",
+      "x": 66.09375,
+      "right": 97.625,
+      "width": 31.53125
+    },
+    {
+      "id": "models-catalog-btn",
+      "text": "🧠",
+      "x": 109.625,
+      "right": 134.828125,
+      "width": 25.203125
+    },
+    {
+      "id": "analytics-btn",
+      "text": "📊",
+      "x": 146.828125,
+      "right": 172.03125,
+      "width": 25.203125
+    },
+    {
+      "id": "compact-toggle-btn",
+      "text": "📄 Обычный",
+      "x": 184.03125,
+      "right": 271.578125,
+      "width": 87.546875
+    },
+    {
+      "id": "chat-answers-toggle",
+      "text": "Только ответы ИИ",
+      "x": 283.578125,
+      "right": 403.578125,
+      "width": 120
+    },
+    {
+      "id": "restart-btn",
+      "text": "⟳",
+      "x": 415.578125,
+      "right": 443.640625,
+      "width": 28.0625
+    },
+    {
+      "id": "logout-btn",
+      "text": "🚪",
+      "x": 455.640625,
+      "right": 480.84375,
+      "width": 25.203125
+    }
+  ],
+  "without_toggle": [
+    {
+      "id": "mobile-info-open",
+      "text": "ИНФО",
+      "x": 329.359375,
+      "right": 382,
+      "width": 52.640625
+    },
+    {
+      "id": "new-orch-btn",
+      "text": "+",
+      "x": 46.359375,
+      "right": 78.421875,
+      "width": 32.0625
+    },
+    {
+      "id": "hidden-tabs-btn",
+      "text": "👁",
+      "x": 0,
+      "right": 0,
+      "width": 0
+    },
+    {
+      "id": "",
+      "text": "RU",
+      "x": 53.15625,
+      "right": 85.25,
+      "width": 32.09375
+    },
+    {
+      "id": "",
+      "text": "EN",
+      "x": 87.25,
+      "right": 118.78125,
+      "width": 31.53125
+    },
+    {
+      "id": "models-catalog-btn",
+      "text": "🧠",
+      "x": 130.78125,
+      "right": 155.984375,
+      "width": 25.203125
+    },
+    {
+      "id": "analytics-btn",
+      "text": "📊",
+      "x": 167.984375,
+      "right": 193.1875,
+      "width": 25.203125
+    },
+    {
+      "id": "compact-toggle-btn",
+      "text": "📄 Обычный",
+      "x": 205.1875,
+      "right": 292.734375,
+      "width": 87.546875
+    },
+    {
+      "id": "restart-btn",
+      "text": "⟳",
+      "x": 304.734375,
+      "right": 332.796875,
+      "width": 28.0625
+    },
+    {
+      "id": "logout-btn",
+      "text": "🚪",
+      "x": 344.796875,
+      "right": 370,
+      "width": 25.203125
+    }
+  ]
+}

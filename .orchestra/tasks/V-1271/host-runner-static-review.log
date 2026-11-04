@@ -1,0 +1,9 @@
+UNCHANGED sha256 app/static/js/app.js: f3d468b28188f934fcd3edb6171455620031f5ae74322ba8b28076c43bb1cfa3
+UNCHANGED sha256 app/static/js/i18n.js: 5858a94e4156a3617a1de8740f1e1a740442a4d66b4913db1a32ca23530eaff8
+UNCHANGED sha256 app/static/css/style.css: 104c9714586dcccbe5593d8d6c94963f99754c7f5402483c4ed0dd00ea5b29c1
+UNCHANGED sha256 CHANGELOG.md: 6506ce90325dc2deff3132bb3e13e5287011110e949cd5711b074ab25b740adf
+UNCHANGED sha256 tests/test_chat_answers_v1271.py: 58b1c1bafeac93e395021255f58bc5b74360b626b6c42ed6b024c6edc845ddd0
+Account/workspace publication path scan: PASS; old RED logs retained.
+Source-only HTTP/frozen comparison: RC0; baseline PASS, final PASS, guard EXPECTED FAIL.
+Full backend/middleware investigation remains UNRUN here; original host RED not declared fixed.
+host-acceptance.py sha256: 8f0e4bc948b1372dcc7042a3dcdaa369dc56bd97eea6dc9e23db3e4e861c36c4

@@ -567,6 +567,7 @@
     'Tool failed': 'Инструмент не сработал',
     'Tool health': 'Состояние инструментов',
     'Tool view: compact. Switch to normal view': 'Вид инструментов: компактный. Переключить на обычный',
+    'AI replies only': 'Только ответы ИИ',
     'Tool view: normal. Switch to compact view': 'Вид инструментов: обычный. Переключить на компактный',
     'Tools': 'тулы',
     'Turns': 'Ходы',
