@@ -744,8 +744,9 @@ class HubSsh:
             "    sys.exit(4)\n"
         )
         found = await self.run(
+            f"if test -L {q}; then printf x; else "
             f"python3 -c {shlex.quote(probe)} {q}; policy_rc=$?; "
-            'case "$policy_rc" in 0|3) :;; 4) printf x;; *) exit "$policy_rc";; esac')
+            'case "$policy_rc" in 0|3) :;; 4) printf x;; *) exit "$policy_rc";; esac; fi')
         if found:
             raise HubFilePolicyError("hub workspace path is not a directory; nothing was uploaded")
 
