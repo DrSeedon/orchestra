@@ -11,6 +11,7 @@ import re
 import sqlite3
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
@@ -635,6 +636,68 @@ def get_model_spec(model_id: str) -> ModelSpec:
 # disabled model keeps resolving, resuming, and costing correctly.
 
 MODEL_FLAGS_KV_KEY = "model_flags"
+DISABLED_PROVIDERS_KV_KEY = "disabled_providers"
+
+
+def normalize_provider_key(value: str | None) -> str | None:
+    if not isinstance(value, str):
+        return None
+    return {
+        "claude": "claude", "anthropic": "claude", "anthropic_fable": "claude",
+        "codex": "codex", "openai": "codex", "codex_spark": "codex",
+        "grok": "grok", "xai": "grok",
+        "harness": "harness", "openrouter": "harness", "hub": "hub",
+    }.get(value.strip().lower())
+
+
+def _disabled_providers_file() -> Path:
+    from app import db
+
+    override = os.environ.get("ORCHESTRA_DISABLED_PROVIDERS_FILE")
+    return Path(override) if override else db.DB_PATH.parent / "disabled_providers.json"
+
+
+def list_disabled_providers() -> list[str]:
+    from app.db import kv_get
+
+    values = os.environ.get("ORCHESTRA_DISABLED_PROVIDERS", "").split(",")
+    path = _disabled_providers_file()
+    try:
+        if path.exists():
+            stored = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(stored, dict):
+                stored = stored.get(DISABLED_PROVIDERS_KV_KEY, [])
+        else:
+            stored = json.loads(kv_get(DISABLED_PROVIDERS_KV_KEY, "[]"))
+    except (OSError, ValueError, sqlite3.OperationalError):
+        stored = []
+    if isinstance(stored, list):
+        values.extend(stored)
+    return sorted({key for value in values if (key := normalize_provider_key(value))})
+
+
+def set_provider_disabled(provider: str, disabled: bool) -> list[str]:
+    from app.db import kv_set
+
+    key = normalize_provider_key(provider)
+    if key is None:
+        raise ValueError(f"unknown provider {provider!r}")
+    current = set(list_disabled_providers())
+    if disabled:
+        current.add(key)
+    else:
+        current.discard(key)
+    updated = sorted(current)
+    path = _disabled_providers_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({DISABLED_PROVIDERS_KV_KEY: updated}), encoding="utf-8")
+    kv_set(DISABLED_PROVIDERS_KV_KEY, json.dumps(updated))
+    return updated
+
+
+def is_provider_disabled(provider_or_runtime: str | None) -> bool:
+    key = normalize_provider_key(provider_or_runtime)
+    return key is not None and key in list_disabled_providers()
 
 
 def _load_model_flags() -> dict:
@@ -656,6 +719,11 @@ def get_model_flags(model_id: str) -> dict[str, bool]:
     models registered later default to both-false until the user enables them."""
     manifest = next((spec for spec in SELECTABLE_MODEL_SPECS if spec.id == model_id), None)
     stored = _load_model_flags().get(model_id) or {}
+    spec = MODEL_SPECS.get(model_id)
+    if spec is not None and (
+        is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider)
+    ):
+        return {"dashboard": False, "agents": False}
     return {
         "dashboard": bool(stored.get(
             "dashboard", manifest.default_dashboard if manifest is not None else False
@@ -794,8 +862,13 @@ def ensure_spawn_allowed(
     non-empty model_reason naming the protection constraint; every other native
     route stays refused and the catalog flag, quota and role guards still apply.
     """
-    ensure_hub_worker_allowed(model_id, role=role, pipeline=pipeline, scope=scope, task_id=task_id)
     spec = get_model_spec(model_id)
+    if is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider):
+        raise ValueError(
+            f"model {model_id!r} is disabled because provider {spec.runtime!r} "
+            "is locally disabled (dashboard / agents)"
+        )
+    ensure_hub_worker_allowed(model_id, role=role, pipeline=pipeline, scope=scope, task_id=task_id)
     if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
         raise ValueError("billing must be 'subscription' or 'api_credit'")
     if billing == "api_credit":
@@ -830,6 +903,11 @@ def ensure_spawn_allowed(
 def ensure_dashboard_visible(model_id: str) -> None:
     """Hard gate for user-side actions (UI session creation, change-model from UI)."""
     spec = get_model_spec(model_id)
+    if is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider):
+        raise ValueError(
+            f"model {model_id!r} is disabled because provider {spec.runtime!r} "
+            "is locally disabled (dashboard / agents)"
+        )
     if spec.runtime == "harness":
         validate_harness_model_spec(spec)
     if not get_model_flags(model_id)["dashboard"]:

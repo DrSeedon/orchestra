@@ -2,9 +2,119 @@
 
 from pathlib import Path
 import subprocess
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 import yaml
+
+
+class TestRolePromptModules:
+    @pytest.mark.parametrize("role", ["orchestrator", "worker"])
+    def test_includes_modules_declared_in_pipeline(self, role):
+        from app import prompting
+        from app.pipeline import load_pipeline, resolve_role
+
+        modules = resolve_role(load_pipeline("default"), role).modules
+        assert ("orchestration" if role == "orchestrator" else "report-format") in modules
+        result = prompting.role_prompt_file(role)
+
+        for name in modules:
+            content = (prompting._MODULES_DIR / f"{name}.md").read_text().strip()
+            assert content
+            assert content in result, name
+
+    def test_template_hash_changes_when_module_changes(self, tmp_path, monkeypatch):
+        from app import prompting
+
+        for source in prompting._MODULES_DIR.glob("*.md"):
+            (tmp_path / source.name).write_text(source.read_text(), encoding="utf-8")
+        monkeypatch.setattr(prompting, "_MODULES_DIR", tmp_path)
+        before = prompting.prompt_template_hash("orchestrator")
+        module = tmp_path / "orchestration.md"
+        module.write_text(module.read_text() + "\nNEW_ORCHESTRATION_RULE\n", encoding="utf-8")
+
+        assert prompting.prompt_template_hash("orchestrator") != before
+
+    def test_missing_role_uses_worker_modules(self):
+        from app.prompting import role_prompt_file
+
+        assert role_prompt_file("missing-audit-test-role") == role_prompt_file("worker")
+
+    @pytest.mark.parametrize("frontmatter", ["", "---\nmodules: [legacy]\n---\n"])
+    def test_legacy_frontmatter_and_unavailable_manifest(
+        self, tmp_path, monkeypatch, frontmatter,
+    ):
+        from app import pipeline, prompting
+
+        (tmp_path / "roles").mkdir()
+        (tmp_path / "roles/worker.md").write_text(frontmatter + "ROLE_BODY")
+        (tmp_path / "legacy.md").write_text("LEGACY_MODULE")
+        monkeypatch.setattr(prompting, "_PROMPTS_DIR", tmp_path)
+        monkeypatch.setattr(prompting, "_MODULES_DIR", tmp_path)
+        loader = Mock(side_effect=FileNotFoundError("no manifest"))
+        monkeypatch.setattr(pipeline, "load_pipeline", loader)
+
+        result = prompting.role_prompt_file("worker", pipeline_name="custom")
+
+        assert result == ("ROLE_BODY\n\nLEGACY_MODULE" if frontmatter else "ROLE_BODY")
+        if frontmatter:
+            loader.assert_not_called()
+        else:
+            loader.assert_called_once_with("custom")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("backend_type", ["hub", "claude"])
+@pytest.mark.parametrize("prompt_injected,rules_changed", [(False, False), (False, True), (True, True)])
+async def test_resume_prompt_injection_respects_hub_preamble(
+    tmp_path, monkeypatch, backend_type, prompt_injected, rules_changed,
+):
+    from app import session as session_module
+    from app.events import MessageProvenance
+
+    native_prompt = "NATIVE_CLI_PROMPT: git commit and report_done"
+    session = session_module.AgentSession(
+        id="prompt-test", name="worker", scope=str(tmp_path), cwd=str(tmp_path),
+        model="hub-gpt-6.1-sol" if backend_type == "hub" else "claude-sonnet-5-5[1m]",
+        backend_type=backend_type, session_id="resumed-session",
+        system_prompt=native_prompt, _current_prompt=native_prompt,
+        _prompt_injected=prompt_injected, _template_hash="old-template",
+        _temp_rules_fp="old-rules" if rules_changed else "current-rules",
+    )
+    backend = SimpleNamespace(send=AsyncMock())
+    for name in ("_apply_pending_identity_restart", "_apply_manifest_effort",
+                 "_notify_scope_running", "_turn_event_loop"):
+        monkeypatch.setattr(session, name, AsyncMock())
+    for name in ("_log", "_persist", "_start_turn_state", "_ack_pending_facts"):
+        monkeypatch.setattr(session, name, Mock())
+    monkeypatch.setattr(session, "_ensure_backend", AsyncMock(return_value=backend))
+    monkeypatch.setattr(session, "_attach_pending_facts", lambda message: (message, []))
+    monkeypatch.setattr(session._turns, "claim_mailbox_held_after_stop", lambda: [])
+    monkeypatch.setattr(session._turns, "complete_mailbox_held_after_stop", Mock())
+    monkeypatch.setattr(session_module, "session_requires_quota", lambda *a, **kw: False)
+    monkeypatch.setattr(session_module, "prompt_template_hash", lambda role: "new-template")
+    refresh = Mock(return_value=native_prompt)
+    monkeypatch.setattr(session_module, "refresh_worker_memory", refresh)
+    monkeypatch.setattr(session_module.temp_rules, "fingerprint", lambda **kw: "current-rules")
+    monkeypatch.setattr(session_module.temp_rules, "block_fingerprint", lambda prompt: "current-rules")
+    monkeypatch.setattr(session_module.temp_rules, "with_block", lambda prompt, **kw: prompt)
+
+    await session.send("Continue the task", provenance=MessageProvenance(origin="user", senders=("user",)))
+    if session._listen_task:
+        await session._listen_task
+
+    sent = backend.send.call_args.args[0]
+    assert "<updated-system-prompt>" not in sent
+    assert session._prompt_injected is True
+    if backend_type == "hub":
+        backend.send.assert_awaited_once_with("Continue the task")
+        refresh.assert_not_called()
+    else:
+        assert native_prompt in sent
+        assert sent.endswith("Continue the task")
+        refresh.assert_called_once()
+        assert session._template_hash == "new-template"
 
 
 def _skill(path: Path, name: str, description: str, body: str = "BODY") -> Path:

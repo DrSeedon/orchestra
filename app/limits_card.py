@@ -308,6 +308,8 @@ def collect(usage: dict, *, now: dt.datetime | None = None,
 
     anthropic = usage.get("anthropic") or {}
     codex = usage.get("codex") or {}
+    disabled = set(usage.get("disabled_providers") or ())
+    claude_disabled = bool(disabled & {"claude", "anthropic"})
 
     def pool(label: str, window: dict | None, window_id: str | None = None) -> dict:
         window = window if isinstance(window, dict) else {}
@@ -341,14 +343,24 @@ def collect(usage: dict, *, now: dt.datetime | None = None,
         pool("Spark · 5 часов", spark.get("primary"), "five_hour"),
         pool("Grok", (usage.get("grok") or {}).get("primary")),
     ]
+    # Filter pools and their history keys together; never shift Codex onto Claude history.
+    visible_pools = [
+        (p, key) for p, key in zip(pools, POOL_HISTORY_KEYS)
+        if not (
+            (key[0] == "anthropic" and claude_disabled)
+            or (key[0] in {"codex", "codex_spark"} and "codex" in disabled)
+            or (key[0] == "grok" and "grok" in disabled)
+        )
+    ]
+    pools = [p for p, _key in visible_pools]
     histories = collect_history(history or {}, now)
-    for p, key in zip(pools, POOL_HISTORY_KEYS):
+    for p, key in visible_pools:
         p["history"] = histories.get(key)
         p["history_unavailable"] = bool(history and history.get("unavailable"))
 
     head = usage.get("quota_headroom")
     week = None
-    if (isinstance(head, dict)
+    if (not claude_disabled and isinstance(head, dict)
             and isinstance(head.get("rate"), (int, float))
             and not isinstance(head["rate"], bool)
             and math.isfinite(head["rate"])

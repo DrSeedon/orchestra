@@ -277,23 +277,25 @@ def _load_modules(module_names: list[str]) -> str:
     return "\n\n".join(parts)
 
 
-def role_prompt_file(role: str) -> str:
+def role_prompt_file(role: str, pipeline_name: str = "default") -> str:
     """Find the best prompt for a role. Parses frontmatter, returns body + modules.
     Falls back to 'worker' role if role file not found."""
-    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
-    if role_path.exists():
-        meta, body = parse_role_frontmatter(role_path.read_text())
-        if body:
-            modules = meta.get("modules", [])
-            if modules:
-                body = body + "\n\n" + _load_modules(modules)
-            return body
-    if role != "worker":
-        fallback = _PROMPTS_DIR / "roles" / ("orchestrator.md" if is_orchestrator_role(role) else "worker.md")
-        if fallback.exists():
-            meta, body = parse_role_frontmatter(fallback.read_text())
+    fallback_role = "orchestrator" if is_orchestrator_role(role) else "worker"
+    for prompt_role in dict.fromkeys((role, fallback_role)):
+        role_path = _PROMPTS_DIR / "roles" / f"{prompt_role}.md"
+        if role_path.exists():
+            meta, body = parse_role_frontmatter(role_path.read_text(encoding="utf-8"))
             if body:
-                modules = meta.get("modules", [])
+                modules = meta.get("modules", []) or []
+                if not modules:
+                    try:
+                        from app.pipeline import load_pipeline, resolve_role
+
+                        manifest = load_pipeline(pipeline_name)
+                        if prompt_role in manifest.roles:
+                            modules = list(resolve_role(manifest, prompt_role).modules)
+                    except Exception:
+                        modules = []
                 if modules:
                     body = body + "\n\n" + _load_modules(modules)
                 return body
@@ -315,7 +317,7 @@ def get_role_icons() -> dict[str, str]:
 
 
 def prompt_template_hash(role_or_orch) -> str:
-    """Hash only the static template files (base.md + role.md + skills).
+    """Hash only the static template files (base.md + role.md + role modules).
     Accepts role string or legacy bool (is_orchestrator)."""
     if isinstance(role_or_orch, bool):
         role = "orchestrator" if role_or_orch else "worker"

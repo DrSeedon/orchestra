@@ -1381,6 +1381,7 @@ async function loadMoreLogs() {
 
 // === Models ===
 function _renderModels(data) {
+    _disabledProviders = data.disabled_providers || [];
     const models = data.models || [];
     _MODELS = models.map(m => ({ ...m, label: m.name }));
     _modelsLoaded = true;
@@ -2803,11 +2804,13 @@ function _repaintSenderColors() {
 }
 
 let _MODELS = [];
+let _disabledProviders = [];
 let _modelsLoaded = false;
 async function _ensureModels() {
     if (_modelsLoaded) return;
     try {
         const data = await api('/api/models');
+        _disabledProviders = data.disabled_providers || [];
         const models = data.models || [];
         _MODELS = models.map(m => ({ ...m, label: m.name }));
         _modelsLoaded = true;
@@ -4413,6 +4416,7 @@ async function _renderClientModal() {
     body.innerHTML = `<span class="text-slate-500">${T('Loading...')}</span>`;
     try {
         const data = await api('/api/models');
+        _disabledProviders = data.disabled_providers || [];
         const models = data.models || [];
         const connected = data.proxy_connected;
         let html = `<div class="flex items-center justify-between p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/40 mb-3">
@@ -5076,6 +5080,7 @@ function closeCatalogModal() {
 async function loadCatalog() {
   try {
     const data = await api('/api/models/catalog');
+    _disabledProviders = data.disabled_providers || [];
     _CATALOG = data.catalog || [];
     renderCatalogList();
   } catch (e) { console.warn('catalog load failed:', e); }
@@ -5117,10 +5122,10 @@ function _catalogToggle(flag, m) {
   box.setAttribute('data-flag', flag);
   box.dataset.id = m.id;
   box.checked = !!m.flags[flag];
-  if (m.runtime === 'harness' && (!_catalogHarnessEligible(m) || !_catalogAvailable(m))) {
+  if (m.provider_disabled || (m.runtime === 'harness' && (!_catalogHarnessEligible(m) || !_catalogAvailable(m)))) {
     box.disabled = true;
     label.classList.add('opacity-40', 'cursor-not-allowed');
-    label.title = _catalogAvailable(m)
+    label.title = m.provider_disabled ? 'Провайдер заблокирован локально' : _catalogAvailable(m)
       ? T('Harness allows only exact :free routes with tool calling')
       : T('Route no longer available on OpenRouter');
   }
@@ -5156,6 +5161,37 @@ function _catalogRow(m) {
 function renderCatalogList() {
   const list = $('#catalog-list');
   list.innerHTML = '';
+  const providers = document.createElement('div');
+  providers.className = 'flex flex-wrap gap-2 px-2 py-2 mb-2';
+  for (const [key, name] of [
+    ['claude', 'Claude'], ['codex', 'Codex'], ['grok', 'Grok'],
+    ['harness', 'OpenRouter (Harness)'], ['hub', 'Hub'],
+  ]) {
+    const isBlocked = _disabledProviders.includes(key);
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'text-xs px-3 py-1 rounded-full border '
+      + (isBlocked ? 'border-red-700 text-red-400' : 'border-emerald-700 text-emerald-400');
+    pill.textContent = `${name} · ${isBlocked ? 'заблокирован локально' : 'включён'}`;
+    pill.setAttribute('aria-pressed', String(!isBlocked));
+    pill.onclick = async () => {
+      pill.disabled = true;
+      try {
+        const result = await api('/api/models/catalog/flags', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: key, disabled: !isBlocked }),
+        });
+        _disabledProviders = result.disabled_providers || [];
+        await Promise.all([loadModels(), fetchUsage(), loadCatalog()]);
+      } catch (err) {
+        console.warn('provider toggle failed:', err);
+      } finally {
+        renderCatalogList();
+      }
+    };
+    providers.appendChild(pill);
+  }
+  list.appendChild(providers);
   const matches = _CATALOG.filter(_catalogMatches);
   for (const m of matches) list.appendChild(_catalogRow(m));
   if (!matches.length) {

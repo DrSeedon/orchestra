@@ -272,7 +272,14 @@ function _renderUsageBarShell(bar, groups) {
         + `<span id="usage-info-btn" title="${T('Usage details and history')}">ⓘ</span></div>`;
 }
 
+function _isProviderDisabled(p) {
+    return Array.isArray(_usageData && _usageData.disabled_providers)
+        && _usageData.disabled_providers.includes(p);
+}
+
 function renderUsageBar() {
+    const profBtn = document.getElementById('profiles-btn');
+    if (profBtn) profBtn.style.display = _isProviderDisabled('claude') ? 'none' : '';
     const bar = document.getElementById('usage-bar');
     if (!bar) return;
     if (!_usageData) {
@@ -323,7 +330,7 @@ function renderUsageBar() {
         const headroom = _quotaMapLaneHeadroomText(sd, 'anthropic');
         claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${T('7d')}: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:var(--ink-dim)">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
-    if (claudeParts.length) {
+    if (!_isProviderDisabled('claude') && claudeParts.length) {
         groups.push(
             '<span class="usage-provider-group" data-usage-compact-provider="claude">'
             + `<span class="usage-provider-title" style="color:${_usageProviderAccent('claude')};font-weight:600">Claude</span>`
@@ -333,7 +340,7 @@ function renderUsageBar() {
     }
 
     const or = _usageData.openrouter || null;
-    if (or) {
+    if (or && !_isProviderDisabled('harness')) {
         const accent = 'var(--provider-openrouter)';
         if (!or.available) {
             // #368: недоступный счётчик — явное «нет данных», не ноль: ноль
@@ -367,7 +374,8 @@ function renderUsageBar() {
         {id:'codex', bucketId:'codex', windows:_usageProviderWindows('codex', cx)},
         {id:'codex-spark', bucketId:'codex_spark', windows:_usageProviderWindows('codex', cx.spark), compactTitle:'Codex Spark'},
         {id:'grok', bucketId:'grok', windows:_usageProviderWindows('grok', gx), showUnavailable:true},
-    ].filter(provider => provider.windows.length || provider.showUnavailable);
+    ].filter(provider => !_isProviderDisabled(provider.id === 'codex-spark' ? 'codex' : provider.id)
+        && (provider.windows.length || provider.showUnavailable));
     if (compactProviders.length) {
         for (const provider of compactProviders) {
             const meta = _PROVIDER_META[provider.id];
@@ -450,12 +458,15 @@ function renderUsageBar() {
                 };
                 let h = '';
                 const claudeMeta = _PROVIDER_META.claude;
-                let claudeHtml = '<section data-usage-provider="claude" style="min-width:0;padding-right:2px">';
-                claudeHtml += `<div style="color:${_usageProviderAccent('claude')};font-weight:700;margin-bottom:7px">${T(claudeMeta.usageTitle)}</div>`;
-                for (const item of _usageProviderWindows('claude', _a)) {
-                    claudeHtml += _windowBlock(item.window, T(item.label), claudeMeta.windowAccent);
+                let claudeHtml = '';
+                if (!_isProviderDisabled('claude')) {
+                    claudeHtml = '<section data-usage-provider="claude" style="min-width:0;padding-right:2px">';
+                    claudeHtml += `<div style="color:${_usageProviderAccent('claude')};font-weight:700;margin-bottom:7px">${T(claudeMeta.usageTitle)}</div>`;
+                    for (const item of _usageProviderWindows('claude', _a)) {
+                        claudeHtml += _windowBlock(item.window, T(item.label), claudeMeta.windowAccent);
+                    }
+                    claudeHtml += `<div data-usage-history="${claudeMeta.historyProviders.join(',')}"></div></section>`;
                 }
-                claudeHtml += `<div data-usage-history="${claudeMeta.historyProviders.join(',')}"></div></section>`;
 
                 const codexMeta = _PROVIDER_META.codex;
                 const codexProviders = [
@@ -489,7 +500,7 @@ function renderUsageBar() {
 
                 const orMeta = _usageData?.openrouter || null;
                 let orHtml = '';
-                if (orMeta) {
+                if (orMeta && !_isProviderDisabled('harness')) {
                     orHtml = '<section data-usage-provider="openrouter" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
                     orHtml += `<div style="color:var(--accent-violet);font-weight:700;margin-bottom:7px">${T('OpenRouter (free)')}</div>`;
                     if (!orMeta.available) {
@@ -515,7 +526,10 @@ function renderUsageBar() {
                 const hubHtml = '<section data-usage-provider="hub" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">'
                     + `<div style="color:${_usageProviderAccent('hub')};font-weight:700;margin-bottom:7px">${T(hubMeta.usageTitle)}</div>`
                     + `<div data-usage-hub-pool style="color:var(--ink-dim);font-style:italic">${T('Loading…')}</div></section>`;
-                h += claudeHtml + codexHtml + grokHtml + orHtml + hubHtml + '</div>';
+                h += claudeHtml
+                    + (_isProviderDisabled('codex') ? '' : codexHtml)
+                    + (_isProviderDisabled('grok') ? '' : grokHtml)
+                    + orHtml + (_isProviderDisabled('hub') ? '' : hubHtml) + '</div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row(T('💰 Cost'), `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toLocaleString(orchLocale(), {minimumFractionDigits: 0, maximumFractionDigits: 0})}`, '#22c55e');

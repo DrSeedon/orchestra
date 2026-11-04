@@ -1741,7 +1741,11 @@ class AgentSession:
             if self._temp_rules_fp is None:
                 self._temp_rules_fp = temp_rules.block_fingerprint(self._current_prompt or "")
             rules_changed = rules_now != self._temp_rules_fp
-            if self.session_id and self._current_prompt and (
+            if self.backend_type == "hub":
+                # HubBackend owns its compact sandbox preamble; the native CLI
+                # prompt must never be replayed into a Hub worker's user turn.
+                self._prompt_injected = True
+            if self.backend_type != "hub" and self.session_id and self._current_prompt and (
                 not self._prompt_injected or rules_changed
             ):
                 # Inject updated system prompt once per session — workers list, role

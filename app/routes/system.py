@@ -48,8 +48,12 @@ from app.models import (
     get_model_flags,
     get_model_spec,
     is_proxy_connected,
+    is_provider_disabled,
+    list_disabled_providers,
+    normalize_provider_key,
     provider_metadata_payload,
     runtime_for_record,
+    set_provider_disabled,
     validate_harness_model_spec,
 )
 from app.pipeline import list_pipelines
@@ -543,6 +547,7 @@ async def list_models(response: Response):
         logger.warning("Default orchestrator model unavailable from pipeline")
     return {
         "models": models,
+        "disabled_providers": list_disabled_providers(),
         "default_orchestrator_model": (
             preferred if any(model["id"] == preferred for model in models) else None
         ),
@@ -610,8 +615,12 @@ async def get_models_catalog():
             "runtime": spec.runtime,
             "provider": spec.provider,
             "flags": get_model_flags(model_id),
+            "provider_disabled": is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider),
         })
-    return {"catalog": catalog, "fetched_at": payload["fetched_at"]}
+    return {
+        "catalog": catalog, "fetched_at": payload["fetched_at"],
+        "disabled_providers": list_disabled_providers(),
+    }
 
 
 @router.post("/api/models/catalog/refresh")
@@ -632,6 +641,19 @@ async def patch_model_flags(request: Request):
         body = await request.json()
     except _json.JSONDecodeError:
         return JSONResponse({"error": "invalid JSON"}, status_code=400)
+    if "provider" in body and "model_id" not in body and "id" not in body:
+        provider = body.get("provider")
+        disabled = body.get("disabled")
+        if not isinstance(disabled, bool):
+            return JSONResponse({"error": "disabled must be a boolean"}, status_code=400)
+        try:
+            updated = set_provider_disabled(provider, disabled)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return {
+            "ok": True, "provider": normalize_provider_key(provider),
+            "disabled": disabled, "disabled_providers": updated,
+        }
     model_id = str(body.get("id") or "").strip()
     if not model_id:
         return JSONResponse({"error": "id required"}, status_code=400)
@@ -1279,12 +1301,18 @@ async def _get_usage_data(
     required_provider: str = "",
 ) -> dict:
     now = time.time()
-    await _maybe_refresh_openrouter_reconciliation()
+    claude_disabled = is_provider_disabled("claude")
+    codex_disabled = is_provider_disabled("codex")
+    grok_disabled = is_provider_disabled("grok")
+    if not is_provider_disabled("harness"):
+        await _maybe_refresh_openrouter_reconciliation()
 
     anthropic_data = None
     anthropic_fetched = False
     skip_anthropic_refresh = bool(required_provider) and required_provider != "anthropic"
-    if skip_anthropic_refresh:
+    if claude_disabled:
+        anthropic_data = None
+    elif skip_anthropic_refresh:
         anthropic_data = _usage_cache["data"]
     elif (
         not force_refresh
@@ -1324,7 +1352,9 @@ async def _get_usage_data(
     skip_codex_refresh = bool(required_provider) and required_provider not in {
         "codex", "codex_spark",
     }
-    if skip_codex_refresh:
+    if codex_disabled:
+        codex_data = None
+    elif skip_codex_refresh:
         codex_data = _codex_usage_cache["data"]
     elif (
         not force_refresh
@@ -1344,13 +1374,15 @@ async def _get_usage_data(
         except Exception as e:
             logger.warning("Codex usage fetch failed: %r", e)
             codex_data = _codex_usage_cache["data"]
-    if required_provider in {"codex", "codex_spark"} and not codex_fetched:
+    if not codex_disabled and required_provider in {"codex", "codex_spark"} and not codex_fetched:
         raise RuntimeError("fresh Codex usage is unavailable")
 
     grok_data = None
     grok_fetched = False
     skip_grok_refresh = bool(required_provider) and required_provider != "grok"
-    if skip_grok_refresh:
+    if grok_disabled:
+        grok_data = None
+    elif skip_grok_refresh:
         grok_data = _grok_usage_cache["data"]
     elif (
         not force_refresh
@@ -1394,18 +1426,22 @@ async def _get_usage_data(
             _grok_usage_cache["data"] = None
             _grok_usage_cache["ts"] = 0.0
             _grok_usage_cache["failed_at"] = now
-    if required_provider == "grok" and not grok_fetched:
+    if not grok_disabled and required_provider == "grok" and not grok_fetched:
         raise RuntimeError("fresh Grok usage is unavailable")
 
-    anthropic_data = _latest_claude_data(anthropic_data)
+    if not claude_disabled:
+        anthropic_data = _latest_claude_data(anthropic_data)
     if anthropic_data is not None:
         _usage_cache["data"] = anthropic_data
     return {
         "anthropic": anthropic_data,
-        "anthropic_error": _usage_cache.get("error"),
+        "anthropic_error": None if claude_disabled else _usage_cache.get("error"),
         "codex": codex_data,
+        "codex_error": None,
         "grok": grok_data,
-        "openrouter": _get_openrouter_usage(),
+        "openrouter": None if is_provider_disabled("harness") else _get_openrouter_usage(),
+        "disabled_providers": list_disabled_providers(),
+        "quota_headroom": None if claude_disabled else _quota_headroom(anthropic_data),
         "orchestra": _get_agents_cost(),
         "voice_cost_usd": round(_get_voice_cost_usd(), 4),
         # Единственное РЕАЛЬНОЕ число в этой панели (остальные — API-эквивалент).
@@ -1470,7 +1506,10 @@ async def get_usage():
     if not is_owner_mode():
         return None
     data = await _get_usage_data()
-    return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
+    return {**data, "quota_headroom": (
+        None if "claude" in data.get("disabled_providers", [])
+        else _quota_headroom(data.get("anthropic"))
+    )}
 
 
 @router.get("/api/usage/hub-pool")
@@ -1599,9 +1638,12 @@ async def _collect_usage_snapshot() -> None:
 
     from app.backend_codex import CODEX_BIN
     from app.db import usage_save_snapshot
+    claude_disabled = is_provider_disabled("claude")
+    codex_disabled = is_provider_disabled("codex")
+    grok_disabled = is_provider_disabled("grok")
     anthropic_data = None
     anthropic_error = ""
-    token, _tier = _read_oauth_credentials()
+    token, _tier = (None, None) if claude_disabled else _read_oauth_credentials()
     if token:
         try:
             anthropic_data = await _fetch_anthropic_usage(token)
@@ -1618,11 +1660,12 @@ async def _collect_usage_snapshot() -> None:
         _usage_cache["ts"] = time.time()
         _save_usage_cache()
         _stale_logged.discard("anthropic_token_snapshot")
-    anthropic_data = _latest_claude_data(anthropic_data)
+    if not claude_disabled:
+        anthropic_data = _latest_claude_data(anthropic_data)
 
     codex_error = ""
     try:
-        codex_data = await _fetch_codex_usage()
+        codex_data = None if codex_disabled else await _fetch_codex_usage()
     except Exception as e:
         codex_data = None
         codex_error = f"{type(e).__name__}: {e}"
@@ -1632,7 +1675,7 @@ async def _collect_usage_snapshot() -> None:
 
     grok_data = None
     grok_error = ""
-    grok_token = _read_grok_token()
+    grok_token = None if grok_disabled else _read_grok_token()
     if grok_token:
         try:
             grok_data = await _fetch_grok_usage(grok_token)
@@ -1651,7 +1694,7 @@ async def _collect_usage_snapshot() -> None:
     # «не настроен»: в обоих случаях ключа провайдера просто нет.
     for provider_id, label, asked, answered, error in (
         ("anthropic", "Claude", bool(token), anthropic_data, anthropic_error),
-        ("codex", "Codex", bool(shutil.which(CODEX_BIN)), codex_data, codex_error),
+        ("codex", "Codex", not codex_disabled and bool(shutil.which(CODEX_BIN)), codex_data, codex_error),
         ("grok", "Grok", bool(grok_token), grok_data, grok_error),
     ):
         if asked and not answered:
@@ -1993,6 +2036,9 @@ async def build_quota_map() -> dict:
     lanes_by_bucket: dict[str, dict[str, dict]] = {}
     outside_policy = []
     for model_id, model_label in MODELS.items():
+        spec = get_model_spec(model_id)
+        if is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider):
+            continue
         decision = evaluate_worker_admission(
             model_id, providers, timestamps, now=now, policy=policy,
         )
@@ -2257,6 +2303,8 @@ async def build_quota_map() -> dict:
 
     buckets = []
     for bucket in sorted(set(models_by_bucket) | set(lanes_by_bucket)):
+        if is_provider_disabled(bucket):
+            continue
         data = providers.get(bucket)
         data = data if isinstance(data, dict) else {}
         observed_at = timestamps.get(bucket)

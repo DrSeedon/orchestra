@@ -1,127 +1,107 @@
-# Orchestra — правила работы
+# Orchestra — repository guide
 
-Единственный источник правил проекта — этот версионируемый AGENTS.md, его читает Codex.
-CLAUDE.md рядом — СИМЛИНК на него, а не копия, и убирать его нельзя: он не зависит ни от
-мода agents-md, ни от выбора CLI в SDK (системная CLI читает и одиночный AGENTS.md; KB agent-control, поправка 08.10).
-Проверка контракта: python scripts/check_instruction_contract.py.
-Правила поведения агентов всех проектов принадлежат .orchestra/pipelines/default/prompts/,
-а этот файл регулирует работу над самой Orchestra.
+Orchestra coordinates persistent AI agents through FastAPI, SSE, SQLite, provider CLIs
+and stdio MCP. Work on Orchestra itself follows this file. Agent behavior in projects
+belongs to `.orchestra/pipelines/default/prompts/`; keep each rule with its owning module.
+`CLAUDE.md` must remain a symlink to this versioned `AGENTS.md`. Keep root instructions
+below 16 KiB; put task evidence and history in their directories, not here.
 
-## Границы полномочий
+## Find the relevant code
 
-- Не добавляй в корневые инструкции отчёты, логи аварий, текущие проценты квот,
-  длинные примеры и разовые обходы. В корне остаются только ограничения, нужные
-  практически любой задаче. Исследовательские выводы — в KB, результаты — в tasks.
-  Новое постоянное правило требует согласования владельца; существующее уточняй
-  у его владельца, не дописывай ещё одну версию в конец файла.
-  Каждый корневой файл должен быть меньше 16 KiB. Не повышай этот предел ради
-  очередного дополнения и не подключай подробности через автоматические импорты.
+- `app/session.py`: agent turns, injected messages, context compaction and recovery.
+- `app/manager.py`: session registry, worker creation, lifecycle, role prompt assembly.
+- `app/merge_operations.py`: durable merge operations, exact-HEAD acceptance, idempotency
+  and recovery. `app/routes/merge_operations.py` exposes the HTTP surface.
+- `app/merge_test_gate.py`: bounded merge-time test selection; it is not the full suite.
+- `app/pipeline.py`: pipeline validation, role resolution, prompt layers and effort.
+- `app/models.py`: model registry, aliases and provider/worker admission;
+  `app/quota_gate.py` owns quota admission. Catalog presence alone is not permission.
+- `app/prompting.py`: safe template substitution, instruction and memory delivery.
+- `app/kb_index.py`: the knowledge index injected into agent prompts.
+- `app/`: API, provider backends and dashboard code; `tests/`: behavior and integration
+  contracts; `scripts/`: checks and tooling; `deploy/`: deployment configuration.
+- `.orchestra/pipelines/default/`: manifest, roles, reusable modules and skills.
+- `.orchestra/kb/`: accepted knowledge; `.orchestra/tasks/<id>/`: task evidence;
+  `.orchestra/workers/`: worker memory. Historical conclusions are not current policy.
 
-- Выполняй согласованную задачу в её границах. Исследование не разрешает реализацию,
-  а разовое «делай» не создаёт постоянного разрешения на другие работы.
-- Рестарт Orchestra на VPS делает сам только сторож простоя (скрипт idle_restart_watch.sh в data):
-  влитый Python новее процесса и ни один агент не работает две проверки подряд (владелец 22.10.2026
-  23:44 КРС, дословно: «если никто не работает, ничего, то рестарт, то есть эта хуйня, автоматический
-  сторож»). Рестарт с прерыванием агентов и
-  ноутбук — только по его прямому слову. telegram-bot-api не перезапускают. После рестарта проверь
-  cut_names и восстанови срезанных; потерянное продолжение — не отказ работника.
-- Не выкатывай код и не выполняй git pull на VPS самостоятельно.
-  Не обращайся к чужим оркестраторам ради инфраструктурной координации.
-- Git remote origin — наш публичный. Другие remotes (включая enterprise и vadim)
-  не трогай. Сверяй git remote -v; не делай force-push и не теряй чужие коммиты.
-- Существующие чужие правки сохраняй. Работай в отдельной ветке/worktree;
-  мерж и запуск сервисов не следуют автоматически из успешных тестов.
-  Не убивай full-cycle воркера только из-за завершённого merge: он может ждать
-  следующего этапа. Условия завершения принадлежат модулю worker-lifecycle.
-- Перед закрытием воркера сохрани результат в main либо выводы и причину отказа
-  в хронике со ссылкой на исходную ветку. Одна preserve/*-метка не заменяет
-  извлечение знаний; полномочия на мерж и удаление проверяются отдельно.
-- **Маскирование секретов снято с пути ОТОБРАЖЕНИЯ и живёт только на границе публикации (решение владельца 06.09.2026, дословно: «журнал наш бд по дефолту должен быть гит игнор и утечки быть не должно, а на фронте мне не ломай секреты отображение»).** `db.add_log`, `live_broker.publish` и копии доставок пишут и отдают содержимое ДОСЛОВНО: `data/` целиком под `.gitignore` (`git check-ignore -v data/orchestra.db` → `.gitignore:11`), в индексе её нет, наружу журнал не публикуется. Маскирование там не предотвращало утечку, а портило рабочие данные (ссылка MTProto-прокси с публичным `secret=`). `app/secret_mask.py` и его тесты сохранены и остаются владельцем правила: применять их надо к тому, что уезжает В GIT и наружу, а не к тому, что владелец читает у себя. Остаточный риск назван явно: агент, копирующий содержимое лога в трекаемый артефакт, по-прежнему может протащить секрет — поэтому сырые выгрузки проверяются фильтром ПО ФОРМЕ секрета перед коммитом, и это единственное место, где маска обязательна.
-- Не публикуй пароли, OAuth-токены, ключи, содержимое .env или секреты из логов.
-  Секрет в собственном локальном хранилище сам по себе не доказывает утечку.
-  Не ротируй его и не останавливай работу только из-за существования; публичную
-  утечку сообщай немедленно. Сырые выгрузки проверяй перед коммитом.
-- Ноутбук владельца — рабочая машина: тяжёлые проверки последовательно,
-  nice=15 и MemoryMax=2G. /tmp может быть tmpfs; большие временные данные — /mnt/data.
-  Не убивай процессы по широкому pkill/сохранённому PGID; работай с точным владельцем.
-- Никаких новых платных API-вызовов вместо подписки без разрешения.
-  OpenRouter Harness допускает точные :free маршруты и платные только из
-  PAID_HARNESS_ROUTES в app/models.py; новый платный маршрут — по слову владельца.
+Read the current implementation and relevant tests first. Use `rg`/`rg --files` and
+targeted reads. Consult symbol history for a regression or unclear prior decision.
+Search knowledge on demand using the knowledge module; a new topic needs both a file
+and a descriptive entry in `.orchestra/kb/README.md` to reach agents.
 
-## Текущие владельцы и рабочие пути
+## Scope and worktrees
 
-- Ресурсы VPS: бот Кеши (kesha-bot-vps) имеет приоритет выше Orchestra по памяти и CPU, затем Orchestra
-  (API и оркестраторы), затем агенты (владелец 08.10.2026, дословно: «кеша приоритет у нас всегда даже
-  выше оркестры. он если что чинить и будет все»). Лимиты задаются через `systemctl set-property` без --runtime.
-- API-кредиты Claude ($200/мес) — не запасной режим обычных воркеров, только отдельные задачи: наборы
-  dynamic_workflow, замеры (владелец 09.10.2026 после того, как воркер Game Master сжёг $156 за сутки,
-  дословно: «эти 200 долларов ни о чём нам не дают… будем отдельно пускать на отдельные задачи…
-  но не обычный воркер»). В .env стоит CLAUDE_API_CREDIT_FALLBACK_ENABLED=0.
-- FastAPI + SSE, SQLite, внешние CLI и stdio MCP; главный код — app/.
-  Локальный dashboard обычно на 127.0.0.1:8888. Состояние конкретного сервиса
-  проверяй read-only; исторический рассказ не подтверждает, что он сейчас запущен.
-- Модели/effort/допуск: pipeline, model-routing, app/quota_gate.py; наш default —
-  .orchestra/rules-model-defaults.md (выбор/смена модели).
-  Исторические % не меняют политику. Dashboard — API-equivalent, не счёт;
-  API-цены не доказывают подписочную квоту.
-- Мы на подписке: чтение кеша Claude почти бесплатно, платят запись кеша и вывод (KB V-660).
-  Экономию и расход считать от платных токенов, не от всего хода (владелец 10.10.2026 после
-  V-802, дословно: «запиши… что мы на подписке у нас другие расчеты беслптаный кеш рид»).
-- Чат показывает свежий сетевой snapshot последних сообщений, затем SSE.
-  Не возвращай зеркало истории в IndexedDB или stale-while-revalidate для чата.
-- База знаний — .orchestra/kb/, доказательства задач — .orchestra/tasks/,
-  память — .orchestra/workers/, история — в Git по kb/history.md.
-  Raw-отчёт не становится текущим правилом без проверки и принятия вывода.
+- Preserve existing changes. Work in an assigned branch/worktree and edit repository
+  files only there. Do not switch a managed worker's branch or edit the main checkout.
+- Deliver the authorized outcome. Research ends at findings; a recommendation does not
+  authorize implementation. Do not change neighboring systems or add speculative rules.
+- Inspect `git remote -v`: `origin` is our public remote. Leave other remotes alone;
+  no force-push, discarded commits or shared-worktree stash operations.
+- Successful tests do not authorize merge, push, deployment or service startup. Workers
+  report their result; merge authority and lifecycle gates belong to the orchestrator.
+- Existing authorization covers bug fixes and red CI repair; it does not cover data
+  deletion, new spending, disruptive restarts or consequential architectural choices.
+  After an authorized push, check CI with `~/.local/bin/gh-clean run list`.
+- Before closing a worker, preserve accepted work or its findings and rejection reason
+  with the source branch. A preserve tag alone is insufficient; follow worker-lifecycle.
 
-## Найти нужное, не прочитать всё
+## Runtime and safety
 
-Оглавление тем и порядок поиска по нему платформа вставляет в системный промпт сама
-(`app/kb_index.py`, модуль knowledge). Здесь остаётся только обязанность автора:
-новую тему заводи файлом в .orchestra/kb/ И строкой с кратким описанием в
-.orchestra/kb/README.md — тема без этой строки до агентов не доедет.
-Запись и поиск: .orchestra/pipelines/default/prompts/modules/knowledge.md.
+- Do not deploy or run `git pull` on the VPS yourself. Automatic Orchestra restarts are
+  owned by the idle watcher: merged Python is newer and no agent is active on two checks.
+  A disruptive restart or a laptop restart needs explicit authorization. Never restart
+  telegram-bot-api. After a permitted restart, check cut_names and recover interrupted work.
+- Do not coordinate infrastructure through other projects' orchestrators. Verify service
+  state read-only; files on disk are not proof that a live Python process loaded them.
+- On the VPS, resource priority is kesha-bot-vps, Orchestra, then agents. Do not change
+  infrastructure limits or move jobs to another cgroup to bypass them.
+- Before heavy work, check available memory and the process cgroup limits. Keep tests
+  sequential unless parallelism is justified. On the owner's laptop use nice=15 and
+  MemoryMax=2G; use `/mnt/data` for large temporary files. Stop only precisely owned PIDs.
+- Do not send secrets, protected data or live infrastructure to Hub workers. Follow
+  model-routing for safe source bundles and protected local work. Disabled providers
+  remain disabled; provider failure does not authorize a paid fallback.
+- New paid API routes require permission. Harness admits exact free routes and only
+  paid routes in PAID_HARNESS_ROUTES in `app/models.py`. Claude API credits are opt-in
+  for specific tasks, never the ordinary-worker fallback.
 
-## Реализация и проверка
+## Data and implementation conventions
 
-- Перед починкой симптома сверь текущий код. Историю изменения символа изучай
-  при регрессии, неясном происхождении поведения или риске отменить прежнее решение.
-  Не меняй соседние системы, не расширяй задачу и не добавляй новую зависимость
-  в обязательный промпт раньше, чем её реальный путь проверен.
-- Один владелец правила и состояния; данные из API, конфигов и текущего кода
-  важнее исторического замера. Индекс/проекция не заменяет канонический источник.
-- Тестируй поведение: отрицательное и разрешающее плечо, границы, конкурентность,
-  восстановление. Зелёный тест должен краснеть при возвращении дефекта.
-  Таймауты тестов ограничивают зависание, а не подменяют замер производительности.
-- Тесты не используют боевую БД, токены TG, NOTIFY_SOCKET живого сервиса и настоящие
-  CLI провайдеров без отдельной цели прогона. Копия живой SQLite — backup(), не cp.
-- Полный набор: `uv run --frozen python scripts/run_tests.py`; целевые тесты:
-  `uv run --frozen python -m pytest <пути> -q`. Не используй системный Python или консольный
-  `pytest`; `uv` создаёт `.venv`. В отчёте укажи абсолютный путь импортированного `app`.
-- Прежние опыты замеров — .orchestra/kb/evidence-methods.md. Разделяй до/после и шум;
-  не объявляй улучшение по размеру файла, числу тестов или имени модели.
-- Не выдавай код на диске за работающий Python в живом процессе.
-  JS/CSS могут загрузиться без рестарта; Python/CLI-конфиги имеют свой жизненный цикл.
-- Ошибки платформы фиксируй через report_bug, если инструмент доступен;
-  результаты своей задачи сохраняй в .orchestra/tasks/<id>/.
-- До закрытия работы: проверь diff, нужные тесты, отсутствие секретов и потерь
-  чужих правок. Сообщи результат, фактическую проверку и оставшийся риск.
-- Красный CI на main чинится сразу, без отдельного вопроса (владелец 06.10.2026,
-  после 28 писем о падении за сутки, дословно: «чини CI всегда хули блять он опять красный»).
-  После своего push проверяй статус прогона (`~/.local/bin/gh-clean run list`).
-- Баги исправлять автоматически: проверить по коду, отдать воркеру, принять, влить, запушить.
-  Владелец 25.10.2026 10:53 КРС, дословно: «Автоматически все баги исправляй»
-  (повод — лишнее согласование V-1076). Ограничения на рестарты, удаление данных,
-  платные расходы и архитектурные развилки сохраняются.
-- Orchestra — дом её оркестратора: он главный строитель, сам изучает платформу, опрашивает
-  коллег-оркестраторов и улучшает; мелочи — сам, критичное (рестарт, удаление данных,
-  платное, развилки) — спросить (владелец 22.10.2026 18:54,
-  дословно: «это твой дом ты тут живешь и твоя обязанность его улучшать изучать спрашивать
-  коллег и улучшать ты главный строитель. по мелочи все сам делай какието крит вопросы меня спрашивай»).
+- Keep one canonical owner for policy and state. API/configuration/current code outrank
+  historical measurements; an index or projection cannot replace its source.
+- Prefer small, explicit changes following surrounding style. Enforce safety at the
+  operation it protects; unavailable optional metadata must not block a safe native path.
+- Preserve the chat's fresh network snapshot followed by SSE. Do not add an IndexedDB
+  history mirror or stale-while-revalidate chat cache.
+- `data/` is ignored runtime state. `db.add_log`, `live_broker.publish` and delivery
+  copies preserve content verbatim for the owner. Do not mask this display path.
+- `app/secret_mask.py` owns masking at publication boundaries. Scan raw exports before
+  putting them in tracked artifacts or sending them outside. Never publish credentials,
+  `.env` contents or secrets from logs. A secret in private storage is not itself a leak;
+  report a confirmed public leak immediately without unilateral rotation.
+- Use isolated test state, never the production database, Telegram tokens,
+  NOTIFY_SOCKET of a live service or real provider CLIs without an explicit probe goal.
+  Copy live SQLite using backup(), not a filesystem copy.
 
-- Правила агентов держатся механизмом, не доверием (владелец 14.10.2026 после V-844, где агенты
-  спали 4,8 ч при запрете, дословно: «чтобы не на доверии соблюдали, всё на реальности… нарушил —
-  по рукам побить»). Нарушение блокируется платформой с ответом, какое правило нарушено.
+## Validation and completion
 
-## Исторический источник
+Use the repository virtual environment, not system Python or an unrelated `pytest`:
 
-Прежний документ (история, не правила): `git show 68d32a4b4a6ad0130d08894791f68c5e84152c2c:.orchestra/archive/instructions/2026-09-05-CLAUDE.md`; остальное — .orchestra/kb/history.md.
+```sh
+uv sync --frozen --group dev
+.venv/bin/pytest tests/test_default_pipeline.py tests/test_prompting.py tests/test_local_delegation_prompts.py
+uv run --frozen python -m pytest <test-paths> -q
+uv run --frozen python scripts/run_tests.py
+uv run --frozen python scripts/check_instruction_contract.py
+```
+
+Run focused checks for the changed contract; the full runner is for full-suite validation.
+Tests should cover behavior, authorization, failure/retry, concurrency and recovery where
+relevant. Do not weaken frozen acceptance tests. For prompts, preserve module delivery,
+role isolation and template contracts rather than pinning editorial wording.
+
+Before handoff, inspect the diff, required checks, secret boundaries and unrelated changes.
+Report the outcome, actual checks including failures/skips, evidence paths and remaining
+risk. Name the absolute imported `app` path so the checked checkout is unambiguous.
+Use `report_bug` for platform defects when available; keep task evidence under the task
+directory. Distinguish measured behavior from proposals and on-disk changes from activation.
