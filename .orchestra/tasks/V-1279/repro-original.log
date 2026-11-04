@@ -1,0 +1,149 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestTgLifecycleReliability.test_topic_create_timeout_is_not_blindly_retried __
+
+fut = <coroutine object ensure_topics at 0x7adf3ceea350>, timeout = 0.05
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/tg_bridge.py:3722: in ensure_topics
+    await _ensure_primary_topic(o["name"])
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'orch'
+
+    async def _ensure_primary_topic(name: str) -> None:
+        if name in config["topics"]:
+            _ensure_stream(name, config["topics"][name])
+            return
+        key = f"primary:{name}"
+        if key in config.setdefault("topic_create_uncertain", {}):
+            return
+        task = _ensure_owned_task(
+            _topic_create_tasks,
+            key,
+            lambda: _create_primary_topic(name),
+        )
+>       await asyncio.shield(task)
+E       asyncio.exceptions.CancelledError
+
+app/tg_bridge.py:3663: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <tests.test_tg_bridge.TestTgLifecycleReliability object at 0x7adf3e4b5520>
+tb = <module 'app.tg_bridge' from '<CHECKOUT>/app/tg_bridge.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7adf3e4b7f80>
+
+    @pytest.mark.asyncio
+    async def test_topic_create_timeout_is_not_blindly_retried(
+        self, tb, monkeypatch,
+    ):
+        never = asyncio.Event()
+    
+        async def create_forum_topic(**kwargs):
+            await never.wait()
+    
+        tb.bot = AsyncMock()
+        tb.bot.create_forum_topic.side_effect = create_forum_topic
+        tb.config["topics"] = {}
+        monkeypatch.setattr(tb, "_manager", object())
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [{"name": "orch", "role": "orchestrator"}],
+        )
+        monkeypatch.setattr(tb, "_TG_TOPIC_CREATE_TIMEOUT", 0.01, raising=False)
+        monkeypatch.setattr(tb, "_topic_create_tasks", {}, raising=False)
+    
+>       await asyncio.wait_for(tb.ensure_topics(), timeout=0.05)
+
+tests/test_tg_bridge.py:3132: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7adf3d932180>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+----------------------------- Captured stderr call -----------------------------
+TG topic create uncertain for orch; automatic retry disabled
+------------------------------ Captured log call -------------------------------
+ERROR    tg-bridge:tg_bridge.py:3628 TG topic create uncertain for orch; automatic retry disabled
+=========================== short test summary info ============================
+FAILED tests/test_tg_bridge.py::TestTgLifecycleReliability::test_topic_create_timeout_is_not_blindly_retried
+1 failed in 2.61s

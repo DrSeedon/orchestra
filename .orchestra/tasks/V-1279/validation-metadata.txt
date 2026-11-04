@@ -1,0 +1,6 @@
+python=<CHECKOUT>/.venv/bin/python3
+app=<CHECKOUT>/app/__init__.py
+tg_bridge=<CHECKOUT>/app/tg_bridge.py
+source HEAD supplied=2305b9fe; full HEAD unavailable (.git absent)
+unchanged source hashes: app/tg_bridge.py, pyproject.toml, uv.lock verified
+patch scope: existing timeout test only; baseline reconstructed hash verified

@@ -3114,9 +3114,14 @@ class TestTgLifecycleReliability:
         self, tb, monkeypatch,
     ):
         never = asyncio.Event()
+        cancelled = asyncio.Event()
 
         async def create_forum_topic(**kwargs):
-            await never.wait()
+            try:
+                await never.wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
 
         tb.bot = AsyncMock()
         tb.bot.create_forum_topic.side_effect = create_forum_topic
@@ -3129,11 +3134,23 @@ class TestTgLifecycleReliability:
         monkeypatch.setattr(tb, "_TG_TOPIC_CREATE_TIMEOUT", 0.01, raising=False)
         monkeypatch.setattr(tb, "_topic_create_tasks", {}, raising=False)
 
-        await asyncio.wait_for(tb.ensure_topics(), timeout=0.05)
+        # The 10 ms operation deadline drives cancellation; this watchdog only
+        # bounds a hang and allows CI scheduling and durable config writes.
+        await asyncio.wait_for(tb.ensure_topics(), timeout=5)
+        assert cancelled.is_set()
         await tb.ensure_topics()
 
         assert tb.bot.create_forum_topic.await_count == 1
         assert "primary:orch" in tb.config["topic_create_uncertain"]
+        assert tb.config["topics"] == {}
+        persisted = json.loads(tb.CONFIG_PATH.read_text())
+        assert "primary:orch" in persisted["topic_create_uncertain"]
+
+        # A restart must preserve the same no-retry decision.
+        tb.config = {"topics": {}}
+        tb.load_config()
+        await tb.ensure_topics()
+        assert tb.bot.create_forum_topic.await_count == 1
 
     @pytest.mark.asyncio
     async def test_topic_create_network_error_is_not_blindly_retried(

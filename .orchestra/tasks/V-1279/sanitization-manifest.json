@@ -1,0 +1,45 @@
+{
+  "replacement": "<CHECKOUT>",
+  "scope": "identifying absolute broker checkout prefix only",
+  "changed_artifacts": [
+    {
+      "file": "mutation-forget-on-load.log",
+      "replacements": 2,
+      "original_sha256": "7a3fe9760eddec7e9cb2ba6c468dbf8d4064682c9da587a2da561f490bb24eb1",
+      "sanitized_sha256": "b531536db42d30d68af0e0decd75aa4681ff4555a37fb7ed9f481174d77341cd"
+    },
+    {
+      "file": "mutation-retry.log",
+      "replacements": 2,
+      "original_sha256": "2d23ef7355540bf0e3793113ac91db4dbe9cc457856fb1a0787bc5d30c63a646",
+      "sanitized_sha256": "277f9cf72a72c70852c76f0352734ead6b16928c2be58472232c12a46cc6243c"
+    },
+    {
+      "file": "report.md",
+      "replacements": 1,
+      "original_sha256": "b53450f800aae6672cee9a02c908cd9dda5bfa0dceebf605fdd86fa74ed3871b",
+      "sanitized_sha256": "62321baf9b677ac1754dc7902bc783573367e9c5c57291284572ce3d3db2ebb7"
+    },
+    {
+      "file": "repro-original.log",
+      "replacements": 1,
+      "original_sha256": "ac7e0671616fd4fc857d88fd51132303fbf2fc813cd521979dbaf9e7ff3c173e",
+      "sanitized_sha256": "853d2d9bb5f8772154ea5574fcd855eb1946e070cf655b7d0360e7b6c6bedadf"
+    },
+    {
+      "file": "validation-metadata.txt",
+      "replacements": 3,
+      "original_sha256": "fe71cdc1aa9da309f70dee0dbfeee4c83dc4b8bc05c8d1d336a62eb8fa137c4e",
+      "sanitized_sha256": "82dc5d955bdbf2e66f21f7011b2c790e2b8d1a0fe560796b1eedd2abacd6adad"
+    }
+  ],
+  "source_sha256_unchanged": {
+    "tests/test_tg_bridge.py": "de75429450b19a3497008218bbcaefb94355fa9db7662be72ec7c6fb2275b9d9",
+    "app/tg_bridge.py": "08aec951f55b991a9c27677f6ea325a0a2a8a4b437955dbe4dfc42f45b533569",
+    "pyproject.toml": "91ad056de186c4be6d744474f12bb80a1763d883db0ba14916009dbad8c8d463",
+    "uv.lock": "b1b9364dd130ddc03376563d83c14d8ef15bc9753d3f421e682df1588a558a70"
+  },
+  "git_metadata_present": false,
+  "new_HEAD": null,
+  "new_HEAD_reason": "platform commits after turn completion; broker copy has no git metadata"
+}

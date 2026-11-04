@@ -1,0 +1,8 @@
+Sanitization validation: PASS
+5 original evidence files sanitized; 9 identifying checkout prefixes replaced.
+All task artifacts scanned; repository text scan excludes generated venv/bytecode/pytest cache.
+Identifying path matches remaining: 0.
+Original TimeoutError and both intentional 2 != 1 assertion failures retained.
+All 4 source hashes unchanged; sanitized artifact hashes match manifest.
+No test/product source edits. No pytest rerun for evidence-only edits.
+Exact new HEAD unavailable: no .git; platform commits after worker exits.

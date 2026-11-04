@@ -1,0 +1,65 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestTgLifecycleReliability.test_topic_create_timeout_is_not_blindly_retried __
+
+self = <tests.test_tg_bridge.TestTgLifecycleReliability object at 0x76358c4b42f0>
+tb = <module 'app.tg_bridge' from '<CHECKOUT>/app/tg_bridge.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76358bce8c20>
+
+    @pytest.mark.asyncio
+    async def test_topic_create_timeout_is_not_blindly_retried(
+        self, tb, monkeypatch,
+    ):
+        never = asyncio.Event()
+        cancelled = asyncio.Event()
+    
+        async def create_forum_topic(**kwargs):
+            try:
+                await never.wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+    
+        tb.bot = AsyncMock()
+        tb.bot.create_forum_topic.side_effect = create_forum_topic
+        tb.config["topics"] = {}
+        monkeypatch.setattr(tb, "_manager", object())
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [{"name": "orch", "role": "orchestrator"}],
+        )
+        monkeypatch.setattr(tb, "_TG_TOPIC_CREATE_TIMEOUT", 0.01, raising=False)
+        monkeypatch.setattr(tb, "_topic_create_tasks", {}, raising=False)
+    
+        # The 10 ms operation deadline drives cancellation; this watchdog only
+        # bounds a hang and allows CI scheduling and durable config writes.
+        await asyncio.wait_for(tb.ensure_topics(), timeout=5)
+        assert cancelled.is_set()
+        await tb.ensure_topics()
+    
+        assert tb.bot.create_forum_topic.await_count == 1
+        assert "primary:orch" in tb.config["topic_create_uncertain"]
+        assert tb.config["topics"] == {}
+        persisted = json.loads(tb.CONFIG_PATH.read_text())
+        assert "primary:orch" in persisted["topic_create_uncertain"]
+    
+        # A restart must preserve the same no-retry decision.
+        tb.config = {"topics": {}}
+        tb.load_config()
+        await tb.ensure_topics()
+>       assert tb.bot.create_forum_topic.await_count == 1
+E       AssertionError: assert 2 == 1
+E        +  where 2 = <AsyncMock name='mock.create_forum_topic' id='129972346824240'>.await_count
+E        +    where <AsyncMock name='mock.create_forum_topic' id='129972346824240'> = <AsyncMock id='129972335786368'>.create_forum_topic
+E        +      where <AsyncMock id='129972335786368'> = <module 'app.tg_bridge' from '<CHECKOUT>/app/tg_bridge.py'>.bot
+
+tests/test_tg_bridge.py:3153: AssertionError
+----------------------------- Captured stderr call -----------------------------
+TG topic create uncertain for orch; automatic retry disabled
+TG topic create uncertain for orch; automatic retry disabled
+------------------------------ Captured log call -------------------------------
+ERROR    tg-bridge:tg_bridge.py:3628 TG topic create uncertain for orch; automatic retry disabled
+ERROR    tg-bridge:tg_bridge.py:3628 TG topic create uncertain for orch; automatic retry disabled
+=========================== short test summary info ============================
+FAILED tests/test_tg_bridge.py::TestTgLifecycleReliability::test_topic_create_timeout_is_not_blindly_retried
+1 failed in 2.58s
