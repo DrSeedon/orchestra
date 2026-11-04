@@ -1,0 +1,463 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+___________ test_deleted_never_committed_output_is_noop[False-False] ___________
+
+repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_deleted_never_committed_o0/wt')
+indexed = False, mixed = False
+
+    @pytest.mark.parametrize("indexed", [False, True])
+    @pytest.mark.parametrize("mixed", [False, True])
+    def test_deleted_never_committed_output_is_noop(repo, indexed, mixed):
+        before = _git(repo, "rev-parse", "HEAD")
+        gone = "deleted output.txt"
+        (repo / gone).write_text("temporary output\n")
+        if indexed:
+            _git(repo, "add", "--", gone)
+        (repo / gone).unlink()
+        changed = []
+        if mixed:
+            (repo / "calc.py").write_text("# imported\n")
+            changed = ["calc.py"]
+        sha, failed = hw.commit_sync(repo, changed, [gone], "hub return")
+>       assert failed == []
+E       assert [('deleted ou...h any files')] == []
+E         
+E         Left contains one more item: ('deleted output.txt', "fatal: pathspec 'deleted output.txt' did not match any files")
+E         Use -v to get more diff
+
+tests/test_hub_untracked_delete_v1273.py:24: AssertionError
+___________ test_deleted_never_committed_output_is_noop[False-True] ____________
+
+repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_deleted_never_committed_o1/wt')
+indexed = True, mixed = False
+
+    @pytest.mark.parametrize("indexed", [False, True])
+    @pytest.mark.parametrize("mixed", [False, True])
+    def test_deleted_never_committed_output_is_noop(repo, indexed, mixed):
+        before = _git(repo, "rev-parse", "HEAD")
+        gone = "deleted output.txt"
+        (repo / gone).write_text("temporary output\n")
+        if indexed:
+            _git(repo, "add", "--", gone)
+        (repo / gone).unlink()
+        changed = []
+        if mixed:
+            (repo / "calc.py").write_text("# imported\n")
+            changed = ["calc.py"]
+>       sha, failed = hw.commit_sync(repo, changed, [gone], "hub return")
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_untracked_delete_v1273.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_deleted_never_committed_o1/wt')
+changed = [], deleted = ['deleted output.txt'], message = 'hub return'
+
+    def commit_sync(root: Path, changed: list[str], deleted: list[str], message: str
+                    ) -> tuple[str, list[tuple[str, str]]]:
+        """Commit the imported paths on the worker's own branch; returns (short SHA or '', paths that
+        could not be staged with the reason). One unstageable path never costs the rest of the turn.
+    
+        `--sparse` lets git stage files the hub created outside the worker's sparse-checkout cone
+        (a plain `git add` refuses them and used to abort the whole commit). The author comes from
+        git config — never overridden."""
+        paths = sorted(set(changed) | set(deleted))
+        if not paths:
+            return "", []
+        base = ["git", "-C", str(root)]
+    
+        def add(batch: list[str]) -> subprocess.CompletedProcess:
+            return subprocess.run(base + ["add", "-A", "--sparse", "--", *batch],
+                                  capture_output=True, text=True, timeout=120)
+    
+        staged, failed = paths, []
+        if add(paths).returncode != 0:
+            # A failed batch can still stage deletions. Re-adding those paths then
+            # fails because they are absent from both the index and the worktree.
+            removed = set()
+            if deleted:
+                done = subprocess.run(base + ["diff", "--cached", "--name-only", "--diff-filter=D",
+                                              "-z", "--", *deleted],
+                                      capture_output=True, text=True, timeout=30)
+                if done.returncode != 0:
+                    raise HubWorkspaceError(f"cannot inspect staged hub deletions: {(done.stderr or done.stdout).strip()[-300:]}")
+                removed = set(done.stdout.split("\0")) - {""}
+            staged = []
+            for path in paths:
+                if path in removed:
+                    staged.append(path)
+                    continue
+                done = add([path])
+                if done.returncode == 0:
+                    staged.append(path)
+                else:
+                    failed.append((path, (done.stderr or done.stdout).strip().splitlines()[-1][:200]
+                                   if (done.stderr or done.stdout).strip() else "git add refused it"))
+        if not staged:
+            return "", failed
+        done = subprocess.run(base + ["commit", "-m", message, "--only", "--", *staged],
+                              capture_output=True, text=True, timeout=300)
+        if done.returncode != 0:
+>           raise HubWorkspaceError(f"git commit failed: {(done.stderr or done.stdout).strip()[-300:]}")
+E           app.hub_workspace.HubWorkspaceError: git commit failed: error: pathspec 'deleted output.txt' did not match any file(s) known to git
+
+app/hub_workspace.py:1452: HubWorkspaceError
+___________ test_deleted_never_committed_output_is_noop[True-False] ____________
+
+repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_deleted_never_committed_o2/wt')
+indexed = False, mixed = True
+
+    @pytest.mark.parametrize("indexed", [False, True])
+    @pytest.mark.parametrize("mixed", [False, True])
+    def test_deleted_never_committed_output_is_noop(repo, indexed, mixed):
+        before = _git(repo, "rev-parse", "HEAD")
+        gone = "deleted output.txt"
+        (repo / gone).write_text("temporary output\n")
+        if indexed:
+            _git(repo, "add", "--", gone)
+        (repo / gone).unlink()
+        changed = []
+        if mixed:
+            (repo / "calc.py").write_text("# imported\n")
+            changed = ["calc.py"]
+        sha, failed = hw.commit_sync(repo, changed, [gone], "hub return")
+>       assert failed == []
+E       assert [('deleted ou...h any files')] == []
+E         
+E         Left contains one more item: ('deleted output.txt', "fatal: pathspec 'deleted output.txt' did not match any files")
+E         Use -v to get more diff
+
+tests/test_hub_untracked_delete_v1273.py:24: AssertionError
+____________ test_deleted_never_committed_output_is_noop[True-True] ____________
+
+repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_deleted_never_committed_o3/wt')
+indexed = True, mixed = True
+
+    @pytest.mark.parametrize("indexed", [False, True])
+    @pytest.mark.parametrize("mixed", [False, True])
+    def test_deleted_never_committed_output_is_noop(repo, indexed, mixed):
+        before = _git(repo, "rev-parse", "HEAD")
+        gone = "deleted output.txt"
+        (repo / gone).write_text("temporary output\n")
+        if indexed:
+            _git(repo, "add", "--", gone)
+        (repo / gone).unlink()
+        changed = []
+        if mixed:
+            (repo / "calc.py").write_text("# imported\n")
+            changed = ["calc.py"]
+>       sha, failed = hw.commit_sync(repo, changed, [gone], "hub return")
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_untracked_delete_v1273.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_deleted_never_committed_o3/wt')
+changed = ['calc.py'], deleted = ['deleted output.txt'], message = 'hub return'
+
+    def commit_sync(root: Path, changed: list[str], deleted: list[str], message: str
+                    ) -> tuple[str, list[tuple[str, str]]]:
+        """Commit the imported paths on the worker's own branch; returns (short SHA or '', paths that
+        could not be staged with the reason). One unstageable path never costs the rest of the turn.
+    
+        `--sparse` lets git stage files the hub created outside the worker's sparse-checkout cone
+        (a plain `git add` refuses them and used to abort the whole commit). The author comes from
+        git config — never overridden."""
+        paths = sorted(set(changed) | set(deleted))
+        if not paths:
+            return "", []
+        base = ["git", "-C", str(root)]
+    
+        def add(batch: list[str]) -> subprocess.CompletedProcess:
+            return subprocess.run(base + ["add", "-A", "--sparse", "--", *batch],
+                                  capture_output=True, text=True, timeout=120)
+    
+        staged, failed = paths, []
+        if add(paths).returncode != 0:
+            # A failed batch can still stage deletions. Re-adding those paths then
+            # fails because they are absent from both the index and the worktree.
+            removed = set()
+            if deleted:
+                done = subprocess.run(base + ["diff", "--cached", "--name-only", "--diff-filter=D",
+                                              "-z", "--", *deleted],
+                                      capture_output=True, text=True, timeout=30)
+                if done.returncode != 0:
+                    raise HubWorkspaceError(f"cannot inspect staged hub deletions: {(done.stderr or done.stdout).strip()[-300:]}")
+                removed = set(done.stdout.split("\0")) - {""}
+            staged = []
+            for path in paths:
+                if path in removed:
+                    staged.append(path)
+                    continue
+                done = add([path])
+                if done.returncode == 0:
+                    staged.append(path)
+                else:
+                    failed.append((path, (done.stderr or done.stdout).strip().splitlines()[-1][:200]
+                                   if (done.stderr or done.stdout).strip() else "git add refused it"))
+        if not staged:
+            return "", failed
+        done = subprocess.run(base + ["commit", "-m", message, "--only", "--", *staged],
+                              capture_output=True, text=True, timeout=300)
+        if done.returncode != 0:
+>           raise HubWorkspaceError(f"git commit failed: {(done.stderr or done.stdout).strip()[-300:]}")
+E           app.hub_workspace.HubWorkspaceError: git commit failed: error: pathspec 'deleted output.txt' did not match any file(s) known to git
+
+app/hub_workspace.py:1452: HubWorkspaceError
+________ test_mixed_deletions_preserve_wip_and_visible_refusals[False] _________
+
+repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_mixed_deletions_preserve_0/wt')
+staged_deletion = False
+
+    @pytest.mark.parametrize("staged_deletion", [False, True])
+    def test_mixed_deletions_preserve_wip_and_visible_refusals(repo, staged_deletion):
+        # Include a real deletion, vanished staged addition, unknown deletion,
+        # ignored output and missing changed path in one import's candidate set.
+        (repo / "native.txt").write_text("original\n")
+        (repo / ".gitignore").write_text("/ignored.txt\n")
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-qm", "baseline")
+        (repo / "native.txt").write_text("staged native\n")
+        (repo / "native-add.txt").write_text("staged addition\n")
+        _git(repo, "add", "native.txt", "native-add.txt")
+        (repo / "native.txt").write_text("unstaged native\n")
+        (repo / "native-add.txt").write_text("unstaged addition\n")
+        (repo / "native-untracked.txt").write_text("untracked native\n")
+        index = _git(repo, "diff", "--cached", "--binary")
+        worktree = _git(repo, "diff", "--binary")
+        (repo / "vanished.txt").write_text("new\n")
+        _git(repo, "add", "vanished.txt")
+        (repo / "vanished.txt").unlink()
+        (repo / "src/keep.txt").unlink()
+        if staged_deletion:
+            _git(repo, "add", "-A", "--", "src/keep.txt")
+        (repo / "calc.py").write_text("# imported\n")
+        (repo / "ignored.txt").write_text("ignored WIP\n")
+>       sha, failed = hw.commit_sync(
+            repo, ["calc.py", "ignored.txt", "missing-changed.txt"],
+            ["src/keep.txt", "vanished.txt", "missing-deleted.txt"], "mixed import")
+
+tests/test_hub_untracked_delete_v1273.py:59: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_mixed_deletions_preserve_0/wt')
+changed = ['calc.py', 'ignored.txt', 'missing-changed.txt']
+deleted = ['src/keep.txt', 'vanished.txt', 'missing-deleted.txt']
+message = 'mixed import'
+
+    def commit_sync(root: Path, changed: list[str], deleted: list[str], message: str
+                    ) -> tuple[str, list[tuple[str, str]]]:
+        """Commit the imported paths on the worker's own branch; returns (short SHA or '', paths that
+        could not be staged with the reason). One unstageable path never costs the rest of the turn.
+    
+        `--sparse` lets git stage files the hub created outside the worker's sparse-checkout cone
+        (a plain `git add` refuses them and used to abort the whole commit). The author comes from
+        git config — never overridden."""
+        paths = sorted(set(changed) | set(deleted))
+        if not paths:
+            return "", []
+        base = ["git", "-C", str(root)]
+    
+        def add(batch: list[str]) -> subprocess.CompletedProcess:
+            return subprocess.run(base + ["add", "-A", "--sparse", "--", *batch],
+                                  capture_output=True, text=True, timeout=120)
+    
+        staged, failed = paths, []
+        if add(paths).returncode != 0:
+            # A failed batch can still stage deletions. Re-adding those paths then
+            # fails because they are absent from both the index and the worktree.
+            removed = set()
+            if deleted:
+                done = subprocess.run(base + ["diff", "--cached", "--name-only", "--diff-filter=D",
+                                              "-z", "--", *deleted],
+                                      capture_output=True, text=True, timeout=30)
+                if done.returncode != 0:
+                    raise HubWorkspaceError(f"cannot inspect staged hub deletions: {(done.stderr or done.stdout).strip()[-300:]}")
+                removed = set(done.stdout.split("\0")) - {""}
+            staged = []
+            for path in paths:
+                if path in removed:
+                    staged.append(path)
+                    continue
+                done = add([path])
+                if done.returncode == 0:
+                    staged.append(path)
+                else:
+                    failed.append((path, (done.stderr or done.stdout).strip().splitlines()[-1][:200]
+                                   if (done.stderr or done.stdout).strip() else "git add refused it"))
+        if not staged:
+            return "", failed
+        done = subprocess.run(base + ["commit", "-m", message, "--only", "--", *staged],
+                              capture_output=True, text=True, timeout=300)
+        if done.returncode != 0:
+>           raise HubWorkspaceError(f"git commit failed: {(done.stderr or done.stdout).strip()[-300:]}")
+E           app.hub_workspace.HubWorkspaceError: git commit failed: error: pathspec 'vanished.txt' did not match any file(s) known to git
+
+app/hub_workspace.py:1452: HubWorkspaceError
+_________ test_mixed_deletions_preserve_wip_and_visible_refusals[True] _________
+
+repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_mixed_deletions_preserve_1/wt')
+staged_deletion = True
+
+    @pytest.mark.parametrize("staged_deletion", [False, True])
+    def test_mixed_deletions_preserve_wip_and_visible_refusals(repo, staged_deletion):
+        # Include a real deletion, vanished staged addition, unknown deletion,
+        # ignored output and missing changed path in one import's candidate set.
+        (repo / "native.txt").write_text("original\n")
+        (repo / ".gitignore").write_text("/ignored.txt\n")
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-qm", "baseline")
+        (repo / "native.txt").write_text("staged native\n")
+        (repo / "native-add.txt").write_text("staged addition\n")
+        _git(repo, "add", "native.txt", "native-add.txt")
+        (repo / "native.txt").write_text("unstaged native\n")
+        (repo / "native-add.txt").write_text("unstaged addition\n")
+        (repo / "native-untracked.txt").write_text("untracked native\n")
+        index = _git(repo, "diff", "--cached", "--binary")
+        worktree = _git(repo, "diff", "--binary")
+        (repo / "vanished.txt").write_text("new\n")
+        _git(repo, "add", "vanished.txt")
+        (repo / "vanished.txt").unlink()
+        (repo / "src/keep.txt").unlink()
+        if staged_deletion:
+            _git(repo, "add", "-A", "--", "src/keep.txt")
+        (repo / "calc.py").write_text("# imported\n")
+        (repo / "ignored.txt").write_text("ignored WIP\n")
+>       sha, failed = hw.commit_sync(
+            repo, ["calc.py", "ignored.txt", "missing-changed.txt"],
+            ["src/keep.txt", "vanished.txt", "missing-deleted.txt"], "mixed import")
+
+tests/test_hub_untracked_delete_v1273.py:59: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_mixed_deletions_preserve_1/wt')
+changed = ['calc.py', 'ignored.txt', 'missing-changed.txt']
+deleted = ['src/keep.txt', 'vanished.txt', 'missing-deleted.txt']
+message = 'mixed import'
+
+    def commit_sync(root: Path, changed: list[str], deleted: list[str], message: str
+                    ) -> tuple[str, list[tuple[str, str]]]:
+        """Commit the imported paths on the worker's own branch; returns (short SHA or '', paths that
+        could not be staged with the reason). One unstageable path never costs the rest of the turn.
+    
+        `--sparse` lets git stage files the hub created outside the worker's sparse-checkout cone
+        (a plain `git add` refuses them and used to abort the whole commit). The author comes from
+        git config — never overridden."""
+        paths = sorted(set(changed) | set(deleted))
+        if not paths:
+            return "", []
+        base = ["git", "-C", str(root)]
+    
+        def add(batch: list[str]) -> subprocess.CompletedProcess:
+            return subprocess.run(base + ["add", "-A", "--sparse", "--", *batch],
+                                  capture_output=True, text=True, timeout=120)
+    
+        staged, failed = paths, []
+        if add(paths).returncode != 0:
+            # A failed batch can still stage deletions. Re-adding those paths then
+            # fails because they are absent from both the index and the worktree.
+            removed = set()
+            if deleted:
+                done = subprocess.run(base + ["diff", "--cached", "--name-only", "--diff-filter=D",
+                                              "-z", "--", *deleted],
+                                      capture_output=True, text=True, timeout=30)
+                if done.returncode != 0:
+                    raise HubWorkspaceError(f"cannot inspect staged hub deletions: {(done.stderr or done.stdout).strip()[-300:]}")
+                removed = set(done.stdout.split("\0")) - {""}
+            staged = []
+            for path in paths:
+                if path in removed:
+                    staged.append(path)
+                    continue
+                done = add([path])
+                if done.returncode == 0:
+                    staged.append(path)
+                else:
+                    failed.append((path, (done.stderr or done.stdout).strip().splitlines()[-1][:200]
+                                   if (done.stderr or done.stdout).strip() else "git add refused it"))
+        if not staged:
+            return "", failed
+        done = subprocess.run(base + ["commit", "-m", message, "--only", "--", *staged],
+                              capture_output=True, text=True, timeout=300)
+        if done.returncode != 0:
+>           raise HubWorkspaceError(f"git commit failed: {(done.stderr or done.stdout).strip()[-300:]}")
+E           app.hub_workspace.HubWorkspaceError: git commit failed: error: pathspec 'vanished.txt' did not match any file(s) known to git
+
+app/hub_workspace.py:1452: HubWorkspaceError
+____________ test_two_imports_after_scanner_guard_commit_survivors _____________
+
+repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_two_imports_after_scanner0/wt')
+tmp_path = PosixPath('<task-tmp>/pytest-of-<account>/pytest-1/test_two_imports_after_scanner0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72ff942e6810>
+
+    @pytest.mark.asyncio
+    async def test_two_imports_after_scanner_guard_commit_survivors(repo, tmp_path, monkeypatch):
+        source = Path(hw.__file__).resolve().parents[1]
+        support = ["scripts/secret_scan.py", "app/forbidden_strings.py", "app/publication_secrets.py"]
+        for rel in support:
+            dst = repo / rel
+            dst.parent.mkdir(exist_ok=True)
+            dst.write_bytes((source / rel).read_bytes())
+        (repo / "app/__init__.py").write_text("")
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-qm", "scanner baseline")
+        hook = repo / ".git/hooks/pre-commit"
+        hook.write_bytes((source / "scripts/hooks/pre-commit").read_bytes())
+        hook.chmod(0o755)
+        scanner = (repo / "scripts/secret_scan.py").read_bytes()
+        before = _git(repo, "rev-parse", "HEAD")
+        calls = []
+    
+        def edit(remote):
+            calls.append(True)
+            if len(calls) == 1:
+                (remote / "duplicate.txt").write_text("temporary duplicate\n")
+                (remote / "survivor.txt").write_text("first import\n")
+                # The actual production hook must refuse before any commit.
+                (repo / "scripts/secret_scan.py").unlink()
+            else:
+                (remote / "duplicate.txt").unlink()
+                (remote / "survivor.txt").write_text("second import\n")
+                (remote / "calc.py").write_text("# second import\n")
+                (remote / "src/keep.txt").unlink()
+    
+        monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+        backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
+        first = await _turn(backend, "first import")
+        assert first[-1].metadata["ok"] is False
+        assert "NOT COMMITTED" in first[-2].content
+        assert "secret-gate:" in first[-2].content
+        assert _git(repo, "rev-parse", "HEAD") == before
+        assert set(_git(repo, "diff", "--cached", "--name-only").splitlines()) == {
+            "duplicate.txt", "survivor.txt"}
+        assert set(backend._state.hub_made) == {"duplicate.txt", "survivor.txt"}
+        assert not backend._state.pending_sync  # first outcome saved, no commit receipt
+    
+        (repo / "scripts/secret_scan.py").write_bytes(scanner)
+        plan = hw.plan_upload(repo, backend._paths, known=[])
+        send, drop = hw.local_delta(repo, plan, backend._state.manifest, keep=set(backend._state.hub_made))
+        assert "duplicate.txt" not in drop and "survivor.txt" not in drop
+        assert "duplicate.txt" not in send and "survivor.txt" not in send
+        second = await _turn(backend, "remove duplicate and finish")
+>       assert second[-1].metadata["ok"] is True, second[-2].content
+E       AssertionError: Hub worker turn failed: [hub sync] changed 2, deleted 2, local HEAD 8afeea9
+E         NOT COMMITTED (git commit failed: error: pathspec 'duplicate.txt' did not match any file(s) known to git)
+E       assert False is True
+
+tests/test_hub_untracked_delete_v1273.py:121: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-gpt-6.1-sol workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:330 HubBackend connected: model=hub-gpt-6.1-sol workspace=None
+=========================== short test summary info ============================
+FAILED tests/test_hub_untracked_delete_v1273.py::test_deleted_never_committed_output_is_noop[False-False]
+FAILED tests/test_hub_untracked_delete_v1273.py::test_deleted_never_committed_output_is_noop[False-True]
+FAILED tests/test_hub_untracked_delete_v1273.py::test_deleted_never_committed_output_is_noop[True-False]
+FAILED tests/test_hub_untracked_delete_v1273.py::test_deleted_never_committed_output_is_noop[True-True]
+FAILED tests/test_hub_untracked_delete_v1273.py::test_mixed_deletions_preserve_wip_and_visible_refusals[False]
+FAILED tests/test_hub_untracked_delete_v1273.py::test_mixed_deletions_preserve_wip_and_visible_refusals[True]
+FAILED tests/test_hub_untracked_delete_v1273.py::test_two_imports_after_scanner_guard_commit_survivors
+7 failed in 26.81s

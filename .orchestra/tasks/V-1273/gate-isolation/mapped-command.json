@@ -1,0 +1,29 @@
+{
+  "sanitized-publication-copy": true,
+  "argv": [
+    "uv",
+    "run",
+    "--frozen",
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "-vv",
+    "--rootdir",
+    "<workspace>",
+    "-c",
+    "<workspace>/pyproject.toml",
+    "--timeout=120",
+    "--timeout-method=signal",
+    "-m",
+    "not live_probe and not browser",
+    "-n",
+    "2",
+    "--dist=loadscope",
+    "tests/test_hub_untracked_delete_v1273.py",
+    "tests/test_hub_workspace.py"
+  ],
+  "PYTHONDONTWRITEBYTECODE": "absent",
+  "exit_code": 1,
+  "prior_private_originals": "private/tasks/V-1273/originals/"
+}

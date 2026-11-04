@@ -1,0 +1,39 @@
+{
+  "sanitized-publication-copy": true,
+  "prior_private_originals": "private/tasks/V-1273/originals/",
+  "checks": {
+    "all_task_artifact_files_scanned": 38,
+    "identifier_findings": 0,
+    "secret_shape_findings": 0,
+    "old_artifacts_unchanged": 19,
+    "temporary_fixtures_removed": true
+  },
+  "changed_source": {
+    "tests/test_hub_untracked_delete_v1273.py": "e86f7551ba1c663ace8624d7a708df8f79831a68c07d227313b687666b3d2e20"
+  },
+  "unchanged_source": {
+    "app/hub_workspace.py": "ad2ad846751a0e5d774366f5ce924d0251d7b5844a67b19d03ce1cb226d2481f",
+    "CHANGELOG.md": "de4d08897c5597d4c843b3b99dec54377c7b64f45952f057fa5ff6b59404632e"
+  },
+  "new_artifacts": {
+    "baseline.json": "c3d1b9876984472da1ca11a38d9830e80ec372361681818cc70dc780289645ae",
+    "fixture-mutation-command.json": "50362a6744252dfc37de3ba471d52672eded811f2c1bae860733de4d3eee5fd5",
+    "fixture-mutation-first.txt": "099162fd4cf680b8b46d566bff086234f5466ae436655d01d094c6f786804eb8",
+    "fixture-mutation.txt": "024e0c81f711186904df2e56a397ab5923f7cb8eb88e2c5b6c88b3ffb77d40b3",
+    "fixture_mutation.py": "ab2382b84f16b3317d50e455b8ab5b76a795eb434529fe647e0afd5976d5c0d4",
+    "green-command.json": "70d123c8a20c097056aa3dad374f3ffc48ca1449a702e6d31c23b13393527877",
+    "green.txt": "11091747623d194e1fccc26c59e3894a6c7dde0c5cc682eee95aec087b877b1a",
+    "integration_before.txt": "217f100754a2bdf2fb7ca2269cbb6a2365158c32d419bef5f5d2d31dfd4d5cc2",
+    "mapped-command.json": "d4799256e18905c7ce404ad4b1340e820ede32a20ed42e20243f7da162d3987f",
+    "mapped.txt": "523565f2cb08634ec71114054393c7012dbf90d13b436769e4bd48af8aa136e8",
+    "mutation-command.json": "6874b49a4e5931842e0199e8a047a084d96a304ca3e2ec19e7fe417214d858c3",
+    "mutation.txt": "0e0b823b95f43ea9b7e1f726b534a672290246d4722bc26fd25a66fec5c5cdcf",
+    "notes.md": "314667b24a17b3e1bdd5fdfb0f5065cc2a8c72427d3f69c7d4e4ba36e6f2e79d",
+    "red-command.json": "38502144a50447c25578845450abd5896f707aa12e63993ba915151150ad91fb",
+    "red.txt": "b423223d9a02b7329a6469f068e50ee265be292abf0467d3b565fb77e6ba13de",
+    "report.md": "fb768b80d6c5283fe0e646b263212f69f85e6aae0e215906948529b18d7e9846",
+    "run_check.py": "e1d5704b386cfa88f7597f22687c5acc77feec392e2ebeb564c1cdb02eb15004",
+    "scope-proof.txt": "70b396a9151ea6aa50a70e94a86ccb2d8ec6d3f8bb259df825ce3f72e1001dfd",
+    "source-review.json": "3bab4233a5c2d30a4cca06828b6475a26bd7b9d1617d08d6148c2b64b0acae36"
+  }
+}

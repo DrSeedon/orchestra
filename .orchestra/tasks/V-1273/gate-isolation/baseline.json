@@ -1,0 +1,30 @@
+{
+  "sanitized-publication-copy": true,
+  "protected": {
+    "app/hub_workspace.py": "ad2ad846751a0e5d774366f5ce924d0251d7b5844a67b19d03ce1cb226d2481f",
+    "tests/test_hub_untracked_delete_v1273.py": "06836f885a06eca42e6edc19f1d803a603af403763452e5d533d52736dbe13e4",
+    "CHANGELOG.md": "de4d08897c5597d4c843b3b99dec54377c7b64f45952f057fa5ff6b59404632e"
+  },
+  "prior_artifacts": {
+    "green-core.txt": "8fb952f4f13d33db041c9dd4ba15bfb65be26c925c7ceaf0991892376e4630ed",
+    "collected.txt": "0030d0dda56bf7338f15937e4712c061d2daab3dda9386c8e145eb845a25b825",
+    "green-focused.txt": "8d8fa8a41548bcc6d80713e7d2b1e62302b1b42e24c970552ebb38d588deb353",
+    "report.md": "d9f78ed9cec5a6e5d90509554de94dfb167e283fadd6c93ed39f30bd7fdf82df",
+    "red-initial-test-typo.txt": "617b223367c39654b71e036c05a19fe2dfc374480ee3da8784cf3178cf59a87c",
+    "notes.md": "72b620f1bc58bb61e53ec6f2aff3cb89f67aba858c51443d209ecfce9d092660",
+    "source-review.txt": "45be1ee2f033e2cd0d8a986c11a86d18e594586cb8aacbd14f867d245136a5d1",
+    "publication-correction.md": "0e5bbaa0d281c9bbc17e417989c981037fbac9f143e23043a4f2f9104ac06968",
+    "green-suite.txt": "1755bd8112fa3a6fd3eefc11e9da7c5abab8c0614cacd8d3b0e414594abb2a4b",
+    "final-review.txt": "9b9a25235fbad991ccf5df6bd9d32c92f582a197f4efd5ffc35ed1f7dc829dbd",
+    "mutate.py": "5c5e4db6de59652756e47e1cd1772a9ae79c406a220e456f221774289b407139",
+    "mutation.txt": "ec798b61312e73e692aee883e624dc1a19d6bc0536ec3a3d4bab56023f8f5f3b",
+    "prompt-control.txt": "fea1d97682097205f47aa44025b27ccc81a34938ab24069e15484ff6831b4316",
+    "prompt-baseline.txt": "ae40c1fc59a6d60235ff798099498353e6ce43da2f7e4734b9ea37680aea3412",
+    "red.txt": "09684ae81509dac5cab68974cc46e37c9b2fa20bc6b475dd46717cedb6ccaa12",
+    "guards.txt": "5f86bb6d3cc70ac305f97b932c14b2c12944464a2b4a40d3673747c8cbc4d16e",
+    "core-command.txt": "160cde8e69e389b3335b029141aaeb72515803745aa81a990a23c21d1744e451",
+    "import-path.txt": "fcba7597a63016c322ee547bd5dc805df5099b57c3d745ef6b6db1d3ab10b430",
+    "commit_sync_before.txt": "1bb7cf87731cd7ba1d3a08e13abf83f90dc0dbe7a157e58aff70c7105484e636"
+  },
+  "prior_private_originals": "private/tasks/V-1273/originals/"
+}

@@ -1,0 +1,5 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+.......                                                                  [100%]
+7 passed in 30.10s

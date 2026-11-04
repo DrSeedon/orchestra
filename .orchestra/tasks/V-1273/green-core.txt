@@ -1,0 +1,9 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [ 68%]
+.................................                                        [100%]
+105 passed in 264.30s (0:04:24)

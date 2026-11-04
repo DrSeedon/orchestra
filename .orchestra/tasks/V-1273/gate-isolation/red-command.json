@@ -1,0 +1,18 @@
+{
+  "sanitized-publication-copy": true,
+  "argv": [
+    "uv",
+    "run",
+    "--frozen",
+    "python",
+    "-m",
+    "pytest",
+    "tests/test_hub_untracked_delete_v1273.py::test_two_imports_after_scanner_guard_commit_survivors",
+    "-q",
+    "--timeout=120",
+    "--timeout-method=signal"
+  ],
+  "PYTHONDONTWRITEBYTECODE": "absent",
+  "exit_code": 1,
+  "prior_private_originals": "private/tasks/V-1273/originals/"
+}

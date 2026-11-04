@@ -1,0 +1,10 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+Production function diff: exactly 18 inserted lines; remainder unchanged
+compile OK: app/hub_workspace.py
+compile OK: tests/test_hub_untracked_delete_v1273.py
+compile OK: .orchestra/tasks/V-1273/mutate.py
+Secret-shape scan: 20 files, 0 findings
+Task temporary repositories removed; raw evidence preserved
+No source Git metadata; platform owns result commit and root owns acceptance/merge

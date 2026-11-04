@@ -1,0 +1,35 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+--- commit_sync before
++++ commit_sync after
+@@ -38,6 +38,24 @@
+             else:
+                 failed.append((path, (done.stderr or done.stdout).strip().splitlines()[-1][:200]
+                                if (done.stderr or done.stdout).strip() else "git add refused it"))
++    # A scanner-refused commit can leave new outputs staged. Deleting one on
++    # the next import makes add -A remove it from the index; commit --only then
++    # refuses that now-unknown path. Only an absent deletion with neither an
++    # index entry nor a cached change is a no-op. Cached deletions still carry
++    # HEAD-tracked paths, even when rename detection would pair them with adds.
++    missing = [path for path in deleted if not os.path.lexists(root / path)]
++    if missing:
++        known = set()
++        for args in (["ls-files", "--cached", "-z"],
++                     ["diff", "--cached", "--name-only", "--no-renames", "-z"]):
++            done = subprocess.run(base + args + ["--", *missing],
++                                  capture_output=True, text=True, timeout=30)
++            if done.returncode != 0:
++                raise HubWorkspaceError(f"cannot inspect hub deletion paths: {(done.stderr or done.stdout).strip()[-300:]}")
++            known.update(done.stdout.split("\0"))
++        noop = set(missing) - known
++        staged = [path for path in staged if path not in noop]
++        failed = [(path, reason) for path, reason in failed if path not in noop]
+     if not staged:
+         return "", failed
+     done = subprocess.run(base + ["commit", "-m", message, "--only", "--", *staged],
+
+compile OK: app/hub_workspace.py
+compile OK: tests/test_hub_untracked_delete_v1273.py
+compile OK: .orchestra/tasks/V-1273/mutate.py
+secret shape scan: 12 files; 0 findings

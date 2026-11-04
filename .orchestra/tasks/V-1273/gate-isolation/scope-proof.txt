@@ -1,0 +1,9 @@
+# sanitized-publication-copy
+# Prior private originals: private/tasks/V-1273/originals/ (root-held; not accessed).
+
+All 20 original assertions AST-identical after fixture change.
+Synthetic git exclusion probe (no bytecode suppression):
+?? app/unrelated.py
+?? native.txt
+?? other/__pycache__/visible.pyc
+Only app/__pycache__/probe.pyc excluded; source/WIP and caches outside the exact target remain visible.

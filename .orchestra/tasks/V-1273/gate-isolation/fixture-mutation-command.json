@@ -1,0 +1,13 @@
+{
+  "sanitized-publication-copy": true,
+  "argv": [
+    "uv",
+    "run",
+    "--frozen",
+    "python",
+    ".orchestra/tasks/V-1273/gate-isolation/fixture_mutation.py"
+  ],
+  "PYTHONDONTWRITEBYTECODE": "absent",
+  "exit_code": 1,
+  "prior_private_originals": "private/tasks/V-1273/originals/"
+}

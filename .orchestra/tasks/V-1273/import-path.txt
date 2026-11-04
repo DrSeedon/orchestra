@@ -1,0 +1,5 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+app: <workspace>/app/__init__.py
+hub_workspace: <workspace>/app/hub_workspace.py

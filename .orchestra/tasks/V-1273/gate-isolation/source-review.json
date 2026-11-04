@@ -1,0 +1,16 @@
+{
+  "sanitized-publication-copy": true,
+  "prior_private_originals": "private/tasks/V-1273/originals/",
+  "previous_artifacts_unchanged": 19,
+  "production_and_changelog_unchanged": true,
+  "test_delta": "4 fixture setup lines only; every original assertion unchanged",
+  "imports": {
+    "hub_workspace": "<workspace>/app/hub_workspace.py"
+  },
+  "source_sha256": {
+    "app/hub_workspace.py": "ad2ad846751a0e5d774366f5ce924d0251d7b5844a67b19d03ce1cb226d2481f",
+    "tests/test_hub_untracked_delete_v1273.py": "e86f7551ba1c663ace8624d7a708df8f79831a68c07d227313b687666b3d2e20",
+    "CHANGELOG.md": "de4d08897c5597d4c843b3b99dec54377c7b64f45952f057fa5ff6b59404632e"
+  },
+  "test_before_sha256": "06836f885a06eca42e6edc19f1d803a603af403763452e5d533d52736dbe13e4"
+}

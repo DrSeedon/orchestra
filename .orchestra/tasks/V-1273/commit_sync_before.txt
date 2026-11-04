@@ -1,0 +1,52 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+def commit_sync(root: Path, changed: list[str], deleted: list[str], message: str
+                ) -> tuple[str, list[tuple[str, str]]]:
+    """Commit the imported paths on the worker's own branch; returns (short SHA or '', paths that
+    could not be staged with the reason). One unstageable path never costs the rest of the turn.
+
+    `--sparse` lets git stage files the hub created outside the worker's sparse-checkout cone
+    (a plain `git add` refuses them and used to abort the whole commit). The author comes from
+    git config — never overridden."""
+    paths = sorted(set(changed) | set(deleted))
+    if not paths:
+        return "", []
+    base = ["git", "-C", str(root)]
+
+    def add(batch: list[str]) -> subprocess.CompletedProcess:
+        return subprocess.run(base + ["add", "-A", "--sparse", "--", *batch],
+                              capture_output=True, text=True, timeout=120)
+
+    staged, failed = paths, []
+    if add(paths).returncode != 0:
+        # A failed batch can still stage deletions. Re-adding those paths then
+        # fails because they are absent from both the index and the worktree.
+        removed = set()
+        if deleted:
+            done = subprocess.run(base + ["diff", "--cached", "--name-only", "--diff-filter=D",
+                                          "-z", "--", *deleted],
+                                  capture_output=True, text=True, timeout=30)
+            if done.returncode != 0:
+                raise HubWorkspaceError(f"cannot inspect staged hub deletions: {(done.stderr or done.stdout).strip()[-300:]}")
+            removed = set(done.stdout.split("\0")) - {""}
+        staged = []
+        for path in paths:
+            if path in removed:
+                staged.append(path)
+                continue
+            done = add([path])
+            if done.returncode == 0:
+                staged.append(path)
+            else:
+                failed.append((path, (done.stderr or done.stdout).strip().splitlines()[-1][:200]
+                               if (done.stderr or done.stdout).strip() else "git add refused it"))
+    if not staged:
+        return "", failed
+    done = subprocess.run(base + ["commit", "-m", message, "--only", "--", *staged],
+                          capture_output=True, text=True, timeout=300)
+    if done.returncode != 0:
+        raise HubWorkspaceError(f"git commit failed: {(done.stderr or done.stdout).strip()[-300:]}")
+    sha = subprocess.run(base + ["rev-parse", "--short", "HEAD"], capture_output=True,
+                         text=True, timeout=30).stdout.strip()
+    return sha, failed

@@ -1,0 +1,23 @@
+# sanitized-publication-copy
+# Prior private originals: private/tasks/V-1273/originals/ (root-held; not accessed).
+# New run: paths normalized in memory; no unsanitized log persisted.
+# PYTHONDONTWRITEBYTECODE absent in test subprocess environment.
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_two_imports_after_scanner_guard_commit_survivors _____________
+
+repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-4/test_two_imports_after_scanner0/wt')
+tmp_path = PosixPath('<task-tmp>/pytest-of-<account>/pytest-4/test_two_imports_after_scanner0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7c028ef84140>
+
+>   ???
+E   AssertionError
+
+<fixture-before>:61: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-gpt-6.1-sol workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:330 HubBackend connected: model=hub-gpt-6.1-sol workspace=None
+=========================== short test summary info ============================
+FAILED tests/test_hub_untracked_delete_v1273.py::test_two_imports_after_scanner_guard_commit_survivors
+1 failed in 23.98s

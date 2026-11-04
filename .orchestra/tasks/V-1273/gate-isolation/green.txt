@@ -1,0 +1,6 @@
+# sanitized-publication-copy
+# Prior private originals: private/tasks/V-1273/originals/ (root-held; not accessed).
+# New run: paths normalized in memory; no unsanitized log persisted.
+# PYTHONDONTWRITEBYTECODE absent in test subprocess environment.
+.                                                                        [100%]
+1 passed in 19.53s

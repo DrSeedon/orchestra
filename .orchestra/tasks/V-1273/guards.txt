@@ -1,0 +1,129 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [ 69%]
+............FFF........F.......F                                         [100%]
+=================================== FAILURES ===================================
+_ test_real_files_with_the_same_forms_pass[.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json] _
+[gw1] linux -- Python 3.12.3 <workspace>/.venv/bin/python3
+
+relpath = '.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json'
+
+    @pytest.mark.parametrize("relpath", MENTIONS)
+    def test_real_files_with_the_same_forms_pass(relpath):
+        """Негативный контроль на настоящих файлах, а не на выдуманных."""
+        path = REPO / relpath
+>       assert path.exists(), f"{relpath} исчез — контроль стал вакуумным"
+E       AssertionError: .orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json исчез — контроль стал вакуумным
+E       assert False
+E        +  where False = exists()
+E        +    where exists = PosixPath('<workspace>/.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json').exists
+
+tests/test_secret_commit_gate.py:116: AssertionError
+_____________ test_real_files_with_the_same_forms_pass[CLAUDE.md] ______________
+[gw1] linux -- Python 3.12.3 <workspace>/.venv/bin/python3
+
+relpath = 'CLAUDE.md'
+
+    @pytest.mark.parametrize("relpath", MENTIONS)
+    def test_real_files_with_the_same_forms_pass(relpath):
+        """Негативный контроль на настоящих файлах, а не на выдуманных."""
+        path = REPO / relpath
+>       assert path.exists(), f"{relpath} исчез — контроль стал вакуумным"
+E       AssertionError: CLAUDE.md исчез — контроль стал вакуумным
+E       assert False
+E        +  where False = exists()
+E        +    where exists = PosixPath('<workspace>/CLAUDE.md').exists
+
+tests/test_secret_commit_gate.py:116: AssertionError
+_____ test_real_files_with_the_same_forms_pass[.orchestra/kb/runtimes.md] ______
+[gw1] linux -- Python 3.12.3 <workspace>/.venv/bin/python3
+
+relpath = '.orchestra/kb/runtimes.md'
+
+    @pytest.mark.parametrize("relpath", MENTIONS)
+    def test_real_files_with_the_same_forms_pass(relpath):
+        """Негативный контроль на настоящих файлах, а не на выдуманных."""
+        path = REPO / relpath
+>       assert path.exists(), f"{relpath} исчез — контроль стал вакуумным"
+E       AssertionError: .orchestra/kb/runtimes.md исчез — контроль стал вакуумным
+E       assert False
+E        +  where False = exists()
+E        +    where exists = PosixPath('<workspace>/.orchestra/kb/runtimes.md').exists
+
+tests/test_secret_commit_gate.py:116: AssertionError
+_______________________ test_hook_lets_a_mention_through _______________________
+[gw1] linux -- Python 3.12.3 <workspace>/.venv/bin/python3
+
+scratch_repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-6/popen-gw1/test_hook_lets_a_mention_throu0/repo')
+
+    def test_hook_lets_a_mention_through(scratch_repo):
+        """То же плечо наоборот: правило и фикстура с теми же формами коммитятся."""
+        (scratch_repo / "rules.md").write_text(
+>           (REPO / ".orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json").read_text()
+            + "\nФормы: `y0_`, `sk-or-v1-`, `gh[pousr]_`, `AIza`, `ya29.`, `Bearer <25+>`\n"
+        )
+
+tests/test_secret_commit_gate.py:178: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+<python-stdlib>/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('<workspace>/.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '<workspace>/.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json'
+
+<python-stdlib>/pathlib.py:1015: FileNotFoundError
+_______________ test_repo_gitignore_covers_every_env_derivative ________________
+[gw1] linux -- Python 3.12.3 <workspace>/.venv/bin/python3
+
+    def test_repo_gitignore_covers_every_env_derivative():
+        """Второй рубеж: производная от `.env` не должна доходить до гейта форм вообще.
+    
+        Гейт ловит секрет по ФОРМЕ провайдера, и токен Telegram (`<digits>:<base64url>`)
+        в его списке форм не значится — то есть `.env`, попавший под `git add -A`, гейт
+        пропустил бы. Правило игнора закрывает весь класс раньше.
+    
+        Triggered case: 15.09.2026 на VPS в рабочем дереве публичного репозитория лежал
+        untracked `.env.V-545-20260914-050429.bak`; `.gitignore` знал только точное `.env`.
+        """
+        probes = {
+            ".env": True,
+            ".env.V-545-20260914-050429.bak": True,
+            ".env.local": True,
+            ".env.prod": True,
+            ".env.example": False,  # публичный шаблон, он обязан оставаться версионируемым
+        }
+        for name, must_be_ignored in probes.items():
+            res = _git(REPO, "check-ignore", "-q", name)
+>           assert (res.returncode == 0) is must_be_ignored, (
+                f"{name}: ignored={res.returncode == 0}, ожидалось {must_be_ignored}"
+            )
+E           AssertionError: .env: ignored=False, ожидалось True
+E           assert (128 == 0) is True
+E            +  where 128 = CompletedProcess(args=('git', 'check-ignore', '-q', '.env'), returncode=128, stdout='', stderr='fatal: not a git repository (or any of the parent directories): .git\n').returncode
+
+tests/test_secret_commit_gate.py:307: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json]
+FAILED tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[CLAUDE.md]
+FAILED tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[.orchestra/kb/runtimes.md]
+FAILED tests/test_secret_commit_gate.py::test_hook_lets_a_mention_through - F...
+FAILED tests/test_secret_commit_gate.py::test_repo_gitignore_covers_every_env_derivative
+5 failed, 99 passed in 70.92s (0:01:10)

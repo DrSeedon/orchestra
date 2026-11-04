@@ -1,0 +1,29 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools __________
+
+repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-5/test_hub_model_gets_a_trimmed_0/wt')
+tmp_path = PosixPath('<task-tmp>/pytest-of-<account>/pytest-5/test_hub_model_gets_a_trimmed_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7530ad03ab40>
+
+    @pytest.mark.asyncio
+    async def test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
+        await _turn(backend, "implement the thing")
+        prompt = _first_prompt(mc)
+        who = backend._bridge.identity()
+>       assert all(value in prompt for value in (who.name, who.parent_name, who.branch))
+E       assert False
+E        +  where False = all(<generator object test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools.<locals>.<genexpr> at 0x7530a9e236b0>)
+
+tests/test_hub_workspace.py:1709: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-gpt-6.1-sol workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:330 HubBackend connected: model=hub-gpt-6.1-sol workspace=None
+=========================== short test summary info ============================
+FAILED tests/test_hub_workspace.py::test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+1 failed in 16.88s

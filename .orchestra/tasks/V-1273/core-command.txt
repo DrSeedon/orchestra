@@ -1,0 +1,4 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+nice -n 10 timeout 480s uv run --frozen python -m pytest tests/test_hub_untracked_delete_v1273.py tests/test_hub_workspace.py::test_commit_lands_only_imported_paths_on_the_branch tests/test_hub_workspace.py::test_commit_survives_paths_outside_the_sparse_cone tests/test_hub_workspace.py::test_one_unstageable_path_does_not_cost_the_rest_of_the_turn tests/test_hub_workspace.py::test_commit_returned_deletions_preserves_unrelated_index tests/test_hub_workspace.py::test_sync_commits_deletion_with_new_ignore_and_does_not_replay tests/test_hub_workspace.py::test_concurrent_local_edit_is_a_conflict_not_an_overwrite tests/test_hub_workspace.py::test_truncated_snapshot_does_not_delete_the_worktree tests/test_hub_report_order_v1213.py tests/test_hub_inputs_v1062.py tests/test_hub_inputs_v1063.py -q -ra -n 2

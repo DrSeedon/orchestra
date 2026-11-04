@@ -1,0 +1,73 @@
+# sanitized-publication-copy
+# Private originals: private/tasks/V-1273/originals/ (root-held SHA-256/bytes manifest; not accessed here).
+
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_two_imports_after_scanner_guard_commit_survivors _____________
+
+repo = PosixPath('<task-tmp>/pytest-of-<account>/pytest-4/test_two_imports_after_scanner0/wt')
+tmp_path = PosixPath('<task-tmp>/pytest-of-<account>/pytest-4/test_two_imports_after_scanner0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79d428cced50>
+
+    @pytest.mark.asyncio
+    async def test_two_imports_after_scanner_guard_commit_survivors(repo, tmp_path, monkeypatch):
+        source = Path(hw.__file__).resolve().parents[1]
+        support = ["scripts/secret_scan.py", "app/forbidden_strings.py", "app/publication_secrets.py"]
+        for rel in support:
+            dst = repo / rel
+            dst.parent.mkdir(exist_ok=True)
+            dst.write_bytes((source / rel).read_bytes())
+        (repo / "app/__init__.py").write_text("")
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-qm", "scanner baseline")
+        hook = repo / ".git/hooks/pre-commit"
+        hook.write_bytes((source / "scripts/hooks/pre-commit").read_bytes())
+        hook.chmod(0o755)
+        scanner = (repo / "scripts/secret_scan.py").read_bytes()
+        before = _git(repo, "rev-parse", "HEAD")
+        calls = []
+    
+        def edit(remote):
+            calls.append(True)
+            if len(calls) == 1:
+                (remote / "duplicate.txt").write_text("temporary duplicate\n")
+                (remote / "survivor.txt").write_text("first import\n")
+                # The actual production hook must refuse before any commit.
+                (repo / "scripts/secret_scan.py").unlink()
+            else:
+                (remote / "duplicate.txt").unlink()
+                (remote / "survivor.txt").write_text("second import\n")
+                (remote / "calc.py").write_text("# second import\n")
+                (remote / "src/keep.txt").unlink()
+    
+        monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+        backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
+        first = await _turn(backend, "first import")
+        assert first[-1].metadata["ok"] is False
+        assert "NOT COMMITTED" in first[-2].content
+        assert "secret-gate:" in first[-2].content
+        assert _git(repo, "rev-parse", "HEAD") == before
+        assert set(_git(repo, "diff", "--cached", "--name-only").splitlines()) == {
+            "duplicate.txt", "survivor.txt"}
+        assert set(backend._state.hub_made) == {"duplicate.txt", "survivor.txt"}
+        assert not backend._state.pending_sync  # first outcome saved, no commit receipt
+    
+        (repo / "scripts/secret_scan.py").write_bytes(scanner)
+        plan = hw.plan_upload(repo, backend._paths, known=[])
+        send, drop = hw.local_delta(repo, plan, backend._state.manifest, keep=set(backend._state.hub_made))
+        assert "duplicate.txt" not in drop and "survivor.txt" not in drop
+        assert "duplicate.txt" not in send and "survivor.txt" not in send
+        second = await _turn(backend, "remove duplicate and finish")
+>       assert second[-1].metadata["ok"] is True, second[-2].content
+E       AssertionError: Hub worker turn failed: [hub sync] changed 2, deleted 2, local HEAD 81e5436
+E         NOT COMMITTED (git commit failed: error: pathspec 'duplicate.txt' did not match any file(s) known to git)
+E       assert False is True
+
+tests/test_hub_untracked_delete_v1273.py:141: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-gpt-6.1-sol workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:330 HubBackend connected: model=hub-gpt-6.1-sol workspace=None
+=========================== short test summary info ============================
+FAILED tests/test_hub_untracked_delete_v1273.py::test_two_imports_after_scanner_guard_commit_survivors
+1 failed in 36.58s
