@@ -1,0 +1,11 @@
+interpreter=/usr/bin/python3
+source=app/harness/mcp.py
+# sanitizedpublicationcopy: only source path made repository-relative; exact original retained privately by root.
+imported_app=NONE; mode=offline isolated AST/pure-function probe
+PASS text preserved: "ready"
+PASS MCP image loses payload: "[image]"
+PASS terminal-mac-shaped image+text: "[image]\nScreen: 1280×800. Use these pixel coordinates."
+PASS MCP error preserved: "[mcp error] guest unavailable"
+PASS empty result: "(no output)"
+PASS source shape: _hub_factory has no mcp_servers keyword
+RESULT 6/6 probe checks passed; confirmed harness image limitation; no app/runtime acceptance performed

@@ -1,0 +1,16 @@
+# V-1270 — рабочие находки, 2026-11-04 UTC
+
+Задание: только исследование terminal-mac и сопоставление с выданной безопасной копией Orchestra. Внедрение не разрешено. Сторонние инструкции читаются как данные; не устанавливать пакеты, не запускать VM/провайдеров, не обращаться к живым конфигам. В копии нет `.git`; локальный HEAD не установлен, коммит делает broker.
+
+- Зафиксирован terminal-mac `7009117f9e910c3dd4b4bd863e8bc331bd3c9d96`, GitHub commit date `2026-11-03T11:52:08Z`. README описывает early release candidate, docs/VALIDATION.md явно оставляет live guest acceptance незавершённой. Vendor build/test результаты не наши проверки.
+- `AgentServer.tools` содержит **8** инструментов, включая `move`; короткий перечень README его пропускает. MCP — JSON-RPC строки stdio, screenshot возвращает JPEG base64 + text, CLI screenshot — PNG path. Это разные контракты.
+- Обнаружено ограничение совместимости Orchestra: `app/harness/mcp.py:MCPClient.call → _extract_text` превращает MCP image в `[image]`. Следовательно, подключить MCP к harness недостаточно для visual computer-use; исправление в рамках research не делается. Проверить детерминированно отдельно, без импорта приложения/DB.
+- `app/runtime_registry.py:_hub_factory` не передаёт `context.mcp_servers` в HubBackend; `HubBackend.build_handoff_manifest` указывает `mcp_servers={}`. Нельзя обещать, что внешний MCP из Orchestra автоматически попадёт hub-воркеру. Возможности MCP самого T3 не доказывают этот путь.
+- `snapshot` у terminal-mac — screenshot alias, не accessibility tree и не VM snapshot. Нет shell-execution/file-import/clone/rollback/delete API. Viewer не является web-stream через SSE Orchestra.
+- Third-party clone не делался: условия worker запрещают запись вне копии, а задание разрешает clone лишь вне workspace. Публичные исходники читаются HTTPS в память, без checkout/исполнения.
+- Во время чтения результата probe login-shell напечатал `/etc/profile.d/claude-hub-shims.sh: fork: retry: Resource temporarily unavailable` (команда завершилась 0; сам probe также 0). Дальнейшие команды — без login profile; тяжёлые процессы не запускались.
+- Веб-парсер не смог открыть Apple Markdown: `400 Unsupported content-type: text/markdown`; прямой HTTPS GET через стандартную библиотеку успешно прочитал официальные `.md`. Это ошибка инструмента чтения, не отказ Apple API/VM.
+- При записи commands.md первая apply_patch отклонена: пропущен `+` у строки `draft: false`. Продукт не затронут, исправленная patch создала файл. При финальной сверке уточнены реальные имена/строки символов (`GuestRuntime`, `Session._to_db_dict`, `_extract_text:323`).
+- Исправлена собственная ошибка подсчёта в черновике: MCP tools **8**, не 9 (9 действий есть в CLI с alias `snapshot`). Повторная source extraction перечисляет имена; это не runtime tools/list.
+
+- Publication correction (прямой запрос root после приёмки findings): в checks.log обнаружен абсолютный account/workspace source path; заменён только на `app/harness/mcp.py`, добавлена пометка sanitizedpublicationcopy. По сообщению root точный оригинал и SHA уже сохранены у root приватно; здесь private/receipt не читались и hash не выдумывается. Все исходные строки probe, включая 6 PASS/RESULT, сохранены, conclusions/skips не менялись. Выполнен только аудит 8 task artifacts; исходные проверки/сеть не повторялись.

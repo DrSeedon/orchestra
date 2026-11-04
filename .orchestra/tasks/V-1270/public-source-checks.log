@@ -1,0 +1,4 @@
+mode=source extraction only; no Swift binary or MCP server executed
+url=https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/AgentServer.swift
+MCP tools count=8
+MCP tools=["screenshot", "click", "move", "drag", "scroll", "type", "key", "status"]

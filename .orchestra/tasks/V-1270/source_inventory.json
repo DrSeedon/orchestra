@@ -1,0 +1,269 @@
+{
+  "collected_utc": "2026-11-04T05:19:33.310183+00:00",
+  "mode": "public HTTPS sources in memory; no third-party checkout or execution",
+  "terminal_mac_commit": "7009117f9e910c3dd4b4bd863e8bc331bd3c9d96",
+  "terminal_mac_commit_date": "2026-11-03T11:52:08Z",
+  "latest_release_observed": {
+    "tag_name": "v0.2.0-6",
+    "name": "terminal-mac 0.2.0.",
+    "html_url": "https://github.com/govijr/terminal-mac/releases/tag/v0.2.0-6",
+    "published_at": "2026-11-03T12:34:42Z",
+    "prerelease": false,
+    "draft": false
+  },
+  "local_git_present": false,
+  "local_head": "unknown: broker source bundle has no .git",
+  "platform": "Linux x86_64",
+  "remote_sources": [
+    {
+      "path": "README.md",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/README.md",
+      "bytes": 14246,
+      "sha256": "abd383869e7334e1b7a941a5bf451584a0767d16ecd4970e137b781ddab4d95f"
+    },
+    {
+      "path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/LICENSE",
+      "bytes": 1063,
+      "sha256": "97a617246303da2c1ec23133cbbe1dc6c99705948dd763a0845b1d508fb94a39"
+    },
+    {
+      "path": "Package.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Package.swift",
+      "bytes": 880,
+      "sha256": "baec89ff4ec9ad08bc592f09e71fe3419357b8a813cd4caa7d78668bfd0aba0f"
+    },
+    {
+      "path": "docs/AGENT.md",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/docs/AGENT.md",
+      "bytes": 3012,
+      "sha256": "2cf4971f280db59972d785cb81721cc0e71e171443bec3e45206ae1a8a7db0e3"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/docs/VALIDATION.md",
+      "bytes": 4228,
+      "sha256": "1834283c8358ad1f8d6498b38d2c215102f43eb093e6dd73f7a42366c52ffee2"
+    },
+    {
+      "path": ".claude-plugin/plugin.json",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/.claude-plugin/plugin.json",
+      "bytes": 590,
+      "sha256": "9851cbc519fe0c37e09a7f047584e707f2c3e6d4bb99d7b8e05cfbe60587c22f"
+    },
+    {
+      "path": ".claude-plugin/marketplace.json",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/.claude-plugin/marketplace.json",
+      "bytes": 390,
+      "sha256": "096d1bee884354eee409fa153ebdddff66f0a63abb8811cd00a652d95454b298"
+    },
+    {
+      "path": "Sources/TerminalMac/AgentServer.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/AgentServer.swift",
+      "bytes": 11069,
+      "sha256": "94a4f4fe9a5618b4b33172d94bf48747095a5a817df9a58d6e11c7ff10704edd"
+    },
+    {
+      "path": "Sources/TerminalMac/CLI.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/CLI.swift",
+      "bytes": 19338,
+      "sha256": "be5765a0e046af57e6098d9554f4ae33a4834045219f4a98fecf8b8d19cacb8d"
+    },
+    {
+      "path": "Sources/TerminalMac/VirtualMachine.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/VirtualMachine.swift",
+      "bytes": 12356,
+      "sha256": "6524917c25e7dcd70e5e9a00a2b97b2b7bb8e957c9daf3caa265d97c44ebfe03"
+    },
+    {
+      "path": "Sources/TerminalMac/FirstRun.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/FirstRun.swift",
+      "bytes": 9430,
+      "sha256": "d7863e1eb35ea5f6cb5fe5c24ec0d3d6213a5f5b3dfbc2fe367a8ee41fd459a5"
+    },
+    {
+      "path": "Sources/TerminalMac/RestoreDownload.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/RestoreDownload.swift",
+      "bytes": 3177,
+      "sha256": "67a965756ce2c0d4c021646921d6e17ef977eb9885242659d5a022bc74b81d6e"
+    },
+    {
+      "path": "Sources/TerminalMac/Guest.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/Guest.swift",
+      "bytes": 15198,
+      "sha256": "8a5a55ed139dc95e4bd59cbe8b039dcbe82b190832d1396ebc03f1c666e14745"
+    },
+    {
+      "path": "Sources/TerminalMac/GuestBootstrap.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/GuestBootstrap.swift",
+      "bytes": 4718,
+      "sha256": "65e95c09bcc76007e5cf415744c88c4b90ab1f54a01cae7bfecdb2bc73d86dfa"
+    },
+    {
+      "path": "Sources/TerminalMac/GuestCapture.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/GuestCapture.swift",
+      "bytes": 5183,
+      "sha256": "7bf3a2f618980911075044e6be5ab37a86b7a13897710f081bf3a626ab810164"
+    },
+    {
+      "path": "Sources/TerminalMac/Viewer.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/Viewer.swift",
+      "bytes": 33962,
+      "sha256": "a8841299fbec2ffa510abf34a2fd23f8590b0c3cf67a91704d574fc7a2f17d9f"
+    },
+    {
+      "path": "Sources/TerminalMac/DesktopRenderer.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/DesktopRenderer.swift",
+      "bytes": 11067,
+      "sha256": "f57cdacaaa36711fe75b3381453e9e92e570cd26fbbfa5365db15bff4ac512e6"
+    },
+    {
+      "path": "Sources/TerminalMacCore/Mailbox.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMacCore/Mailbox.swift",
+      "bytes": 5940,
+      "sha256": "556d349e102a45c022d73ea4a71631eaeb84e597c4de31f269506d09b6a557c9"
+    },
+    {
+      "path": "Sources/TerminalMacCore/Models.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMacCore/Models.swift",
+      "bytes": 4850,
+      "sha256": "fbc8d80a9f6cb0c6e050e3f16dd521283dc0969019289b8feae9af58085dd7c6"
+    },
+    {
+      "path": "Sources/TerminalMacCore/Setup.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMacCore/Setup.swift",
+      "bytes": 1441,
+      "sha256": "1c16f4ca2a16d534216f6e9837e752ce92908a6372145f3d5ded335d79cc3fc2"
+    },
+    {
+      "path": "resources/terminal-mac.entitlements",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/resources/terminal-mac.entitlements",
+      "bytes": 240,
+      "sha256": "0eae53ba82642049f08257da086418d676720d10b890961a830057af42252370"
+    },
+    {
+      "path": "scripts/build.sh",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/scripts/build.sh",
+      "bytes": 3847,
+      "sha256": "4a2acf8b7bf1920c389e7f56321dbf5a3b23298788a6c97e6cdfd0ff43f4f27b"
+    },
+    {
+      "path": "skills/terminal-mac/SKILL.md",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/skills/terminal-mac/SKILL.md",
+      "bytes": 2853,
+      "sha256": "9320e8f26e0cb5c386f3137c0a67ca6ebf76bf884374a8b9e0e1a7e0e42e82b5"
+    },
+    {
+      "path": "Sources/TerminalMac/Entry.swift",
+      "url": "https://raw.githubusercontent.com/govijr/terminal-mac/7009117f9e910c3dd4b4bd863e8bc331bd3c9d96/Sources/TerminalMac/Entry.swift",
+      "bytes": 1267,
+      "sha256": "91a011d8f25b244e5026d540e5519dabb47bbc9d75c155a03a0800525e4dd984"
+    }
+  ],
+  "local_bundle_sources": [
+    {
+      "path": "app/mcp_stdio.py",
+      "sha256": "68c4d6c0e3b4c023083a80b5e0ef71f1e8e2d7d0d521efde6dea746c56c37399"
+    },
+    {
+      "path": "app/manager.py",
+      "sha256": "b3f00030abef3acab0eaea12f6fea26af6f8b84c1b3b0e8b9e6895bef514f3ec"
+    },
+    {
+      "path": "app/session.py",
+      "sha256": "f5d7f55c12681500ea90f63aeb568b11397b018efb5d3a4dbee475e1fb904a6c"
+    },
+    {
+      "path": "app/runtime_registry.py",
+      "sha256": "d5ab0dcffd252d0e24904688d00ec591339cd4b24a6f0bcea8244ea580d396bb"
+    },
+    {
+      "path": "app/backend_claude.py",
+      "sha256": "11f75ef1aa10097bf45d39a476ee89634f9e03ac096340f0dc500bc67cdbe119"
+    },
+    {
+      "path": "app/backend_codex.py",
+      "sha256": "3aef3de42c1fa89bdf370e963c44ab7b34127d37ce20e831fcdeb9b743c4a446"
+    },
+    {
+      "path": "app/backend_grok.py",
+      "sha256": "17b20057da43d66ff715b5cdf981d2736454a22f6eee453f0401c2ef196f3031"
+    },
+    {
+      "path": "app/backend_hub.py",
+      "sha256": "3e5f0dfd8e3cc311ec49207fb7d877c045ca8d81b1381b93d67a5f3ecea5b1ec"
+    },
+    {
+      "path": "app/backend_harness.py",
+      "sha256": "ec12cdb462c4f453c617d72929f030c2eaf41739c29834f62f6b4dbd1fabd92e"
+    },
+    {
+      "path": "app/harness/mcp.py",
+      "sha256": "4473d0ffc2780697b71a5b6dd630f6fe81ac6efc67b6bb8bfbd5a642e9e674a6"
+    },
+    {
+      "path": "app/harness/loop.py",
+      "sha256": "9e87059a53bfa755fedd00ad0a77f8ed7af208094e750cc033f71ec4224ff80d"
+    },
+    {
+      "path": "app/harness/tools.py",
+      "sha256": "60ac4034ea603f155f30de6a789c3c98b0553b472c06129efa04d8169d4ddd16"
+    },
+    {
+      "path": "app/harness/images.py",
+      "sha256": "e82f09c4d722fdbac7094459a20c9972b47e44f0b966eed639a8fb4a981113f1"
+    },
+    {
+      "path": "app/harness/llm.py",
+      "sha256": "d6d415964aa2014ab8580c2af955c1e9a407cfd4f11a8e90453060d8c06e642e"
+    },
+    {
+      "path": "app/prompting.py",
+      "sha256": "46f2c8a183209d7a8694a9c36ba9da4e94e3806f1f4f6a1ebb6902177627d03d"
+    },
+    {
+      "path": "app/limits_card.py",
+      "sha256": "930468197ed93b55b00f243f5eb6fceb941e22a862b4d445ed52a2d244f3b7b5"
+    },
+    {
+      "path": "app/events.py",
+      "sha256": "e507a250728a7dd681cb5197eb582547245813bf3271a427eb496b7beda88620"
+    },
+    {
+      "path": "app/live_broker.py",
+      "sha256": "acbbcf9be9f95f8314b382a02e230bb7c17c7e05d78e585d00ed31904e592b3f"
+    },
+    {
+      "path": "app/routes/sessions.py",
+      "sha256": "8752b5b3ec2712c5efdec49275cbda7843a392f39bdffe83cdfc7e3c8b9b5aed"
+    },
+    {
+      "path": "app/artifacts.py",
+      "sha256": "2da74ed7b69a8c0cc5572328699c4da02965a393f8260cb95db1280931c94f4d"
+    },
+    {
+      "path": "app/routes/artifacts.py",
+      "sha256": "96ac812762da61c68da6232ac53f2be7b258e235a8a9435eb6a2c4d2a447b8ad"
+    },
+    {
+      "path": "app/agent_cli_exec.py",
+      "sha256": "9d35aa6664dab591dcecd97f2928e36b9b314be7cd35f1392a61161af5aebbcb"
+    }
+  ],
+  "other_public_sources": [
+    {
+      "url": "https://raw.githubusercontent.com/microsoft/playwright-mcp/176c8ea1832d5d0b36963af38191ac0088abdac6/README.md",
+      "bytes": 69048,
+      "sha256": "b3a0d1f804f4db560344ae3ef98e8e8497d9c41d2fc433a95d4060c40a401d4b"
+    }
+  ],
+  "official_documents": [
+    "https://developer.apple.com/documentation/virtualization/installing-macos-on-a-virtual-machine",
+    "https://developer.apple.com/documentation/virtualization/running-macos-in-a-virtual-machine-on-apple-silicon",
+    "https://developer.apple.com/documentation/virtualization/vzmacguestprovisioningoptions",
+    "https://www.apple.com/legal/sla/docs/macOSTahoe.pdf",
+    "https://www.apple.com/legal/sla/",
+    "https://sw.kovidgoyal.net/kitty/graphics-protocol/",
+    "https://iterm2.com/documentation-images.html"
+  ]
+}

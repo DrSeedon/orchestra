@@ -1,0 +1,21 @@
+mode=offline artifact/source integrity inspection, no app imports/DB/environment credential inventory
+undefined_reference_links=[]
+missing_local_links=[]
+changed_product_source_hashes=[]
+credential_shape_findings=[]
+git_present=False
+venv_present=False
+terminal_mac_sources=24
+local_source_hashes=22
+probe_syntax=PASS
+RESULT PASS
+
+PUBLICATION CORRECTION AUDIT (artifact-only; earlier evidence above not rerun)
+artifacts_scanned=8/8
+checks_log=sanitizedpublicationcopy; source=app/harness/mcp.py
+original_probe_suffix_preserved=PASS (all original PASS/RESULT and other rows unchanged)
+identifying_account_host_path_findings=0
+credential_shape_findings=0
+root_private_original=reported saved by root; not accessed here; no original SHA claimed
+product_checks_tests_models_network_rerun=NONE
+RESULT publication audit PASS
