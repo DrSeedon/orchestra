@@ -142,7 +142,7 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     ),
     ModelSpec(
         id="hub-claude-sonnet-5-5", name="Hub: Sonnet 5.5",
-        runtime="hub", provider="multicode", default_agents=False,
+        runtime="hub", provider="multicode", default_agents=True,
     ),
     ModelSpec(
         id="hub-claude-opus-5-5", name="Hub: Opus 5.5",
@@ -150,19 +150,19 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     ),
     ModelSpec(
         id="hub-gpt-6-luna", name="Hub: GPT-6 Luna",
-        runtime="hub", provider="multicode", default_agents=False,
+        runtime="hub", provider="multicode", default_agents=True,
     ),
     # Sol on the hub pool is not our Codex pool: the owner allowed it for agents (22.10.2026),
     # while MANUAL_ONLY_MODEL_IDS keeps refusing the plain gpt-6.1-sol of our own subscription.
     ModelSpec(
         id="hub-gpt-6.1-sol", name="Hub: GPT-6.1 Sol",
-        runtime="hub", provider="multicode",
+        runtime="hub", provider="multicode", default_agents=True,
     ),
-    # Owner 2026-11-03: existing paid Hub pool, specialist role only. The live
+    # Owner 2026-11-04: Hub Argon is also admitted for ordinary workers. The live
     # catalog supplies no context window, modality or token-price metadata.
     ModelSpec(
-        id="hub-gemini-4-argon", name="Hub: Gemini 4 Argon (specialist)",
-        runtime="hub", provider="multicode", context_length=0,
+        id="hub-gemini-4-argon", name="Hub: Gemini 4 Argon",
+        runtime="hub", provider="multicode", context_length=0, default_agents=True,
         input_modalities=(),
     ),
     ModelSpec(
@@ -256,6 +256,7 @@ ALIASES = {
     "hubopus": "hub-claude-opus-5-5",
     "hubluna": "hub-gpt-6-luna",
     "hubsol": "hub-gpt-6.1-sol",
+    "hubargon": "hub-gemini-4-argon",
     "hubgrok": "hub-grok-4.7",
 }
 _GIGACHAT_ALIASES = {
@@ -766,10 +767,10 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
             return ""
         if runtime not in ("claude", "codex"):
             return ""
-    return ("The MultiCode hub pool has its own quota: spawn the worker with model='hubsol'. "
-            "Ordinary hub workers, including creative and research work, use Sol; only "
-            "the dedicated task-bound specialist may use its Gemini route. "
-            "If Sol is unavailable, report the blocker or wait; no model or API fallback.")
+    return ("The MultiCode hub pool has its own quota: ordinary workers may use "
+            "model='hubsol', model='hubargon' (high effort), model='hubsonnet' or model='hubluna'. "
+            "Select the route explicitly; if unavailable, report the blocker or wait; "
+            "no automatic model or API fallback.")
 
 
 AGENT_HUB_ROUTE_RULE = "agent_workers_require_hub"
@@ -777,6 +778,11 @@ LOCAL_LUNA_MODEL = "gpt-6-luna"
 HUB_SOL_ONLY_RULE = "hub_workers_require_sol"
 HUB_SOL_MODEL = "hub-gpt-6.1-sol"
 HUB_ARGON_MODEL = "hub-gemini-4-argon"
+HUB_SONNET_MODEL = "hub-claude-sonnet-5-5"
+HUB_LUNA_MODEL = "hub-gpt-6-luna"
+ALLOWED_HUB_WORKER_MODELS = frozenset({
+    HUB_SOL_MODEL, HUB_ARGON_MODEL, HUB_SONNET_MODEL, HUB_LUNA_MODEL,
+})
 HUB_SPECIALIST_ROLE = "specialist"
 
 
@@ -788,33 +794,15 @@ def hub_worker_context(worker) -> dict:
     return {key: getattr(worker, key, "") for key in keys}
 
 
-def _hub_specialist_context_valid(role, pipeline, scope, task_id) -> bool:
-    if role != HUB_SPECIALIST_ROLE or pipeline != "default":
-        return False
-    if not isinstance(scope, str) or not os.path.isabs(scope) or not scope.strip("/"):
-        return False
-    if not isinstance(task_id, str) or not task_id.strip():
-        return False
-    from app.task_refs import parse_task_ref
-
-    try:
-        parse_task_ref(task_id)
-    except ValueError:
-        return False
-    return True
-
-
 def ensure_hub_worker_allowed(
     model: str, *, role: str = "", pipeline: str = "", scope: str = "", task_id: str = "",
 ) -> None:
     """Canonical hub routing admission, including old rows and backend recovery.
 
-    Owner decision 2026-11-02 17:27 UTC, clarified 17:29 UTC: every hub worker
-    in every scope uses GPT-6.1 Sol. Owner exception 2026-11-03 admits exact
-    Hub Argon only for a default-pipeline specialist with an existing task/scope
-    identity. Callers without context and old rows remain closed. Catalog
-    flags and task reasons cannot restore another hub route. Native routing,
-    manual native orchestrators and protected local Luna keep their own guards.
+    Owner decision 2026-11-04 admits Sol, Argon, Sonnet and Luna for Hub workers
+    in every role, pipeline, scope and task. Other Hub routes stay closed regardless
+    of catalog flags or reasons. Native routing, manual native orchestrators and
+    explicitly local Luna keep their own guards.
     This pure check never rewrites a model, thread, queue or recovery latch.
     """
     normalized = model.lower().strip()
@@ -830,18 +818,14 @@ def ensure_hub_worker_allowed(
     is_hub = normalized.startswith("hub-") or model_id.lower().startswith("hub-") or (
         spec is not None and spec.runtime == "hub"
     )
-    specialist_allowed = model_id == HUB_ARGON_MODEL and _hub_specialist_context_valid(
-        role, pipeline, scope, task_id,
-    )
-    if is_hub and model_id != HUB_SOL_MODEL and not specialist_allowed:
+    if is_hub and model_id not in ALLOWED_HUB_WORKER_MODELS:
         raise ValueError(
             f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
-            "use model='hubsol' (GPT-6.1 Sol). Only the default-pipeline specialist "
-            "with a bound task and scope may select hub-gemini-4-argon. "
-            "model_reason and catalog flags do not grant an exception. If Sol is at "
-            "capacity or unavailable, report the blocker or wait; do not fall back to "
-            "Claude, another hub model, native workers or API credits. Existing work "
-            "and history are retained; model changes require explicit action."
+            "use hubsol, hubargon, hubsonnet or hubluna. "
+            "model_reason and catalog flags do not grant an exception. If the selected "
+            "route is at capacity or unavailable, report the blocker or wait; do not "
+            "automatically fall back to another model, native workers or API credits. "
+            "Existing work and history are retained; model changes require explicit action."
         )
 
 
@@ -853,14 +837,16 @@ def ensure_spawn_allowed(
 
     Owner routing decision, 2026-10-29: ordinary workers use the hub. This is
     independent of stored catalog flags and keeps native manual selection intact.
-    The Sol-only guard also applies before persisted hub recovery submits work.
+    The Hub allowlist guard also applies before persisted hub recovery submits work.
     Billing is supplied only by opt-in eval callers;
     worker spawn and agent model changes use the subscription default.
 
     Owner decision, 2026-10-31: the one native exception is local GPT-6 Luna for
-    protected work that cannot safely go to the hub. It is admitted only with a
-    non-empty model_reason naming the protection constraint; every other native
+    explicitly local work. It is admitted only with a
+    non-empty model_reason naming the local-processing constraint; every other native
     route stays refused and the catalog flag, quota and role guards still apply.
+    Owner decision, 2026-11-04: company records and KB, including Seedon, are
+    authorized Hub inputs and do not require this native exception.
     """
     spec = get_model_spec(model_id)
     if is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider):
@@ -879,10 +865,11 @@ def ensure_spawn_allowed(
     ):
         raise ValueError(
             f"{AGENT_HUB_ROUTE_RULE}: model '{model_id}' is disabled for agents on "
-            "subscription routes; use hubsol for all hub work. The only native route "
-            "is model='luna' for protected "
-            "work that cannot safely go to the hub, with a non-empty model_reason "
-            "naming the protection constraint. If neither is possible (or this process "
+            "subscription routes; use hubsol, hubargon, hubsonnet or hubluna for Hub work. "
+            "The only native route "
+            "is model='luna' for explicitly local "
+            "work, with a non-empty model_reason "
+            "naming the local-processing constraint. If neither is possible (or this process "
             "predates the route and needs the owner's idle restart), report the "
             "blocker; do not retry the spawn, run the work yourself or fall back to "
             "another native subscription."
@@ -1235,6 +1222,50 @@ def resolve_model(model: str) -> str:
         return m
     registered = ", ".join(sorted(MODELS)) or "(none)"
     raise ValueError(f"unknown model '{model}'; registered models: {registered}")
+
+
+def recommend_task_route(task_text: str, role: str, current_model: str, *,
+                         model_reason: str = "") -> dict:
+    """Advisory only: keep the selected model and leave quota admission to quota_gate.
+
+    Favor false negatives: a short coding/debugging instruction is still complex.
+    Never offer a new provider as a fallback, opt into billing or mutate settings.
+    """
+    task = task_text.casefold().strip()
+    complex_task = bool(re.search(
+        r"code|cod(e|ing)|implement|architect|debug|bug|fix|refactor|algorithm|"
+        r"security|review|test|deploy|python|javascript|sql|"
+        r"код|реализ|архитект|отлад|баг|исправ|рефактор|алгоритм|тест|депло|ревью", task))
+    mechanical = bool(re.search(
+        r"\b(list|count|sort|format|extract|lookup|rename|deduplicate|convert)\b|"
+        r"список|перечисл|посчитай|подсч[её]т|отсорт|форматир|извле|переимен|"
+        r"найди (файл|путь|строк)|сколько", task))
+    simple = bool(task) and len(task) <= 1200 and mechanical and not complex_task
+    result = {"current_model": current_model, "selected_model": current_model,
+              "recommended_model": current_model, "classification": "simple" if simple else "complex",
+              "reason": "retain_selected_route", "advisory_only": True,
+              "quota_check_required": True}
+    if not simple or role in {"orchestrator", "sub-orchestrator"}:
+        return result
+    try:
+        current = resolve_model(current_model)
+        runtime = get_model_spec(current).runtime
+    except ValueError:
+        return result
+    aliases = ("hubluna", "hubsonnet") if runtime == "hub" else ("luna",) if runtime == "codex" else ()
+    for alias in aliases:
+        try:
+            candidate = resolve_model(alias)
+            spec = get_model_spec(candidate)
+            if not spec.available:
+                continue
+            ensure_spawn_allowed(candidate, role=role, model_reason=model_reason)
+        except ValueError:
+            continue
+        result.update(recommended_model=current_model if candidate == current else candidate,
+                      reason="simple_mechanical_task")
+        break
+    return result
 
 
 def backend_for_model(model: str) -> str:

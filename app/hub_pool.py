@@ -53,13 +53,25 @@ def usage_threshold() -> float:
     return 100.0
 
 
-def _usable(account: dict, threshold: float) -> bool | None:
+def _is_antigravity_3p_window(window: object) -> bool:
+    if not isinstance(window, dict):
+        return False
+    wid = str(window.get("id") or "").lower()
+    label = str(window.get("label") or "").lower()
+    return wid.startswith("3p-") or "claude & gpt" in label
+
+
+def _usable(account: dict, threshold: float, provider: str | None = None) -> bool | None:
     """None means unknown capacity; absent provider windows are not invented requirements."""
     if account.get("rejected"):
         return False
     windows = account.get("windows")
     if not isinstance(windows, list) or not windows:
         return None
+    if provider == "antigravity":
+        gemini_windows = [w for w in windows if not _is_antigravity_3p_window(w)]
+        if gemini_windows:
+            windows = gemini_windows
     values = [_number(window.get("used_pct")) if isinstance(window, dict) else None
               for window in windows]
     if any(value is None or value < 0 for value in values):
@@ -132,15 +144,17 @@ async def require_hub_capacity(model: str) -> str | None:
     return decision.reason if decision.state == "unknown" else None
 
 
-def _summarize_provider(block: dict) -> dict:
+def _summarize_provider(block: dict, provider: str | None = None) -> dict:
     threshold = usage_threshold()
     accounts = [a for a in (block.get("ids") or []) if isinstance(a, dict)]
-    capacity = [_usable(account, threshold) for account in accounts]
+    capacity = [_usable(account, threshold, provider) for account in accounts]
     active_id = block.get("active_id")
     active = next((a for a in accounts if a.get("id") == active_id), None) or (accounts[0] if accounts else {})
     windows = []
     for window in active.get("windows") or []:
         if not isinstance(window, dict):
+            continue
+        if provider == "antigravity" and _is_antigravity_3p_window(window):
             continue
         used = _number(window.get("used_pct"))
         windows.append({
@@ -180,7 +194,7 @@ def summarize_relay_limits(raw: object) -> dict | None:
     return {
         "available": True,
         "reason": None,
-        "providers": {p: _summarize_provider(providers[p]) for p in PROVIDERS
+        "providers": {p: _summarize_provider(providers[p], p) for p in PROVIDERS
                       if isinstance(providers.get(p), dict)},
     }
 

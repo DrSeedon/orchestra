@@ -1246,7 +1246,7 @@ class CodexBackend(JsonRpcStdioTransport):
             disconnect_error = f"; disconnect failed: {type(exc).__name__}: {exc}"
         detail = f"{message}{disconnect_error}"
         usage = TurnUsage(
-            AggregateUsage.normalized(),
+            AggregateUsage.normalized(accuracy="unknown"),
             current_context(
                 None,
                 self._model_context_window,
@@ -2043,7 +2043,7 @@ class CodexBackend(JsonRpcStdioTransport):
             reader_failure = params.get("reader_failure") or ""
             model_error = "reader_failure" if reader_failure else "server_error"
             normalized_usage = TurnUsage(
-                AggregateUsage.normalized(),
+                AggregateUsage.normalized(accuracy="unknown"),
                 current_context(
                     None,
                     self._model_context_window,
@@ -2432,6 +2432,8 @@ class CodexBackend(JsonRpcStdioTransport):
         normalized_usage = TurnUsage(
             AggregateUsage.normalized(
                 input_tokens=turn_input,
+                input_includes_cache=True,
+                accuracy="reported" if totals else "unknown",
                 output_tokens=turn_output,
                 cache_read_tokens=turn_cached,
                 cache_create_tokens=turn_cache_write,

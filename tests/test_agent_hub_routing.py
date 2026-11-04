@@ -7,7 +7,7 @@ from app import models
 from scripts import wf_adapters
 
 NATIVE = [spec.id for spec in models.SELECTABLE_MODEL_SPECS if spec.runtime != 'hub']
-HUB = ['hubsol']
+HUB = ['hubsol', 'hubargon', 'hubsonnet', 'hubluna']
 
 
 @pytest.fixture

@@ -201,7 +201,7 @@ async def test_review_defaults_to_luna_the_always_fast_lane(api):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("model", [HUB_SOL_MODEL, "hubsol"])
+@pytest.mark.parametrize("model", [HUB_SOL_MODEL, "hubsol", "hubargon", "hubsonnet", "hubluna"])
 async def test_change_model_is_control_action_even_when_target_bucket_blocked(api, model):
     # Historical readiness labels elsewhere are synthetic; this request must
     # name a current model because change-model uses the real registry resolver.
@@ -222,7 +222,7 @@ async def test_change_model_is_control_action_even_when_target_bucket_blocked(ap
     ("gpt-5.6-sol", "unknown model"),
     ("not-a-registered-model", "unknown model"),
     ("hub-unregistered-model", "unknown model"),
-    ("hub-gpt-6-luna", HUB_SOL_ONLY_RULE),
+    ("hub-claude-opus-5-5", HUB_SOL_ONLY_RULE),
 ])
 async def test_change_model_rejects_invalid_target_without_forwarding(api, model, message):
     api.state["readiness"] = _readiness("blocked")

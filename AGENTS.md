@@ -47,10 +47,8 @@ and a descriptive entry in `.orchestra/kb/README.md` to reach agents.
 
 ## Runtime and safety
 
-- Do not deploy or run `git pull` on the VPS yourself. Automatic Orchestra restarts are
-  owned by the idle watcher: merged Python is newer and no agent is active on two checks.
-  A disruptive restart or a laptop restart needs explicit authorization. Never restart
-  telegram-bot-api. After a permitted restart, check cut_names and recover interrupted work.
+- **АВТО-ДЕПЛОЙ И РЕСТАРТ НА `orchestra-vps` (прямое правило Максима от 04.11.2026):**
+  Каждый раз, когда в проект Orchestra вносятся и заливаются правки кода/промптов/конфигов, **всегда сразу синхронизируй обновлённые файлы на боевой сервер `orchestra-vps:/home/kesha/orchestra/` и перезапускай сервис `sudo systemctl restart orchestra.service`** (с проверкой `systemctl is-active orchestra.service`), не дожидаясь отдельного напоминания от Максима. При этом сервис `telegram-bot-api` никогда не перезапускать (`Never restart telegram-bot-api`). После рестарта проверять `cut_names` / прерванные ходы.
 - Do not coordinate infrastructure through other projects' orchestrators. Verify service
   state read-only; files on disk are not proof that a live Python process loaded them.
 - On the VPS, resource priority is kesha-bot-vps, Orchestra, then agents. Do not change
@@ -58,9 +56,11 @@ and a descriptive entry in `.orchestra/kb/README.md` to reach agents.
 - Before heavy work, check available memory and the process cgroup limits. Keep tests
   sequential unless parallelism is justified. On the owner's laptop use nice=15 and
   MemoryMax=2G; use `/mnt/data` for large temporary files. Stop only precisely owned PIDs.
-- Do not send secrets, protected data or live infrastructure to Hub workers. Follow
-  model-routing for safe source bundles and protected local work. Disabled providers
-  remain disabled; provider failure does not authorize a paid fallback.
+- Owner decision, 2026-11-04: all project tasks, internal company data, documents,
+  commercial offers, tenders and KB indexes, including Seedon, may be sent to
+  `hubargon`, `hubsol`, `hubsonnet` and `hubluna`. Their presence must not block Hub
+  dispatch. Credential exclusion still applies. Disabled providers remain disabled;
+  provider failure does not authorize a paid fallback.
 - New paid API routes require permission. Harness admits exact free routes and only
   paid routes in PAID_HARNESS_ROUTES in `app/models.py`. Claude API credits are opt-in
   for specific tasks, never the ordinary-worker fallback.

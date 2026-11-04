@@ -157,3 +157,42 @@ def test_factory_keeps_effort_and_policy_context():
         pipeline="default", role="worker", profile="", effort="high", context_limit=256000))
     assert backend._effort == "high"
     assert (backend._pipeline, backend._role) == ("default", "worker")
+
+
+@pytest.mark.parametrize("role", ["orchestrator", "worker", "full-cycle", "reducer", "specialist"])
+@pytest.mark.parametrize("model", ["hub-gemini-4-argon", "hub-gpt-6-luna"])
+def test_argon_and_luna_resolve_high_effort(role, model):
+    assert resolve_effort(get_role("default", role).effort, model, "hub") == "high"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("configure_fails", [False, True])
+async def test_retarget_argon_keeps_resolved_high_effort_for_next_turn(configure_fails):
+    backend, hub, state = setup("medium", pipeline="default", role="worker")
+    state.thread_id = "thread"
+    hub.catalog["providers"].append({"providerInstanceId": "antigravity", "models": [{
+        "id": "gemini-4-argon", "options": [{"id": "reasoningEffort", "type": "select",
+            "options": [{"id": value} for value in ("medium", "high")]}],
+    }]})
+    if configure_fails:
+        call = hub.tool_call
+
+        async def refuse_configure(name, args):
+            if name == "t3_thread_configure":
+                raise RuntimeError("synthetic configure failure")
+            return await call(name, args)
+
+        hub.tool_call = refuse_configure
+        with pytest.raises(RuntimeError, match="synthetic configure failure"):
+            await backend.retarget_model("hub-gemini-4-argon")
+        assert backend.model == "hub-gpt-6.1-sol" and backend._effort == "medium"
+        return
+    await backend.retarget_model("hub-gemini-4-argon")
+    assert backend.model == "hub-gemini-4-argon" and backend._effort == "high"
+    await backend._start(hub, state, "next turn")
+    configs = [args for name, args in hub.calls if name == "t3_thread_configure"]
+    assert len(configs) == 2
+    assert all(args["modelSelection"] == {
+        "instanceId": "antigravity", "model": "gemini-4-argon",
+        "options": {"reasoningEffort": "high"},
+    } for args in configs)

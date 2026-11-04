@@ -64,7 +64,7 @@ roles:
     model: gpt-6.1-terra
     # Ручной выбор Astra владельцем оставляет ступень для оркестраторского промпта;
     # агентские вызовы блокируются централизованным model gate.
-    effort: &effort_policy {gpt-6.1-terra: high, "claude-opus-5-5[1m]": high, "claude-sonnet-5-5[1m]": medium, claude-haiku-5-5: low, hub-gpt-6.1-sol: high, hub-claude-opus-5-5: high, hub-claude-sonnet-5-5: medium, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
+    effort: &effort_policy {gpt-6.1-terra: high, "claude-opus-5-5[1m]": high, "claude-sonnet-5-5[1m]": medium, claude-haiku-5-5: low, hub-gpt-6.1-sol: high, hub-gemini-4-argon: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: high, hub-claude-sonnet-5-5: medium, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
     skills: [grill-me, orchestra-agents, laptop-access, vps-deploy]
     modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
     can_spawn: [worker, full-cycle, reducer, specialist]
@@ -98,7 +98,7 @@ roles:
     label: Worker
     order: 2
     model: hub-gpt-6.1-sol
-    effort: &worker_effort_policy {"claude-opus-5-5[1m]": medium, "claude-sonnet-5-5[1m]": medium, claude-haiku-5-5: low, hub-gpt-6.1-sol: high, hub-claude-opus-5-5: medium, hub-claude-sonnet-5-5: medium, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
+    effort: &worker_effort_policy {"claude-opus-5-5[1m]": medium, "claude-sonnet-5-5[1m]": medium, claude-haiku-5-5: low, hub-gpt-6.1-sol: high, hub-gemini-4-argon: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: medium, hub-claude-sonnet-5-5: medium, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
     skills: [laptop-access]
     modules: [safety, project-maintenance, code-quality, git-workflow, report-format, knowledge, communication-style, user-values]
     can_spawn: []
@@ -154,9 +154,7 @@ roles:
     kind: worker
     label: Gemini Specialist
     order: 5
-    # V-1257 Phase A activation stage ONLY: keep a model known to old Python.
-    # Apply the separate Phase B patch after root verifies the live registry.
-    model: hub-gpt-6.1-sol
+    model: hub-gemini-4-argon
     effort: {default: high}
     skills: []
     modules: [safety, project-maintenance, code-quality, model-routing, git-workflow, report-format, knowledge, communication-style, user-values]
@@ -168,5 +166,4 @@ roles:
     not_for: General terminal/repository coding, protected data, live infrastructure, unverified media inputs or paid auxiliary tools
     description: >
       Dedicated non-spawning specialist for one bound task and project. Uses the existing
-      paid Hub pool only. Phase A stages the role on Sol; Phase B activates Gemini
-      after the new registry is live. This stage is not an operational Gemini specialist.
+      paid Hub pool on Gemini 4 Argon at high effort.

@@ -23,10 +23,11 @@ from typing import AsyncIterator, Optional
 from uuid import uuid4
 
 from app.events import AgentEvent
+from app.runtime_history import PrefixCacheTracker
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 from app.harness import prompts, tools as builtin
 from app.harness.llm import GigaChatClient, OpenRouterClient
-from app.tool_scoping import parse_disabled_tools
+from app.tool_scoping import parse_disabled_tools, role_tool_names
 from app.harness.loop import AgentLoop, ReviewCtx
 from app.harness.mcp import MCPClient
 from app.harness.sessions import SessionStore
@@ -131,6 +132,7 @@ class HarnessBackend:
         self._tool_schemas: list[dict] = []
         self._full_system_prompt: str = ""
         self._single_call = False
+        self._prefix_tracker = PrefixCacheTracker()
 
         self._pending_msg: Optional[str] = None
         self._turn_active = False
@@ -162,6 +164,9 @@ class HarnessBackend:
             if schema.get("function", {}).get("name") != "read_image"
         ])
         names = {s.get("function", {}).get("name") for s in schemas}
+        env = (self._mcp_servers.get("orchestra") or {}).get("env") or {}
+        offered = role_tool_names(names, str(env.get("ORCHESTRA_ROLE") or ""))
+        schemas = [schema for schema in schemas if schema.get("function", {}).get("name") in offered]
         extra: list[dict] = []
         # V-636: GigaChat answered "which tasks exist?" by calling review, whose English
         # reviewer replied in the chat; a policy naming "review" switches it off like MCP tools.
@@ -352,6 +357,7 @@ class HarnessBackend:
             abort=lambda: self._abort_flag, effort=effort, todo_store=self._todos,
             allow_review=True, review_ctx=self._review_ctx(),
             drain_injected=self._drain_injected, carried_over=carried_over,
+            prefix_tracker=self._prefix_tracker,
         )
 
         error_out: str | None = None
@@ -442,6 +448,7 @@ class HarnessBackend:
         turn_usage = TurnUsage(
             AggregateUsage.normalized(
                 input_tokens=prompt_turn - cached_turn,
+                accuracy="reported" if usage else "unknown",
                 output_tokens=self._cumulative_output - self._usage_baseline[1],
                 cache_read_tokens=cached_turn,
             ),
@@ -465,6 +472,7 @@ class HarnessBackend:
         cost_unaccounted = self._turn_cost_unaccounted or (
             self.model in PAID_HARNESS_ROUTES and not source_records
         )
+        prefix_tracker = getattr(loop, "prefix_tracker", None)
         return AgentEvent("turn_end", content, metadata={
             "event_id": str(uuid4()),
             "session_id": self.session_id,
@@ -478,6 +486,8 @@ class HarnessBackend:
             "billing_mode": billing_mode,
             "cost_unaccounted": cost_unaccounted,
             "provider_source_records": source_records,
+            "prefix_cache_shape": prefix_tracker.shape.as_dict() if prefix_tracker and prefix_tracker.shape else None,
+            "prefix_cache_changes": prefix_tracker.reasons if prefix_tracker else [],
             "turn_duration_ms": _elapsed_ms(self._turn_started_at),
             "api_duration_ms": sum(api_durations) if api_durations else None,
             "reasoning_tokens": reasoning_tokens,

@@ -121,6 +121,82 @@ class ModelVisibleManifest:
     components: dict[str, Any]
     configuration_sha256: str
 
+    def prefix_cache_shape(self, *, history_prefix: Any = "") -> "PrefixCacheShape":
+        return PrefixCacheShape.from_components(
+            system_prompt=self.components.get("system_prompt", ""),
+            tool_schemas=self.components.get("tool_schemas", {}),
+            skills_index=self.components.get("skill_index", ""),
+            history_prefix=history_prefix,
+        )
+
+
+@dataclass(frozen=True)
+class PrefixCacheShape:
+    """Local byte stability diagnostics, not evidence of a provider cache hit.
+
+    history_prefix is a fixed previously sent slice, excluding newly appended turns;
+    callers compare the same slice on the next turn to detect a rewrite/compaction.
+    """
+
+    system_prompt_hash: str
+    tool_schemas_hash: str
+    skills_index_hash: str
+    worker_memory_hash: str
+    history_prefix_hash: str
+
+    @classmethod
+    def from_components(cls, *, system_prompt: str = "", tool_schemas: Any = (),
+                        skills_index: Any = "", worker_memory: str | None = None,
+                        history_prefix: Any = "") -> "PrefixCacheShape":
+        blocks = re.findall(r"<worker-memory>.*?</worker-memory>", system_prompt, re.DOTALL)
+        memory = '\n'.join(blocks) if worker_memory is None else worker_memory
+        stable_system = re.sub(r"\n*<worker-memory>.*?</worker-memory>", "", system_prompt, flags=re.DOTALL)
+
+        def digest(value: Any) -> str:
+            raw = value if isinstance(value, str) else _canonical_json(value)
+            return hashlib.sha256(raw.encode('utf-8')).hexdigest()
+
+        return cls(*(digest(part) for part in (
+            stable_system, tool_schemas, skills_index, memory, history_prefix,
+        )))
+
+    def as_dict(self) -> dict[str, str]:
+        return asdict(self)
+
+
+def explain_prefix_change(prev: PrefixCacheShape, curr: PrefixCacheShape) -> list[str]:
+    reasons = [reason for component, reason in (
+        ("system_prompt_hash", "system_prompt_changed"),
+        ("tool_schemas_hash", "tool_schemas_changed"),
+        ("skills_index_hash", "skills_index_changed"),
+        ("worker_memory_hash", "worker_memory_changed"),
+        ("history_prefix_hash", "history_compacted_or_rewritten"),
+    ) if getattr(prev, component) != getattr(curr, component)]
+    return reasons or ["prefix_stable"]
+
+
+class PrefixCacheTracker:
+    """Compare the previously sent history slice; normal appends are stable."""
+
+    def __init__(self) -> None:
+        self.shape: PrefixCacheShape | None = None
+        self.history_length = 0
+        self.reasons: list[str] = []
+
+    def observe(self, *, system_prompt: str, tool_schemas: Any,
+                history: Sequence[Any], skills_index: str = "") -> list[str]:
+        current = PrefixCacheShape.from_components(
+            system_prompt=system_prompt, tool_schemas=tool_schemas,
+            skills_index=skills_index, history_prefix=list(history[:self.history_length]),
+        )
+        self.reasons = explain_prefix_change(self.shape, current) if self.shape else ["prefix_stable"]
+        self.shape = PrefixCacheShape.from_components(
+            system_prompt=system_prompt, tool_schemas=tool_schemas,
+            skills_index=skills_index, history_prefix=list(history),
+        )
+        self.history_length = len(history)
+        return list(self.reasons)
+
 
 @dataclass(frozen=True)
 class PreflightReceipt:

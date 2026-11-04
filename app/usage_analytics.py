@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from statistics import median
 
 from app.db import _conn
 from app.models import PROVIDER_METADATA, cache_policy_for_runtime
+from app.usage_contract import AggregateUsage, usage_for_runtime
 
 
 # One table drives every provider decision here: bucketing rows AND picking the cache window
@@ -235,6 +237,7 @@ def _daily_usage(conn: sqlite3.Connection, days: int) -> list[dict]:
         entry["_comparable"] += comparable
         entry["cold_starts"] += cold
 
+    measurements = _daily_measurements(conn, since)
     result = []
     for entry in by_day.values():
         entry["cost_usd"] = (
@@ -244,8 +247,70 @@ def _daily_usage(conn: sqlite3.Connection, days: int) -> list[dict]:
             entry.pop("_comparable"),
             entry["cold_starts"],
         )
+        # Legacy cache_hit_pct remains an interval/TTL estimate. New consumers use
+        # explicit names and cannot confuse it with measured token cache reads.
+        policies = [value for value in entry["providers"].values()
+                    if value["cache_ttl_seconds"] or value["cache_persistent"]]
+        entry["estimated_cache_warmth_pct"] = _hit_pct(
+            sum(value["comparable_turns"] for value in policies),
+            sum(value["cold_starts"] for value in policies),
+        )
+        entry["normalized_usage"] = {}
+        for provider, values in entry["providers"].items():
+            measured = measurements.get((entry["day"], provider), [])
+            entry["normalized_usage"][provider] = {
+                **summarize_usage_measurements(measured, values["turns"]),
+                "estimated_cache_warmth_pct": (
+                    values["cache_hit_pct"] if values["cache_ttl_seconds"] or values["cache_persistent"]
+                    else None
+                ),
+            }
         result.append(entry)
     return result
+
+
+def summarize_usage_measurements(measurements: list[dict], turns: int) -> dict:
+    """Only publish complete totals; expose partial observed sums separately."""
+    names = ("prompt_total", "fresh_input", "cache_read", "cache_write", "output")
+    known = [item for item in measurements if item.get("accuracy") in {"reported", "estimated"}
+             and all(isinstance(item.get(name), int) for name in names)]
+    sums = {name: sum(item[name] for item in known) for name in names}
+    complete = bool(turns) and len(known) == turns
+    accuracy = ("estimated" if any(item["accuracy"] == "estimated" for item in known)
+                else "reported") if complete else "unknown"
+    total = sums["prompt_total"]
+    return {
+        **(sums if complete else dict.fromkeys(names)),
+        "cache_read_fraction": sums["cache_read"] / total if complete and total else None,
+        "accuracy": accuracy, "measured_turns": len(known),
+        "unknown_turns": max(0, turns - len(known)),
+        "observed_totals": sums if known else None,
+    }
+
+
+def _daily_measurements(conn: sqlite3.Connection, since: str) -> dict:
+    rows = conn.execute(
+        f"""SELECT date(u.ts) AS day, {_PROVIDER_SQL_USAGE} AS provider,
+                   u.runtime, u.input_tokens, u.output_tokens,
+                   u.cache_read_tokens, u.cache_create_tokens, m.normalized_json
+            FROM turn_usage u
+            LEFT JOIN turn_usage_measurements m ON m.event_id=u.event_id
+            WHERE date(u.ts) >= date('now', ?)""", (since,),
+    ).fetchall()
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for row in rows:
+        if row["normalized_json"]:
+            measurement = json.loads(row["normalized_json"])
+        elif any(row[name] for name in ("input_tokens", "output_tokens", "cache_read_tokens",
+                                        "cache_create_tokens")):
+            measurement = usage_for_runtime(
+                row["provider"], input_tokens=row["input_tokens"], output_tokens=row["output_tokens"],
+                cache_read_tokens=row["cache_read_tokens"], cache_create_tokens=row["cache_create_tokens"],
+            ).derived()
+        else:
+            measurement = AggregateUsage.normalized(accuracy="unknown").derived()
+        grouped.setdefault((row["day"], row["provider"]), []).append(measurement)
+    return grouped
 
 
 def _claude_history_comparison(conn: sqlite3.Connection, since: str) -> list[dict]:

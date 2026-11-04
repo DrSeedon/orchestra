@@ -10,6 +10,7 @@ import tomllib
 import uuid
 from dataclasses import dataclass
 from functools import lru_cache
+from itertools import zip_longest
 from pathlib import Path
 
 from app.workspace import _exclude_worktree_artifacts, tracked_paths
@@ -28,6 +29,57 @@ _REPO_ROOT = _PROMPTS_DIR.parents[3]
 _ORCHESTRATOR_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 _IDENTITY_PLACEHOLDERS = re.compile(r"\{(worker_name|orchestrator_name|scope|branch)\}")
 _WORKER_MEMORY_BLOCK = re.compile(r"\n*<worker-memory>.*?</worker-memory>", re.DOTALL)
+WORKER_MEMORY_L1_BUDGET_CHARS = 4000
+
+
+@lru_cache(maxsize=32)
+def _worker_memory_overview(path: str, source: str, fingerprint: str, budget: int) -> str:
+    """Deterministic L0/L1, keyed by source content, never a stale writable sidecar.
+
+    This is an extractive index, not a claim that a heuristic summarized every rule.
+    Full lines and headings retain their original line addresses in L2.
+    """
+    lines = source.splitlines()
+    headings = [(i + 1, line) for i, line in enumerate(lines) if re.match(r"^#{1,2}\s+", line)]
+    header = (f"L0 worker memory | {len(source)} chars, {len(lines)} lines\n"
+              f"L2: {path}\nSHA-256: {fingerprint}\n"
+              "Read relevant L2 line ranges from disk before relying on omitted details.\n"
+              "L1 section index (inclusive lines):\n")
+    index = []
+    for pos, (start, title) in enumerate(headings):
+        # A top-level heading owns its complete subtree.
+        level = len(title) - len(title.lstrip('#'))
+        end = next((n - 1 for n, following in headings[pos + 1:]
+                    if len(following) - len(following.lstrip('#')) <= level), len(lines))
+        index.append(f"{start}-{end} {title}")
+    # Prioritize active rules, then recent working facts. No model call, timestamp or
+    # mutable sidecar enters the prefix. An exceptionally large TOC is explicitly partial.
+    rule = re.compile(r"must|never|required|active|rule|важно|нельзя|обяз|правил|актив", re.I)
+    candidates = [(i + 1, line) for i, line in enumerate(lines)
+                  if line.strip() and not line.startswith('#')]
+    selected = []
+    selected_chars = 0
+    used = set()
+    text = header
+    for entry in index:
+        if len(text) + len(entry) + 100 > budget:
+            text += "[Index exceeds budget; remaining headings are in L2.]\n"
+            break
+        text += entry + '\n'
+    text += "L1 extracted rules / recent facts (not exhaustive):\n"
+    rules = reversed([item for item in candidates if rule.search(item[1])])
+    # Reserve attention for both active rules and the latest facts, even when
+    # older rules alone could fill the complete budget.
+    priority = (item for pair in zip_longest(rules, reversed(candidates)) for item in pair if item)
+    for number, line in priority:
+        if number in used:
+            continue
+        used.add(number)
+        entry = f"L{number}: {line}"
+        if len(text) + selected_chars + len(entry) + 1 <= budget:
+            selected.append((number, entry))
+            selected_chars += len(entry) + 1
+    return (text + '\n'.join(entry for _, entry in sorted(selected)))[:budget]
 
 
 @dataclass(frozen=True)
@@ -201,10 +253,16 @@ def load_worker_memory(
         path = base / ".orchestra" / "workers" / filename
         if path.is_file():
             try:
-                content = path.read_text().strip()
+                raw = path.read_bytes()
+                source = raw.decode('utf-8')
+                content = source.strip()
                 if content:
                     logger.info(f"Loaded worker memory: {path} ({len(content)} chars)")
-                    return content
+                    if len(content) <= WORKER_MEMORY_L1_BUDGET_CHARS:
+                        return content
+                    return _worker_memory_overview(
+                        str(path), source, hashlib.sha256(raw).hexdigest(), WORKER_MEMORY_L1_BUDGET_CHARS,
+                    )
             except Exception as e:
                 logger.warning(f"Failed to read worker memory {path}: {e}")
     return ""

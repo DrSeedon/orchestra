@@ -1917,6 +1917,7 @@ class ClaudeBackend:
             turn_usage = TurnUsage(
                 AggregateUsage.normalized(
                     input_tokens=input_tokens,
+                    accuracy="reported" if usage else "unknown",
                     output_tokens=output_tokens,
                     cache_read_tokens=cache_read,
                     cache_create_tokens=cache_create,

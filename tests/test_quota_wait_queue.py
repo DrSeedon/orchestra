@@ -368,7 +368,8 @@ async def test_initial_task_waits_for_the_gate_and_precedes_direct_messages(env)
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind", ["initial", "direct"])
 @pytest.mark.parametrize("new_model,admitted", [
-    ("hubsol", True), ("hubsonnet", False),
+    ("hubsol", True), ("hubluna", True), ("hubargon", True),
+    ("hubsonnet", False), ("hubopus", False),
 ])
 async def test_model_change_rechecks_held_delivery_with_new_route_policy(
     env, monkeypatch, configured_hub, kind, new_model, admitted,
@@ -376,8 +377,8 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
     """V-1056: changing a model is control; delivery must use the new pool's gate.
 
     Use the real quota/hub decision functions. Only telemetry and the provider
-    submission are fake. Sol is rechecked on delivery; a forbidden hub model must
-    refuse before mutation and preserve the existing held receipt.
+    submission are fake. The selected route is rechecked on delivery. Forbidden
+    models refuse before mutation; exhausted routes retain the held receipt.
     """
     from app import hub_pool, initial_deliveries, quota_gate, quota_queue
     from app.models import resolve_model
@@ -386,7 +387,8 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
 
     worker = AgentSession(
         id=TARGET_ID, name=TARGET_NAME, scope=SCOPE, cwd="/tmp",
-        model=resolve_model("hubluna"), backend_type="hub", task_id="678",
+        model=resolve_model("hubsol" if new_model == "hubluna" else "hubluna"),
+        backend_type="hub", task_id="678",
         branch="task-678/w", worktree_path="/tmp",
     )
     env.db.save_session(worker._to_db_dict())
@@ -424,6 +426,7 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
         claude_usable = 1 if capacity["checks"] == 1 else capacity["claude_usable"]
         return {"available": True, "providers": {
             "codex": {"usable": 1, "accounts": 1, "unknown": 0, "threshold_pct": 100.0},
+            "antigravity": {"usable": 1, "accounts": 1, "unknown": 0, "threshold_pct": 100.0},
             "claude": {"usable": claude_usable, "accounts": 1,
                        "unknown": 0, "threshold_pct": 100.0},
         }}
@@ -446,8 +449,8 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
         TARGET_NAME, {"scope": SCOPE, "model": new_model, "via": "mcp",
                       "model_reason": "Creative task on the new hub route"},
     )
-    if not admitted:
-        # V-1240: reject before loading/mutation/release, preserving the held receipt.
+    if new_model == "hubopus":
+        # Forbidden routes must still preserve the held receipt before mutation.
         assert response.status_code == 409
         assert 'hub_workers_require_sol' in response.body.decode()
         assert worker.model == resolve_model('hubluna')
@@ -470,7 +473,12 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
 
     assert await quota_queue.release_waiting() == 0
     await _drain()
-    assert env.manager.delivered == [expected_message]
+    assert env.manager.delivered == ([expected_message] if admitted else [])
+    if not admitted:
+        capacity["claude_usable"] = 1
+        await quota_queue.release_waiting()
+        await _drain()
+        assert env.manager.delivered == [expected_message]
 
 
 @pytest.mark.asyncio

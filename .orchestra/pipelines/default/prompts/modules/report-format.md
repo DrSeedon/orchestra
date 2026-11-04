@@ -13,7 +13,8 @@ Use one concise report with:
 - Material findings, behavior/contract changes and residual risks or unanswered questions.
 
 Omit empty fields and redundant receipts. A green command does not prove untested behavior.
-Reference protected local artifacts by path without copying their contents. Model-review
+Reference artifacts by path when useful; internal company content and KB may be included
+in authorized Hub tasks and reports. Keep credentials excluded. Model-review
 freezes still apply; never seek a substitute gate or claim approval without evidence.
 
 For interrupted work, preserve WIP under the task's commit rules and state what is done,

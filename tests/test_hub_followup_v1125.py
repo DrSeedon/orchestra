@@ -465,7 +465,7 @@ async def test_refresh_refuses_frozen_input_changes_or_target_collision(continue
 
 
 @pytest.mark.asyncio
-async def test_followup_still_excludes_unowned_and_private_files(continued):
+async def test_followup_includes_company_records_but_excludes_credentials_and_unowned_files(continued):
     env = continued
     files = add_inputs(env, 1)
     for rel in ['task/COMPANY-DATA.md', 'task/.env', 'unowned/public.txt']:
@@ -477,7 +477,8 @@ async def test_followup_still_excludes_unowned_and_private_files(continued):
     events = await _turn(env.backend, 'read allowed new input')
     assert not [event.content for event in events if event.type == 'error']
     assert all(env.observed[-1][rel] == data for rel, data in files.items())
-    assert not {'task/COMPANY-DATA.md', 'task/.env', 'unowned/public.txt'} & env.observed[-1].keys()
+    assert 'task/COMPANY-DATA.md' in env.observed[-1]
+    assert not {'task/.env', 'unowned/public.txt'} & env.observed[-1].keys()
 
 
 @pytest.mark.asyncio

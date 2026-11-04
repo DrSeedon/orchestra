@@ -84,6 +84,12 @@ _USAGE_ANALYTICS_INDEXES = (
 
 def _ensure_usage_analytics_schema(connection: sqlite3.Connection) -> None:
     connection.execute(
+        """CREATE TABLE IF NOT EXISTS turn_usage_measurements (
+               event_id TEXT PRIMARY KEY,
+               normalized_json TEXT NOT NULL
+           )"""
+    )
+    connection.execute(
         """CREATE TABLE IF NOT EXISTS claude_history_usage_messages (
                message_id TEXT PRIMARY KEY,
                day TEXT NOT NULL,
@@ -2634,6 +2640,7 @@ def turn_usage_add(
     native_session_id: str | None = None,
     provider_cost_usd: float | None = None,
     provider_source_records: list[dict] | None = None,
+    normalized_usage: dict | None = None,
     ts: str | None = None,
 ) -> bool:
     """Persist one provider-identified terminal turn; return false on replay."""
@@ -2728,6 +2735,17 @@ def turn_usage_add(
             ),
         )
         inserted = cursor.rowcount == 1
+        if inserted:
+            from app.usage_contract import usage_for_runtime
+
+            measurement = normalized_usage if normalized_usage is not None else usage_for_runtime(
+                runtime, input_tokens=input_tokens, output_tokens=output_tokens,
+                cache_read_tokens=cache_read_tokens, cache_create_tokens=cache_create_tokens,
+            ).derived()
+            c.execute(
+                "INSERT INTO turn_usage_measurements(event_id, normalized_json) VALUES (?, ?)",
+                (event_id, json.dumps(measurement, separators=(",", ":"))),
+            )
         if inserted and native_session_id and provider_cost_usd is not None:
             # The provider total and its native session id are one baseline.  Commit
             # them with the terminal usage row so a crash cannot leave a durable

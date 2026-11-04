@@ -31,6 +31,9 @@ class AggregateUsage:
     cache_read_tokens: int = 0
     cache_create_tokens: int = 0
     model_calls: int | None = None
+    # Legacy input_tokens semantics differ by runtime. Never change that field.
+    input_includes_cache: bool = False
+    accuracy: str = "reported"
 
     @classmethod
     def normalized(
@@ -41,14 +44,51 @@ class AggregateUsage:
         cache_read_tokens: object = 0,
         cache_create_tokens: object = 0,
         model_calls: object = None,
+        input_includes_cache: bool = False,
+        accuracy: str = "reported",
     ) -> "AggregateUsage":
+        valid_accuracy = accuracy if accuracy in {"reported", "estimated", "unknown"} else "unknown"
+        for value in (input_tokens, output_tokens, cache_read_tokens, cache_create_tokens):
+            try:
+                if value is None or isinstance(value, bool) or int(value) < 0 or float(value) != int(value):
+                    valid_accuracy = "unknown"
+            except (TypeError, ValueError, OverflowError):
+                valid_accuracy = "unknown"
+        if input_includes_cache and _count(cache_read_tokens) + _count(cache_create_tokens) > _count(input_tokens):
+            valid_accuracy = "unknown"
         return cls(
             input_tokens=_count(input_tokens),
             output_tokens=_count(output_tokens),
             cache_read_tokens=_count(cache_read_tokens),
             cache_create_tokens=_count(cache_create_tokens),
             model_calls=_optional_count(model_calls),
+            input_includes_cache=input_includes_cache,
+            accuracy=valid_accuracy,
         )
+
+    def derived(self) -> dict:
+        """Disjoint token buckets; unknown measurements are nullable, never zero."""
+        if self.accuracy == "unknown":
+            return {**dict.fromkeys(("prompt_total", "fresh_input", "cache_read", "cache_write",
+                                    "output", "cache_read_fraction")), "accuracy": "unknown"}
+        cached = self.cache_read_tokens + self.cache_create_tokens
+        fresh = max(0, self.input_tokens - cached) if self.input_includes_cache else self.input_tokens
+        total = fresh + cached
+        return {
+            "prompt_total": total, "fresh_input": fresh,
+            "cache_read": self.cache_read_tokens, "cache_write": self.cache_create_tokens,
+            "output": self.output_tokens,
+            "cache_read_fraction": self.cache_read_tokens / total if total > 0 else None,
+            "accuracy": self.accuracy,
+        }
+
+
+def usage_for_runtime(runtime: str, **counts: object) -> AggregateUsage:
+    """Legacy persisted counters use the same semantics as their backend."""
+    return AggregateUsage.normalized(
+        **counts, input_includes_cache=runtime in {"codex", "grok"},
+        accuracy="unknown" if runtime in {"hub", "unknown", "antigravity"} else "reported",
+    )
 
 
 @dataclass(frozen=True)
@@ -155,6 +195,10 @@ class TurnUsage:
             "cache_read": aggregate.cache_read_tokens,
             "cache_create": aggregate.cache_create_tokens,
             "model_calls": aggregate.model_calls,
+            # Keep cache_read (legacy integer) untouched; the complete nullable contract
+            # is namespaced as well as exposing the new non-conflicting fields.
+            "normalized_usage": aggregate.derived(),
+            **{key: value for key, value in aggregate.derived().items() if key != "cache_read"},
         }
         current = self.current
         if isinstance(current, KnownContext):

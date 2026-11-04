@@ -17,6 +17,9 @@ Each tool returns a plain string (tool result). Errors are returned as strings
 import ast
 import asyncio
 import contextlib
+import codecs
+import itertools
+import json
 import logging
 import os
 import re
@@ -27,6 +30,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from app.harness.images import read_image as _read_validated_image
+from app.tool_output_compactor import TOOL_RESULTS, DEFAULT_PREVIEW_CHARS
 
 BASH_DEFAULT_TIMEOUT = 120
 BASH_MAX_TIMEOUT = 600
@@ -128,6 +132,12 @@ def _cap(text: str) -> str:
     return text
 
 
+def _present(text: str, cwd: str) -> str:
+    """Compact only at first delivery; _cap stays available for its legacy contract."""
+    budget = max(0, int(os.environ.get("HARNESS_OUTPUT_CAP") or DEFAULT_PREVIEW_CHARS))
+    return TOOL_RESULTS.present(text, owner=str(Path(cwd).resolve()), budget=budget)
+
+
 async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> str:
     """Run a shell command in cwd. When ORCHESTRA_AGENT_UID is set, wraps command
     in `su -s /bin/sh <user> -c` so bash runs as unprivileged user who cannot read
@@ -155,21 +165,24 @@ async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> s
         return f"[bash error] failed to start: {e}"
     # Keep captured bytes outside the reader task: an inherited pipe can stay open
     # even after cleanup (notably on kernels without pidfd group signalling).
-    captured = bytearray()
+    captured = tempfile.SpooledTemporaryFile(max_size=256_000, mode='w+t', encoding='utf-8', newline='')
+    decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
     output_bytes = 0
 
     async def collect_output():
         nonlocal output_bytes
         while chunk := await proc.stdout.read(65536):
             output_bytes += len(chunk)
-            captured.extend(chunk[:max(0, OUTPUT_CAP * 4 - len(captured))])
+            captured.write(decoder.decode(chunk))
+        captured.write(decoder.decode(b'', final=True))
         await proc.wait()
 
-    def output_text():
-        text = captured.decode(errors="replace")
-        if output_bytes > len(captured):
-            text += "\n... (additional output truncated)"
-        return text
+    def output_text(prefix: str):
+        captured.seek(0)
+        return TOOL_RESULTS.present_stream(
+            itertools.chain([prefix], captured), owner=str(Path(cwd).resolve()),
+            budget=max(0, int(os.environ.get("HARNESS_OUTPUT_CAP") or DEFAULT_PREVIEW_CHARS)),
+        ).rstrip()
 
     reader = asyncio.create_task(collect_output())
     completed = False
@@ -177,16 +190,16 @@ async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> s
         await asyncio.wait_for(asyncio.shield(reader), timeout=timeout)
         completed = True
         rc = proc.returncode
-        return _cap(f"exit_code={rc}\n{output_text()}".rstrip())
+        return output_text(f"exit_code={rc}\n")
     except asyncio.TimeoutError:
         await _kill_proc(proc)
-        return _cap(
+        return output_text(
             f"[bash error] harness timeout after {timeout}s "
             f"(requested={requested_timeout}s, maximum={BASH_MAX_TIMEOUT}s; "
             "process-group cleanup attempted). "
             "A shell 'timeout' does not extend this tool budget. "
             "Use bg_create(type='run') for long commands.\n"
-            f"Partial output:\n{output_text()}"
+            "Partial output:\n"
         )
     finally:
         if completed:
@@ -200,6 +213,7 @@ async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> s
             reader.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await reader
+        captured.close()
 
 
 def read(path: str, cwd: str, offset: int = 0, limit: int = 0) -> str:
@@ -244,10 +258,8 @@ def read(path: str, cwd: str, offset: int = 0, limit: int = 0) -> str:
         return f"[read error] offset {offset} past EOF (file has {total_lines} lines)"
     end = idx_start + int(limit) if limit else total_lines
     numbered = [f"{i + 1}\t{ln}" for i, ln in enumerate(lines) if idx_start <= i < end]
-    out = _cap("\n".join(numbered)) if numbered else "(empty)"
-    if shown_note:
-        out += shown_note          # AFTER _cap: the marker must survive output capping
-    return out
+    out = "\n".join(numbered) if numbered else "(empty)"
+    return _present(out + shown_note, cwd)
 
 
 def read_image(path: str, cwd: str) -> str:
@@ -350,7 +362,7 @@ def glob(pattern: str, cwd: str, limit: int = 200) -> str:
     if not rel:
         return "(no matches)"
     tail = f"\n... ({len(matches) - limit} more)" if len(matches) > limit else ""
-    return "\n".join(rel) + tail
+    return _present("\n".join(rel) + tail, cwd)
 
 
 # `worktrees` is the expensive one, not a nicety: Orchestra keeps a full checkout per live
@@ -438,7 +450,7 @@ def grep(pattern: str, cwd: str, glob_filter: str = "", limit: int = 200,
     if budget_exhausted:
         tail_parts.append("search budget exhausted — results PARTIAL")
     tail = f"\n... ({'; '.join(tail_parts)})" if tail_parts else ""
-    return _cap("\n".join(shown) + tail)
+    return _present("\n".join(shown) + tail, cwd)
 
 
 # ── OpenAI tool schemas ──
@@ -463,6 +475,8 @@ def tool_schemas() -> list[dict]:
            {"path": s, "offset": i, "limit": i}, ["path"]),
         fn("read_image", "View a PNG, JPEG, WEBP or GIF image inside the workspace. The image is attached to the next model request; paths outside the workspace are refused.",
            {"path": s}, ["path"]),
+        fn("read_tool_result_page", "Read original archived output by character cursor; results expire after 30 minutes or restart.",
+           {"result_id": s, "cursor": i, "limit": i}, ["result_id"]),
         fn("write", "Create or overwrite a file. Python files are syntax-checked (must parse "
                     "under the harness Python); a broken write is rejected with the error.",
            {"path": s, "content": s}, ["path", "content"]),
@@ -485,7 +499,7 @@ def tool_schemas() -> list[dict]:
 # ── read-only reviewer subset (#126) ──
 # A review sub-agent gets ONLY these — it physically cannot write/edit/run shell (Determinism:
 # read-only is structural, not a prompt promise).
-READONLY_NAMES = {"read", "read_image", "glob", "grep"}
+READONLY_NAMES = {"read", "read_image", "glob", "grep", "read_tool_result_page"}
 
 
 def readonly_tool_schemas(*, vision_enabled: bool = False) -> list[dict]:
@@ -528,6 +542,10 @@ async def dispatch(name: str, args: dict, cwd: str) -> tuple[str, bool]:
     Sync tools run in a worker thread: inline execution blocked the SERVER event loop for
     the whole subprocess/file duration (measured: 10ms sleep took 2008ms under grep, #367 D6)."""
     try:
+        if name == "read_tool_result_page":
+            page = TOOL_RESULTS.read(args.get("result_id", ""), owner=str(Path(cwd).resolve()),
+                                     cursor=args.get("cursor", 0), limit=args.get("limit", DEFAULT_PREVIEW_CHARS))
+            return json.dumps(page, ensure_ascii=False), False
         if name == "bash":
             command = args.get("command", "")
             from app.shell_policy import classify_shell_command, violation_message
@@ -564,7 +582,7 @@ async def dispatch(name: str, args: dict, cwd: str) -> tuple[str, bool]:
     return f"[error] unknown built-in tool: {name}", False
 
 
-BUILTIN_NAMES = {"bash", "read", "read_image", "write", "edit", "glob", "grep"}
+BUILTIN_NAMES = {"bash", "read", "read_image", "write", "edit", "glob", "grep", "read_tool_result_page"}
 
 
 # ── gated planning: todo_write (#125) ──

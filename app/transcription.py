@@ -45,7 +45,7 @@ _transcription_cache: dict[str, str] = _load_transcription_cache()
 
 
 def _format_transcript(alternative: dict) -> str:
-    """Annotate word confidence without replacing Deepgram's best guess."""
+    """Label multiple speakers and annotate confidence in Deepgram's best guess."""
     text = alternative["transcript"]
     words = alternative.get("words") or []
     uncertain = [
@@ -54,7 +54,14 @@ def _format_transcript(alternative: dict) -> str:
         and 0 <= word["confidence"] < LOW_WORD_CONFIDENCE
         for word in words
     ]
-    if not text or not any(uncertain):
+    speaker_ids = [
+        speaker if isinstance(speaker := word.get("speaker"), int)
+        and not isinstance(speaker, bool) and speaker >= 0 else None
+        for word in words
+    ]
+    speakers_seen = dict.fromkeys(speaker for speaker in speaker_ids if speaker is not None)
+    diarized = len(speakers_seen) >= 2
+    if not text or (not diarized and not any(uncertain)):
         return text
 
     # Prefer the provider's formatted tokens (casing, punctuation, numerals).
@@ -66,6 +73,23 @@ def _format_transcript(alternative: dict) -> str:
             # Place the marker before closing quotes and sentence punctuation.
             token = re.sub(r"(\W*)$", r"[?]\1", token, count=1)
         marked.append(token)
+
+    if diarized:
+        labels = {speaker: number for number, speaker in enumerate(speakers_seen, 1)}
+        lines = []
+        current_speaker = next(iter(labels))
+        group = []
+        for speaker, token in zip(speaker_ids, marked):
+            # Missing/invalid IDs do not invent speakers or discard their words.
+            speaker = current_speaker if speaker is None else speaker
+            if speaker != current_speaker:
+                lines.append(f"[Спикер {labels[current_speaker]}]: {' '.join(group)}")
+                group = []
+                current_speaker = speaker
+            group.append(token)
+        lines.append(f"[Спикер {labels[current_speaker]}]: {' '.join(group)}")
+        body = "\n".join(lines)
+        return f"{UNCERTAIN_TRANSCRIPT_HEADER}\n{body}" if any(uncertain) else body
 
     pieces = []
     cursor = 0
@@ -116,7 +140,7 @@ async def transcribe_audio(
                 verify=_DEEPGRAM_SSL_CONTEXT,
             ) as client:
                 response = await client.post(
-                    "https://api.deepgram.com/v1/listen?model=nova-3&language=multi&smart_format=true&profanity_filter=false",
+                    "https://api.deepgram.com/v1/listen?model=nova-3&language=multi&smart_format=true&profanity_filter=false&diarize=true",
                     headers={
                         "Authorization": f"Token {api_key}",
                         "Content-Type": content_type,

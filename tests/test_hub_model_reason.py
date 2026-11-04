@@ -1,4 +1,4 @@
-"""V-1240 supersedes creative permission; old reason data stays recoverable."""
+"""Hub allowlist supersedes creative permission; local reasons stay recoverable."""
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -6,31 +6,31 @@ import pytest
 
 from app.models import HUB_SOL_ONLY_RULE, validate_model_reason
 
-CLAUDE = ['hubsonnet', 'hubopus', 'hubhaiku', 'hub-claude-sonnet-5-5']
+FORBIDDEN = ['hubopus', 'hubhaiku', 'hubgrok', 'hub-claude-opus-5-5']
 REASON = 'Creative scene direction and visual judgment'
 
 
-@pytest.mark.parametrize('model', CLAUDE)
+@pytest.mark.parametrize('model', FORBIDDEN)
 @pytest.mark.parametrize('reason', ['', '  \n ', None])
 def test_claude_without_reason_is_forbidden(model, reason):
     with pytest.raises(ValueError, match=HUB_SOL_ONLY_RULE):
         validate_model_reason(model, reason)
 
 
-@pytest.mark.parametrize('model', CLAUDE)
+@pytest.mark.parametrize('model', FORBIDDEN)
 def test_claude_reason_cannot_authorize_a_forbidden_model(model):
     with pytest.raises(ValueError, match=HUB_SOL_ONLY_RULE):
         validate_model_reason(model, '  ' + REASON + '  ')
 
 
-@pytest.mark.parametrize('model', ['hubsol', 'hub-gpt-6.1-sol', 'sonnet', 'opus', 'sol'])
+@pytest.mark.parametrize('model', ['hubsol', 'hubargon', 'hubsonnet', 'hubluna', 'hub-gpt-6.1-sol', 'sonnet', 'opus', 'sol'])
 def test_default_hub_and_own_models_need_no_reason(model):
     assert validate_model_reason(model) == ''
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('tool', ['spawn', 'change'])
-@pytest.mark.parametrize('model', CLAUDE[:3])
+@pytest.mark.parametrize('model', FORBIDDEN[:3])
 async def test_tools_refuse_missing_reason_before_any_api_call(monkeypatch, tool, model):
     from app import mcp_stdio as mcp
 
@@ -48,7 +48,7 @@ async def test_tools_refuse_missing_reason_before_any_api_call(monkeypatch, tool
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('tool', ['spawn', 'change'])
-@pytest.mark.parametrize('model,reason', [('luna', REASON), ('hubsol', ''), ('sonnet', '')])
+@pytest.mark.parametrize('model,reason', [('luna', REASON), ('hubsol', ''), ('hubargon', ''), ('hubsonnet', ''), ('hubluna', ''), ('sonnet', '')])
 async def test_tools_forward_named_reason_and_allow_other_models_without_one(monkeypatch, tool, model, reason):
     from app import mcp_stdio as mcp
 
@@ -78,14 +78,14 @@ def manager(tmp_path, monkeypatch):
 
     async def pool(**kwargs):
         return {'available': True, 'providers': {
-            p: {'usable': 1, 'accounts': 2, 'threshold_pct': 100} for p in ('claude', 'codex')}}
+            p: {'usable': 1, 'accounts': 2, 'threshold_pct': 100} for p in ('claude', 'codex', 'antigravity')}}
     monkeypatch.setattr(hub_pool, 'get_hub_pool', pool)
     yield SessionManager()
     pipeline.load_pipeline.cache_clear()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('model', CLAUDE[:3])
+@pytest.mark.parametrize('model', FORBIDDEN[:3])
 async def test_direct_spawn_cannot_bypass_the_reason_rule(manager, tmp_path, model):
     with pytest.raises(ValueError, match=HUB_SOL_ONLY_RULE):
         await manager.create_session('worker', str(tmp_path), str(tmp_path), model)
@@ -93,7 +93,7 @@ async def test_direct_spawn_cannot_bypass_the_reason_rule(manager, tmp_path, mod
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('model,reason', [('luna', REASON), ('hubsol', ''), ('sonnet', '')])
+@pytest.mark.parametrize('model,reason', [('luna', REASON), ('hubsol', ''), ('hubargon', ''), ('hubsonnet', ''), ('hubluna', ''), ('sonnet', '')])
 async def test_spawn_reason_survives_database_reload_and_both_dashboard_lists(
     manager, tmp_path, model, reason,
 ):
@@ -123,7 +123,7 @@ async def test_direct_model_change_refuses_missing_reason_and_preserves_previous
                           model='hub-gpt-6.1-sol', backend_type='hub')
     change = AsyncMock()
     monkeypatch.setattr(worker, '_change_model_locked', change)
-    result = await worker.change_model('hub-claude-sonnet-5-5')
+    result = await worker.change_model('hub-claude-opus-5-5')
     assert result['error_code'] == HUB_SOL_ONLY_RULE
     change.assert_not_awaited()
     assert worker.model == 'hub-gpt-6.1-sol' and worker.model_reason == ''
@@ -156,7 +156,7 @@ async def test_model_change_persists_reason_atomically_and_clears_it_on_sol(mana
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('operation', ['spawn', 'change'])
-async def test_named_reason_is_refused_before_claude_pool_admission(manager, tmp_path, monkeypatch, operation):
+async def test_sonnet_uses_claude_pool_admission_even_with_named_reason(manager, tmp_path, monkeypatch, operation):
     from app import hub_pool
     from app.session import AgentSession
 
@@ -165,14 +165,15 @@ async def test_named_reason_is_refused_before_claude_pool_admission(manager, tmp
             'usable': 0, 'accounts': 10, 'threshold_pct': 100}}}
     monkeypatch.setattr(hub_pool, 'get_hub_pool', pool)
     if operation == 'spawn':
-        with pytest.raises(ValueError, match=HUB_SOL_ONLY_RULE):
+        from app.quota_gate import QuotaGateError
+        with pytest.raises(QuotaGateError):
             await manager.create_session('worker', str(tmp_path), str(tmp_path), 'hubsonnet', model_reason=REASON)
         assert not manager.sessions
     else:
         worker = AgentSession(id='worker', name='worker', cwd='/repo', scope='/repo',
                               model='hub-gpt-6.1-sol', backend_type='hub')
         result = await worker.change_model('hub-claude-sonnet-5-5', REASON)
-        assert result['ok'] is False and HUB_SOL_ONLY_RULE in result['error']
+        assert result['ok'] is False and result['error_code'] == 'hub_pool_exhausted'
         assert worker.model_reason == ''
 
 
@@ -206,7 +207,7 @@ async def test_failed_claude_switch_keeps_previous_reason(manager, monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('reason', ['', REASON])
-async def test_change_model_api_refuses_claude_with_or_without_reason(manager, monkeypatch, reason):
+async def test_change_model_api_admits_sonnet_with_or_without_reason(manager, monkeypatch, reason):
     from app.routes import sessions as routes
     from app.session import AgentSession
 
@@ -219,6 +220,6 @@ async def test_change_model_api_refuses_claude_with_or_without_reason(manager, m
     change_mock = AsyncMock(side_effect=change)
     monkeypatch.setattr(worker, '_change_model_locked', change_mock)
     response = await routes.change_model('worker', {'model': 'hubsonnet', 'model_reason': reason})
-    assert response.status_code == 409
-    assert HUB_SOL_ONLY_RULE in response.body.decode()
-    change_mock.assert_not_awaited()
+    assert response['ok'] is True
+    change_mock.assert_awaited_once_with('hub-claude-sonnet-5-5')
+    assert worker.model == 'hub-claude-sonnet-5-5' and worker.model_reason == ''

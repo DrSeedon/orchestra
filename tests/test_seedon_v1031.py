@@ -267,7 +267,7 @@ async def _assert_owned_survives(tmp_path, monkeypatch, old_model, new_model, ow
         "scope": str(repo), "model": new_model,
         "model_reason": "V-1031 offline ownership regression",
     })
-    forbidden = new_model in {'hub-gpt-6-luna', 'hub-claude-haiku-5-5'}
+    forbidden = new_model == 'hub-claude-haiku-5-5'
     if forbidden:
         assert result.status_code == 409
         assert 'hub_workers_require_sol' in result.body.decode()
@@ -370,3 +370,69 @@ async def test_failed_model_switch_preserves_owned_dirs(tmp_path, monkeypatch):
     row = db.get_session(session.id)
     assert row["model"] == "gpt-6-luna"
     assert json.loads(row["owned_dirs"]) == ["owned"]
+
+
+@pytest.mark.parametrize("role", ["orchestrator", "sub-orchestrator", "worker", "reducer"])
+def test_seedon_kb_remains_in_role_prompt_with_owner_hub_permission(tmp_path, role):
+    from app.manager import ROLE_SYSTEM_PROMPT
+
+    scope = tmp_path / "seedon"
+    kb = scope / ".orchestra" / "kb"
+    kb.mkdir(parents=True)
+    (kb / "company.md").write_text("Invented company offer and tender fixture.\n")
+    (kb / "README.md").write_text(
+        "- [company](company.md) — Seedon internal company offers and tenders\n"
+    )
+    prompt = ROLE_SYSTEM_PROMPT("default", role, str(scope))
+    assert "Seedon internal company offers and tenders" in prompt
+    assert "](.orchestra/kb/company.md)" in prompt
+    if role in {"orchestrator", "sub-orchestrator"}:
+        assert "fully authorized by the owner" in prompt
+        assert all(alias in prompt for alias in ("hubargon", "hubsol", "hubsonnet", "hubluna"))
+        assert "Hub receives safe source bundles only" not in prompt
+        assert "do not submit that work; keep it local" not in prompt
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("alias", ["hubargon", "hubsol", "hubsonnet", "hubluna"])
+async def test_seedon_kb_company_records_reach_hub_and_resume_old_blocked_record(tmp_path, monkeypatch, alias):
+    from app import hub_pool, hub_workspace as hw
+    from app.manager import ROLE_SYSTEM_PROMPT
+    from app.models import resolve_model
+    from tests.test_hub_workspace import _backend, _turn
+
+    scope = _repo(tmp_path / "seedon")
+    kb = scope / ".orchestra" / "kb"
+    kb.mkdir()
+    (kb / "company.md").write_text("Invented internal company record.\n")
+    (kb / "README.md").write_text(
+        "- [company](company.md) — Seedon company offers and tenders\n"
+    )
+    company = scope / "COMPANY-DATA.md"
+    company.write_text("Invented company offer; no credentials.\n")
+    monkeypatch.setattr(hw, "STATE_DIR", tmp_path / "state")
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    monkeypatch.setattr(hub_pool, "require_hub_capacity", AsyncMock(return_value=None))
+    backend, _, mc = _backend(scope, tmp_path, monkeypatch, lambda _: None)
+    backend.model = resolve_model(alias)
+    backend._scope = str(scope)
+    prompt = ROLE_SYSTEM_PROMPT("default", "worker", str(scope)) + "\nWork on Seedon V-607."
+    events = await _turn(backend, prompt)
+    assert events[-1].metadata["ok"], events[-1].content
+    launch = next(args for name, args in mc.calls if name == "t3_thread_launch")
+    assert "Seedon company offers and tenders" in launch["message"]
+    state = backend._state
+    assert "COMPANY-DATA.md" in state.manifest
+    assert (Path(state.remote_dir) / "COMPANY-DATA.md").read_bytes() == company.read_bytes()
+    assert (Path(state.remote_dir) / ".orchestra/kb/company.md").is_file()
+    state.file_policy_blocked = True  # persisted incident from the superseded filename rule
+    state.save()
+    resumed, _, resumed_mc = _backend(scope, tmp_path, monkeypatch, lambda _: None)
+    resumed.model = resolve_model(alias)
+    resumed._scope = str(scope)
+    resumed._resume = state.ws_id
+    events = await _turn(resumed, prompt)
+    assert events[-1].metadata["ok"], events[-1].content
+    assert resumed._state.ws_id == state.ws_id
+    assert any(name == "t3_thread_send" for name, _ in resumed_mc.calls)
+    assert hw.WorkspaceState.load(state.ws_id).file_policy_blocked  # preserve historical evidence

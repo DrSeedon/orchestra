@@ -517,6 +517,7 @@ class TurnManager:
                 tool_intervals_count=meta.get("tool_intervals_count"),
                 tool_intervals_missing=meta.get("tool_intervals_missing"),
                 provider_source_records=meta.get("provider_source_records"),
+                normalized_usage=meta.get("normalized_usage"),
                 **baseline_fields,
                 **quota_snapshot["state"],
             )

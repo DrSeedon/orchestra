@@ -36,7 +36,8 @@ from mcp.types import CallToolResult, TextContent
 # и ничего больше из app/ не тянет.
 from app import bg_progress
 from app.errtext import err_text
-from app.tool_scoping import parse_disabled_tools
+from app.tool_scoping import parse_disabled_tools, role_tool_names
+from app.tool_output_compactor import TOOL_RESULTS
 
 # Logs go to stderr so they don't pollute the JSON-RPC stdout stream
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
@@ -88,6 +89,7 @@ def publish_mcp_identity_canary(environ: dict[str, str] | None = None) -> Path |
     return path
 
 READ_ONLY_MCP_TOOLS = frozenset({
+    "read_log_result_page",
     "test_lock_status",
     "list_agents",
     "list_pending_deliveries",
@@ -220,6 +222,11 @@ def _result_from_content(content: list[Any]) -> Any:
 
 
 class OrchestraMCP(FastMCP):
+    async def list_tools(self):
+        tools = await super().list_tools()
+        offered = role_tool_names({tool.name for tool in tools}, ROLE)
+        return [tool for tool in tools if tool.name in offered]
+
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         try:
             if name in DISABLED_TOOLS:
@@ -1132,7 +1139,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None,
                        model_reason: str = "") -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Ordinary Hub workers use hubsol (GPT-6.1 Sol). The dedicated default-pipeline specialist with an existing task/scope may use hub-gemini-4-argon; reasons/names/tags cannot grant this exception. Protected local luna retains its reason requirement. If the selected route is unavailable, report the blocker or wait; no native, model or API fallback. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation. If the gate closes after creation, the initial task is held durably until it opens."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Ordinary Hub workers may use hubsol, hubargon (high effort), hubsonnet or hubluna. Protected local luna retains its reason requirement. If the selected route is unavailable, report the blocker or wait; no native, model or API fallback. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation. If the gate closes after creation, the initial task is held durably until it opens."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -1274,6 +1281,10 @@ async def spawn_worker(name: str, task: str, repo_path: str,
             name, mapping_data, exc, task=worker_task, delivery_id=delivery_id,
         ) from exc
     out = _delivery_receipt_text(name, model, mapping_data, delivery)
+    recommendation = result.get("route_recommendation", {})
+    if recommendation.get("recommended_model") not in {None, model, recommendation.get("current_model")}:
+        out += (f"\nAdvisory route for future simple subtasks: {recommendation['recommended_model']}. "
+                "Selected model is unchanged; admission and quota checks still apply.")
     # Воркер заведён в ДРУГОМ репозитории, чем проект родителя. Это законно для портфеля
     # из нескольких проектов у одного оркестратора, но молчать нельзя: 28.08.2026 три
     # ребёнка отработали research по pitch-ball и закоммитили его в репозиторий
@@ -1929,8 +1940,10 @@ async def list_orchestrators() -> str:
     return "\n".join(lines)
 
 
-def _format_worker_log(log: dict) -> str:
-    content = str(log.get("content") or "")[:200]
+def _format_worker_log(log: dict, *, full: bool = False) -> str:
+    content = str(log.get("content") or "")
+    if not full:
+        content = content[:200]
     log_type = log.get("type")
     if log_type == "text":
         return f"💬 {content}"
@@ -1946,8 +1959,39 @@ def _format_worker_log(log: dict) -> str:
     if log_type == "tool":
         return f"🔧 {content}"
     if log_type == "error":
-        return f"❌ {content}"
+        return f"❌ {'error: ' if full else ''}{content}"
     return ""
+
+
+@mcp.tool(name="read_log_result_page")
+async def read_tool_result_page(result_id: str, cursor: int = 0, limit: int = 12000) -> str:
+    """Read a raw archived tool result by character offset; expires on restart/after 30 minutes."""
+    try:
+        return json.dumps(TOOL_RESULTS.read(result_id, owner=f"{SCOPE}:{SESSION_ID}",
+                                            cursor=cursor, limit=limit), ensure_ascii=False)
+    except ValueError as error:
+        raise ApiToolError(code="tool_result_unavailable", message=str(error)) from error
+
+
+def _compact_log_payload(value: Any, *, budget: int | None = None) -> Any:
+    """Keep JSON types/keys intact; archive only long model-facing text leaves."""
+    if budget is None:
+        def text_leaves(item: Any) -> int:
+            if isinstance(item, list):
+                return sum(text_leaves(child) for child in item)
+            if isinstance(item, dict):
+                return sum(1 if key in {"content", "text", "output"} and isinstance(child, str)
+                           else text_leaves(child) for key, child in item.items())
+            return 0
+        budget = max(256, 12000 // max(1, text_leaves(value)))
+    if isinstance(value, list):
+        return [_compact_log_payload(item, budget=budget) for item in value]
+    if isinstance(value, dict):
+        return {key: TOOL_RESULTS.present(item, owner=f"{SCOPE}:{SESSION_ID}", budget=budget,
+                                         reader_tool="read_log_result_page")
+                if key in {"content", "text", "output"} and isinstance(item, str)
+                else _compact_log_payload(item, budget=budget) for key, item in value.items()}
+    return value
 
 
 @mcp.tool()
@@ -1963,10 +2007,10 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
         return f"No logs for '{name}'"
     lines = []
     for l in logs:
-        formatted = _format_worker_log(l)
+        formatted = _format_worker_log(l, full=True)
         if formatted:
             lines.append(formatted)
-    return "\n".join(lines) if lines else f"No meaningful logs for '{name}'"
+    return TOOL_RESULTS.present("\n".join(lines), owner=f"{SCOPE}:{SESSION_ID}", reader_tool="read_log_result_page") if lines else f"No meaningful logs for '{name}'"
 
 
 @mcp.tool()
@@ -2005,7 +2049,7 @@ async def search_logs(query: str, date_from: str = "", date_to: str = "",
     result = await _api("GET", "/api/logs/search", params=params)
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
-    return json.dumps(result, ensure_ascii=False)
+    return json.dumps(_compact_log_payload(result), ensure_ascii=False)
 
 
 @mcp.tool()
@@ -2022,7 +2066,7 @@ async def get_log_context(log_id: int, project: str = "", all_projects: bool = F
     result = await _api("GET", f"/api/logs/{log_id}/context", params=params)
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
-    return json.dumps(result, ensure_ascii=False)
+    return json.dumps(_compact_log_payload(result), ensure_ascii=False)
 
 
 @mcp.tool()
@@ -2445,16 +2489,12 @@ async def change_worker_model(name: str, model: str, model_reason: str = "") -> 
     """Change an idle worker's model while preserving its dialog. Within one runtime the
     native session continues. Between Claude and Codex, recent chat history is handed off
     (chat_history_v1); a refused transfer returns an error. Refused while the worker is
-    running or compacting. Ordinary Hub workers use hubsol; only the persisted default-pipeline specialist with a bound task/scope may select hub-gemini-4-argon. The server checks that identity; model_reason cannot grant it. Protected local luna retains its reason requirement. No native, model or API fallback."""
-    from app.models import validate_model_reason, HUB_SOL_ONLY_RULE, HUB_ARGON_MODEL, resolve_model
+    running or compacting. Ordinary Hub workers may use hubsol, hubargon (high effort), hubsonnet or hubluna. Protected local luna retains its reason requirement. No native, model or API fallback."""
+    from app.models import validate_model_reason, HUB_SOL_ONLY_RULE, resolve_model
 
     try:
-        if resolve_model(model) == HUB_ARGON_MODEL:
-            # Identity belongs to the target session, not this caller or reason.
-            # REST and AgentSession both check the persisted/current context.
-            model_reason = ""
-        else:
-            model_reason = validate_model_reason(model, model_reason)
+        resolve_model(model)
+        model_reason = validate_model_reason(model, model_reason)
     except ValueError as exc:
         raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
                            details={"field": "model"}) from exc

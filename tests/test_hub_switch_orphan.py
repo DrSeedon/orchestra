@@ -313,7 +313,7 @@ class HubSessionSwitchTests(_WorkspaceCase):
         self.assertEqual(session.session_id, "")
         self.assertTrue(self.old.path().exists())
 
-    async def test_normal_native_switch_preserves_incident_after_actual_policy_refusal(self):
+    async def test_normal_native_switch_archives_authorized_company_history(self):
         from app import session as module, hub_pool
 
         self.old = self.workspace("a")
@@ -342,25 +342,8 @@ class HubSessionSwitchTests(_WorkspaceCase):
         session._persist = Mock()
         saved = self.patch(module, "save_session", Mock())
         self.patch(hub_pool, "require_hub_capacity", AsyncMock(return_value=None))
-        actual_ready = hw.assert_archive_ready
-        refusals = []
-
-        def capture_actual_refusal(state):
-            # Verify ordering using the real refusal, not a mocked cleanup error.
-            self.assertEqual(saved.call_count, 1)
-            self.assertEqual(saved.call_args.args[0]["backend_type"], "codex")
-            try:
-                actual_ready(state)
-            except hw.HubFilePolicyError as error:
-                refusals.append(error)
-                raise
-
-        self.patch(hw, "assert_archive_ready", capture_actual_refusal)
-        with self.assertLogs("app.session", level="WARNING"):
-            result = await session.change_model("gpt-6.1-sol")
+        result = await session.change_model("gpt-6.1-sol")
         self.assertTrue(result["ok"])
-        self.assertEqual(len(refusals), 1)
-        self.assertIsInstance(refusals[0], hw.HubFilePolicyError)
         self.assertEqual((session.model, session.backend_type, session.session_id),
                          ("gpt-6.1-sol", "codex", ""))
         snapshot = saved.call_args.args[0]
@@ -371,13 +354,14 @@ class HubSessionSwitchTests(_WorkspaceCase):
         self.assertEqual(session.session_id_history, persisted_history)
         self.assertEqual(snapshot["runtime_handoff"], "invented recent chat")
         session._persist.assert_called_once()
-        self.assertEqual(self.old.path().read_bytes(), before)
+        self.assertEqual(json.loads(self.old.path().read_bytes()),
+                         {**json.loads(before), "archived": True})
         self.assertEqual(hw.WorkspaceState.load(self.old.ws_id).input_manifest,
                          {original.name: digest})
         self.assertEqual(hw.sha256_file(original), digest)
         self.assertEqual(hw.sha256_file(foreign), digest)
         self.assert_kept(self.old)
-        self.assertEqual(self.mc.calls, [])
+        self.assertTrue(any(n == "t3_thread_organize" for n, _ in self.mc.calls))
         self.assertEqual(self.ssh.scrubbed, [])
 
 

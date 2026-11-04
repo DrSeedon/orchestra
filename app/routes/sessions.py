@@ -41,7 +41,7 @@ from app.deps import manager
 from app.backend_codex import CodexWriterConflictError
 from app.errtext import err_text
 from app.events import MessageProvenance
-from app.models import ensure_dashboard_visible, ensure_spawn_allowed, ensure_hub_worker_allowed, resolve_model, MODELS, HUB_ARGON_MODEL, hub_worker_context
+from app.models import ensure_dashboard_visible, ensure_spawn_allowed, ensure_hub_worker_allowed, resolve_model, MODELS
 from app.manager import LifecycleQuarantineError
 from app.quota_gate import QuotaGateError
 from app.routes.errors import keyed_auth_required
@@ -577,6 +577,11 @@ async def create_session(req: CreateSessionRequest):
                 session.id, req.initial_delivery_id, req.initial_task_title,
             )
         d = session.to_dict()
+        if req.initial_task_title:
+            from app.models import recommend_task_route
+            d["route_recommendation"] = recommend_task_route(
+                req.initial_task_title, req.role, req.model, model_reason=req.model_reason,
+            )
         if session.task_id:
             from app import tm as _tm
             with _tm._conn() as connection:
@@ -2065,17 +2070,10 @@ async def change_model(name: str, req: dict):
     new_model = resolve_model(new_model)
     if new_model not in MODELS:
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
-    context = {}
-    if new_model == HUB_ARGON_MODEL and isinstance(scope, str) and scope:
-        # Only persisted identity grants the role exception. Request-supplied
-        # role/task/reason/name cannot create it, nor can a lookup in another scope.
-        row = get_session_by_name(name, scope)
-        if row and row.get("scope") == scope.rstrip("/"):
-            context = hub_worker_context(row)
     try:
-        ensure_hub_worker_allowed(new_model, **context)
+        ensure_hub_worker_allowed(new_model)
         if via == "mcp":
-            ensure_spawn_allowed(new_model, model_reason=req.get("model_reason") or "", **context)
+            ensure_spawn_allowed(new_model, model_reason=req.get("model_reason") or "")
         else:
             ensure_dashboard_visible(new_model)
     except ValueError as exc:

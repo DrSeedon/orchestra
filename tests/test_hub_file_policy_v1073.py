@@ -1,11 +1,14 @@
-"""Private filename containment using invented text and local fake transports only."""
+"""Owner-authorized company inputs; credential and structural protections stay active.
 
-import copy
+The owner superseded the COMPANY-DATA.md exclusion on 2026-11-04. These tests
+exercise the new transfer contract rather than the retired filename classification.
+"""
+
 import asyncio
 import os
 import subprocess
+import tarfile
 from pathlib import Path
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -14,11 +17,11 @@ from tests.test_hub_workspace import (
     FakeSsh, _backend, _offline_hub_pool, _tar_of, _turn, repo,
 )
 
-PRIVATE_PATHS = (
+COMPANY_PATHS = (
     "COMPANY-DATA.md", "company-data.md", "docs/COMPANY-DATA.md",
-    "src/deep/CoMpAnY-DaTa.Md",
+    "src/deep/CoMpAnY-DaTa.Md", ".orchestra/kb/company.md",
 )
-FIXTURE = "invented company fixture; no personal records\n"
+FIXTURE = "invented company offer and tender; no credentials\n"
 
 
 def _write(root, rel, text=FIXTURE):
@@ -28,401 +31,112 @@ def _write(root, rel, text=FIXTURE):
     return path
 
 
-@pytest.mark.parametrize("rel", PRIVATE_PATHS)
-@pytest.mark.parametrize("ownership", ["narrow", "exact", "whole"])
-def test_private_filename_never_in_initial_manifest_or_archive(repo, tmp_path, rel, ownership):
+@pytest.mark.parametrize("rel", COMPANY_PATHS)
+@pytest.mark.parametrize("ownership", ["exact", "whole"])
+def test_company_input_is_uploaded_and_archived(repo, tmp_path, rel, ownership):
     original = _write(repo, rel)
-    public = {"README.md", "company-data.md.example", "public-company-data.md"}
-    for name in public:
-        _write(repo, name, "public documentation\n")
-    paths = {"narrow": ["src"], "exact": [rel], "whole": None}[ownership]
-    plan = hw.plan_upload(repo, paths, known=[])
-    assert rel not in plan.manifest
-    assert public <= plan.manifest.keys()
+    plan = hw.plan_upload(repo, [rel] if ownership == "exact" else None, known=[])
+    assert plan.manifest[rel] == hw.sha256_file(original)
     archive = tmp_path / "upload.tar"
     hw.write_tar(repo, sorted(plan.manifest), archive)
-    import tarfile
     with tarfile.open(archive) as packed:
-        assert set(packed.getnames()) == set(plan.manifest)
-        assert all(Path(name).name.casefold() != "company-data.md" for name in packed.getnames())
+        assert packed.extractfile(rel).read() == FIXTURE.encode()
     assert original.read_text() == FIXTURE
 
 
-def test_explicit_tracked_private_owned_file_refuses_empty_work_area(repo):
-    import subprocess
-    rel = "COMPANY-DATA.md"
-    original = _write(repo, rel)
-    subprocess.run(["git", "-C", str(repo), "add", rel], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "synthetic fixture"],
-                   check=True, capture_output=True)
-    with pytest.raises(hw.HubWorkspaceError, match="none of the worker's owned paths"):
-        hw.plan_upload(repo, [rel], known=[])
-    assert original.read_text() == FIXTURE
+def test_company_input_keeps_owned_directory_scope(repo):
+    _write(repo, "other/COMPANY-DATA.md")
+    _write(repo, "src/COMPANY-DATA.md")
+    plan = hw.plan_upload(repo, ["src"], known=[])
+    assert "src/COMPANY-DATA.md" in plan.manifest
+    assert "other/COMPANY-DATA.md" not in plan.manifest
 
 
-@pytest.mark.parametrize("rel", PRIVATE_PATHS)
-def test_direct_archive_refuses_before_creating_output(repo, tmp_path, rel):
-    _write(repo, rel)
-    output = tmp_path / "upload.tar"
-    with pytest.raises(hw.HubFilePolicyError):
-        hw.write_tar(repo, ["calc.py", rel], output)
-    assert not output.exists()
-
-
-@pytest.mark.parametrize("rel", PRIVATE_PATHS)
-def test_import_rejects_private_filename_and_preserves_public_behavior(repo, tmp_path, rel):
+@pytest.mark.parametrize("rel", COMPANY_PATHS)
+def test_company_input_round_trips_without_bypassing_credential_checks(repo, tmp_path, rel):
     original = _write(repo, rel)
     manifest = hw.plan_upload(repo, known=[]).manifest
-    snapshot = _tar_of({rel: b"invented replacement\n", "calc.py": b"public change\n",
-                        "src/keep.txt": b"keep\n"}, tmp_path)
+    replacement = b"invented revised company offer\n"
+    snapshot = _tar_of({rel: replacement, "calc.py": b"public change\n",
+                        "src/keep.txt": b"keep\n", ".env": b"excluded fixture\n"}, tmp_path)
     result = hw.apply_changes(snapshot, repo, manifest, known=[])
-    assert result.changed == ["calc.py"] and result.deleted == []
-    assert rel not in result.manifest
-    assert rel in dict(result.rejected)
-    assert original.read_text() == FIXTURE
-    assert (repo / "calc.py").read_text() == "public change\n"
-
-
-@pytest.mark.parametrize("history", ["manifest", "inputs"])
-def test_import_with_private_history_refuses_without_touching_sources(repo, tmp_path, history):
-    rel = "nested/CoMpAnY-DaTa.Md"
-    original = _write(repo, rel)
-    manifest = hw.plan_upload(repo, known=[]).manifest
-    inputs = {}
-    (manifest if history == "manifest" else inputs)[rel] = hw.sha256_file(original)
-    before = copy.deepcopy((manifest, inputs))
-    content = (repo / "calc.py").read_bytes()
-    snapshot = _tar_of({"calc.py": b"must not apply\n"}, tmp_path)
-    with pytest.raises(hw.HubFilePolicyError):
-        hw.apply_changes(snapshot, repo, manifest, known=[], inputs=inputs)
-    assert (manifest, inputs) == before
-    assert original.read_text() == FIXTURE and (repo / "calc.py").read_bytes() == content
-
-
-@pytest.mark.parametrize("location", ["plan", "manifest", "keep"])
-def test_delta_refuses_private_evidence_instead_of_dropping_it(repo, location):
-    plan = hw.plan_upload(repo, known=[])
-    manifest, keep = dict(plan.manifest), set()
-    target = {"plan": plan.manifest, "manifest": manifest, "keep": keep}[location]
-    if isinstance(target, set):
-        target.add("nested/COMPANY-DATA.md")
-    else:
-        target["nested/COMPANY-DATA.md"] = "historical-synthetic-digest"
-    before = copy.deepcopy((plan.manifest, manifest, keep))
-    with pytest.raises(hw.HubFilePolicyError):
-        hw.local_delta(repo, plan, manifest, keep)
-    assert (plan.manifest, manifest, keep) == before
+    assert rel in result.changed and result.manifest[rel] == hw.sha256_file(original)
+    assert original.read_bytes() == replacement
+    assert ".env" in dict(result.rejected) and not (repo / ".env").exists()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("persistent", [False, True])
-async def test_initial_provider_copy_is_clean_including_persistent_base(repo, tmp_path, monkeypatch, persistent):
-    for rel in PRIVATE_PATHS:
+async def test_company_input_reaches_initial_worker_and_persistent_base(repo, tmp_path, monkeypatch, persistent):
+    for rel in COMPANY_PATHS:
         _write(repo, rel)
     backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
     backend._scope = str(repo)
     monkeypatch.setattr(hw, "project_options", lambda _: hw.ProjectOptions(persistent=persistent))
-    events = await _turn(backend, "inspect public source")
-    assert events[-1].metadata["ok"]
+    events = await _turn(backend, "inspect authorized company records")
+    assert events[-1].metadata["ok"], events[-1].content
     assert any(name == "t3_thread_launch" for name, _ in mc.calls)
-    state = backend._state
-    for rel in PRIVATE_PATHS:
-        assert rel not in state.manifest and rel not in state.input_manifest
-        assert not (Path(state.remote_dir) / rel).exists()
-        assert (repo / rel).read_text() == FIXTURE
+    for rel in COMPANY_PATHS:
+        assert rel in backend._state.manifest
+        assert (Path(backend._state.remote_dir) / rel).read_text() == FIXTURE
         if persistent:
-            assert not (Path(await ssh.base_dir_for(str(repo))) / rel).exists()
-    assert (Path(state.remote_dir) / "calc.py").exists()
+            assert (Path(await ssh.base_dir_for(str(repo))) / rel).read_text() == FIXTURE
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("history", ["manifest", "input_manifest", "hub_made"])
-async def test_stale_history_blocks_turn_even_when_remote_file_is_gone(repo, tmp_path, monkeypatch, history):
-    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
-    assert (await _turn(backend, "public first turn"))[-1].metadata["ok"]
+@pytest.mark.parametrize("history", ["manifest", "input_manifest", "hub_made", "blocked"])
+async def test_legacy_company_history_does_not_block_provider_turn(repo, tmp_path, monkeypatch, history):
+    backend, _, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
+    assert (await _turn(backend, "initial turn"))[-1].metadata["ok"]
     state = backend._state
     rel = "old/CoMpAnY-DaTa.Md"
-    target = getattr(state, history)
-    if isinstance(target, list):
-        target.append(rel)
+    if history == "blocked":
+        state.file_policy_blocked = True
     else:
-        target[rel] = "historical-synthetic-digest"
-    state.save()
-    before = state.path().read_bytes()
-    mc.calls.clear()
-    events = await _turn(backend, "continue")
-    assert not events[-1].metadata["ok"]
-    assert "owner review" in events[-1].content
-    assert mc.calls == [] and ssh.removed == []
-    assert state.path().read_bytes() == before
-    assert hw.WorkspaceState.load(state.ws_id).__dict__ == state.__dict__
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("new_backend", [False, True])
-async def test_unmanifested_copy_blocks_refresh_or_replacement_and_latches_history(
-        repo, tmp_path, monkeypatch, new_backend):
-    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
-    assert (await _turn(backend, "public first turn"))[-1].metadata["ok"]
-    state = backend._state
-    before = copy.deepcopy((state.manifest, state.input_manifest, state.thread_id))
-    foreign = _write(Path(state.remote_dir), "nested/CoMpAnY-DaTa.Md")
-    if new_backend:
-        backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
-    mc.calls.clear()
-    events = await _turn(backend, "continue")
-    assert not events[-1].metadata["ok"]
-    assert "owner review" in events[-1].content
-    assert not any(name in {"t3_thread_send", "t3_thread_launch", "t3_project_delete"}
-                   for name, _ in mc.calls)
-    retained = hw.WorkspaceState.load(state.ws_id)
-    assert (retained.manifest, retained.input_manifest, retained.thread_id) == before
-    assert retained.file_policy_blocked and foreign.read_text() == FIXTURE
-    assert ssh.removed == []
-    foreign.unlink()  # Synthetic owner cleanup cannot erase a thread's exposure history.
-    events = await _turn(backend, "retry after fixture cleanup")
-    assert not events[-1].metadata["ok"]
-    assert hw.WorkspaceState.load(state.ws_id).file_policy_blocked
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("evidence", ["manifest", "copy", "latched"])
-async def test_persistent_base_refuses_before_update_or_copy_and_preserves_evidence(
-        repo, tmp_path, monkeypatch, evidence):
-    ssh = FakeSsh(tmp_path / "hub")
-    base_dir = Path(await ssh.base_dir_for(str(repo)))
-    base_dir.mkdir(parents=True)
-    plan = hw.plan_upload(repo, known=[])
-    base = hw.BaseState(hw.base_id_for(str(repo)), str(repo), dict(plan.manifest))
-    rel = "nested/COMPANY-DATA.md"
-    foreign = _write(base_dir, rel)
-    if evidence == "manifest":
-        base.manifest[rel] = hw.sha256_file(foreign)
-    elif evidence == "latched":
-        base.file_policy_blocked = True
-        foreign.unlink()
-    base.save()
-    before = copy.deepcopy(base.manifest)
-    ssh.put, ssh.delete_files, ssh.copy_dir = AsyncMock(), AsyncMock(), AsyncMock()
-    dest = str(tmp_path / hw.WorkspaceState.new_id())
-    with pytest.raises(hw.HubFilePolicyError):
-        await hw.provision_from_base(ssh, repo, str(repo), plan, dest)
-    ssh.put.assert_not_awaited()
-    ssh.delete_files.assert_not_awaited()
-    ssh.copy_dir.assert_not_awaited()
-    assert not Path(dest).exists()
-    retained = hw.BaseState.load(str(repo))
-    assert retained.manifest == before
-    if evidence == "copy":
-        assert retained.file_policy_blocked
-        foreign.unlink()
-        with pytest.raises(hw.HubFilePolicyError):
-            await hw.provision_from_base(ssh, repo, str(repo), plan, dest)
-    elif evidence == "manifest":
-        assert foreign.read_text() == FIXTURE
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("rel", PRIVATE_PATHS)
-async def test_name_only_remote_check_uses_actual_shell_on_synthetic_files(tmp_path, rel):
-    ssh = FakeSsh(tmp_path)
-    remote = tmp_path / hw.WorkspaceState.new_id()
-    await ssh.assert_file_policy(str(remote))  # missing first-upload copy is allowed
-    remote.mkdir()
-    _write(remote, "README.md", "public\n")
-    await ssh.assert_file_policy(str(remote))
-    original = _write(remote, rel)
-    with pytest.raises(hw.HubFilePolicyError) as error:
-        await ssh.assert_file_policy(str(remote))
-    assert str(remote) not in str(error.value)  # no local inventories in the public error
-    assert original.read_text() == FIXTURE
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("failure", [hw.HubWorkspaceError("scan transport failed"), OSError("scan unavailable")])
-async def test_scan_errors_propagate_without_cleanup_or_false_policy_evidence(repo, tmp_path, monkeypatch, failure):
-    ssh = FakeSsh(tmp_path)
-    state = hw.WorkspaceState(hw.WorkspaceState.new_id(), str(repo),
-                              str(tmp_path / hw.WorkspaceState.new_id()), input_manifest={})
-    state.save()
-    before = state.path().read_bytes()
-    monkeypatch.setattr(ssh, "run", AsyncMock(side_effect=failure))
-    with pytest.raises(type(failure), match=str(failure)):
-        await hw.check_workspace_file_policy(ssh, state)
-    assert not state.file_policy_blocked and state.path().read_bytes() == before
-    assert ssh.removed == []
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("uploaded", [False, True])
-@pytest.mark.parametrize("history", ["manifest", "input_manifest"])
-async def test_sync_after_verified_fixture_removal_never_deletes_local_original(
-        repo, tmp_path, monkeypatch, uploaded, history):
-    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
-    original = _write(repo, "COMPANY-DATA.md")
-    digest = hw.sha256_file(original)
-    remote = tmp_path / "hub" / hw.WorkspaceState.new_id()
-    remote.mkdir(parents=True)
-    # The verified foreign fixture was removed by an operator. Its absence in
-    # this snapshot must never become a deletion of the retained local original.
-    _write(remote, "calc.py", "public remote version\n")
-    plan = hw.plan_upload(repo, known=[])
-    manifest, inputs = dict(plan.manifest), {}
-    (manifest if history == "manifest" else inputs)["COMPANY-DATA.md"] = digest
-    state = hw.WorkspaceState(remote.name, str(repo), str(remote), manifest=manifest,
-                              input_manifest=inputs, uploaded=uploaded, thread_id="old-thread")
-    state.save()
-    before = state.path().read_bytes()
-    scratch = tmp_path / "sync-scratch"
-    scratch.mkdir()
-    public_before = (repo / "calc.py").read_bytes()
-    with pytest.raises(hw.HubFilePolicyError):
-        await backend._sync_back(ssh, state, repo, scratch)
-    assert original.read_text() == FIXTURE and hw.sha256_file(original) == digest
-    assert state.path().read_bytes() == before
-    assert (repo / "calc.py").read_bytes() == public_before
-    assert mc.calls == [] and ssh.removed == []
-    # Neither an incomplete upload nor missing remote data bypasses provisioning.
-    with pytest.raises(hw.HubFilePolicyError):
-        await backend._provision(mc, ssh, repo, state, plan, hw.ProjectOptions(),
-                                 not uploaded, scratch)
-    assert original.exists() and state.path().read_bytes() == before
-
-
-@pytest.mark.asyncio
-async def test_automatic_release_does_not_delete_private_evidence(repo, tmp_path, monkeypatch):
-    ssh = FakeSsh(tmp_path / "hub")
-    remote = tmp_path / "hub" / hw.WorkspaceState.new_id()
-    foreign = _write(remote, "COMPANY-DATA.md")
-    state = hw.WorkspaceState(remote.name, str(repo), str(remote), thread_id="old-thread",
-                              project_id="project", input_manifest={})
-    state.save()
-    from types import SimpleNamespace
-    mc = SimpleNamespace(tool_call=AsyncMock())
-    with pytest.raises(hw.HubFilePolicyError):
-        await hw.release_workspace(state, ssh, mc)
-    mc.tool_call.assert_not_awaited()
-    assert not ssh.removed and foreign.read_text() == FIXTURE
-    assert hw.WorkspaceState.load(state.ws_id).file_policy_blocked
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("route", ["steer", "retarget"])
-async def test_tainted_history_cannot_reach_steer_or_model_configuration(repo, tmp_path, monkeypatch, route):
-    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
-    assert (await _turn(backend, "public first turn"))[-1].metadata["ok"]
-    state = backend._state
-    state.input_manifest["COMPANY-DATA.md"] = "historical-synthetic-digest"
-    state.save()
-    before = state.path().read_bytes()
-    mc.calls.clear()
-    with pytest.raises(hw.HubFilePolicyError):
-        if route == "steer":
-            backend._turn_active, backend._run_id = True, "active-run"
-            await backend.send("steer")
+        target = getattr(state, history)
+        if isinstance(target, list):
+            target.append(rel)
         else:
-            await backend.retarget_model("hub-gpt-6.1-sol")
-    assert mc.calls == [] and backend._early_steer == []
-    assert state.path().read_bytes() == before and ssh.removed == []
+            target[rel] = "historical-synthetic-digest"
+    state.save()
+    mc.calls.clear()
+    events = await _turn(backend, "continue")
+    assert events[-1].metadata["ok"], events[-1].content
+    assert any(name == "t3_thread_send" for name, _ in mc.calls)
 
 
 @pytest.mark.asyncio
-async def test_partial_upload_without_manifest_is_checked_before_any_more_writes(repo, tmp_path, monkeypatch):
-    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
-    ws_id = hw.WorkspaceState.new_id()
-    remote = tmp_path / "hub" / ws_id
-    foreign = _write(remote, "COMPANY-DATA.md")
-    state = hw.WorkspaceState(ws_id, str(repo), str(remote), uploaded=False, input_manifest={})
-    state.save()
+async def test_legacy_blocked_base_is_usable_without_deleting_history(repo, tmp_path, monkeypatch):
+    _write(repo, "COMPANY-DATA.md")
+    ssh = FakeSsh(tmp_path / "hub")
+    base = hw.BaseState(hw.base_id_for(str(repo)), str(repo), file_policy_blocked=True)
+    base.save()
     plan = hw.plan_upload(repo, known=[])
-    scratch = tmp_path / "partial-scratch"
-    scratch.mkdir()
-    ssh.put, ssh.delete_files = AsyncMock(), AsyncMock()
-    with pytest.raises(hw.HubFilePolicyError):
-        await backend._provision(mc, ssh, repo, state, plan, hw.ProjectOptions(), True, scratch)
-    ssh.put.assert_not_awaited()
-    ssh.delete_files.assert_not_awaited()
-    assert mc.calls == [] and foreign.read_text() == FIXTURE
-    assert state.manifest == {} and state.input_manifest == {} and not state.uploaded
-    assert hw.WorkspaceState.load(ws_id).file_policy_blocked
+    dest = await ssh.dir_for(hw.WorkspaceState.new_id())
+    await hw.provision_from_base(ssh, repo, str(repo), plan, dest)
+    assert (Path(dest) / "COMPANY-DATA.md").read_text() == FIXTURE
+    assert hw.BaseState.load(str(repo)).file_policy_blocked
 
 
-@pytest.mark.asyncio
-async def test_actual_find_failure_is_not_treated_as_an_empty_copy(repo, tmp_path, monkeypatch):
-    from tests.test_hub_message_v1066 import LocalSsh
-    import os
-
-    remote = tmp_path / hw.WorkspaceState.new_id()
-    remote.mkdir()
-    executable = _write(tmp_path, "fake-bin/find", "#!/bin/sh\nexit 9\n")
-    executable.chmod(0o755)
-    monkeypatch.setenv("PATH", str(executable.parent) + os.pathsep + os.environ["PATH"])
-    ssh = LocalSsh(tmp_path)
-    state = hw.WorkspaceState(remote.name, str(repo), str(remote), input_manifest={})
-    state.save()
-    before = state.path().read_bytes()
-    with pytest.raises(hw.HubWorkspaceError, match="rc=9") as error:
-        await hw.check_workspace_file_policy(ssh, state)
-    assert not isinstance(error.value, hw.HubFilePolicyError)
-    assert state.path().read_bytes() == before and not state.file_policy_blocked
+@pytest.mark.parametrize("rel", [".env", "credentials.json", "keys/id_rsa"])
+def test_company_authorization_does_not_include_credential_files(repo, rel):
+    _write(repo, rel)
+    assert rel not in hw.plan_upload(repo, known=[]).manifest
 
 
-@pytest.mark.asyncio
-async def test_stale_in_memory_record_cannot_clear_persisted_refusal(repo, tmp_path, monkeypatch):
-    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
-    assert (await _turn(backend, "public first turn"))[-1].metadata["ok"]
-    stale = backend._state
-    retained = hw.WorkspaceState.load(stale.ws_id)
-    foreign = _write(Path(retained.remote_dir), "COMPANY-DATA.md")
-    with pytest.raises(hw.HubFilePolicyError):
-        await hw.check_workspace_file_policy(ssh, retained)
-    assert not stale.file_policy_blocked  # Another caller holds the old object.
-    foreign.unlink()
-    scratch = tmp_path / "stale-scratch"
-    scratch.mkdir()
-    before = retained.path().read_bytes()
-    with pytest.raises(hw.HubFilePolicyError):
-        await backend._sync_back(ssh, stale, repo, scratch)
-    assert retained.path().read_bytes() == before
-    assert hw.WorkspaceState.load(stale.ws_id).file_policy_blocked
+def test_company_file_containing_literal_credential_stays_excluded(repo):
+    credential = "invented-test-credential-value-0123456789"
+    _write(repo, "COMPANY-DATA.md", credential)
+    plan = hw.plan_upload(repo, known=[credential])
+    assert "COMPANY-DATA.md" not in plan.manifest
+    with pytest.raises(hw.HubWorkspaceError, match="credential"):
+        hw.assert_no_secret(credential, [credential], "task prompt")
 
 
-@pytest.mark.asyncio
-async def test_sync_checks_foreign_name_without_reading_contents(repo, tmp_path, monkeypatch):
-    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
-    assert (await _turn(backend, "public first turn"))[-1].metadata["ok"]
-    state = backend._state
-    foreign = _write(Path(state.remote_dir), "nested/COMPANY-DATA.md")
-    ssh.get = AsyncMock()
-    scratch = tmp_path / "guarded-sync"
-    scratch.mkdir()
-    with pytest.raises(hw.HubFilePolicyError):
-        await backend._sync_back(ssh, state, repo, scratch)
-    ssh.get.assert_not_awaited()
-    assert foreign.read_text() == FIXTURE and hw.WorkspaceState.load(state.ws_id).file_policy_blocked
-
-
-@pytest.mark.parametrize("legacy", [False, True])
-@pytest.mark.parametrize("changed", [False, True])
-def test_native_merge_provenance_stays_independent_of_remote_refusal(repo, legacy, changed):
-    original = _write(repo, "COMPANY-DATA.md")
-    digest = hw.sha256_file(original)
-    state = hw.WorkspaceState(hw.WorkspaceState.new_id(), str(repo), "",
-                              manifest={"COMPANY-DATA.md": digest}, file_policy_blocked=True,
-                              input_manifest=None if legacy else {"COMPANY-DATA.md": digest})
-    state.save()
-    if changed:
-        original.write_text("invented changed local fixture\n")
-        with pytest.raises(hw.HubWorkspaceError, match="restore the uploaded original") as error:
-            hw.merge_inputs(repo, "HEAD")
-        assert not isinstance(error.value, hw.HubFilePolicyError)
-    else:
-        assert hw.merge_inputs(repo, "HEAD") == {"COMPANY-DATA.md": digest}
-    retained = hw.WorkspaceState.load(state.ws_id)
-    assert retained.file_policy_blocked
-    assert retained.manifest == state.manifest
-    assert retained.input_manifest == {"COMPANY-DATA.md": digest}
-    assert original.exists()
+@pytest.mark.parametrize("rel", ["../escape.md", "/absolute.md"])
+def test_company_permission_does_not_allow_paths_outside_workspace(rel):
+    with pytest.raises(hw.HubWorkspaceError):
+        hw.assert_file_policy([rel])
 
 
 @pytest.fixture

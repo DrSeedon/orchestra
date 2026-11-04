@@ -64,8 +64,8 @@ def test_reason_metadata_is_kept_for_luna_and_optional_for_manual_selection(admi
     assert models.validate_model_reason('luna', f' {REASON} ') == REASON
     assert models.validate_model_reason('luna') == ''
     assert models.validate_model_reason('sol', REASON) == ''
-    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
-        models.validate_model_reason('hubsonnet')
+    for alias in ('hubsol', 'hubargon', 'hubsonnet', 'hubluna'):
+        assert models.validate_model_reason(alias) == ''
 
 
 class _Sentinel(Exception):

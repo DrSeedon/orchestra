@@ -131,7 +131,7 @@ async def test_archive_lost_reply_retries_same_identity_without_purge(history):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('blocker', ['pending', 'privacy', 'path', 'transport'])
+@pytest.mark.parametrize('blocker', ['pending', 'unsafe-input', 'path', 'transport'])
 async def test_blocked_close_leaves_lifecycle_jobs_and_history_intact(history, merge_db, monkeypatch, blocker):
     from app import db, manager as module
     from app.bg_jobs import bg_manager
@@ -143,11 +143,11 @@ async def test_blocked_close_leaves_lifecycle_jobs_and_history_intact(history, m
     if blocker == 'pending':
         h.ws.pending_sync = {'phase': 'report', 'entries': [{'tool': 'send_message'}]}
         h.ws.save()
-    elif blocker == 'privacy':
-        h.ws.file_policy_blocked = True
+    elif blocker == 'unsafe-input':
+        h.ws.input_manifest = {'../escape.md': 'synthetic-hash'}
         h.ws.save()
     elif blocker == 'path':
-        h.ws.manifest['nested/COMPANY-DATA.md'] = 'synthetic-hash'
+        h.ws.manifest['../escape.md'] = 'synthetic-hash'
         h.ws.save()
     else:
         h.mc.tool_call = AsyncMock(side_effect=OSError('transport unavailable'))
@@ -632,7 +632,7 @@ async def test_privacy_refusal_retains_return_arriving_during_policy_probe(histo
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('operation', ['transition', 'close'])
-async def test_native_lifecycle_keeps_retained_hub_privacy_incident_without_blocking(history, merge_db, monkeypatch, operation):
+async def test_native_lifecycle_archives_legacy_company_history_without_blocking(history, merge_db, monkeypatch, operation):
     from app import db, manager as module
     from app.bg_jobs import bg_manager
     h = history
@@ -653,9 +653,9 @@ async def test_native_lifecycle_keeps_retained_hub_privacy_incident_without_bloc
         monkeypatch.setattr(manager, '_cleanup_cli_home', Mock())
         await manager.remove(session.id)
         assert db.get_session(session.id)['status'] == 'archived'
-    assert h.ws.path().read_bytes() == retained
-    assert h.mc.project == h.project and h.mc.thread == h.thread
-    assert h.mc.calls == [] and Path(h.ws.remote_dir).exists()
+    assert json.loads(h.ws.path().read_bytes()) == {**json.loads(retained), 'archived': True}
+    assert_history_survives(h)
+    assert any(name == 't3_thread_organize' for name, _ in h.mc.calls)
 
 
 @pytest.mark.asyncio

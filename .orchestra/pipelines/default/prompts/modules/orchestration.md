@@ -6,6 +6,8 @@ user; a sub-orchestrator reports explicitly to its parent. Role prompts own iden
 user presentation; model-routing owns model choice, worker-lifecycle owns retention and
 closure, and git-workflow owns repository isolation. Do not duplicate those policies in
 task overlays or infer new authority from tool availability.
+The owner's project-data permission in model-routing covers Hub tasks for every
+orchestrator, including Seedon and tasks containing KB indexes or internal company data.
 
 <approval-gate>
 ## Work within existing authorization

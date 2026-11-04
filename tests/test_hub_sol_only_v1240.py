@@ -1,4 +1,4 @@
-"""Sol-only routing: real admission/lifecycle code, synthetic data and no providers."""
+"""Hub allowlist routing: real admission/lifecycle code, synthetic data and no providers."""
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,7 +12,7 @@ from app.session import AgentSession, AgentStatus
 
 SOL = 'hub-gpt-6.1-sol'
 FORBIDDEN = [m.id for m in models.SELECTABLE_MODEL_SPECS
-             if m.runtime == 'hub' and m.id != SOL]
+             if m.runtime == 'hub' and m.id not in models.ALLOWED_HUB_WORKER_MODELS]
 REQUESTS = FORBIDDEN + [a for a, m in models.ALIASES.items() if m in FORBIDDEN]
 PROVENANCE = MessageProvenance(origin='user', senders=('user',), subtype='dashboard')
 
@@ -27,7 +27,7 @@ def admission(monkeypatch):
 
 @pytest.mark.parametrize('model_request', REQUESTS)
 @pytest.mark.parametrize('reason', ['', 'Creative research requested by owner'])
-def test_all_non_sol_hub_requests_refuse_even_with_old_enabled_flags(admission, model_request, reason):
+def test_forbidden_hub_requests_refuse_even_with_old_enabled_flags(admission, model_request, reason):
     with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
         models.ensure_spawn_allowed(models.resolve_model(model_request), model_reason=reason)
 
@@ -63,9 +63,16 @@ def test_api_credit_is_not_an_escape_for_forbidden_hub_models(admission, model):
         models.ensure_spawn_allowed(model, billing='api_credit', model_reason='creative')
 
 
-@pytest.mark.parametrize('model_request', ['hubsol', SOL])
-def test_sol_stays_admitted_with_existing_config_and_catalog_gates(admission, model_request):
-    models.ensure_spawn_allowed(models.resolve_model(model_request))
+@pytest.mark.parametrize('model_request', [
+    'hubsol', 'hubargon', 'hubsonnet', 'hubluna', *sorted(models.ALLOWED_HUB_WORKER_MODELS),
+])
+@pytest.mark.parametrize('context', [
+    {},
+    dict(role='worker', pipeline='custom', scope='relative', task_id=''),
+    dict(role='specialist', pipeline='default', scope='/synthetic/design', task_id='V-1257'),
+])
+def test_allowed_hub_models_pass_existing_config_and_catalog_gates(admission, model_request, context):
+    models.ensure_spawn_allowed(models.resolve_model(model_request), **context)
 
 
 @pytest.mark.parametrize('model', [' HUB-GPT-6.1-SOL ', 'HUBSOL'])
@@ -266,3 +273,14 @@ async def test_persisted_queued_delivery_recovery_fails_before_submit_and_keeps_
     assert persisted['runtime_handoff'] == 'old handoff'
     assert provider.mock_calls == []
     pipeline.load_pipeline.cache_clear()
+
+
+def test_only_four_hub_models_are_enabled_for_agents_by_default(monkeypatch):
+    monkeypatch.setattr(models, '_load_model_flags', lambda: {})
+    enabled = {
+        spec.id for spec in models.SELECTABLE_MODEL_SPECS
+        if spec.runtime == 'hub' and models.get_model_flags(spec.id)['agents']
+    }
+    assert enabled == models.ALLOWED_HUB_WORKER_MODELS == {
+        'hub-gpt-6.1-sol', 'hub-gemini-4-argon', 'hub-claude-sonnet-5-5', 'hub-gpt-6-luna',
+    }

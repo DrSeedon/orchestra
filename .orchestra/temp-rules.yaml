@@ -53,22 +53,3 @@ rules:
     the normal idlewatch-only policy then resumes.'
   reason: The owner explicitly allowed autonomous Orchestra restarts for this night only at 01:52 KRS.
     Apply a narrow morning expiry and preserve active work.
-- id: rule-4bb2201a93
-  project: '*'
-  mode: review
-  expires_at: '2026-11-05T06:30:00+00:00'
-  targets:
-  - orchestrators
-  author: Orchestra-orchestrator
-  created_at: '2026-11-04T06:32:59.315542+00:00'
-  text: 'Until the Hub source-boundary incident is resolved: before every Hub spawn, send, resumed delivery
-    or recovery, inspect the COMPLETE effective upload bundle, including all repository-root files automatically
-    included by the current backend. If any protected personal/client/company data could be sent, or the
-    complete bundle cannot be verified safe, do not submit that work; keep it local under the protected-work
-    route and preserve existing work/history. Do not assume owned_dirs excludes root files. Do not cancel
-    queued deliveries, migrate or delete remote workspaces, or bypass security gates. This is an interim
-    instruction, not a technical block on already queued or in-flight deliveries; report such exposure
-    to the platform owner.'
-  reason: 'Active privacy incident: Hub source preparation includes repository-root files even for scoped
-    owned_dirs; sensitive root content was reportedly present in a foreign Hub workspace. Review after
-    the live upload boundary has been fixed and verified.'

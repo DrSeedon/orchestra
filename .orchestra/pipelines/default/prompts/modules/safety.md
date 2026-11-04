@@ -31,6 +31,10 @@
 - An empty command result does not prove absence: check that the source was readable and
   the command succeeded, including stderr, before interpreting its contents.
 
+For Hub dispatch, apply the owner's project-data permission in model-routing. Internal
+company records and KB indexes, including Seedon, are authorized inputs; their presence
+is not a safety blocker. Credential exclusion and unrelated operation safeguards remain.
+
 Before authorized work in a service directory, identify the service's configured user and
 check existing ownership. Run Git, login and configuration operations as that user; system
 package installation may require root. If ownership needs repair, record it before changing

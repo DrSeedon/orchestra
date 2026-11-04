@@ -1,4 +1,4 @@
-"""Bounded specialist Hub admission with synthetic identity and no provider execution."""
+"""General and specialist Hub admission with synthetic identity and no provider execution."""
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -41,12 +41,11 @@ def admission(monkeypatch):
     ("scope", ""), ("scope", "relative"), ("scope", "/"),
     ("task_id", ""), ("task_id", "design"), ("task_id", "0"), ("task_id", None),
 ])
-def test_only_exact_role_pipeline_and_task_scope_admit(admission, field, value):
+def test_argon_admitted_independently_of_role_pipeline_task_and_scope(admission, field, value):
     context = identity()
     models.ensure_spawn_allowed(ARGON, **context)
     context[field] = value
-    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
-        models.ensure_spawn_allowed(ARGON, model_reason="owner design request", **context)
+    models.ensure_spawn_allowed(ARGON, model_reason="owner design request", **context)
     models.ensure_spawn_allowed(SOL, **context)
 
 
@@ -56,19 +55,19 @@ def test_registry_mapping_and_unknown_metadata_are_honest():
     assert (spec.runtime, spec.provider) == ("hub", "multicode")
     assert spec.context_length == 0 and spec.input_modalities == ()
     assert spec.price_input is None and spec.price_output is None
-    assert ARGON not in models.ALIASES.values()
+    assert models.resolve_model("hubargon") == ARGON
+    assert spec.name == "Hub: Gemini 4 Argon"
     models.validate_model_registry()
 
 
 def test_specialist_does_not_restore_other_models_or_credit_routes(admission):
     for spec in models.SELECTABLE_MODEL_SPECS:
-        if spec.runtime == "hub" and spec.id not in {SOL, ARGON}:
+        if spec.runtime == "hub" and spec.id not in models.ALLOWED_HUB_WORKER_MODELS:
             with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
                 models.ensure_spawn_allowed(spec.id, **identity())
     with pytest.raises(ValueError, match="billing"):
         models.ensure_spawn_allowed(ARGON, billing="api_credit", **identity())
-    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
-        models.validate_model_reason(ARGON, "specialist tag or worker name")
+    assert models.validate_model_reason(ARGON, "optional metadata") == ""
     assert models.validate_model_reason(ARGON, "not a permission", **identity()) == ""
 
 
@@ -82,14 +81,14 @@ def test_catalog_and_configuration_remain_required(admission, monkeypatch):
         models.ensure_spawn_allowed(ARGON, **identity())
 
 
-def test_real_pipeline_assembles_terminal_specialist_in_either_activation_phase():
+def test_real_pipeline_assembles_terminal_argon_specialist():
     from app import pipeline
     from app.manager import ROLE_SYSTEM_PROMPT
 
     pipeline.load_pipeline.cache_clear()
     cfg = pipeline.load_pipeline("default")
     role = pipeline.get_role("default", "specialist")
-    assert cfg.roles["specialist"].model in {SOL, ARGON}
+    assert cfg.roles["specialist"].model == ARGON
     assert role.model == cfg.roles["specialist"].model
     assert role.can_spawn == []
     assert set(role.skills) == set(cfg.defaults.skills)
@@ -179,19 +178,20 @@ async def test_unsupported_effort_never_launches(admission):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("operation", ["connect", "send", "retarget", "reconnect", "events", "turn", "start"])
 @pytest.mark.parametrize("field,value", [("role", "worker"), ("task_id", ""), ("scope", "/other/project")])
-async def test_backend_rechecks_live_identity_before_side_effects(admission, operation, field, value):
+async def test_backend_refuses_forbidden_route_in_every_live_context(admission, operation, field, value):
     backend, hub, state, context = backend_fixture()
     backend._pending = "retained design input"
     backend._turn_active = True
-    before = (backend.model, backend._pending, backend._turn_active, dict(state.__dict__))
     context[field] = value
+    backend.model = "hub-claude-opus-5-5"
+    before = (backend.model, backend._pending, backend._turn_active, dict(state.__dict__))
     with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
         if operation == "connect":
             await backend.connect()
         elif operation == "send":
             await backend.send("new input")
         elif operation == "retarget":
-            await backend.retarget_model(ARGON)
+            await backend.retarget_model("hub-claude-opus-5-5")
         elif operation == "reconnect":
             await backend.reconnect()
         elif operation == "events":
@@ -204,23 +204,25 @@ async def test_backend_rechecks_live_identity_before_side_effects(admission, ope
     assert hub.calls == []
 
 
-def test_factory_observes_current_task_and_role_without_new_store(admission):
+def test_factory_admits_argon_after_task_role_and_scope_change(admission):
     worker = AgentSession(id="specialist", name="specialist", cwd="/synthetic/design", model=ARGON,
                           backend_type="hub", **identity())
     backend = worker._make_backend()
     backend._ensure_model_allowed()
     worker.task_id = ""
-    with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
-        backend._ensure_model_allowed()
+    backend._ensure_model_allowed()
+    worker.role = "worker"
+    worker.scope = "/other/project"
+    backend._ensure_model_allowed()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("operation", ["preflight", "send", "flush", "backend", "reconnect", "handoff"])
-async def test_old_session_role_refuses_and_preserves_recovery(admission, operation):
+async def test_forbidden_session_preserves_recovery(admission, operation):
     context = identity()
     context["role"] = "worker"
     worker = AgentSession(id="old", name="specialist-by-name", cwd=context["scope"],
-                          model=ARGON, backend_type="hub", model_reason="specialist", **context)
+                          model="hub-claude-opus-5-5", backend_type="hub", model_reason="specialist", **context)
     worker.session_id = "retained-workspace"
     worker._session_limit_hit = worker._manually_interrupted = True
     worker._handoff_recovery_required = True
@@ -272,7 +274,7 @@ async def test_persisted_specialist_reloads_and_passes_normal_preflight(admissio
 
 
 @pytest.mark.asyncio
-async def test_old_argon_queued_delivery_refuses_before_submit_and_keeps_payload(admission, tmp_path, monkeypatch):
+async def test_forbidden_queued_delivery_refuses_before_submit_and_keeps_payload(admission, tmp_path, monkeypatch):
     from app import db, message_deliveries as deliveries
     from app.manager import SessionManager
 
@@ -280,7 +282,7 @@ async def test_old_argon_queued_delivery_refuses_before_submit_and_keeps_payload
     context = identity(str(tmp_path))
     context["role"] = "worker"
     worker = AgentSession(id="old-argon", name="specialist-by-name", cwd=str(tmp_path),
-                          model=ARGON, backend_type="hub", session_id="retained-workspace", **context)
+                          model="hub-claude-opus-5-5", backend_type="hub", session_id="retained-workspace", **context)
     worker.session_id_history = [{"session_id": "retained-history"}]
     db.save_session(worker._to_db_dict())
     manager = SessionManager()
@@ -367,25 +369,19 @@ async def test_direct_model_change_checks_current_session(admission, monkeypatch
     monkeypatch.setattr(worker, "_change_model_locked", change)
     monkeypatch.setattr(worker, "_persist", Mock())
     result = await worker.change_model(ARGON, "design name and tag")
-    assert result["ok"] == (role == "specialist")
-    if role == "specialist":
-        change.assert_awaited_once_with(ARGON)
-    else:
-        change.assert_not_awaited()
+    assert result["ok"]
+    change.assert_awaited_once_with(ARGON)
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("via", ["mcp", "dashboard"])
-@pytest.mark.parametrize("valid", [True, False])
-async def test_change_route_uses_persisted_identity_not_payload(admission, monkeypatch, via, valid):
+@pytest.mark.parametrize("role", ["specialist", "worker"])
+async def test_change_route_accepts_argon_for_worker_and_specialist(admission, monkeypatch, via, role):
     from app.routes import sessions
 
     context = identity()
-    row = dict(context, id="target", name="target", model=SOL)
-    if not valid:
-        row["role"] = "worker"
-    monkeypatch.setattr(sessions, "get_session_by_name", lambda *args: row)
-    target = SimpleNamespace(change_model=AsyncMock(return_value={"ok": True, "changed": False}))
+    context["role"] = role
+    target = SimpleNamespace(**context, change_model=AsyncMock(return_value={"ok": True, "changed": False}))
     loaded = AsyncMock(return_value=target)
     monkeypatch.setattr(sessions.manager, "ensure_loaded", loaded)
     result = await sessions.change_model("target", {
@@ -393,24 +389,22 @@ async def test_change_route_uses_persisted_identity_not_payload(admission, monke
         "role": "specialist", "pipeline": "default", "task_id": "V-1257",
         "model_reason": "owner says design", "tags": ["design"],
     })
-    if valid:
-        assert result["ok"]
-        target.change_model.assert_awaited_once()
-    else:
-        assert result.status_code == 409
-        loaded.assert_not_awaited()
+    assert result["ok"]
+    target.change_model.assert_awaited_once_with(ARGON, model_reason="owner says design")
+    loaded.assert_awaited_once_with("target", context["scope"])
 
 
 @pytest.mark.asyncio
-async def test_change_route_refuses_cross_scope_identity(admission, monkeypatch):
+async def test_change_route_keeps_scoped_session_lookup(admission, monkeypatch):
+    from app import db
     from app.routes import sessions
 
-    monkeypatch.setattr(sessions, "get_session_by_name", lambda *args: identity("/other/project"))
-    loaded = AsyncMock()
+    db.init_db()
+    loaded = AsyncMock(return_value=None)
     monkeypatch.setattr(sessions.manager, "ensure_loaded", loaded)
-    result = await sessions.change_model("target", {"model": ARGON, "scope": "/synthetic/design"})
-    assert result.status_code == 409
-    loaded.assert_not_awaited()
+    result = await sessions.change_model("target", {"model": "hubargon", "scope": "/synthetic/design"})
+    assert result.status_code == 404
+    loaded.assert_awaited_once_with("target", "/synthetic/design")
 
 
 @pytest.mark.asyncio

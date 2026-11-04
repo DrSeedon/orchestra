@@ -1105,7 +1105,7 @@ class GrokBackend(JsonRpcStdioTransport):
             self._active_prompts = 0
             self._queue_depth = 0
             turn_usage = TurnUsage(
-                AggregateUsage.normalized(),
+                AggregateUsage.normalized(accuracy="unknown"),
                 current_context(
                     None,
                     self._model_context_window,
@@ -1310,6 +1310,8 @@ class GrokBackend(JsonRpcStdioTransport):
         turn_usage = TurnUsage(
             AggregateUsage.normalized(
                 input_tokens=input_tokens,
+                input_includes_cache=True,
+                accuracy="reported" if totals else "unknown",
                 output_tokens=output_tokens,
                 cache_read_tokens=cached,
                 model_calls=totals.get("modelCalls"),

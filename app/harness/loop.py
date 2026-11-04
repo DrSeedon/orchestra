@@ -30,6 +30,8 @@ from typing import AsyncIterator, Callable
 import httpx
 
 from app.events import AgentEvent
+from app.runtime_history import PrefixCacheTracker
+from app.tool_output_compactor import tool_result_preview
 from app.harness import tools as builtin
 from app.harness.llm import OpenRouterClient
 from app.harness.mcp import MCPClient
@@ -135,12 +137,14 @@ class AgentLoop:
                  todo_store=None, allow_review: bool = False, review_ctx=None,
                  readonly_mode: bool = False, max_rounds: int = MAX_TOOL_ROUNDS,
                  drain_injected: Callable[[], list[str]] | None = None,
-                 carried_over: list[str] | None = None):
+                 carried_over: list[str] | None = None,
+                 prefix_tracker: PrefixCacheTracker | None = None):
         self.llm = llm
         self.mcp = mcp
         self.cwd = cwd
         self.history = history            # full OpenAI-format message list (shared, mutated)
         self.tool_schemas = tool_schemas
+        self.prefix_tracker = prefix_tracker or PrefixCacheTracker()
         self._seen_calls: dict[tuple[str, str, str], int] = {}
         self._same_result: dict[tuple[str, str], int] = {}
         self._unrun_code: list[str] = []
@@ -354,6 +358,12 @@ class AgentLoop:
             schema for schema in self.tool_schemas
             if schema.get("function", {}).get("name") not in self._withdrawn
         ]
+        self.prefix_tracker.observe(
+            system_prompt='\n'.join(str(message.get('content') or '') for message in messages
+                                    if message.get('role') in {'system', 'developer'}),
+            tool_schemas=tools,
+            history=[message for message in messages if message.get('role') not in {'system', 'developer'}],
+        )
         if self.effort is None:
             gen = self.llm.stream(messages, tools, abort=self._abort)
         else:
@@ -476,9 +486,10 @@ class AgentLoop:
                        "bash and write their real output instead.")
 
         # Bash owns its status header; text printed by the command follows that header.
-        failed = result.startswith((f"[{name} error]", "[error]", "[mcp error]"))
-        if name == "bash" and result.startswith("exit_code="):
-            failed = result.splitlines()[0] != "exit_code=0"
+        status_result = tool_result_preview(result) if name in builtin.BUILTIN_NAMES else result
+        failed = status_result.startswith((f"[{name} error]", "[error]", "[mcp error]"))
+        if name == "bash" and status_result.startswith("exit_code="):
+            failed = status_result.splitlines()[0] != "exit_code=0"
         yield AgentEvent("tool_result", result, metadata={**metadata, "is_error": failed})
         self._append_tool_result(
             call_id, result + self._repeat_note(name, args, result) + self._refusal_note(name, result)

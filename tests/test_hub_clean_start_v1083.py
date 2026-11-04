@@ -41,20 +41,16 @@ async def _dirty_old(repo, tmp_path, monkeypatch, how="history"):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("duplicate_removed", [False, True])
-async def test_without_option_old_history_stays_refused_before_and_after_duplicate_removal(
+async def test_company_history_and_copy_allow_continuation_without_option(
         repo, tmp_path, monkeypatch, duplicate_removed):
     backend, ssh, mc, old = await _dirty_old(repo, tmp_path, monkeypatch, "copy")
-    mc.calls.clear()
-    events = await _turn(backend, "continue")
-    assert not events[-1].metadata["ok"]
     if duplicate_removed:
         (Path(old.remote_dir) / PRIVATE).unlink()
-    before = _snapshot(hw.STATE_DIR)
-    for fresh_backend in (backend, _backend(repo, tmp_path, monkeypatch, lambda _: None)[0]):
-        events = await _turn(fresh_backend, "again")
-        assert not events[-1].metadata["ok"] and "owner review" in events[-1].content
-    assert _snapshot(hw.STATE_DIR) == before
-    assert not any(n in {"t3_thread_launch", "t3_thread_send"} for n, _ in mc.calls)
+    mc.calls.clear()
+    events = await _turn(backend, "continue")
+    assert events[-1].metadata["ok"], events[-1].content
+    assert backend._state.ws_id == old.ws_id
+    assert any(n == "t3_thread_send" for n, _ in mc.calls)
 
 
 @pytest.mark.asyncio
@@ -63,7 +59,10 @@ async def test_without_option_old_history_stays_refused_before_and_after_duplica
 async def test_clean_start_creates_new_generation_and_leaves_old_bytes(
         repo, tmp_path, monkeypatch, persistent, how):
     backend, ssh, mc, old = await _dirty_old(repo, tmp_path, monkeypatch, how)
-    # a stale warm base descended from the dirty copy must neither be read nor written
+    # Explicitly close the old generation; company data no longer causes quarantine.
+    old.archived = True
+    old.save()
+    # A requested clean generation must neither read nor write the warm base.
     base_dir = Path(await ssh.base_dir_for(str(repo)))
     base_dir.mkdir(parents=True)
     (base_dir / "poisoned.txt").write_text("ancestry marker\n")
@@ -71,21 +70,17 @@ async def test_clean_start_creates_new_generation_and_leaves_old_bytes(
                  file_policy_blocked=True).save()
     (repo / PRIVATE).parent.mkdir(exist_ok=True)
     (repo / PRIVATE).write_text(FIXTURE)
+    backend._paths.append("nested")  # the new company input is explicitly in task scope
     _options(monkeypatch, persistent=persistent, clean_start=True)
     before = _snapshot(hw.STATE_DIR)
     old_remote = {p: p.read_bytes() for p in Path(old.remote_dir).rglob("*") if p.is_file()}
     mc.calls.clear()
-    if how == "copy":   # the V-1073 guard has already latched this finding (and stays the only writer)
-        _options(monkeypatch, persistent=persistent)
-        assert not (await _turn(backend, "refused"))[-1].metadata["ok"]
-        _options(monkeypatch, persistent=persistent, clean_start=True)
-        before = _snapshot(hw.STATE_DIR)
     events = await _turn(backend, "start clean")
     assert events[-1].metadata["ok"]
     new = backend._state
     assert new.ws_id != old.ws_id and new.remote_dir != old.remote_dir
     assert any(name == "t3_thread_launch" for name, _ in mc.calls)         # a brand-new thread
-    assert new.clean_start and new.clean_start_of == [old.ws_id]
+    assert new.clean_start and new.clean_start_of == []
     after = _snapshot(hw.STATE_DIR)
     for name, data in before.items():
         assert after[name] == data                      # old records and the base: same bytes
@@ -95,15 +90,16 @@ async def test_clean_start_creates_new_generation_and_leaves_old_bytes(
     assert not (base_dir / "calc.py").exists()                              # base never refreshed/copied
     remote = Path(new.remote_dir)
     assert (remote / "calc.py").exists() and (remote / "poisoned.txt").exists() is False
-    assert not any(part.casefold() == "company-data.md" for p in remote.rglob("*") for part in p.parts)
-    for table in (new.manifest, new.input_manifest or {}):
-        assert not any("company-data" in rel.casefold() for rel in table)
+    assert (remote / PRIVATE).read_text() == FIXTURE
+    assert PRIVATE in new.manifest
     assert (repo / PRIVATE).read_text() == FIXTURE
 
 
 @pytest.mark.asyncio
 async def test_clean_generation_survives_restart_retry_and_option_removal(repo, tmp_path, monkeypatch):
     backend, ssh, mc, old = await _dirty_old(repo, tmp_path, monkeypatch)
+    old.archived = True
+    old.save()
     _options(monkeypatch, clean_start=True)
     assert (await _turn(backend, "start clean"))[-1].metadata["ok"]
     new_id = backend._state.ws_id
@@ -115,15 +111,17 @@ async def test_clean_generation_survives_restart_retry_and_option_removal(repo, 
     assert events[-1].metadata["ok"] and restarted._state.ws_id == new_id
     after = _snapshot(hw.STATE_DIR)
     assert after[f"{old.ws_id}.json"] == before[f"{old.ws_id}.json"]
-    # a different, unauthorized backend (no resume, option off) is refused again
+    # Another backend is also covered by the owner's project-data permission.
     stranger, _, _ = _backend(repo, tmp_path, monkeypatch, lambda _: None)
     events = await _turn(stranger, "no authorization")
-    assert not events[-1].metadata["ok"] and "owner review" in events[-1].content
+    assert events[-1].metadata["ok"], events[-1].content
 
 
 @pytest.mark.asyncio
-async def test_clean_generation_itself_is_never_exempt(repo, tmp_path, monkeypatch):
+async def test_clean_generation_allows_company_inputs(repo, tmp_path, monkeypatch):
     backend, ssh, mc, old = await _dirty_old(repo, tmp_path, monkeypatch)
+    old.archived = True
+    old.save()
     _options(monkeypatch, clean_start=True)
     assert (await _turn(backend, "start clean"))[-1].metadata["ok"]
     new = backend._state
@@ -132,14 +130,16 @@ async def test_clean_generation_itself_is_never_exempt(repo, tmp_path, monkeypat
     leftover.write_text(FIXTURE)
     mc.calls.clear()
     events = await _turn(backend, "continue")
-    assert not events[-1].metadata["ok"] and "owner review" in events[-1].content
-    assert hw.WorkspaceState.load(new.ws_id).file_policy_blocked
-    assert not any(n in {"t3_thread_send", "t3_thread_launch"} for n, _ in mc.calls)
+    assert events[-1].metadata["ok"], events[-1].content
+    assert any(n == "t3_thread_send" for n, _ in mc.calls)
+    assert leftover.read_text() == FIXTURE
 
 
 @pytest.mark.asyncio
 async def test_clean_start_requires_explicit_scope_before_any_upload(repo, tmp_path, monkeypatch):
     backend, ssh, mc, old = await _dirty_old(repo, tmp_path, monkeypatch)
+    old.archived = True
+    old.save()
     _options(monkeypatch, persistent=True, clean_start=True)   # persistent would allow a whole upload
     backend._paths = []
     mc.calls.clear()
@@ -153,6 +153,8 @@ async def test_clean_start_requires_explicit_scope_before_any_upload(repo, tmp_p
 @pytest.mark.parametrize("kind", ["dir", "file", "symlink"])
 async def test_new_generation_target_must_not_exist(repo, tmp_path, monkeypatch, kind):
     backend, ssh, mc, old = await _dirty_old(repo, tmp_path, monkeypatch)
+    old.archived = True
+    old.save()
     _options(monkeypatch, clean_start=True)
     target = tmp_path / "hub" / "hub-0123456789abcdef"
     monkeypatch.setattr(hw.WorkspaceState, "new_id", staticmethod(lambda: target.name))
@@ -215,12 +217,6 @@ async def test_new_worktree_with_poisoned_base_starts_clean_without_touching_bas
     base.save()
     (repo / PRIVATE).parent.mkdir(exist_ok=True)
     (repo / PRIVATE).write_text(FIXTURE)
-    # control: the poisoned base itself still refuses a normal base provision
-    if poison != "uninspected":   # (the control would latch the base; "uninspected" must stay unlatched)
-        plan = hw.plan_upload(repo, ["src"], known=[])
-        with pytest.raises(hw.HubFilePolicyError):
-            await hw.provision_from_base(FakeSsh(tmp_path / "hub"), repo, str(repo), plan,
-                                         str(tmp_path / "hub" / hw.WorkspaceState.new_id()))
     before = _snapshot(hw.STATE_DIR)
     base_files = {p: p.read_bytes() for p in base_dir.rglob("*") if p.is_file()}
     _options(monkeypatch, persistent=True, clean_start=True)
@@ -236,8 +232,8 @@ async def test_new_worktree_with_poisoned_base_starts_clean_without_touching_bas
     assert {p: p.read_bytes() for p in base_dir.rglob("*") if p.is_file()} == base_files
     remote = Path(new.remote_dir)
     assert (remote / "calc.py").exists() and not (remote / "stale.txt").exists()
-    assert not any(p.name.casefold() == "company-data.md" for p in remote.rglob("*"))
-    assert not any("company-data" in rel.casefold() for rel in (*new.manifest, *(new.input_manifest or {})))
+    assert (remote / PRIVATE).read_text() == FIXTURE
+    assert PRIVATE in new.manifest
     assert (repo / PRIVATE).read_text() == FIXTURE
     # retry / restart after the option is removed continues without the base
     _options(monkeypatch, persistent=True)
@@ -249,7 +245,7 @@ async def test_new_worktree_with_poisoned_base_starts_clean_without_touching_bas
 
 
 @pytest.mark.asyncio
-async def test_new_worktree_clean_generation_contamination_still_refuses(repo, tmp_path, monkeypatch):
+async def test_new_worktree_clean_generation_accepts_company_record(repo, tmp_path, monkeypatch):
     _options(monkeypatch, persistent=True, clean_start=True)
     backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
     backend._scope = str(repo)
@@ -260,8 +256,9 @@ async def test_new_worktree_clean_generation_contamination_still_refuses(repo, t
     _options(monkeypatch, persistent=True)
     mc.calls.clear()
     events = await _turn(backend, "continue")
-    assert not events[-1].metadata["ok"] and "owner review" in events[-1].content
-    assert not any(n in {"t3_thread_send", "t3_thread_launch"} for n, _ in mc.calls)
+    assert events[-1].metadata["ok"], events[-1].content
+    assert any(n == "t3_thread_send" for n, _ in mc.calls)
+    assert leftover.read_text() == FIXTURE
 
 
 def test_project_option_is_read_only_from_explicit_true(tmp_path, monkeypatch):

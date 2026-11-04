@@ -157,25 +157,18 @@ class HubWorkspaceError(RuntimeError):
 
 
 class HubFilePolicyError(HubWorkspaceError):
-    """Retained private-file evidence requires owner review, never automatic cleanup."""
-
-
-_COMPANY_FILE = "company-data.md"
-_COMPANY_REASON = "private company record (COMPANY-DATA.md)"
-_COMPANY_REFUSAL = (
-    "hub file policy: COMPANY-DATA.md evidence in an existing copy or upload history; "
-    "provider work refused. Retained files, hashes, provenance and thread history require "
-    "owner review; nothing was automatically sanitized or deleted."
-)
-
-
-def _company_path(rel: str) -> bool:
-    return any(part.casefold() == _COMPANY_FILE for part in rel.replace("\\", "/").split("/"))
+    """The remote workspace path is structurally unsafe; preserve it for inspection."""
 
 
 def assert_file_policy(*path_sets) -> None:
-    if any(_company_path(rel) for paths in path_sets for rel in paths):
-        raise HubFilePolicyError(_COMPANY_REFUSAL)
+    """Validate workspace-relative paths, independent of company-data filenames.
+
+    Owner decision, 2026-11-04: company records and KB are authorized Hub input,
+    including records retained under the superseded filename policy.
+    """
+    for paths in path_sets:
+        for rel in paths:
+            _clean_rel(rel)
 
 
 # ── credential exclusion ─────────────────────────────────────────────────────────────
@@ -183,8 +176,6 @@ def assert_file_policy(*path_sets) -> None:
 
 def blocked_reason(rel: str) -> str | None:
     """Why a worktree-relative path must not cross the boundary, by name alone."""
-    if _company_path(rel):
-        return _COMPANY_REASON
     if Path(rel).name == OUTBOX_NAME:
         return "broker outbox file"
     parts = rel.split("/")
@@ -732,32 +723,31 @@ class HubSsh:
                        f"cp -a --reflink=auto -- {shlex.quote(source)}/. {shlex.quote(dest)}/", timeout=1800)
 
     async def assert_file_policy(self, remote_dir: str) -> None:
-        """Read names only in this exact broker copy, returning no inventory or contents.
+        """Validate this exact broker directory without classifying project contents.
 
         Only lstat's ENOENT means missing; shell test -e also returns false on
-        EACCES. No pipeline hides inspection/find/transport failures. Missing
+        EACCES. No pipeline hides inspection or transport failures. Missing
         directories are allowed for first upload and lost-workspace recovery.
         """
         _check_remote(remote_dir)
         q = shlex.quote(remote_dir)
         probe = (
-            "import os, sys\n"
+            "import os, stat, sys\n"
             "try:\n"
-            "    os.lstat(sys.argv[1])\n"
+            "    info = os.lstat(sys.argv[1])\n"
             "except FileNotFoundError:\n"
             "    sys.exit(3)\n"
             "except OSError as error:\n"
             "    print(f'hub file-policy path inspection failed (errno {error.errno})', file=sys.stderr)\n"
             "    sys.exit(1)\n"
+            "if not stat.S_ISDIR(info.st_mode):\n"
+            "    sys.exit(4)\n"
         )
         found = await self.run(
-            f"if test -L {q}; then printf x; else "
             f"python3 -c {shlex.quote(probe)} {q}; policy_rc=$?; "
-            f'case "$policy_rc" in 0) test -d {q} && '
-            f"find {q} -iname {_COMPANY_FILE} -printf x -quit;; "
-            '3) :;; *) exit "$policy_rc";; esac; fi')
+            'case "$policy_rc" in 0|3) :;; 4) printf x;; *) exit "$policy_rc";; esac')
         if found:
-            raise HubFilePolicyError(_COMPANY_REFUSAL)
+            raise HubFilePolicyError("hub workspace path is not a directory; nothing was uploaded")
 
     async def assert_fresh_target(self, remote_dir: str) -> None:
         """A clean-start directory must not exist in any form (file, symlink, directory).
@@ -1167,7 +1157,7 @@ class WorkspaceState:
     activity_pos: int = 0   # live-feed cursor: timeline position already shown
     created_at: float = field(default_factory=time.time)
     input_manifest: dict[str, str] | None = None  # immutable upload-origin untracked files; None = legacy
-    file_policy_blocked: bool = False  # retained even if a foreign file is later removed by hand
+    file_policy_blocked: bool = False  # legacy filename-policy history, no longer an admission gate
     # Owner-requested clean start: this record is a NEW generation that never copied from a persistent
     # base or resumed a thread. `clean_start_of` names the quarantined records it was started beside; the
     # authorization lives only here, so restart and retry need no setting and cannot reach their ancestry.
@@ -1179,8 +1169,6 @@ class WorkspaceState:
     archived: bool = False
 
     def assert_file_policy(self) -> None:
-        if self.file_policy_blocked:
-            raise HubFilePolicyError(_COMPANY_REFUSAL)
         assert_file_policy(self.manifest, self.input_manifest or {}, self.hub_made)
 
     @staticmethod
@@ -1268,8 +1256,6 @@ async def provision_from_base(ssh: HubSsh, root: Path, scope: str, plan: UploadP
     lock = _BASE_LOCKS.setdefault(base_id_for(scope), asyncio.Lock())
     async with lock:
         base = BaseState.load(scope)
-        if base.file_policy_blocked:
-            raise HubFilePolicyError(_COMPANY_REFUSAL)
         assert_file_policy(base.manifest, plan.manifest)
         base_dir = await ssh.base_dir_for(scope)
         await ssh.assert_file_policy(dest_dir)

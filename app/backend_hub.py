@@ -310,9 +310,6 @@ class HubBackend:
     def _ensure_model_allowed(self, model: str | None = None) -> None:
         target = self.model if model is None else model
         context = self._worker_context()
-        # A backend for an earlier project must not submit under a new identity.
-        if target == HUB_ARGON_MODEL and context["scope"] != self._scope:
-            raise ValueError("hub_workers_require_sol: specialist scope changed; rebuild the backend")
         ensure_hub_worker_allowed(target, **context)
 
     async def connect(self) -> None:
@@ -1090,10 +1087,6 @@ class HubBackend:
         return "\n".join(lines)
 
     def _record_sync(self, state: hw.WorkspaceState, result: hw.SyncResult, before: dict) -> None:
-        if any(hw._company_path(rel) for rel, _ in result.rejected):
-            # The snapshot is new evidence, including if someone later removes
-            # the file. Preserve it as a latch without rewriting old provenance.
-            state.file_policy_blocked = True
         no_work = not (result.changed or result.deleted or result.conflicts
                        or result.rejected or result.outbox or result.manifest != before)
         state.manifest = result.manifest
@@ -1167,7 +1160,7 @@ class HubBackend:
 
     def _turn_end(self, ok: bool, stop_reason: str, detail: str) -> AgentEvent:
         usage = TurnUsage(
-            AggregateUsage.normalized(),
+            AggregateUsage.normalized(accuracy="unknown"),
             current_context(None, get_model_spec(self.model).context_length,
                             unknown_reason="the hub does not report token usage to the broker"),
         )

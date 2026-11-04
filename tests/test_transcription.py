@@ -54,7 +54,7 @@ async def test_deepgram_word_confidence_reaches_transcript_and_cache(
     ) == (expected, None)
     assert calls == [
         "https://api.deepgram.com/v1/listen?model=nova-3&language=multi"
-        "&smart_format=true&profanity_filter=false"
+        "&smart_format=true&profanity_filter=false&diarize=true"
     ]
     assert costs == [{
         "session_name": "orch", "scope": "/scope",
@@ -197,3 +197,61 @@ async def test_missing_audio_is_classified_before_http_client_creation(
     assert error is not None
     assert error.startswith("audio file unavailable: FileNotFoundError:")
     assert str(missing) in error
+
+
+@pytest.mark.parametrize("fixture", ["high", "low"])
+def test_single_speaker_preserves_exact_transcript_formatting(fixture):
+    alternative = _response_fixture(fixture)["results"]["channels"][0]["alternatives"][0]
+    expected = MARKED_TRANSCRIPT if fixture == "low" else alternative["transcript"]
+    for word in alternative["words"]:
+        word["speaker"] = 7
+    assert transcription._format_transcript(alternative) == expected
+    assert "[Спикер" not in expected
+
+
+@pytest.mark.parametrize("low_confidence", [False, True])
+def test_multiple_speakers_group_consecutive_words_in_first_appearance_order(low_confidence):
+    alternative = {
+        "transcript": "Привет, Максим! Да? Слушаю.",
+        "words": [
+            {"word": "привет", "punctuated_word": "Привет,", "speaker": 8, "confidence": 0.99},
+            {"word": "максим", "punctuated_word": "Максим!", "speaker": 8,
+             "confidence": 0.4 if low_confidence else 0.99},
+            {"word": "да", "punctuated_word": "Да?", "speaker": 2, "confidence": 0.99},
+            {"word": "слушаю", "punctuated_word": "Слушаю.", "speaker": 8, "confidence": 0.99},
+        ],
+    }
+    expected = (
+        f"[Спикер 1]: Привет, Максим{'[?]' if low_confidence else ''}!\n"
+        "[Спикер 2]: Да?\n[Спикер 1]: Слушаю."
+    )
+    if low_confidence:
+        expected = f"{UNCERTAIN_HEADER}\n{expected}"
+    assert transcription._format_transcript(alternative) == expected
+
+
+@pytest.mark.parametrize("invalid_speaker", [None, True, False, -1, "2", 2.5])
+def test_invalid_speaker_ids_do_not_add_a_second_speaker(invalid_speaker):
+    alternative = {
+        "transcript": "Привет,  мир!\nДа.",
+        "words": [
+            {"word": "привет", "speaker": 0},
+            {"word": "мир", "speaker": invalid_speaker},
+        ],
+    }
+    assert transcription._format_transcript(alternative) == alternative["transcript"]
+
+
+def test_multispeaker_missing_ids_keep_all_words_without_inventing_speakers():
+    alternative = {
+        "transcript": "Ну да? Конечно нет.",
+        "words": [
+            {"word": "Ну"},
+            {"word": "да?", "speaker": 3},
+            {"word": "Конечно", "speaker": 9},
+            {"word": "нет.", "speaker": True},
+        ],
+    }
+    assert transcription._format_transcript(alternative) == (
+        "[Спикер 1]: Ну да?\n[Спикер 2]: Конечно нет."
+    )
