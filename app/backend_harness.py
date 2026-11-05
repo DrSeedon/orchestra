@@ -436,6 +436,10 @@ class HarnessBackend:
             if self.model in PAID_HARNESS_ROUTES:
                 self._turn_cost_unaccounted = True
 
+    @property
+    def provider_account(self) -> str | None:
+        return self._llm.provider_account if isinstance(self._llm, GeminiWebClient) else None
+
     def _max_context(self) -> int:
         from app.models import CONTEXT_LIMITS
 

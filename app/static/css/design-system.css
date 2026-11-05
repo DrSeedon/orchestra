@@ -53,6 +53,8 @@
   --model-grok: #e2e8f0;   /* белый, как у x-ai */
 
   /* Поставщики и пулы квот = цвет их флагманской модели */
+  --provider-google-antigravity: #a78bfa;
+  --provider-gemini-web: #60a5fa;
   --provider-anthropic: var(--model-opus);
   --provider-openai: var(--model-luna);
   --provider-x-ai: var(--model-grok);
@@ -147,3 +149,9 @@
 }
 .ds-card-title { color: var(--ink); font-weight: 700; font-size: 12px; }
 .ds-card-meta { color: var(--ink-dim); font-size: 10px; }
+
+/* Gemini Web: extend the existing provider bar and session metadata. */
+.gemini-web-account-pill { color: var(--provider-gemini-web); border: 1px solid currentColor;
+    border-radius: 4px; padding: 0 4px; font-size: 10px; white-space: nowrap; }
+.usage-gemini-account { display: inline-flex; align-items: center; gap: 3px; }
+.usage-gemini-detail { padding: 6px 0; overflow-wrap: anywhere; }

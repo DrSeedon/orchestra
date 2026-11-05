@@ -4,19 +4,88 @@ from __future__ import annotations
 
 import asyncio
 import json
-from itertools import count
 import logging
+import os
+from datetime import datetime, timezone
+from itertools import count
 from pathlib import Path
 import re
 from uuid import uuid4
 
-from app.gemini_web_auth import MODELS, helper_python, read_accounts, redact_secrets
+from app.gemini_web_auth import (
+    MODELS, account_label, helper_python, persist_cookies, read_accounts,
+    redact_secrets, validate_auth,
+)
 from app.harness.llm import LLMEvent
 from app.harness.gemini_web_worker import SAFE_ERROR_CODES, SAFE_ERROR_TYPES
 
 _SLOT = asyncio.Lock()
+_ACCOUNT_STATS: dict[str, dict] = {}
 _CALL = re.compile(r"```tool_call\s*\n(.*?)```", re.DOTALL)
 logger = logging.getLogger(__name__)
+
+
+def pool_usage(sessions=()) -> dict:
+    try:
+        accounts = read_accounts()
+    except (OSError, ValueError):
+        accounts = []
+    rows = []
+    for slot, account in enumerate(accounts, 1):
+        email = account["expected_email"]
+        stats = _ACCOUNT_STATS.get(email, {})
+        bound = sorted({s.name for s in sessions
+                        if getattr(getattr(s, "_backend", None), "provider_account", None)
+                        == account_label(account, short=True)})
+        rows.append({"slot": slot, "authuser_index": account.get("authuser_index", 0),
+                     "label": account_label(account), "badge_label": account_label(account, short=True),
+                     "status": stats.get("status", "ready"),
+                     "requests_ok": stats.get("requests_ok", 0),
+                     "requests_failed": stats.get("requests_failed", 0),
+                     "last_error": stats.get("last_error"), "last_model": stats.get("last_model"),
+                     "last_used_at": stats.get("last_used_at"), "sessions": bound})
+    usable = sum(a["status"] != "error" for a in rows)
+    available = bool(rows and helper_python())
+    return {"available": available, "total": len(rows), "usable": usable if available else 0,
+            "models": list(MODELS), "accounts": rows}
+
+
+async def refresh_opera_cookies(account: dict) -> bool:
+    """Explicit opt-in, one short-lived SSH call; never log credential output."""
+    if os.environ.get("GEMINI_WEB_COOKIE_SOURCE") != "opera-laptop":
+        return False
+    from scripts.orchestra_backup import LAPTOP, LAPTOP_PORT, LAPTOP_KEY
+    source = Path(__file__).resolve().parents[2] / "scripts/gemini_web_opera_cookies.py"
+    process = await asyncio.create_subprocess_exec(
+        "ssh", "-T", "-i", LAPTOP_KEY, "-p", LAPTOP_PORT,
+        "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5",
+        "-o", "StrictHostKeyChecking=yes", LAPTOP,
+        '.local/share/orchestra-gemini-web-pilot/.venv/bin/python -',
+        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, _ = await asyncio.wait_for(process.communicate(source.read_bytes()), 20)
+        if process.returncode:
+            return False
+        cookies = json.loads(stdout)
+        validate_auth({**account, "cookies": cookies})
+        if cookies["__Secure-1PSID"] != account["cookies"]["__Secure-1PSID"]:
+            return False
+        return persist_cookies(account, cookies)
+    except (OSError, ValueError, TypeError, asyncio.TimeoutError):
+        return False
+    finally:
+        if process.returncode is None:
+            process.kill()
+        await process.wait()
+
+
+def _record(account: dict, model: str, error: str | None = None) -> None:
+    stats = _ACCOUNT_STATS.setdefault(account["expected_email"], {"requests_ok": 0, "requests_failed": 0})
+    stats["requests_failed" if error else "requests_ok"] += 1
+    stats.update(status="error" if error else "ok", last_error=error, last_model=model,
+                 last_used_at=datetime.now(timezone.utc).isoformat())
+
 
 
 def format_prompt(messages: list[dict], tools: list[dict]) -> str:
@@ -75,6 +144,14 @@ class GeminiWebClient:
         self._next_account_idx = next(self._session_counter) % len(accounts)
         self._account_email = accounts[self._next_account_idx]["expected_email"]
 
+    @property
+    def provider_account(self) -> str | None:
+        try:
+            return next((account_label(a, short=True) for a in read_accounts()
+                         if a["expected_email"] == self._account_email), None)
+        except (OSError, ValueError):
+            return None
+
     def retarget(self, model: str, supported_parameters=(), input_modalities=()) -> None:
         raw = model.removeprefix("gemini-web/")
         if raw not in MODELS:
@@ -103,7 +180,7 @@ class GeminiWebClient:
                            "allowed_emails": allowed_emails or [auth["expected_email"]]}).encode()
         task = asyncio.create_task(process.communicate(data))
         try:
-            deadline = asyncio.get_running_loop().time() + 150
+            deadline = asyncio.get_running_loop().time() + 220
             while not task.done():
                 if abort and abort():
                     return None
@@ -116,6 +193,11 @@ class GeminiWebClient:
                 try:
                     error = json.loads(stdout)
                     if isinstance(error, dict):
+                        if (error.get("owner_match") is True
+                                and error.get("account_email") in (allowed_emails or [auth["expected_email"]])):
+                            updated = error.get("updated_cookies", {})
+                            if isinstance(updated, dict):
+                                persist_cookies(auth, updated)
                         if error.get("error_type") in SAFE_ERROR_TYPES:
                             kind = error["error_type"]
                         if error.get("error_code") in SAFE_ERROR_CODES:
@@ -132,7 +214,15 @@ class GeminiWebClient:
                     raise ValueError
             except (ValueError, TypeError):
                 raise RuntimeError("Gemini Web helper returned an invalid response") from None
-            result["text"] = redact_secrets(result["text"], auth["cookies"])
+            updated = result.pop("updated_cookies", {})
+            if updated:
+                if not isinstance(updated, dict):
+                    raise RuntimeError("Gemini Web helper returned invalid cookies")
+                try:
+                    persist_cookies(auth, updated)
+                except ValueError:
+                    raise RuntimeError("Gemini Web helper returned invalid cookies") from None
+            result["text"] = redact_secrets(result["text"], [auth, {"cookies": updated}])
             return result
         finally:
             if process.returncode is None:
@@ -154,14 +244,29 @@ class GeminiWebClient:
                           if a["expected_email"] == self._account_email),
                          self._next_account_idx % len(accounts))
             prompt = format_prompt(messages, tools)
+            refreshed = set()
             for offset in range(len(accounts)):
                 if abort and abort():
                     return
                 account = accounts[(start + offset) % len(accounts)]
                 try:
-                    result = await self._request(prompt, account, abort,
-                                                 allowed_emails=[a["expected_email"] for a in accounts])
-                except (RuntimeError, OSError):
+                    try:
+                        result = await self._request(prompt, account, abort,
+                                                     allowed_emails=[a["expected_email"] for a in accounts])
+                    except RuntimeError as error:
+                        psid = account["cookies"]["__Secure-1PSID"]
+                        if "cookies_expired" not in str(error) or psid in refreshed or (abort and abort()):
+                            raise
+                        refreshed.add(psid)
+                        if not await refresh_opera_cookies(account) or (abort and abort()):
+                            raise
+                        accounts = read_accounts()
+                        account = next(a for a in accounts if a["expected_email"] == account["expected_email"])
+                        result = await self._request(prompt, account, abort,
+                                                     allowed_emails=[a["expected_email"] for a in accounts])
+                except (RuntimeError, OSError) as error:
+                    code = next((c for c in SAFE_ERROR_CODES if c in str(error)), "request_failed")
+                    _record(account, self.model, code)
                     # Vendor diagnostics may contain credentials. Never surface them,
                     # and never retry a cancelled/aborted turn on another account.
                     continue
@@ -173,6 +278,7 @@ class GeminiWebClient:
                         continue
                     self._next_account_idx = selected
                     self._account_email = actual_email
+                    _record(accounts[selected], self.model)
                 break
             else:
                 if abort and abort():

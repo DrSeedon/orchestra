@@ -5318,6 +5318,8 @@ class AgentSession:
             "backend_type": self.backend_type,
             "runtime": self.backend_type,
             "provider": get_model_spec(self.model).provider,
+            "provider_account": (getattr(self._backend, "provider_account", None)
+                                 if self.model.startswith("gemini-web/") else None),
             "hibernated": self._hibernated,
             "task_id": self.task_id,
             "description": self.description,

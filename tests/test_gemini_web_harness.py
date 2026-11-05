@@ -34,6 +34,7 @@ POOL = {"accounts": [
 @pytest.fixture(autouse=True)
 def reset_session_counter(monkeypatch):
     monkeypatch.setattr(web.GeminiWebClient, "_session_counter", count())
+    monkeypatch.setattr(web, "_ACCOUNT_STATS", {})
 
 
 @pytest.fixture
@@ -237,9 +238,10 @@ def test_cookie_patches_pin_account_and_reject_missing_or_wrong_principal(vendor
     assert vendor.cache.save_cookies({}) is None
     assert vendor.client.save_cookies({}) is None
     assert vendor.access.load_browser_cookies() is None
-    for text in ('{}', '{"oPEP7c":"someone@example.com"}'):
-        with pytest.raises(RuntimeError, match="identity mismatch"):
-            vendor.access._extract_payload(SimpleNamespace(text=text))
+    with pytest.raises(RuntimeError, match="cookies expired"):
+        vendor.access._extract_payload(SimpleNamespace(text='{}'))
+    with pytest.raises(RuntimeError, match="identity mismatch"):
+        vendor.access._extract_payload(SimpleNamespace(text='{"oPEP7c":"someone@example.com"}'))
     vendor.access._extract_payload(SimpleNamespace(text='{"oPEP7c":"owner@example.com"}'))
     assert identity["owner_match"] is True
 
@@ -286,7 +288,7 @@ async def test_worker_identity_and_exact_model_gate(vendor, monkeypatch, princip
                              generate_content=AsyncMock(return_value=SimpleNamespace(text="OK")))
 
     async def initialize(**kwargs):
-        assert kwargs["auto_refresh"] is False
+        assert kwargs["auto_refresh"] is True
         vendor.access._extract_payload(SimpleNamespace(text=json.dumps({"oPEP7c": principal})))
 
     client.init = initialize
@@ -469,6 +471,7 @@ async def test_backend_uses_gemini_without_openrouter_key(private_auth, monkeypa
     await backend.connect()
     try:
         assert isinstance(backend._llm, web.GeminiWebClient)
+        assert backend.provider_account == auth.account_label(AUTH, short=True)
         assert backend._max_context() > 0
         backend.retarget_model("gemini-web/gemini-pro")
         assert backend._llm.model == "gemini-web/gemini-pro"
@@ -562,3 +565,164 @@ async def test_worker_refuses_unpinned_library(monkeypatch):
     monkeypatch.setattr(worker, "version", lambda name: "9.9.9")
     with pytest.raises(RuntimeError, match="2.1.1"):
         await worker.generate({})
+
+
+def test_full_google_cookie_jar_and_missing_ts(private_auth):
+    full = {**AUTH, 'cookies': {'__Secure-1PSID': 'login', 'SID': 'sid', 'SAPISID': 'sapisid'}}
+    auth.write_auth(full)
+    assert auth.read_auth() == full
+    assert auth.redact_secrets('sid sapisid', full) == '[REDACTED] [REDACTED]'
+    assert worker.safe_error(RuntimeError('Gemini Web session cookies expired'))['error_code'] == 'cookies_expired'
+    with pytest.raises(ValueError):
+        auth.write_auth({**full, 'cookies': {**full['cookies'], 'unrelated': 'no'}})
+
+
+def test_cookie_rotation_cas_updates_shared_slots_only(private_auth):
+    shared = {'accounts': [AUTH, {**AUTH, 'expected_email': 'other@example.com'}, POOL['accounts'][0]]}
+    auth.write_auth(shared)
+    assert auth.persist_cookies(AUTH, {'__Secure-1PSIDTS': 'rotated'})
+    accounts = auth.read_accounts()
+    assert [a['cookies']['__Secure-1PSIDTS'] for a in accounts[:2]] == ['rotated'] * 2
+    assert accounts[2] == POOL['accounts'][0]
+    assert not auth.persist_cookies(AUTH, {'__Secure-1PSIDTS': 'stale-writer'})
+    assert private_auth.stat().st_mode & 0o777 == 0o600
+    assert list(private_auth.parent.iterdir()) == [private_auth]
+
+
+@pytest.mark.asyncio
+async def test_expired_cookies_refresh_once_and_keep_sticky_account(private_auth, monkeypatch):
+    client = web.GeminiWebClient('gemini-web/gemini-flash')
+    mock = AsyncMock(side_effect=[RuntimeError('Gemini Web helper failed (RuntimeError: cookies_expired)'), {'text': '42'}])
+    monkeypatch.setattr(client, '_request', mock)
+    refresh = AsyncMock(return_value=True)
+    monkeypatch.setattr(web, 'refresh_opera_cookies', refresh)
+    assert [e.text async for e in client.stream([], []) if e.kind == 'text_delta'] == ['42']
+    assert refresh.await_count == 1 and mock.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_pool_status_contains_no_credentials_and_masks_identity(private_auth, monkeypatch):
+    auth.write_auth(POOL)
+    monkeypatch.setattr(web, '_ACCOUNT_STATS', {})
+    client = web.GeminiWebClient('gemini-web/gemini-flash')
+    monkeypatch.setattr(client, '_request', AsyncMock(return_value={'text': '42'}))
+    _ = [e async for e in client.stream([], [])]
+    session = SimpleNamespace(name='test-chat', _backend=SimpleNamespace(provider_account=client.provider_account))
+    pool = web.pool_usage([session])
+    assert pool['total'] == pool['usable'] == 3
+    assert pool['accounts'][0]['requests_ok'] == 1
+    assert pool['accounts'][0]['sessions'] == ['test-chat']
+    encoded = json.dumps(pool)
+    for a in POOL['accounts']:
+        assert a['expected_email'] not in encoded
+        assert not any(v in encoded for v in a['cookies'].values())
+
+
+@pytest.mark.asyncio
+async def test_worker_returns_rotated_cookie_without_cache(vendor, monkeypatch):
+    class Jar:
+        def __init__(self): self.values = {}
+        def set(self, name, value, domain, secure): self.values[name] = value
+        @property
+        def jar(self):
+            return [SimpleNamespace(name=k, value=v, domain='.google.com') for k, v in self.values.items()]
+    jar = Jar()
+    chosen = SimpleNamespace(model_name='gemini-flash', display_name='Flash', is_available=True)
+    async def initialize(**kwargs):
+        vendor.access._extract_payload(SimpleNamespace(text=json.dumps({'oPEP7c': AUTH['expected_email']})))
+        jar.set('__Secure-1PSIDTS', 'new-ts', domain='.google.com', secure=True)
+    client = SimpleNamespace(cookies=jar, init=initialize, close=AsyncMock(),
+                             account_status=SimpleNamespace(name='AVAILABLE'),
+                             list_models=lambda: [chosen], generate_content=AsyncMock(return_value=SimpleNamespace(text='42')))
+    monkeypatch.setitem(sys.modules, 'gemini_webapi', SimpleNamespace(GeminiClient=lambda *a: client))
+    result = await worker.generate({'auth': AUTH, 'model': 'gemini-flash', 'prompt': '17+25'})
+    assert result['updated_cookies'] == {'__Secure-1PSIDTS': 'new-ts'}
+    assert result['text'] == '42'
+
+
+@pytest.mark.asyncio
+async def test_helper_rotated_cookie_saved_before_redaction(private_auth, monkeypatch):
+    real_create = asyncio.create_subprocess_exec
+    async def create(*args, **kwargs):
+        script = "import json,sys;p=json.load(sys.stdin);print(json.dumps(dict(text='rotated-ts',selected_model=p['model'],owner_match=True,updated_cookies={'__Secure-1PSIDTS':'rotated-ts'})))"
+        return await real_create(sys.executable, '-c', script, **kwargs)
+    monkeypatch.setattr(web.asyncio, 'create_subprocess_exec', create)
+    result = await web.GeminiWebClient('gemini-web/gemini-flash')._request('hi', AUTH)
+    assert result['text'] == '[REDACTED]'
+    assert 'updated_cookies' not in result
+    assert auth.read_auth()['cookies']['__Secure-1PSIDTS'] == 'rotated-ts'
+
+
+@pytest.mark.asyncio
+async def test_failed_shared_jar_refresh_is_bounded(private_auth, monkeypatch):
+    auth.write_auth({'accounts': [AUTH, {**AUTH, 'expected_email': 'other@example.com'}]})
+    client = web.GeminiWebClient('gemini-web/gemini-flash')
+    monkeypatch.setattr(client, '_request', AsyncMock(side_effect=RuntimeError('cookies_expired')))
+    refresh = AsyncMock(return_value=False)
+    monkeypatch.setattr(web, 'refresh_opera_cookies', refresh)
+    with pytest.raises(RuntimeError, match='all 2 accounts'):
+        _ = [e async for e in client.stream([], [])]
+    assert refresh.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_generation_failure_preserves_rotated_credentials(vendor, monkeypatch):
+    class Jar:
+        def __init__(self): self.values = {}
+        def set(self, name, value, **kw): self.values[name] = value
+        @property
+        def jar(self):
+            return [SimpleNamespace(name=k, value=v, domain='.google.com') for k, v in self.values.items()]
+    jar = Jar()
+    chosen = SimpleNamespace(model_name='gemini-flash', display_name='Flash', is_available=True)
+    async def initialize(**kwargs):
+        vendor.access._extract_payload(SimpleNamespace(text='{"oPEP7c":"owner@example.com"}'))
+        jar.set('__Secure-1PSIDTS', 'new-on-error')
+    client = SimpleNamespace(cookies=jar, init=initialize, close=AsyncMock(),
+                             account_status=SimpleNamespace(name='AVAILABLE'), list_models=lambda:[chosen],
+                             generate_content=AsyncMock(return_value=SimpleNamespace(text='Sorry, something went wrong. Please try your request again.')))
+    monkeypatch.setitem(sys.modules, 'gemini_webapi', SimpleNamespace(GeminiClient=lambda *a:client))
+    state = {}
+    with pytest.raises(RuntimeError, match='request failed'):
+        await worker.generate({'auth':AUTH,'model':'gemini-flash','prompt':'hi'},state)
+    assert state['updated_cookies'] == {'__Secure-1PSIDTS':'new-on-error'}
+    assert state['owner_match'] is True
+
+
+@pytest.mark.asyncio
+async def test_error_envelope_rotated_cookie_persisted(private_auth, monkeypatch):
+    real_create = asyncio.create_subprocess_exec
+    async def create(*args, **kwargs):
+        script = "import json,sys;p=json.load(sys.stdin);print(json.dumps(dict(error_type='RuntimeError',error_code='request_failed',owner_match=True,account_email=p['auth']['expected_email'],updated_cookies={'__Secure-1PSIDTS':'error-ts'})));sys.exit(1)"
+        return await real_create(sys.executable,'-c',script,**kwargs)
+    monkeypatch.setattr(web.asyncio,'create_subprocess_exec',create)
+    with pytest.raises(RuntimeError,match='request_failed'):
+        await web.GeminiWebClient('gemini-web/gemini-flash')._request('hi',AUTH)
+    assert auth.read_auth()['cookies']['__Secure-1PSIDTS'] == 'error-ts'
+
+
+@pytest.mark.asyncio
+async def test_opera_refresh_is_opt_in_and_rejects_unrelated_login(private_auth, monkeypatch):
+    create=AsyncMock()
+    monkeypatch.delenv('GEMINI_WEB_COOKIE_SOURCE',raising=False)
+    monkeypatch.setattr(web.asyncio,'create_subprocess_exec',create)
+    assert not await web.refresh_opera_cookies(AUTH)
+    create.assert_not_awaited()
+    monkeypatch.setenv('GEMINI_WEB_COOKIE_SOURCE','opera-laptop')
+    child=SimpleNamespace(returncode=0,communicate=AsyncMock(return_value=(json.dumps(POOL['accounts'][0]['cookies']).encode(),b'')),wait=AsyncMock())
+    create.return_value=child
+    assert not await web.refresh_opera_cookies(AUTH)
+    assert auth.read_auth() == AUTH
+    child.wait.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_usage_endpoint_exposes_only_safe_pool_metadata(private_auth, monkeypatch):
+    from app.routes import system
+    monkeypatch.setattr(system, 'is_owner_mode', lambda: True)
+    monkeypatch.setattr(system, '_get_usage_data', AsyncMock(return_value={'disabled_providers':['claude']}))
+    response = await system.get_usage()
+    assert response['gemini_web']['total'] == 1
+    assert response['gemini_web']['accounts'][0]['status'] == 'ready'
+    assert AUTH['expected_email'] not in json.dumps(response)
+    assert not any(c in json.dumps(response) for c in AUTH['cookies'].values())

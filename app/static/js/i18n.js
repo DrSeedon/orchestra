@@ -21,6 +21,10 @@
     var DEFAULT_LANG = 'ru';
 
     var RU = {
+    'Gemini Web account': 'Аккаунт Gemini Web',
+    'Bound sessions': 'Привязанные чаты',
+    'Last model': 'Последняя модель',
+
     'Report held by quota gate → {parent}': 'Отчёт удержан квотой → {parent}',
     ' (CLI cost, includes cache)': ' (стоимость CLI, включая кеш)',
     ' (telemetry stale)': ' (телеметрия устарела)',

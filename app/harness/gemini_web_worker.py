@@ -18,6 +18,7 @@ SAFE_ERROR_TYPES = frozenset({
     "CurlError", "ConnectionError", "PermissionError", "ValueError", "UnknownError",
 })
 SAFE_ERROR_CODES = {
+    "cookies_expired": "Gemini Web session cookies expired",
     "identity_mismatch": "Gemini Web account identity mismatch",
     "authorization_unconfirmed": "Gemini Web account authorization not confirmed",
     "model_unavailable": "Gemini Web requested model unavailable",
@@ -67,6 +68,17 @@ def disable_cookie_files(identity: dict, expected_email: str,
         for name in ("save_cookies", "clear_cookies_cache", "_get_cookies_cache_path"):
             if hasattr(module, name):
                 setattr(module, name, no_op)
+    async def rotate_in_memory(session, verbose=False):
+        from gemini_webapi.constants import Endpoint, Headers
+        response = await session.post(url=Endpoint.ROTATE_COOKIES,
+                                      headers=Headers.ROTATE_COOKIES.value,
+                                      data='[000,"-0000000000000000000"]')
+        response.raise_for_status()
+        return next((c.value for c in session.cookies.jar
+                     if c.name == "__Secure-1PSIDTS"), None)
+
+    cache.rotate_1psidts = rotate_in_memory
+    client.rotate_1psidts = rotate_in_memory
     access.load_browser_cookies = no_op
     original = access._extract_payload
 
@@ -75,6 +87,8 @@ def disable_cookie_files(identity: dict, expected_email: str,
         principal = json.loads(match.group(1)) if match else ""
         allowed = {email.lower() for email in (allowed_emails or [])} | {expected_email.lower()}
         identity["owner_match"] = isinstance(principal, str) and principal.lower() in allowed
+        if not principal:
+            raise RuntimeError("Gemini Web session cookies expired")
         if not identity["owner_match"]:
             raise RuntimeError("Gemini Web account identity mismatch")
         identity["account_email"] = principal.lower()
@@ -99,7 +113,14 @@ def disable_cookie_files(identity: dict, expected_email: str,
     access.AsyncSession = account_session
 
 
-async def generate(payload: dict) -> dict:
+def cookie_updates(client, cookies: dict) -> dict:
+    return {c.name: c.value for c in getattr(getattr(client, "cookies", None), "jar", [])
+            if c.name in (set(cookies) | {"__Secure-1PSIDTS"})
+            and c.domain.lstrip(".") in {"google.com", "accounts.google.com", "gemini.google.com"}
+            and c.value and c.value != cookies.get(c.name)}
+
+
+async def generate(payload: dict, state: dict | None = None) -> dict:
     if version("gemini-webapi") != "2.1.1":
         raise RuntimeError("Gemini Web requires gemini-webapi==2.1.1")
     identity = {}
@@ -108,11 +129,33 @@ async def generate(payload: dict) -> dict:
     from gemini_webapi import GeminiClient
 
     cookies = payload["auth"]["cookies"]
-    client = GeminiClient(cookies["__Secure-1PSID"], cookies["__Secure-1PSIDTS"])
+    client = GeminiClient(cookies["__Secure-1PSID"], cookies.get("__Secure-1PSIDTS"))
+    if hasattr(client, "cookies"):
+        for name, value in cookies.items():
+            domain = "accounts.google.com" if name in {"LSID", "__Host-1PLSID", "__Host-3PLSID"} else ".google.com"
+            client.cookies.set(name, value, domain=domain, secure=True)
     try:
-        await asyncio.wait_for(client.init(
-            timeout=30, auto_refresh=False, auto_close=False, verbose=False,
-        ), 45)
+        try:
+            await asyncio.wait_for(client.init(
+                timeout=30, auto_refresh=True, auto_close=False, verbose=False,
+            ), 45)
+        except RuntimeError as error:
+            if str(error) != SAFE_ERROR_CODES["cookies_expired"]:
+                raise
+            # One server-side recovery attempt; the parent may refresh Opera once
+            # when Google's session has already invalidated this entire jar.
+            from curl_cffi.requests import AsyncSession
+            from gemini_webapi.utils.rotate_1psidts import rotate_1psidts
+            try:
+                async with AsyncSession(impersonate="chrome", timeout=15) as session:
+                    session.cookies.update(client.cookies)
+                    await rotate_1psidts(session)
+                    client.cookies.update(session.cookies)
+            except Exception:
+                raise RuntimeError(SAFE_ERROR_CODES["cookies_expired"]) from None
+            await asyncio.wait_for(client.init(
+                timeout=30, auto_refresh=True, auto_close=False, verbose=False,
+            ), 45)
         if not identity.get("owner_match") or client.account_status.name != "AVAILABLE":
             raise RuntimeError("Gemini Web account authorization not confirmed")
         model = next((m for m in (client.list_models() or [])
@@ -122,11 +165,17 @@ async def generate(payload: dict) -> dict:
         output = await asyncio.wait_for(client.generate_content(
             payload["prompt"], model=model, temporary=True,
         ), 100)
+        if output.text.strip() == "Sorry, something went wrong. Please try your request again.":
+            raise RuntimeError(SAFE_ERROR_CODES["request_failed"])
         return {"text": output.text, "selected_model": model.model_name,
                 "selected_display_name": model.display_name, "owner_match": True,
                 "account_status": client.account_status.name,
-                "account_email": identity["account_email"]}
+                "account_email": identity["account_email"],
+                "updated_cookies": cookie_updates(client, cookies)}
     finally:
+        if state is not None and identity.get("owner_match"):
+            state.update(owner_match=True, account_email=identity["account_email"],
+                         updated_cookies=cookie_updates(client, cookies))
         await client.close()
 
 
@@ -140,12 +189,13 @@ def main() -> int:
             stream.write("1000")
     except OSError:
         pass
+    state = {}
     try:
         payload = json.load(sys.stdin)
-        result = asyncio.run(generate(payload))
+        result = asyncio.run(generate(payload, state))
     except Exception as error:
         # Even exception names/messages and traceback locals from vendor code are untrusted.
-        print(json.dumps(safe_error(error)))
+        print(json.dumps({**safe_error(error), **state}))
         return 1
     print(json.dumps(result, ensure_ascii=False))
     return 0

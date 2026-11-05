@@ -915,3 +915,29 @@ def test_hub_pool_card_and_worker_badge_code_exist():
     theme = UTILS_JS.with_name("theme.js").read_text()
     assert "startsWith('hub-')" in theme and "function hubBadge()" in theme
     assert "if (isHubModel(s.model)) meta.appendChild(hubBadge());" in APP_JS.read_text()
+
+
+def test_gemini_web_pool_compact_and_details(browser):
+    page = _page(browser, width=390)
+    page.evaluate("document.body.insertAdjacentHTML('afterbegin', '<div id=usage-bar></div>'); window.Connection={ownsErrors:()=>false}; window._o={}; window._showCost=true;")
+    page.add_script_tag(path=str(USAGE_JS))
+    page.evaluate("""() => {
+        _usageData = {disabled_providers: [], gemini_web: {available:true,total:3,usable:2,accounts:[
+            {slot:1,label:'the…ool@gmail.com',status:'ok',sessions:['chat-one'],last_model:'gemini-flash',requests_ok:4,requests_failed:0},
+            {slot:2,label:'max…0as@gmail.com',status:'ready',sessions:[],requests_ok:0,requests_failed:0},
+            {slot:3,label:'kat….ks@gmail.com',status:'error',sessions:[],last_error:'cookies_expired',requests_ok:1,requests_failed:1}
+        ]}};
+        renderUsageBar();
+    }""")
+    compact = page.locator('[data-usage-compact-provider="gemini-web"]')
+    expect(compact).to_contain_text('2/3')
+    expect(compact.locator('.usage-gemini-account')).to_have_count(3)
+    expect(compact).to_contain_text('#1 the…ool')
+    page.locator('#usage-info-btn').click()
+    details = page.locator('[data-usage-provider="gemini-web"]')
+    expect(details).to_contain_text('chat-one')
+    expect(details).to_contain_text('gemini-flash')
+    expect(details).to_contain_text('OK/Err: 4/0')
+    expect(details).to_contain_text('cookies_expired')
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    page.close()

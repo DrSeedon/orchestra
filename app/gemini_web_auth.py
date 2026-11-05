@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import importlib.util
 import json
 import os
@@ -10,9 +11,12 @@ import re
 import stat
 import sys
 
-from app.antigravity_auth import atomic_private_write
+from app.antigravity_auth import atomic_private_write, private_directory
 
-COOKIE_NAMES = ("__Secure-1PSID", "__Secure-1PSIDTS")
+COOKIE_NAMES = ("__Secure-1PSID", "__Secure-1PSIDTS", "SID", "HSID", "SSID",
+                "APISID", "SAPISID", "__Secure-1PAPISID", "__Secure-3PAPISID",
+                "__Secure-3PSID", "__Secure-3PSIDTS", "SIDCC", "__Secure-1PSIDCC",
+                "__Secure-3PSIDCC", "LSID", "__Host-1PLSID", "__Host-3PLSID")
 MODELS = {
     "gemini-argon": "4 Argon", "gemini-pro": "3.1 Pro",
     "gemini-flash": "3.8 Flash", "gemini-flash-lite": "3.5 Flash-Lite",
@@ -52,10 +56,11 @@ def validate_auth(payload: object) -> dict:
         return {"accounts": clean}
     cookies = payload.get("cookies")
     email = payload.get("expected_email")
-    if (not isinstance(cookies, dict) or set(cookies) != set(COOKIE_NAMES)
+    if (not isinstance(cookies, dict) or not set(cookies) <= set(COOKIE_NAMES)
+            or not cookies.get("__Secure-1PSID")
             or any(not isinstance(cookies[name], str) or not cookies[name].strip()
-                   for name in COOKIE_NAMES)):
-        raise ValueError("Gemini Web requires both authentication cookies")
+                   for name in cookies)):
+        raise ValueError("Gemini Web requires valid Google session cookies")
     if not isinstance(email, str) or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[A-Za-z]{2,}", email):
         raise ValueError("Gemini Web requires an expected account email")
     clean = {"cookies": dict(cookies), "expected_email": email.lower()}
@@ -69,7 +74,14 @@ def validate_auth(payload: object) -> dict:
 
 def write_auth(payload: object, path: Path | None = None) -> None:
     clean = validate_auth(payload)
-    atomic_private_write(path or auth_path(), json.dumps(clean).encode())
+    path = path or auth_path()
+    private_directory(path.parent)
+    fd = os.open(path.parent, os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        atomic_private_write(path, json.dumps(clean).encode())
+    finally:
+        os.close(fd)
 
 
 def read_auth(path: Path | None = None) -> dict:
@@ -91,6 +103,39 @@ def read_auth(path: Path | None = None) -> dict:
 def read_accounts(path: Path | None = None) -> list[dict]:
     payload = read_auth(path)
     return payload["accounts"] if "accounts" in payload else [payload]
+
+
+def persist_cookies(previous: dict, updated: dict, path: Path | None = None) -> bool:
+    """CAS update all slots sharing this Google login; never overwrite a newer import.
+
+    Lock the private directory inode so atomic auth.json replacement cannot release
+    the lock, and no lock/cache file containing credentials is needed.
+    """
+    if not updated:
+        return False
+    validate_auth({**previous, "cookies": {**previous["cookies"], **updated}})
+    path = path or auth_path()
+    fd = os.open(path.parent, os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        payload = read_auth(path)
+        accounts = payload.get("accounts", [payload])
+        changed = False
+        for account in accounts:
+            if account["cookies"] == previous["cookies"]:
+                account["cookies"].update(updated)
+                changed = True
+        if changed:
+            atomic_private_write(path, json.dumps(payload).encode())
+        return changed
+    finally:
+        os.close(fd)
+
+
+def account_label(account: dict, *, short: bool = False) -> str:
+    local, domain = account["expected_email"].rsplit("@", 1)
+    masked = local[:3] + "…" + (local[-3:] if len(local) > 3 else "")
+    return f"u/{account.get('authuser_index', 0)} {masked}" if short else masked + "@" + domain
 
 
 def helper_python() -> str | None:
@@ -139,7 +184,7 @@ def redact_secrets(text: str, auth_or_cookies: dict | list | None = None) -> str
         if value:
             text = text.replace(value, "[REDACTED]")
     return re.sub(
-        r'(__Secure-1PSID(?:TS)?[\s\"\x27]*[:=][\s\"\x27]*)[^\s\"\x27;,}]+',
+        r'((?:' + '|'.join(map(re.escape, COOKIE_NAMES)) + r')[\s\"\x27]*[:=][\s\"\x27]*)[^\s\"\x27;,}]+',
         r'\1[REDACTED]', text,
     )
 

@@ -1561,7 +1561,8 @@ async def get_usage():
     if not is_owner_mode():
         return None
     data = await _get_usage_data()
-    return {**data, "quota_headroom": (
+    from app.harness.gemini_web import pool_usage
+    return {**data, "gemini_web": pool_usage(manager.sessions.values()), "quota_headroom": (
         None if "claude" in data.get("disabled_providers", [])
         else _quota_headroom(data.get("anthropic"))
     )}

@@ -3479,6 +3479,13 @@ function createAgentItem(s) {
     const pill = _cachePill(s);
     if (pill) meta.appendChild(pill);
     meta.appendChild(modelBadge(s.model || ''));
+    if (s.provider === 'gemini-web' && s.provider_account) {
+        const account = document.createElement('span');
+        account.className = 'gemini-web-account-pill';
+        account.textContent = s.provider_account;
+        account.title = T('Gemini Web account');
+        meta.appendChild(account);
+    }
     if (isHubModel(s.model)) meta.appendChild(hubBadge());
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');

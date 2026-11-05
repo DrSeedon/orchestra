@@ -104,6 +104,13 @@ function windowLabel(windowMinutes) {
 }
 
 const _PROVIDER_META = {
+    antigravity: {
+        title: 'Antigravity', usageTitle: 'Antigravity',
+        runtime: 'Gemini · workers', provider: 'google-antigravity', capacityKey: null,
+        windowAccent: 'var(--provider-google-antigravity)',
+        historyProviders: ['antigravity_gemini', 'antigravity_3p'],
+        windows: () => [],
+    },
     claude: {
         title: 'Claude Max', usageTitle: '☕ Claude Max', runtime: 'Opus · orchestrators',
         provider: 'anthropic', capacityKey: 'anthropic',

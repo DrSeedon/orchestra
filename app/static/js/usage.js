@@ -301,6 +301,28 @@ function _isProviderDisabled(p) {
         && _usageData.disabled_providers.includes(p);
 }
 
+function _geminiWebStatus(account) {
+    return {ok: T('OK'), ready: T('Ready'), error: T('Error')}[account.status] || T('Ready');
+}
+
+function _geminiWebDot(account) {
+    const color = {ok: 'var(--ok)', ready: 'var(--ink-dim)', error: 'var(--danger)'}[account.status] || 'var(--ink-dim)';
+    return `<span style="color:${color}" title="${escHtml(_geminiWebStatus(account))}">●</span>`;
+}
+
+function _geminiWebDetails(pool) {
+    if (!pool) return '';
+    return '<section data-usage-provider="gemini-web" style="min-width:0">'
+        + '<div style="color:var(--provider-gemini-web);font-weight:700">Gemini Web '
+        + `${Number(pool.usable) || 0}/${Number(pool.total) || 0}</div>`
+        + (pool.accounts || []).map(a => '<div class="usage-gemini-detail">'
+            + `<b>#${Number(a.slot)} ${escHtml(a.label)}</b> ${_geminiWebDot(a)} ${escHtml(_geminiWebStatus(a))}`
+            + `<div>${T('Bound sessions')}: ${escHtml((a.sessions || []).join(', ') || '—')}</div>`
+            + `<div>${T('Last model')}: ${escHtml(a.last_model || '—')}</div>`
+            + `<div>OK/Err: ${Number(a.requests_ok) || 0}/${Number(a.requests_failed) || 0}</div>`
+            + (a.last_error ? `<div>${escHtml(a.last_error)}</div>` : '') + '</div>').join('') + '</section>';
+}
+
 function renderUsageBar() {
     const profBtn = document.getElementById('profiles-btn');
     if (profBtn) profBtn.style.display = _isProviderDisabled('claude') ? 'none' : '';
@@ -448,6 +470,16 @@ function renderUsageBar() {
             + `<span class="usage-provider-values">${parts.join('')}</span></span>`);
     }
 
+    const gw = _usageData.gemini_web;
+    if (gw && !_isProviderDisabled('gemini-web')) {
+        groups.push('<span class="usage-provider-group" data-usage-compact-provider="gemini-web">'
+            + '<span class="usage-provider-title" style="color:var(--provider-gemini-web)">Gemini Web</span>'
+            + `<span class="usage-provider-values">${Number(gw.usable) || 0}/${Number(gw.total) || 0} `
+            + (gw.accounts || []).map(a => `<span class="usage-gemini-account" title="${escHtml(_geminiWebStatus(a))}">`
+                + `#${Number(a.slot)} ${escHtml((a.label || '').split('@')[0])} ${_geminiWebDot(a)}`
+                + ` <span title="${T('Bound sessions')}">(${(a.sessions || []).length})</span></span>`).join(' ') + '</span></span>');
+    }
+
     _renderUsageBarShell(bar, groups);
 
     const infoBtn = document.getElementById('usage-info-btn');
@@ -583,7 +615,7 @@ function renderUsageBar() {
                 h += claudeHtml
                     + (_isProviderDisabled('codex') ? '' : codexHtml)
                     + (_isProviderDisabled('grok') ? '' : grokHtml)
-                    + antigravityHtml + orHtml + (_isProviderDisabled('hub') ? '' : hubHtml) + '</div>';
+                    + antigravityHtml + orHtml + (_isProviderDisabled('gemini-web') ? '' : _geminiWebDetails(_usageData.gemini_web)) + (_isProviderDisabled('hub') ? '' : hubHtml) + '</div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row(T('💰 Cost'), `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toLocaleString(orchLocale(), {minimumFractionDigits: 0, maximumFractionDigits: 0})}`, '#22c55e');
