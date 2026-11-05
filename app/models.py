@@ -15,6 +15,8 @@ from pathlib import Path
 
 import httpx
 
+from app.gemini_web_auth import MODELS as _GEMINI_WEB_MODELS
+
 logger = logging.getLogger(__name__)
 
 _proxy_connected: bool = False
@@ -205,6 +207,14 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     # dead (#V-581), and our record still claimed tools and a 256k window.
 )
 
+# Owner-authorized web subscription routes, independent of the enterprise proxy.
+SELECTABLE_MODEL_SPECS += tuple(
+    ModelSpec(id=f"gemini-web/{raw}", name=f"Gemini Web: {display}",
+              runtime="harness", provider="gemini-web", context_length=0,
+              price_input=0.0, price_output=0.0, supported_parameters=("tools",))
+    for raw, display in _GEMINI_WEB_MODELS.items()
+)
+
 # Derived views. They stay plain dicts with the same contract because callers
 # import them by name and fetch_models_from_proxy() mutates them in place;
 # _rebuild_derived_views() below is the only writer at import time.
@@ -290,6 +300,14 @@ _GIGACHAT_ALIASES = {
     "gigachat-3-ultra": "GigaChat-3-Ultra",
 }
 ALIASES.update(_GIGACHAT_ALIASES)
+_GEMINI_WEB_ALIASES = {
+    "gweb-argon": "gemini-web/gemini-argon",
+    "gemini-web-argon": "gemini-web/gemini-argon",
+    "gweb-pro": "gemini-web/gemini-pro",
+    "gweb-flash": "gemini-web/gemini-flash",
+    "gweb-flash-lite": "gemini-web/gemini-flash-lite",
+}
+ALIASES.update(_GEMINI_WEB_ALIASES)
 
 BACKENDS: dict[str, str] = {}
 
@@ -338,7 +356,7 @@ PROVIDER_METADATA: dict[str, ProviderMetadata] = {
         ui_provider="openrouter",
         cache_ttl_seconds=0,
         cache_ttl_approximate=True,
-        model_providers=("openrouter", "gigachat"),
+        model_providers=("openrouter", "gigachat", "gemini-web"),
     ),
     "hub": ProviderMetadata(
         id="hub",
@@ -602,6 +620,14 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
     """
     if spec.runtime != "harness":
         raise ValueError(f"model '{spec.id}' is not a harness model")
+    if spec.provider == "gemini-web":
+        from app.gemini_web_auth import gemini_web_readiness
+        if spec.id not in {f"gemini-web/{raw}" for raw in _GEMINI_WEB_MODELS}:
+            raise ValueError("Unsupported Gemini Web model")
+        readiness = gemini_web_readiness()
+        if not readiness["ready"]:
+            raise ValueError(readiness["reason"])
+        return
     if spec.provider == "gigachat":
         if spec.id not in {"GigaChat-2", "GigaChat-2-Pro", "GigaChat-2-Max", "GigaChat-3-Lightning", "GigaChat-3-Pro", "GigaChat-3-Ultra"}:
             raise ValueError(f"unsupported GigaChat model '{spec.id}'")
@@ -982,8 +1008,10 @@ def validate_model_registry() -> None:
                 f"{model_id}: provider '{spec.provider}' is not registered for "
                 f"runtime '{spec.runtime}'"
             )
-        if spec.context_length < 0 or (spec.context_length == 0 and spec.runtime != "hub"):
-            errors.append(f"{model_id}: context_length must be positive (zero means unknown on Hub)")
+        unknown_context_allowed = (spec.runtime == "hub" or
+                                   (spec.runtime == "harness" and spec.provider == "gemini-web"))
+        if spec.context_length < 0 or (spec.context_length == 0 and not unknown_context_allowed):
+            errors.append(f"{model_id}: context_length must be positive (zero means unknown on Hub/Gemini Web)")
 
     for model_id, spec in MODEL_SPECS.items():
         if MODELS.get(model_id) != spec.name:
@@ -1036,10 +1064,11 @@ def _clear_selectable_models() -> None:
     # Direct providers are independent of the enterprise proxy catalog. Keep the
     # Russian GigaChat routes available when proxy-backed models are reloaded.
     for spec in SELECTABLE_MODEL_SPECS:
-        if spec.provider == "gigachat":
+        if spec.provider in {"gigachat", "gemini-web"}:
             MODEL_SPECS[spec.id] = spec
             _apply_derived_views(spec)
     ALIASES.update(_GIGACHAT_ALIASES)
+    ALIASES.update(_GEMINI_WEB_ALIASES)
 
 
 def _proxy_model_spec(raw: dict) -> ModelSpec | None:

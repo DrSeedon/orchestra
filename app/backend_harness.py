@@ -27,6 +27,7 @@ from app.runtime_history import PrefixCacheTracker
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 from app.harness import prompts, tools as builtin
 from app.harness.llm import GigaChatClient, OpenRouterClient
+from app.harness.gemini_web import GeminiWebClient
 from app.tool_scoping import parse_disabled_tools, role_tool_names
 from app.harness.loop import AgentLoop, ReviewCtx
 from app.harness.mcp import MCPClient
@@ -125,7 +126,7 @@ class HarnessBackend:
         self._effort = effort
         self._resume_session_id = resume_session_id
 
-        self._llm: Optional[OpenRouterClient] = None
+        self._llm: OpenRouterClient | GigaChatClient | GeminiWebClient | None = None
         self._mcp: Optional[MCPClient] = None
         self._store: Optional[SessionStore] = None
         self._history: list[dict] = []
@@ -224,11 +225,16 @@ class HarnessBackend:
         spec = get_model_spec(model)
         validate_harness_model_spec(spec)
         if self._llm is not None:
+            if ((spec.provider == "gemini-web") != isinstance(self._llm, GeminiWebClient)):
+                raise RuntimeError("cannot retarget an active harness session across Gemini Web providers")
             if spec.provider == "gigachat" and not isinstance(self._llm, GigaChatClient):
                 raise RuntimeError("cannot retarget an active OpenRouter session to GigaChat")
             if spec.provider != "gigachat" and isinstance(self._llm, GigaChatClient):
                 raise RuntimeError("cannot retarget an active GigaChat session to OpenRouter")
-            self._llm.retarget(model, spec.supported_parameters, spec.input_modalities)
+            if isinstance(self._llm, GigaChatClient):
+                self._llm.retarget(model, spec.supported_parameters)
+            else:
+                self._llm.retarget(model, spec.supported_parameters, spec.input_modalities)
         self.model = model
 
     # ── lifecycle ──
@@ -240,6 +246,8 @@ class HarnessBackend:
         validate_harness_model_spec(spec)
         if spec.provider == "gigachat":
             self._llm = GigaChatClient(model=self.model)
+        elif spec.provider == "gemini-web":
+            self._llm = GeminiWebClient(model=self.model)
         else:
             api_key = (os.environ.get("OPENROUTER_API_KEY")
                        or os.environ.get("OPENROUTER_KEY", ""))
@@ -431,7 +439,7 @@ class HarnessBackend:
     def _max_context(self) -> int:
         from app.models import CONTEXT_LIMITS
 
-        return CONTEXT_LIMITS.get(self.model, DEFAULT_CONTEXT)
+        return CONTEXT_LIMITS.get(self.model) or DEFAULT_CONTEXT
 
     def _turn_end(self, loop: AgentLoop, ok: bool, stop_reason: str,
                   detail: str = "") -> AgentEvent:

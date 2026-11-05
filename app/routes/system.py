@@ -585,6 +585,12 @@ async def get_models_catalog():
     catalog = []
     for model_id, spec in MODEL_SPECS.items():
         entry = cached.get(model_id, {})
+        if spec.provider == "gemini-web":
+            from app.gemini_web_auth import gemini_web_readiness
+            readiness = gemini_web_readiness()
+            entry = {"supports_tools": True, "harness_eligible": readiness["ready"],
+                     "available": readiness["ready"], "is_free": False,
+                     "input_modalities": ["text"], "output_modalities": ["text"]}
         catalog.append({
             "id": model_id,
             "name": spec.name,

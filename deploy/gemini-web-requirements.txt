@@ -1,0 +1,2 @@
+# Isolated helper only; do not modify the read-only service runtime.
+gemini-webapi==2.1.1
