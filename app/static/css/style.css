@@ -347,15 +347,16 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
     animation: ring-drain 2.5s linear forwards;
 }
 .usage-limits {
-    display: grid;
+    display: flex;
+    flex-wrap: wrap;
     min-width: 0;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     flex: 1 1 auto;
     gap: 2px 16px;
     justify-content: flex-start;
 }
 .usage-provider-group {
     display: flex;
+    flex: 1 1 460px;
     align-items: center;
     gap: 6px 10px;
     max-width: 100%;
@@ -375,8 +376,7 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
     align-items: center;
     gap: 10px 10px;
     min-width: 0;
-    flex-wrap: nowrap;
-    overflow: hidden;
+    flex-wrap: wrap;
 }
 .usage-provider-values > span {
     white-space: nowrap;
@@ -1141,7 +1141,7 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 @media (max-width: 620px) {
   #usage-bar { position: relative; }
   .usage-limits { display: flex; flex-direction: column; padding-right: 22px; gap: 2px; }
-  .usage-provider-group { flex-wrap: wrap; gap: 4px 10px; }
+  .usage-provider-group { flex: 0 1 auto; flex-wrap: wrap; gap: 4px 10px; }
   .usage-actions { position: absolute; top: 4px; right: 12px; }
   .usage-actions #usage-freshness { display: none; }
   #analytics-modal { padding: 10px; }

@@ -1,5 +1,14 @@
 /* usage.js — usage bar rendering, sparklines, countdown. Loaded before app.js. */
 
+if (typeof window !== 'undefined' && typeof window.T !== 'function') {
+    window.T = (key, values = {}) => Object.entries(values || {}).reduce(
+        (text, [name, value]) => text.replaceAll(`{${name}}`, value), String(key),
+    );
+}
+if (typeof window !== 'undefined' && typeof window.api !== 'function') {
+    window.api = async () => ({});
+}
+
 let _usageData = null;
 let _quotaMapData = null;
 let _usageError = false;
@@ -7,6 +16,21 @@ let _usageCountdownInterval = null;
 
 function _usageNoDataLabel() {
     return Connection.ownsErrors() ? '—' : T('no data');
+}
+
+function _antigravityUsageBuckets() {
+    const quota = _usageData?.antigravity || {};
+    return [['gemini-weekly', 'Gemini'], ['3p-weekly', 'Claude/GPT']].map(([id, label]) => {
+        const raw = quota[id];
+        const remaining = raw?.remaining_fraction;
+        const valid = typeof remaining === 'number' && Number.isFinite(remaining)
+            && remaining >= 0 && remaining <= 1;
+        return {id, label, window: valid ? {
+            utilization: (1 - remaining) * 100,
+            window_minutes: 10080,
+            resets_at: raw.reset_time,
+        } : null};
+    });
 }
 let _usageFetchPromise = null;
 let _usageLastSuccessAt = 0;
@@ -411,6 +435,19 @@ function renderUsageBar() {
         }
     }
 
+    if (!_isProviderDisabled('antigravity')) {
+        const parts = _antigravityUsageBuckets().map(({id, label, window}) => {
+            const value = window
+                ? _miniBar(window.utilization, _usageColor(window.utilization, null))
+                    + (window.resets_at ? ` <span data-reset-countdown="${escHtml(window.resets_at)}">${_resetCountdown(window.resets_at)}</span>` : '')
+                : T('нет данных');
+            return `<span data-antigravity-bucket="${id}">${label}: ${value}</span>`;
+        });
+        groups.push('<span class="usage-provider-group" data-usage-compact-provider="antigravity">'
+            + '<span class="usage-provider-title">Antigravity</span>'
+            + `<span class="usage-provider-values">${parts.join('')}</span></span>`);
+    }
+
     _renderUsageBarShell(bar, groups);
 
     const infoBtn = document.getElementById('usage-info-btn');
@@ -498,6 +535,23 @@ function renderUsageBar() {
                 }
                 grokHtml += '</section>';
 
+                let antigravityHtml = '';
+                if (!_isProviderDisabled('antigravity')) {
+                    antigravityHtml = '<section data-usage-provider="antigravity" style="min-width:0">'
+                        + '<div style="font-weight:700;margin-bottom:7px">Antigravity</div>';
+                    for (const {id, label, window} of _antigravityUsageBuckets()) {
+                        antigravityHtml += `<div data-antigravity-bucket="${id}">`;
+                        if (window) {
+                            antigravityHtml += _windowBlock(window, label, 'var(--accent)');
+                            if (window.resets_at) antigravityHtml += `<span data-reset-countdown="${escHtml(window.resets_at)}">${_resetCountdown(window.resets_at)}</span>`;
+                        } else {
+                            antigravityHtml += `<div>${label}: ${T('Данные лимита недоступны')}</div>`;
+                        }
+                        antigravityHtml += '</div>';
+                    }
+                    antigravityHtml += '<div data-usage-history="antigravity_gemini,antigravity_3p"></div></section>';
+                }
+
                 const orMeta = _usageData?.openrouter || null;
                 let orHtml = '';
                 if (orMeta && !_isProviderDisabled('harness')) {
@@ -529,7 +583,7 @@ function renderUsageBar() {
                 h += claudeHtml
                     + (_isProviderDisabled('codex') ? '' : codexHtml)
                     + (_isProviderDisabled('grok') ? '' : grokHtml)
-                    + orHtml + (_isProviderDisabled('hub') ? '' : hubHtml) + '</div>';
+                    + antigravityHtml + orHtml + (_isProviderDisabled('hub') ? '' : hubHtml) + '</div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row(T('💰 Cost'), `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toLocaleString(orchLocale(), {minimumFractionDigits: 0, maximumFractionDigits: 0})}`, '#22c55e');

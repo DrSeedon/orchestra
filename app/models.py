@@ -208,12 +208,33 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
 # Derived views. They stay plain dicts with the same contract because callers
 # import them by name and fetch_models_from_proxy() mutates them in place;
 # _rebuild_derived_views() below is the only writer at import time.
+ANTIGRAVITY_RAW_MODELS = (
+    "gemini-3.6-flash-high", "gemini-3.6-flash-medium", "gemini-3.6-flash-low",
+    "gemini-3.5-flash-high", "gemini-3.5-flash-medium", "gemini-3.5-flash-low",
+    "gemini-3.1-pro-high", "gemini-3.1-pro-low", "claude-sonnet-4-6",
+    "claude-opus-4-6-thinking", "gpt-oss-120b-medium",
+    "gemini-4-argon-high", "gemini-4-argon-medium", "gemini-4-argon-low",
+    "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
+)
+SELECTABLE_MODEL_SPECS += tuple(
+    ModelSpec(id=f"antigravity/{raw}", name=f"Antigravity {raw}",
+              runtime="antigravity", provider="google-antigravity", context_length=128_000,
+              default_dashboard=False, default_agents=False)
+    for raw in ANTIGRAVITY_RAW_MODELS
+)
+
 MODELS: dict[str, str] = {}
 CONTEXT_LIMITS: dict[str, int] = {}
 
 # Short aliases let agents use "opus", "sonnet" etc. in spawn_worker without
 # knowing the exact versioned model ID — reduces prompt brittleness on model upgrades
 ALIASES = {
+    "agy-flash": "antigravity/gemini-3.6-flash-low",
+    "agy-pro": "antigravity/gemini-3.1-pro-low",
+    "agy-sonnet": "antigravity/claude-sonnet-4-6",
+    "agy-opus": "antigravity/claude-opus-4-6-thinking",
+    "agy-gptoss": "antigravity/gpt-oss-120b-medium",
+    "agy-argon": "antigravity/gemini-4-argon-high",
     "fable": "claude-fable-5-1[1m]",
     "fable5": "claude-fable-5-1[1m]",
     "fable5.1": "claude-fable-5-1[1m]",
@@ -278,6 +299,11 @@ MODEL_PROVIDERS: dict[str, str] = {}
 # explicit `unknown` bucket is intentionally conservative: absence of evidence
 # about a cache window must never acquire Claude's exact one-hour policy.
 PROVIDER_METADATA: dict[str, ProviderMetadata] = {
+    "antigravity": ProviderMetadata(
+        id="antigravity", title="Antigravity", ui_provider="google-antigravity",
+        cache_ttl_seconds=0, cache_ttl_approximate=True,
+        model_providers=("google-antigravity",),
+    ),
     "claude": ProviderMetadata(
         id="claude",
         title="Claude Max",
@@ -647,6 +673,9 @@ def normalize_provider_key(value: str | None) -> str | None:
         "claude": "claude", "anthropic": "claude", "anthropic_fable": "claude",
         "codex": "codex", "openai": "codex", "codex_spark": "codex",
         "grok": "grok", "xai": "grok",
+        "antigravity": "antigravity", "agy": "antigravity",
+        "google-antigravity": "antigravity",
+        "antigravity_gemini": "antigravity", "antigravity_3p": "antigravity",
         "harness": "harness", "openrouter": "harness", "hub": "hub",
     }.get(value.strip().lower())
 

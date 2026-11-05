@@ -46,7 +46,7 @@ home = Path(os.environ["HOME"])
 state = home / ".gemini/antigravity-cli"
 state.mkdir(parents=True, exist_ok=True)
 token_path = state / "antigravity-oauth-token"
-if mode != "missing-token":
+if mode != "missing-token" and (not args or not token_path.exists()):
     token_path.write_text(os.environ.get("FAKE_AGY_TOKEN", "new-token-not-real"))
     token_path.chmod(0o600)
 

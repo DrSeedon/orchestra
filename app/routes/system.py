@@ -686,6 +686,7 @@ _USAGE_CACHE_FILE = Path(__file__).parent.parent.parent / "data" / "usage_cache.
 _usage_cache: dict = {"data": None, "ts": 0.0, "error": None}
 _codex_usage_cache: dict = {"data": None, "ts": 0.0}
 _grok_usage_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
+_antigravity_usage_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
 
 # #368: сверка вчерашнего дня OpenRouter с /activity. Успех живёт час, провал —
 # 10 минут (паттерн #197: без кеша провала каждая отрисовка полосы ходила бы в
@@ -701,6 +702,7 @@ _USAGE_CACHE_TTL = 300
 # каждом `/api/usage`. Минута закрывает опрос дашборда (раз в 2 мин) с запасом.
 _USAGE_FAILURE_TTL = 60
 _quota_refresh_locks = {
+    "antigravity": asyncio.Lock(),
     "anthropic": asyncio.Lock(),
     "codex": asyncio.Lock(),
     "grok": asyncio.Lock(),
@@ -940,6 +942,7 @@ def _provider_usage_snapshot(
     anthropic: dict | None,
     codex: dict | None,
     grok: dict | None = None,
+    antigravity: dict | None = None,
 ) -> dict:
     """Normalize provider-specific limits into one history/chart contract."""
     providers = {}
@@ -1044,6 +1047,19 @@ def _provider_usage_snapshot(
             }
             if provider_id == "codex" and (usage or {}).get("raw_payload") is not None:
                 providers[provider_id]["raw_payload"] = (usage or {}).get("raw_payload")
+    for key, provider_id, label in (
+        ("gemini-weekly", "antigravity_gemini", "Antigravity Gemini"),
+        ("3p-weekly", "antigravity_3p", "Antigravity Claude/GPT"),
+    ):
+        bucket = (antigravity or {}).get(key)
+        fraction = bucket.get("remaining_fraction") if isinstance(bucket, dict) else None
+        if (not isinstance(fraction, (int, float)) or isinstance(fraction, bool)
+                or not math.isfinite(fraction) or not 0 <= fraction <= 1):
+            continue
+        providers[provider_id] = {"label": label, "windows": [{
+            "id": key, "label": "7d", "utilization": (1 - fraction) * 100,
+            "window_minutes": 10080, "resets_at": bucket.get("reset_time"),
+        }]}
     return providers
 
 
@@ -1295,6 +1311,34 @@ def _get_openrouter_usage() -> dict:
     }
 
 
+async def _fetch_antigravity_usage() -> dict:
+    from app.backend_antigravity import fetch_antigravity_usage
+    return await fetch_antigravity_usage()
+
+
+async def _refresh_antigravity_usage(*, force_refresh=False, max_age=_USAGE_CACHE_TTL) -> None:
+    if is_provider_disabled("antigravity"):
+        return
+    async with _quota_refresh_locks["antigravity"]:
+        now = time.time()
+        if (_antigravity_usage_cache.get("data") is not None
+                and now - _antigravity_usage_cache["ts"] < max_age):
+            return
+        if (not force_refresh and _antigravity_usage_cache.get("failed_at", 0)
+                and now - _antigravity_usage_cache["failed_at"] < _USAGE_FAILURE_TTL):
+            return
+        try:
+            previous_ts = _antigravity_usage_cache["ts"]
+            quota = await _fetch_antigravity_usage()
+            # A concurrent readiness probe may already have published this observation.
+            if _antigravity_usage_cache["ts"] == previous_ts:
+                _antigravity_usage_cache.update(data=quota, ts=time.time())
+            _antigravity_usage_cache["failed_at"] = 0.0
+        except Exception:
+            _antigravity_usage_cache["failed_at"] = now
+            logger.warning("Antigravity quota refresh unavailable; keeping previous observation")
+
+
 async def _get_usage_data(
     *,
     force_refresh: bool = False,
@@ -1304,7 +1348,7 @@ async def _get_usage_data(
     claude_disabled = is_provider_disabled("claude")
     codex_disabled = is_provider_disabled("codex")
     grok_disabled = is_provider_disabled("grok")
-    if not is_provider_disabled("harness"):
+    if not required_provider and not is_provider_disabled("harness"):
         await _maybe_refresh_openrouter_reconciliation()
 
     anthropic_data = None
@@ -1433,17 +1477,22 @@ async def _get_usage_data(
         anthropic_data = _latest_claude_data(anthropic_data)
     if anthropic_data is not None:
         _usage_cache["data"] = anthropic_data
+    if not required_provider or required_provider.startswith("antigravity"):
+        await _refresh_antigravity_usage(force_refresh=force_refresh)
+    agy = None if is_provider_disabled("antigravity") else _antigravity_usage_cache.get("data")
     return {
+        "antigravity": {key: (agy or {}).get(key) for key in ("gemini-weekly", "3p-weekly")},
         "anthropic": anthropic_data,
         "anthropic_error": None if claude_disabled else _usage_cache.get("error"),
         "codex": codex_data,
         "codex_error": None,
         "grok": grok_data,
-        "openrouter": None if is_provider_disabled("harness") else _get_openrouter_usage(),
+        "openrouter": None if required_provider or is_provider_disabled("harness") else _get_openrouter_usage(),
         "disabled_providers": list_disabled_providers(),
         "quota_headroom": None if claude_disabled else _quota_headroom(anthropic_data),
-        "orchestra": _get_agents_cost(),
-        "voice_cost_usd": round(_get_voice_cost_usd(), 4),
+        # A provider-scoped quota observation has no dependency on the accounting DB.
+        "orchestra": None if required_provider else _get_agents_cost(),
+        "voice_cost_usd": None if required_provider else round(_get_voice_cost_usd(), 4),
         # Единственное РЕАЛЬНОЕ число в этой панели (остальные — API-эквивалент).
         # Свободная строка, потому что тариф не выражается одним числом: "$200+$20/мес".
         # Не задано → фронт строку не рисует, чтобы не показывать устаревшую цену.
@@ -1554,6 +1603,7 @@ async def current_provider_usage(
         usage.get("anthropic"),
         usage.get("codex"),
         usage.get("grok"),
+        usage.get("antigravity"),
     )
 
 
@@ -1563,6 +1613,8 @@ def _quota_observation_from_cache() -> dict:
         "anthropic_fable": _usage_cache.get("ts"),
         "codex": _codex_usage_cache.get("ts"),
         "codex_spark": _codex_usage_cache.get("ts"),
+        "antigravity_gemini": _antigravity_usage_cache.get("ts"),
+        "antigravity_3p": _antigravity_usage_cache.get("ts"),
     }
     grok_ts = _grok_usage_cache.get("ts")
     if (
@@ -1576,6 +1628,7 @@ def _quota_observation_from_cache() -> dict:
             _usage_cache.get("data"),
             _codex_usage_cache.get("data"),
             _grok_usage_cache.get("data"),
+            None if is_provider_disabled("antigravity") else _antigravity_usage_cache.get("data"),
         ),
         "observed_at_by_provider": observed_at_by_provider,
     }
@@ -1591,10 +1644,22 @@ async def current_quota_observation(
     """Return quota telemetry, refreshing only the requested provider family."""
     # Своего источника у `codex_spark` и `anthropic_fable` нет: оба живут в снимке семьи,
     # и по собственному имени `_get_usage_data` пропустил бы обновление вовсе.
-    family = {"codex_spark": "codex", "anthropic_fable": "anthropic"}.get(
+    family = {"codex_spark": "codex", "anthropic_fable": "anthropic",
+              "antigravity_gemini": "antigravity", "antigravity_3p": "antigravity"}.get(
         required_provider, required_provider,
     )
     if family not in _quota_refresh_locks:
+        return _quota_observation_from_cache()
+
+    if family == "antigravity":
+        checked_at = time.time() if now is None else float(now)
+        if (_antigravity_usage_cache.get("data") is None
+                or checked_at - _antigravity_usage_cache["ts"] >= max_age):
+            try:
+                async with asyncio.timeout(timeout):
+                    await _refresh_antigravity_usage(force_refresh=True, max_age=max_age)
+            except TimeoutError:
+                logger.warning("Antigravity quota observation timed out")
         return _quota_observation_from_cache()
 
     cache = _usage_cache if family == "anthropic" else _codex_usage_cache
@@ -1689,7 +1754,16 @@ async def _collect_usage_snapshot() -> None:
     # В историю идут ТОЛЬКО свежие ответы. Подстановка кеша (как было раньше)
     # штампует последнее известное значение новым временем — рисует ровную
     # линию там, где провайдер на самом деле молчал.
-    providers = _provider_usage_snapshot(anthropic_data, codex_data, grok_data)
+    # Share the readiness/dashboard observation instead of spawning a second agy probe.
+    # History must not stamp a reused observation with a new measurement time.
+    observation_started = time.time()
+    await _refresh_antigravity_usage()
+    agy_cache = _antigravity_usage_cache
+    agy_data = (
+        agy_cache.get("data") if not is_provider_disabled("antigravity")
+        and agy_cache.get("ts", 0) >= observation_started else None
+    )
+    providers = _provider_usage_snapshot(anthropic_data, codex_data, grok_data, agy_data)
     # Спросили, но не ответил → явная метка. Без неё «молчит» неотличимо от
     # «не настроен»: в обоих случаях ключа провайдера просто нет.
     for provider_id, label, asked, answered, error in (

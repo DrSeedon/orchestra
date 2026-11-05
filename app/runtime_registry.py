@@ -11,7 +11,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Awaitable, Callable, Literal
 
 from app.backend_protocol import BackendLike
 
@@ -78,10 +78,25 @@ class BackendBuildContext:
 
 
 @dataclass(frozen=True)
+class RuntimeReadinessContext:
+    model: str
+    profile: str = ""
+
+
+@dataclass(frozen=True)
+class RuntimeReadinessResult:
+    credentials_ready: bool
+    catalog_ready: bool
+    reason: str = ""
+
+
+@dataclass(frozen=True)
 class RuntimeDefinition:
     id: str
     capabilities: RuntimeCapabilities
     factory: Callable[[BackendBuildContext], BackendLike]
+    readiness: Callable[[RuntimeReadinessContext], Awaitable[RuntimeReadinessResult]] | None = None
+    catalog_mode: str = "static"
 
 
 _RUNTIMES: dict[str, RuntimeDefinition] = {}
@@ -349,7 +364,29 @@ def _hub_factory(context: BackendBuildContext) -> BackendLike:
     )
 
 
-BUILTIN_RUNTIMES = ("claude", "codex", "grok", "harness", "hub")
+def _antigravity_factory(context: BackendBuildContext) -> BackendLike:
+    from app.backend_antigravity import AntigravityBackend
+    return AntigravityBackend(context)
+
+
+async def _antigravity_readiness(context: RuntimeReadinessContext) -> RuntimeReadinessResult:
+    from app.backend_antigravity import antigravity_readiness
+    return await antigravity_readiness(context)
+
+
+BUILTIN_RUNTIMES = ("claude", "codex", "grok", "harness", "hub", "antigravity")
+
+register_runtime(RuntimeDefinition(
+    id="antigravity",
+    capabilities=RuntimeCapabilities(
+        event_stream="per_turn", mid_turn_inject=False, reconnect=False,
+        hibernate=False, process_liveness=True, resume_across_models=False,
+        subagents=False,
+    ),
+    factory=_antigravity_factory,
+    readiness=_antigravity_readiness,
+    catalog_mode="live",
+))
 
 register_runtime(RuntimeDefinition(
     id="claude",

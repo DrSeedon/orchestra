@@ -798,6 +798,7 @@ class QuotaDecision:
     # остальных потребителей (ошибки 429, MCP, логи).
     reason_key: str = "unknown"
     reason_params: Mapping[str, str] | None = None
+    alternatives: tuple[dict, ...] = ()
 
     @property
     def allowed(self) -> bool:
@@ -827,6 +828,7 @@ class QuotaDecision:
             "release_status": self.release_status,
             "release_in_seconds": self.release_in_seconds,
             "override_seconds_left": self.override_seconds_left,
+            "alternatives": list(self.alternatives),
         }
 
 
@@ -882,6 +884,11 @@ def _model_target(model: str) -> tuple[str, str | None, str]:
         return resolved, "anthropic", runtime
     if runtime == "codex":
         return resolved, "codex_spark" if resolved == SPARK_MODEL else "codex", runtime
+    if runtime == "antigravity":
+        if resolved.startswith("antigravity/gemini-"):
+            return resolved, "antigravity_gemini", runtime
+        if resolved.startswith(("antigravity/claude-", "antigravity/gpt-oss-")):
+            return resolved, "antigravity_3p", runtime
     raise ValueError(f"runtime '{runtime}' has no worker quota policy")
 
 
@@ -1038,6 +1045,7 @@ def evaluate_worker_admission(
     *,
     now: float | None = None,
     policy: QuotaPolicy | None = None,
+    _include_alternatives: bool = True,
 ) -> QuotaDecision:
     checked_at = time.time() if now is None else float(now)
     policy = policy or quota_policy()
@@ -1092,7 +1100,7 @@ def evaluate_worker_admission(
 
     lane = lane_for_model(resolved, bucket)
     gated = lane_gated(lane)
-    hard_stop = lane_hard_stop(lane)
+    hard_stop = 95.0 if runtime == "antigravity" else lane_hard_stop(lane)
     provider = providers.get(bucket)
     label = provider.get("label") if isinstance(provider, Mapping) else None
     label = str(label or bucket)
@@ -1228,6 +1236,16 @@ def evaluate_worker_admission(
         reason_key = "pool_exhausted"
         reason_params = {"reset_at": reset_at_str}
 
+    alternatives = ()
+    if runtime == "antigravity" and state == "blocked":
+        other = ("antigravity/claude-sonnet-4-6" if bucket == "antigravity_gemini"
+                 else "antigravity/gemini-3.6-flash-low")
+        alternative = evaluate_worker_admission(
+            other, providers, observed_at_by_provider, now=checked_at, policy=policy,
+            _include_alternatives=False,
+        ) if _include_alternatives else None
+        if alternative is not None and alternative.state == "available":
+            alternatives = ({"provider": alternative.provider, "model": other},)
     return QuotaDecision(
         state=state, model=resolved, provider=bucket, provider_label=label,
         lane=lane, gated=gated, utilization=utilization, progress=progress,
@@ -1238,6 +1256,7 @@ def evaluate_worker_admission(
         hard_limit_pct=hard_stop,
         override_seconds_left=override_left,
         reason_key=reason_key, reason_params=reason_params,
+        alternatives=alternatives,
     )
 
 
