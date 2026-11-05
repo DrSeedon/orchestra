@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from itertools import count
 import os
 from pathlib import Path
 import subprocess
@@ -23,6 +24,16 @@ TOOLS = [{"type": "function", "function": {
 AUTH = {"cookies": {"__Secure-1PSID": "fake-psid-for-unit-test",
                     "__Secure-1PSIDTS": "fake-psidts-for-unit-test"},
         "expected_email": "owner@example.com"}
+POOL = {"accounts": [
+    {"cookies": {name: f"fake-account-{index}-{name}" for name in auth.COOKIE_NAMES},
+     "expected_email": f"owner{index}@example.com", "authuser_index": index}
+    for index in range(3)
+]}
+
+
+@pytest.fixture(autouse=True)
+def reset_session_counter(monkeypatch):
+    monkeypatch.setattr(web.GeminiWebClient, "_session_counter", count())
 
 
 @pytest.fixture
@@ -74,6 +85,36 @@ def test_auth_is_atomic_private_and_readiness_is_local(private_auth, monkeypatch
     assert list(private_auth.parent.iterdir()) == [private_auth]
     monkeypatch.setenv("GEMINI_WEB_PYTHON", "/missing-python")
     assert not auth.gemini_web_readiness()["ready"]
+
+
+def test_three_account_pool_round_trip_and_single_compatibility(private_auth):
+    assert auth.read_accounts() == [AUTH]
+    auth.write_auth(POOL)
+    assert auth.read_auth() == POOL
+    assert auth.read_accounts(private_auth) == POOL["accounts"]
+    assert private_auth.stat().st_mode & 0o777 == 0o600
+    assert private_auth.parent.stat().st_mode & 0o777 == 0o700
+    assert auth.gemini_web_readiness()["ready"]
+    assert list(private_auth.parent.iterdir()) == [private_auth]
+
+
+@pytest.mark.parametrize("payload", [
+    {"accounts": []}, {"accounts": {}}, {"accounts": [AUTH, {}]},
+    {"accounts": [AUTH, {**AUTH, "expected_email": "OWNER@EXAMPLE.COM"}]},
+    {"accounts": [AUTH, {"accounts": [AUTH]}]},
+    {"accounts": [AUTH], **AUTH}, {"accounts": [None]},
+])
+def test_invalid_pool_does_not_replace_private_auth(private_auth, payload):
+    before = private_auth.read_bytes()
+    with pytest.raises(ValueError):
+        auth.write_auth(payload)
+    assert private_auth.read_bytes() == before
+
+
+@pytest.mark.parametrize("index", [-1, "0", True, None])
+def test_invalid_account_index_is_rejected(index):
+    with pytest.raises(ValueError, match="index"):
+        auth.validate_auth({**AUTH, "authuser_index": index})
 
 
 @pytest.mark.parametrize("mode", [0o644, 0o666, 0o400])
@@ -149,6 +190,14 @@ def test_secrets_redacted_including_cache_filename():
     assert "unseen-rotated-cookie" not in clean
 
 
+@pytest.mark.parametrize("payload", [POOL, POOL["accounts"], AUTH, AUTH["cookies"]])
+def test_redacts_all_pool_credentials(payload):
+    accounts = POOL["accounts"] if payload in (POOL, POOL["accounts"]) else [AUTH]
+    secrets = [value for account in accounts for value in account["cookies"].values()]
+    clean = auth.redact_secrets(" ".join(secrets), payload)
+    assert all(value not in clean for value in secrets)
+
+
 def test_actual_audit_hook_prevents_cache_open(tmp_path):
     script = (
         "import sys; from app.harness.gemini_web_worker import prevent_cookie_files; "
@@ -195,6 +244,37 @@ def test_cookie_patches_pin_account_and_reject_missing_or_wrong_principal(vendor
     assert identity["owner_match"] is True
 
 
+@pytest.mark.parametrize("path", ["/app", "/_/BardChatUi/data/batchexecute",
+                                  "/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate"])
+def test_account_url_pins_init_and_all_gemini_rpcs(path):
+    url = "https://gemini.google.com" + path + "?x=1"
+    assert worker.account_url(url, 2) == "https://gemini.google.com/u/2" + path + "?x=1"
+    assert worker.account_url("https://gemini.google.com/u/0" + path, 2) == (
+        "https://gemini.google.com/u/2" + path)
+    assert worker.account_url(url, None) == url
+    assert worker.account_url("https://accounts.google.com/RotateCookies", 2) == (
+        "https://accounts.google.com/RotateCookies")
+
+
+@pytest.mark.asyncio
+async def test_numeric_account_session_routes_requests_and_checks_allowed_pool(vendor):
+    request = AsyncMock()
+    session = SimpleNamespace(request=request)
+    vendor.access.AsyncSession = lambda **kw: (setattr(session, "params", kw["params"]) or session)
+    identity = {}
+    worker.disable_cookie_files(identity, AUTH["expected_email"], 2, ["other@example.com"])
+    live = vendor.access.AsyncSession()
+    await live.request("POST", "https://gemini.google.com/_/BardChatUi/data/batchexecute", data="x")
+    request.assert_awaited_once_with(method="POST",
+                                    url="https://gemini.google.com/u/2/_/BardChatUi/data/batchexecute",
+                                    data="x")
+    assert session.params == {"authuser": 2}
+    vendor.access._extract_payload(SimpleNamespace(text='{"oPEP7c":"other@example.com"}'))
+    assert identity == {"owner_match": True, "account_email": "other@example.com"}
+    with pytest.raises(RuntimeError, match="identity mismatch"):
+        vendor.access._extract_payload(SimpleNamespace(text='{"oPEP7c":"stranger@example.com"}'))
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("principal,model_available", [
     ("owner@example.com", True), ("someone@example.com", True), ("owner@example.com", False),
@@ -233,6 +313,104 @@ async def test_stream_and_abort(private_auth, monkeypatch):
     assert request.await_count == 1
     client.retarget("gemini-web/gemini-pro")
     assert client.model == "gemini-web/gemini-pro"
+
+
+@pytest.mark.asyncio
+async def test_new_sessions_round_robin_and_stay_sticky_after_retarget(private_auth, monkeypatch):
+    auth.write_auth(POOL)
+    clients = [web.GeminiWebClient("gemini-web/gemini-argon") for _ in range(6)]
+    for index, client in enumerate(clients):
+        request = AsyncMock(return_value={"text": "OK"})
+        monkeypatch.setattr(client, "_request", request)
+        for _ in range(3):
+            assert [e.kind async for e in client.stream([], [])] == ["text_delta", "final"]
+            client.retarget("gemini-web/gemini-pro")
+        assert [call.args[1] for call in request.await_args_list] == [POOL["accounts"][index % 3]] * 3
+    auth.write_auth(AUTH)
+    assert [e.kind async for e in client.stream([], [])] == ["text_delta", "final"]
+    assert request.await_args.args[1] == AUTH
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [RuntimeError("rate limited"), OSError("transport"),
+                                      RuntimeError("authorization failed")])
+async def test_pool_failover_wraps_around(private_auth, monkeypatch, failure):
+    auth.write_auth(POOL)
+    client = web.GeminiWebClient("gemini-web/gemini-argon")
+    client._next_account_idx = 2
+    client._account_email = POOL["accounts"][2]["expected_email"]
+    request = AsyncMock(side_effect=[failure, failure, {"text": "OK"}, {"text": "again"}])
+    monkeypatch.setattr(client, "_request", request)
+    events = [e async for e in client.stream([], [])]
+    assert [e.kind for e in events] == ["text_delta", "final"]
+    assert [call.args[1] for call in request.await_args_list] == [
+        POOL["accounts"][i] for i in (2, 0, 1)]
+    _ = [e async for e in client.stream([], [])]
+    assert request.await_args.args[1] == POOL["accounts"][1]
+
+
+@pytest.mark.asyncio
+async def test_allowed_redirect_updates_sticky_identity(private_auth, monkeypatch):
+    auth.write_auth(POOL)
+    client = web.GeminiWebClient("gemini-web/gemini-argon")
+    request = AsyncMock(return_value={"text": "OK", "account_email": POOL["accounts"][2]["expected_email"]})
+    monkeypatch.setattr(client, "_request", request)
+    _ = [e async for e in client.stream([], [])]
+    _ = [e async for e in client.stream([], [])]
+    assert request.await_args.args[1] == POOL["accounts"][2]
+    assert request.await_args.kwargs["allowed_emails"] == [a["expected_email"] for a in POOL["accounts"]]
+
+
+@pytest.mark.asyncio
+async def test_pool_all_failures_are_bounded_and_private(private_auth, monkeypatch):
+    auth.write_auth(POOL)
+    client = web.GeminiWebClient("gemini-web/gemini-argon")
+    raw = json.dumps(POOL)
+    request = AsyncMock(side_effect=RuntimeError(raw))
+    monkeypatch.setattr(client, "_request", request)
+    with pytest.raises(RuntimeError, match="all 3 accounts") as error:
+        _ = [e async for e in client.stream([], [])]
+    assert request.await_count == 3
+    assert error.value.__suppress_context__
+    assert raw not in str(error.value)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [None, RuntimeError("failed"), asyncio.CancelledError()])
+async def test_pool_abort_and_cancellation_never_fail_over(private_auth, monkeypatch, failure):
+    auth.write_auth(POOL)
+    client = web.GeminiWebClient("gemini-web/gemini-argon")
+    aborted = False
+
+    async def request(*args, **kwargs):
+        nonlocal aborted
+        aborted = True
+        if failure is not None:
+            raise failure
+        return None
+
+    mock = AsyncMock(side_effect=request)
+    monkeypatch.setattr(client, "_request", mock)
+    if isinstance(failure, asyncio.CancelledError):
+        with pytest.raises(asyncio.CancelledError):
+            _ = [e async for e in client.stream([], [], abort=lambda: aborted)]
+    else:
+        assert [e async for e in client.stream([], [], abort=lambda: aborted)] == []
+    assert mock.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_stream_redacts_other_accounts_and_does_not_retry_invalid_tools(private_auth, monkeypatch):
+    auth.write_auth(POOL)
+    client = web.GeminiWebClient("gemini-web/gemini-argon")
+    request = AsyncMock(return_value={"text": POOL["accounts"][2]["cookies"]["__Secure-1PSID"]})
+    monkeypatch.setattr(client, "_request", request)
+    events = [e async for e in client.stream([], [])]
+    assert events[0].text == "[REDACTED]"
+    request.return_value = {"text": "```tool_call\n{}\n```"}
+    with pytest.raises(RuntimeError, match="invalid or unavailable"):
+        _ = [e async for e in client.stream([], TOOLS)]
+    assert request.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -342,6 +520,41 @@ async def test_helper_vendor_error_does_not_escape(private_auth, monkeypatch, ca
         await client._request("hello", AUTH)
     assert all(v not in str(error.value) + caplog.text for v in AUTH["cookies"].values())
     assert not client._processes
+
+
+@pytest.mark.asyncio
+async def test_helper_safe_diagnostics_preserve_cause(private_auth, monkeypatch, caplog):
+    real_create = asyncio.create_subprocess_exec
+
+    async def create(*args, **kwargs):
+        script = (
+            "import sys,json; p=json.load(sys.stdin); "
+            "print(json.dumps(dict(error_type='AuthError', error_code='identity_mismatch', "
+            "error=p['auth']['cookies']['__Secure-1PSID']))); sys.exit(1)"
+        )
+        return await real_create(sys.executable, "-c", script, **kwargs)
+
+    monkeypatch.setattr(web.asyncio, "create_subprocess_exec", create)
+    client = web.GeminiWebClient("gemini-web/gemini-argon")
+    with pytest.raises(RuntimeError, match="AuthError: identity_mismatch"):
+        await client._request("hello", AUTH)
+    assert "AuthError: identity_mismatch" in caplog.text
+    assert all(value not in caplog.text for value in AUTH["cookies"].values())
+
+
+def test_worker_safe_errors_never_include_vendor_messages():
+    secret = AUTH["cookies"]["__Secure-1PSID"]
+    assert secret not in json.dumps(worker.safe_error(RuntimeError(secret)))
+    assert worker.safe_error(RuntimeError("Gemini Web account identity mismatch"))["error_code"] == "identity_mismatch"
+
+
+@pytest.mark.parametrize("name", ["ModelInvalidError", "UsageLimitExceededError", "GeminiError"])
+def test_worker_preserves_real_vendor_exception_names(name):
+    error = type(name, (Exception,), {})(json.dumps(POOL))
+    result = worker.safe_error(error)
+    assert result["error_type"] == name
+    assert result["error_code"] == "request_failed"
+    assert "cookies" not in json.dumps(result)
 
 
 @pytest.mark.asyncio

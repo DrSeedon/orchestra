@@ -4,15 +4,19 @@ from __future__ import annotations
 
 import asyncio
 import json
+from itertools import count
+import logging
 from pathlib import Path
 import re
 from uuid import uuid4
 
-from app.gemini_web_auth import MODELS, helper_python, read_auth, redact_secrets
+from app.gemini_web_auth import MODELS, helper_python, read_accounts, redact_secrets
 from app.harness.llm import LLMEvent
+from app.harness.gemini_web_worker import SAFE_ERROR_CODES, SAFE_ERROR_TYPES
 
 _SLOT = asyncio.Lock()
 _CALL = re.compile(r"```tool_call\s*\n(.*?)```", re.DOTALL)
+logger = logging.getLogger(__name__)
 
 
 def format_prompt(messages: list[dict], tools: list[dict]) -> str:
@@ -62,9 +66,14 @@ def parse_response(text: str, tools: list[dict]) -> list[LLMEvent]:
 
 
 class GeminiWebClient:
+    _session_counter = count()
+
     def __init__(self, model: str):
         self.retarget(model)
         self._processes: set[asyncio.subprocess.Process] = set()
+        accounts = read_accounts()
+        self._next_account_idx = next(self._session_counter) % len(accounts)
+        self._account_email = accounts[self._next_account_idx]["expected_email"]
 
     def retarget(self, model: str, supported_parameters=(), input_modalities=()) -> None:
         raw = model.removeprefix("gemini-web/")
@@ -78,7 +87,8 @@ class GeminiWebClient:
                 process.kill()
             await process.wait()
 
-    async def _request(self, prompt: str, auth: dict, abort=None) -> dict | None:
+    async def _request(self, prompt: str, auth: dict, abort=None,
+                       allowed_emails: list[str] | None = None) -> dict | None:
         python = helper_python()
         if python is None:
             raise RuntimeError("Gemini Web helper Python unavailable")
@@ -89,7 +99,8 @@ class GeminiWebClient:
         )
         self._processes.add(process)
         data = json.dumps({"model": self.model.removeprefix("gemini-web/"),
-                           "prompt": prompt, "auth": auth}).encode()
+                           "prompt": prompt, "auth": auth,
+                           "allowed_emails": allowed_emails or [auth["expected_email"]]}).encode()
         task = asyncio.create_task(process.communicate(data))
         try:
             deadline = asyncio.get_running_loop().time() + 150
@@ -101,7 +112,18 @@ class GeminiWebClient:
                 await asyncio.wait({task}, timeout=0.2)
             stdout, _stderr = task.result()
             if process.returncode:
-                raise RuntimeError("Gemini Web helper failed; check private authorization and model availability")
+                kind, code = "UnknownError", "request_failed"
+                try:
+                    error = json.loads(stdout)
+                    if isinstance(error, dict):
+                        if error.get("error_type") in SAFE_ERROR_TYPES:
+                            kind = error["error_type"]
+                        if error.get("error_code") in SAFE_ERROR_CODES:
+                            code = error["error_code"]
+                except (ValueError, TypeError):
+                    pass
+                logger.warning("Gemini Web helper failed (%s: %s)", kind, code)
+                raise RuntimeError(f"Gemini Web helper failed ({kind}: {code})")
             try:
                 result = json.loads(stdout)
                 if (not isinstance(result, dict) or not isinstance(result.get("text"), str)
@@ -127,9 +149,39 @@ class GeminiWebClient:
         async with _SLOT:
             if abort and abort():
                 return
-            auth = read_auth()
-            result = await self._request(format_prompt(messages, tools), auth, abort)
+            accounts = read_accounts()
+            start = next((i for i, a in enumerate(accounts)
+                          if a["expected_email"] == self._account_email),
+                         self._next_account_idx % len(accounts))
+            prompt = format_prompt(messages, tools)
+            for offset in range(len(accounts)):
+                if abort and abort():
+                    return
+                account = accounts[(start + offset) % len(accounts)]
+                try:
+                    result = await self._request(prompt, account, abort,
+                                                 allowed_emails=[a["expected_email"] for a in accounts])
+                except (RuntimeError, OSError):
+                    # Vendor diagnostics may contain credentials. Never surface them,
+                    # and never retry a cancelled/aborted turn on another account.
+                    continue
+                if result is not None:
+                    actual_email = result.get("account_email", account["expected_email"])
+                    selected = next((i for i, a in enumerate(accounts)
+                                     if a["expected_email"] == actual_email), None)
+                    if selected is None:
+                        continue
+                    self._next_account_idx = selected
+                    self._account_email = actual_email
+                break
+            else:
+                if abort and abort():
+                    return
+                raise RuntimeError(
+                    f"Gemini Web request failed for all {len(accounts)} accounts"
+                ) from None
         if result is None or (abort and abort()):
             return
+        result["text"] = redact_secrets(result["text"], accounts)
         for event in parse_response(result["text"], tools):
             yield event

@@ -34,6 +34,22 @@ def auth_path() -> Path:
 def validate_auth(payload: object) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("Gemini Web authorization must be an object")
+    if "accounts" in payload:
+        accounts = payload["accounts"]
+        if (not isinstance(accounts, list) or not accounts
+                or "cookies" in payload or "expected_email" in payload):
+            raise ValueError("Gemini Web requires a nonempty account pool")
+        clean = []
+        seen = set()
+        for account in accounts:
+            if not isinstance(account, dict) or "accounts" in account:
+                raise ValueError("Gemini Web pool entries must be individual accounts")
+            account = validate_auth(account)
+            if account["expected_email"] in seen:
+                raise ValueError("Gemini Web pool requires unique account emails")
+            seen.add(account["expected_email"])
+            clean.append(account)
+        return {"accounts": clean}
     cookies = payload.get("cookies")
     email = payload.get("expected_email")
     if (not isinstance(cookies, dict) or set(cookies) != set(COOKIE_NAMES)
@@ -42,7 +58,13 @@ def validate_auth(payload: object) -> dict:
         raise ValueError("Gemini Web requires both authentication cookies")
     if not isinstance(email, str) or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[A-Za-z]{2,}", email):
         raise ValueError("Gemini Web requires an expected account email")
-    return {"cookies": dict(cookies), "expected_email": email.lower()}
+    clean = {"cookies": dict(cookies), "expected_email": email.lower()}
+    if "authuser_index" in payload:
+        index = payload["authuser_index"]
+        if type(index) is not int or index < 0:
+            raise ValueError("Gemini Web account index must be a nonnegative integer")
+        clean["authuser_index"] = index
+    return clean
 
 
 def write_auth(payload: object, path: Path | None = None) -> None:
@@ -64,6 +86,11 @@ def read_auth(path: Path | None = None) -> dict:
         return validate_auth(json.loads(path.read_bytes()))
     except (ValueError, TypeError):
         raise ValueError("Gemini Web authorization is invalid") from None
+
+
+def read_accounts(path: Path | None = None) -> list[dict]:
+    payload = read_auth(path)
+    return payload["accounts"] if "accounts" in payload else [payload]
 
 
 def helper_python() -> str | None:
@@ -92,8 +119,23 @@ def gemini_web_readiness() -> dict:
     return {"ready": True, "reason": "Local credentials and helper available; identity checked per request"}
 
 
-def redact_secrets(text: str, cookies: dict | None = None) -> str:
-    for value in sorted((cookies or {}).values(), key=len, reverse=True):
+def redact_secrets(text: str, auth_or_cookies: dict | list | None = None) -> str:
+    def values(payload):
+        if isinstance(payload, list):
+            for account in payload:
+                yield from values(account)
+        elif isinstance(payload, dict):
+            if "accounts" in payload:
+                yield from values(payload["accounts"])
+            elif "cookies" in payload:
+                yield from values(payload["cookies"])
+            else:
+                for name in COOKIE_NAMES:
+                    value = payload.get(name)
+                    if isinstance(value, str) and value:
+                        yield value
+
+    for value in sorted(set(values(auth_or_cookies)), key=len, reverse=True):
         if value:
             text = text.replace(value, "[REDACTED]")
     return re.sub(
