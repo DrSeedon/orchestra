@@ -15,7 +15,7 @@ def test_hub_alternative_hint_is_available_for_native_subscription_routes(model,
 
     hint = hub_alternative_hint(model)
 
-    assert hint
+    assert "hubargon' (medium effort)" in hint
 
 
 @pytest.mark.parametrize("model", [None, "claude-opus-5-5[1m]", "gpt-6.1-sol"])
@@ -37,6 +37,7 @@ def test_hub_alternative_hint_is_empty_for_other_runtimes_and_unknown_models(mod
     [
         ("sol", "gpt-6.1-sol"),
         ("luna", "gpt-6-luna"),
+        ("agy-argon", "antigravity/gemini-4-argon-medium"),
     ],
 )
 def test_resolve_model_aliases(alias: str, expected: str) -> None:

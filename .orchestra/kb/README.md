@@ -3,6 +3,7 @@
 Порядок чтения и записи для всех ролей: [knowledge](../pipelines/default/prompts/modules/knowledge.md).
 
 - [evidence-methods](evidence-methods.md) — MemoryHigh/reclaim, GIL-профиль, ложная CSS-абляция, плавающий baseline, бенчмарки: bwrap/AppArmor/userns и учёт при лимите
+- [hub-model-benchmarks](hub-model-benchmarks.md) — Hub model & effort 03–04.11.2026: полный model-bench и argon-trial-r2, Argon medium/high/low (качество, TTFT, квота), Sol high, Astra/Terra/Luna, Sonnet и отдельные пулы Antigravity, Flash/Grok, OpenCode Zen/Go и NDA/ZDR; источники и расхождения
 - [models-and-quotas](models-and-quotas.md) — КАК СЧИТАТЬ расход модели (cost_usd, кредиты, запрет делить общий котёл), cache_read/input/reasoning, Claude Max V-541, reset/ценность пула V-542, ошибки фаз, цена хода Astra/Sol/Luna и квантование quota_primary_pct; формула подписки: запись кеша 0.6 п.п./М, чтение ≈0 (V-660, внешний bulk-probe V-664); Sonnet 5.5 против Opus 5.5 и effort low…max (V-656/V-661)
 - [runtimes](runtimes.md) — Grok 1.0.3 doctor/trust/MCP, MultiCode hub: проект с нашей папкой, steer/interrupt/runId, форма t3_thread_read (V-1008), контроль Codex 0.153.4, bwrap RC=0, ARTEMIS/Android отклонён за отсутствием предмета; V-831: input_json_delta, пустой thinking, файл вывода local_bash; 02.11: Codex сжимаем между ходами на 85% его лимита, Stop не переигрывает ящик
 - [chat-and-telegram](chat-and-telegram.md) — page.route и кеш, scroll anchoring, конечный SSE, coalescing без dropped

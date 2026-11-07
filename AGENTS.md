@@ -1,5 +1,8 @@
 # Orchestra — repository guide
 
+> ⛔ **РЕЖИМ «КАК МЫШИ» (04.11.2026 — ЖЁСТКОЕ ПРАВИЛО МАКСИМА):**
+> Никаких косяков, перегрузок сервера, многопоточных скачиваний (Яндекс.Диск/облака/архивы > 50 МБ — строго ЗАПРЕЩЕНЫ без отдельного «да»), роёв тяжёлых воркеров и сжигания лимитов API! Работаем максимально тихо, аккуратно и по чуть-чуть (уточнение 05.11: лёгких агентов не ограничивать — этап Workflow из N частей идёт N агентами сразу; тяжёлое — по RAM и потокам нашего cgroup, а не по общему `loadavg`; headless Chrome — не больше 2 на всё наше; за собой убирать все процессы). Полный регламент — в глобальных правилах (`~/agent-rules/global.md`).
+
 Orchestra coordinates persistent AI agents through FastAPI, SSE, SQLite, provider CLIs
 and stdio MCP. Work on Orchestra itself follows this file. Agent behavior in projects
 belongs to `.orchestra/pipelines/default/prompts/`; keep each rule with its owning module.

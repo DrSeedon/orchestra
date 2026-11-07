@@ -7,6 +7,7 @@ import importlib
 from importlib.metadata import version
 import json
 import os
+from pathlib import Path
 import re
 import sys
 from urllib.parse import urlsplit, urlunsplit
@@ -25,6 +26,17 @@ SAFE_ERROR_CODES = {
     "library_version": "Gemini Web requires gemini-webapi==2.1.1",
     "request_failed": "Gemini Web request failed (authentication, model or transport)",
 }
+CANNED_REFUSAL_PREFIXES = (
+    "Sorry, something went wrong. Please try your request again.",
+    "I'm having a hard time fulfilling your request.",
+    "I seem to be encountering an error.",
+    "Я просто языковая модель.",
+    "Я всего лишь искусственный интеллект",
+)
+
+
+def is_canned_refusal(text: str) -> bool:
+    return text.strip().startswith(CANNED_REFUSAL_PREFIXES)
 
 
 def safe_error(error: Exception) -> dict:
@@ -68,6 +80,17 @@ def disable_cookie_files(identity: dict, expected_email: str,
         for name in ("save_cookies", "clear_cookies_cache", "_get_cookies_cache_path"):
             if hasattr(module, name):
                 setattr(module, name, no_op)
+        if hasattr(module, "_get_cookie_cache_dir"):
+            module._get_cookie_cache_dir = lambda *args, **kwargs: Path("/nonexistent")
+
+    async def no_read_chat(*args, **kwargs):
+        # 2.1.1 catches this after yielding streamed text, skipping its history poll.
+        raise TimeoutError()
+
+    vendor_client = getattr(client, "GeminiClient", None)
+    if hasattr(vendor_client, "read_chat"):
+        vendor_client.read_chat = no_read_chat
+
     async def rotate_in_memory(session, verbose=False):
         from gemini_webapi.constants import Endpoint, Headers
         response = await session.post(url=Endpoint.ROTATE_COOKIES,
@@ -158,17 +181,34 @@ async def generate(payload: dict, state: dict | None = None) -> dict:
             ), 45)
         if not identity.get("owner_match") or client.account_status.name != "AVAILABLE":
             raise RuntimeError("Gemini Web account authorization not confirmed")
-        model = next((m for m in (client.list_models() or [])
-                      if m.model_name == payload["model"] and m.is_available), None)
+        requested_name = payload["model"]
+        available = [m for m in (client.list_models() or []) if m.is_available]
+        model = next((m for m in available if m.model_name == requested_name), None)
         if model is None:
             raise RuntimeError("Gemini Web requested model unavailable")
-        output = await asyncio.wait_for(client.generate_content(
-            payload["prompt"], model=model, temporary=True,
-        ), 100)
-        if output.text.strip() == "Sorry, something went wrong. Please try your request again.":
-            raise RuntimeError(SAFE_ERROR_CODES["request_failed"])
+        candidates = [model]
+        if requested_name == "gemini-flash":
+            candidates += [m for fb in ("gemini-flash-lite", "gemini-pro")
+                           for m in available if m.model_name == fb]
+        for index, cand in enumerate(candidates):
+            if cand.model_name == "gemini-flash" and len(candidates) > 1:
+                timeout = 25
+            elif cand.model_name == "gemini-argon" and len(payload.get("prompt", "")) > 1000:
+                timeout = 180
+            else:
+                timeout = 100
+            try:
+                output = await asyncio.wait_for(client.generate_content(
+                    payload["prompt"], model=cand, temporary=True,
+                ), timeout)
+                if not output.text or not output.text.strip() or is_canned_refusal(output.text):
+                    raise RuntimeError(SAFE_ERROR_CODES["request_failed"])
+                break
+            except Exception:
+                if index == len(candidates) - 1:
+                    raise
         return {"text": output.text, "selected_model": model.model_name,
-                "selected_display_name": model.display_name, "owner_match": True,
+                "selected_display_name": cand.display_name, "owner_match": True,
                 "account_status": client.account_status.name,
                 "account_email": identity["account_email"],
                 "updated_cookies": cookie_updates(client, cookies)}

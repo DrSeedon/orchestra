@@ -159,16 +159,19 @@ def test_factory_keeps_effort_and_policy_context():
     assert (backend._pipeline, backend._role) == ("default", "worker")
 
 
-@pytest.mark.parametrize("role", ["orchestrator", "worker", "full-cycle", "reducer", "specialist"])
-@pytest.mark.parametrize("model", ["hub-gemini-4-argon", "hub-gpt-6-luna"])
-def test_argon_and_luna_resolve_high_effort(role, model):
-    assert resolve_effort(get_role("default", role).effort, model, "hub") == "high"
+@pytest.mark.parametrize("role", ["orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"])
+@pytest.mark.parametrize("model,expected", [
+    ("hub-gemini-4-argon", "medium"), ("hub-gpt-6-luna", "high"),
+])
+def test_argon_and_luna_resolve_default_effort(role, model, expected):
+    assert resolve_effort(get_role("default", role).effort, model, "hub") == expected
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("configure_fails", [False, True])
-async def test_retarget_argon_keeps_resolved_high_effort_for_next_turn(configure_fails):
-    backend, hub, state = setup("medium", pipeline="default", role="worker")
+@pytest.mark.parametrize("initial_effort", ["low", "high"])
+async def test_retarget_argon_keeps_resolved_medium_effort_for_next_turn(configure_fails, initial_effort):
+    backend, hub, state = setup(initial_effort, pipeline="default", role="worker")
     state.thread_id = "thread"
     hub.catalog["providers"].append({"providerInstanceId": "antigravity", "models": [{
         "id": "gemini-4-argon", "options": [{"id": "reasoningEffort", "type": "select",
@@ -185,14 +188,14 @@ async def test_retarget_argon_keeps_resolved_high_effort_for_next_turn(configure
         hub.tool_call = refuse_configure
         with pytest.raises(RuntimeError, match="synthetic configure failure"):
             await backend.retarget_model("hub-gemini-4-argon")
-        assert backend.model == "hub-gpt-6.1-sol" and backend._effort == "medium"
+        assert backend.model == "hub-gpt-6.1-sol" and backend._effort == initial_effort
         return
     await backend.retarget_model("hub-gemini-4-argon")
-    assert backend.model == "hub-gemini-4-argon" and backend._effort == "high"
+    assert backend.model == "hub-gemini-4-argon" and backend._effort == "medium"
     await backend._start(hub, state, "next turn")
     configs = [args for name, args in hub.calls if name == "t3_thread_configure"]
     assert len(configs) == 2
     assert all(args["modelSelection"] == {
         "instanceId": "antigravity", "model": "gemini-4-argon",
-        "options": {"reasoningEffort": "high"},
+        "options": {"reasoningEffort": "medium"},
     } for args in configs)

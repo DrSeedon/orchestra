@@ -21,6 +21,11 @@ MODELS = {
     "gemini-argon": "4 Argon", "gemini-pro": "3.1 Pro",
     "gemini-flash": "3.8 Flash", "gemini-flash-lite": "3.5 Flash-Lite",
 }
+# Disabled per owner request (theiskraschool commented out / excluded from active pool):
+# "theiskraschool@gmail.com"
+DISABLED_ACCOUNT_EMAILS = frozenset({
+    "theiskraschool@gmail.com",
+})
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -64,6 +69,10 @@ def validate_auth(payload: object) -> dict:
     if not isinstance(email, str) or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[A-Za-z]{2,}", email):
         raise ValueError("Gemini Web requires an expected account email")
     clean = {"cookies": dict(cookies), "expected_email": email.lower()}
+    if "disabled" in payload:
+        if type(payload["disabled"]) is not bool:
+            raise ValueError("Gemini Web account disabled flag must be a boolean")
+        clean["disabled"] = payload["disabled"]
     if "authuser_index" in payload:
         index = payload["authuser_index"]
         if type(index) is not int or index < 0:
@@ -102,7 +111,10 @@ def read_auth(path: Path | None = None) -> dict:
 
 def read_accounts(path: Path | None = None) -> list[dict]:
     payload = read_auth(path)
-    return payload["accounts"] if "accounts" in payload else [payload]
+    accounts = payload["accounts"] if "accounts" in payload else [payload]
+    return [account for account in accounts
+            if account.get("expected_email", "").lower() not in DISABLED_ACCOUNT_EMAILS
+            and account.get("disabled") is not True]
 
 
 def persist_cookies(previous: dict, updated: dict, path: Path | None = None) -> bool:
@@ -120,9 +132,14 @@ def persist_cookies(previous: dict, updated: dict, path: Path | None = None) -> 
         fcntl.flock(fd, fcntl.LOCK_EX)
         payload = read_auth(path)
         accounts = payload.get("accounts", [payload])
+        if not any(account["cookies"] == previous["cookies"] for account in accounts):
+            return False
         changed = False
         for account in accounts:
-            if account["cookies"] == previous["cookies"]:
+            if (account["cookies"] == previous["cookies"]
+                    or account["cookies"].get("__Secure-1PSID") == previous["cookies"].get("__Secure-1PSID")):
+                if all(account["cookies"].get(name) == value for name, value in updated.items()):
+                    continue
                 account["cookies"].update(updated)
                 changed = True
         if changed:

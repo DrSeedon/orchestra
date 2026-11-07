@@ -99,6 +99,23 @@ def test_three_account_pool_round_trip_and_single_compatibility(private_auth):
     assert list(private_auth.parent.iterdir()) == [private_auth]
 
 
+def test_disabled_accounts_are_excluded_from_active_pool(private_auth):
+    excluded = {**AUTH, "expected_email": "THEISKRASCHOOL@GMAIL.COM"}
+    disabled = {**POOL["accounts"][0], "disabled": True}
+    katya = {**POOL["accounts"][1], "expected_email": "katyas16k.ks@gmail.com", "disabled": False}
+    maxim = {**POOL["accounts"][2], "expected_email": "maxim2000as@gmail.com"}
+    auth.write_auth({"accounts": [AUTH, excluded, disabled, katya, maxim]})
+    assert "theiskraschool@gmail.com" in auth.DISABLED_ACCOUNT_EMAILS
+    assert auth.read_accounts(private_auth) == [AUTH, katya, maxim]
+    assert auth.read_auth()["accounts"][2]["disabled"] is True
+
+
+@pytest.mark.parametrize("disabled", [None, 0, 1, "true"])
+def test_disabled_flag_requires_boolean(disabled):
+    with pytest.raises(ValueError, match="disabled"):
+        auth.validate_auth({**AUTH, "disabled": disabled})
+
+
 @pytest.mark.parametrize("payload", [
     {"accounts": []}, {"accounts": {}}, {"accounts": [AUTH, {}]},
     {"accounts": [AUTH, {**AUTH, "expected_email": "OWNER@EXAMPLE.COM"}]},
@@ -152,6 +169,67 @@ def test_history_protocol_preserves_system_calls_and_tool_result():
     prompt = web.format_prompt(messages, TOOLS)
     assert json.dumps(messages, ensure_ascii=False) in prompt
     assert json.dumps(TOOLS, ensure_ascii=False) in prompt
+    assert prompt.endswith(
+        "CONVERSATION:\n" + json.dumps(messages, ensure_ascii=False)
+        + "\nAVAILABLE_TOOLS:\n" + json.dumps(TOOLS, ensure_ascii=False)
+        + "\nRespond only as the next assistant turn.")
+
+
+@pytest.mark.parametrize("prefix", worker.CANNED_REFUSAL_PREFIXES)
+def test_prompt_omits_only_assistant_canned_refusals_without_mutation(prefix):
+    refusal = " \n" + prefix + " Please try later.\n"
+    messages = [{"role": "system", "content": refusal},
+                {"role": "user", "content": refusal},
+                {"role": "assistant", "content": refusal},
+                {"role": "assistant", "content": "Useful previous answer"},
+                {"role": "assistant", "content": None, "tool_calls": []},
+                {"role": "tool", "content": refusal}]
+    before = json.dumps(messages, ensure_ascii=False)
+    prompt = web.format_prompt(messages, TOOLS)
+    assert json.dumps(messages[:2] + messages[3:], ensure_ascii=False) in prompt
+    assert json.dumps(messages, ensure_ascii=False) == before
+    assert worker.is_canned_refusal(refusal)
+    assert not worker.is_canned_refusal("Quoted response: " + prefix)
+
+
+def test_prompt_with_only_refusals_has_empty_history():
+    messages = [{"role": "assistant", "content": worker.CANNED_REFUSAL_PREFIXES[0]}]
+    assert "CONVERSATION:\n[]\n" in web.format_prompt(messages, [])
+
+
+@pytest.mark.parametrize("length", [12000, 12001, 37000])
+@pytest.mark.parametrize("role", ["system", "user", "tool", "assistant"])
+def test_prompt_compacts_large_content_without_mutation(length, role):
+    content = "start " + "x" * (length - 10) + " end"
+    messages = [{"role": role, "content": content, "name": "instructions"},
+                {"role": "user", "content": "Short request"}]
+    before = json.dumps(messages, ensure_ascii=False)
+    expected = json.loads(before)
+    if length > 12000:
+        expected[0]["content"] = content[:8000] + "\n...[truncated]...\n" + content[-3000:]
+    prompt = web.format_prompt(messages, TOOLS)
+    assert json.dumps(expected, ensure_ascii=False) in prompt
+    assert json.dumps(TOOLS, ensure_ascii=False) in prompt
+    assert json.dumps(messages, ensure_ascii=False) == before
+
+
+def test_prompt_keeps_only_latest_context_refresh_and_truncates_without_mutation():
+    prefix = "[Orchestra platform note: refreshed context"
+    latest = prefix + " latest]\n" + "я" * 37000 + "\nlatest end"
+    messages = [{"role": "system", "content": prefix + " old system]"},
+                {"role": "user", "content": prefix + " old user]"},
+                {"role": "assistant", "content": None, "tool_calls": []},
+                {"role": "tool", "content": prefix + " old tool]"},
+                {"role": "user", "content": latest, "name": "refresh"},
+                {"role": "user", "content": "Quoted: " + prefix},
+                {"role": "user", "content": "Current request"}]
+    before = json.dumps(messages, ensure_ascii=False)
+    expected = [messages[2],
+                {**messages[4], "content": latest[:8000] + "\n...[truncated]...\n" + latest[-3000:]},
+                *messages[5:]]
+    prompt = web.format_prompt(messages, TOOLS)
+    assert json.dumps(expected, ensure_ascii=False) in prompt
+    assert json.dumps(messages, ensure_ascii=False) == before
 
 
 def test_text_and_usage_follow_loop_contract():
@@ -215,10 +293,13 @@ def test_actual_audit_hook_prevents_cache_open(tmp_path):
 def vendor(monkeypatch):
     noop = lambda *args, **kwargs: None
     access = SimpleNamespace(_get_cookies_cache_path=lambda *_: "unsafe",
+                             _get_cookie_cache_dir=lambda: Path("/tmp/gemini_webapi"),
                              _extract_payload=lambda response: ("token",),
                              AsyncSession=lambda **kw: kw, load_browser_cookies=noop)
-    cache = SimpleNamespace(_get_cookies_cache_path=noop, save_cookies=noop, clear_cookies_cache=noop)
-    client_module = SimpleNamespace(save_cookies=noop, clear_cookies_cache=noop)
+    cache = SimpleNamespace(_get_cookies_cache_path=noop, save_cookies=noop, clear_cookies_cache=noop,
+                            _get_cookie_cache_dir=lambda: Path("/tmp/gemini_webapi"))
+    client_module = SimpleNamespace(save_cookies=noop, clear_cookies_cache=noop,
+                                    _get_cookie_cache_dir=lambda: Path("/tmp/gemini_webapi"))
     for name, module in {"gemini_webapi.utils.get_access_token": access,
                          "gemini_webapi.utils.rotate_1psidts": cache,
                          "gemini_webapi.client": client_module,
@@ -235,6 +316,8 @@ def test_cookie_patches_pin_account_and_reject_missing_or_wrong_principal(vendor
     assert vendor.access.AsyncSession(params={"x": 1}) == {
         "params": {"x": 1, "authuser": AUTH["expected_email"]}}
     assert vendor.access._get_cookies_cache_path({}) is None
+    for module in (vendor.cache, vendor.access, vendor.client):
+        assert module._get_cookie_cache_dir() == Path("/nonexistent")
     assert vendor.cache.save_cookies({}) is None
     assert vendor.client.save_cookies({}) is None
     assert vendor.access.load_browser_cookies() is None
@@ -302,6 +385,160 @@ async def test_worker_identity_and_exact_model_gate(vendor, monkeypatch, princip
         with pytest.raises(RuntimeError):
             await worker.generate(payload)
         client.generate_content.assert_not_awaited()
+    client.close.assert_awaited_once()
+
+
+@pytest.fixture
+def generation_client(vendor, monkeypatch):
+    models = [SimpleNamespace(model_name=name, display_name=display, is_available=True)
+              for name, display in auth.MODELS.items()]
+
+    async def initialize(**kwargs):
+        vendor.access._extract_payload(SimpleNamespace(text=json.dumps({"oPEP7c": AUTH["expected_email"]})))
+
+    client = SimpleNamespace(init=initialize, close=AsyncMock(),
+                             account_status=SimpleNamespace(name="AVAILABLE"),
+                             list_models=lambda: models,
+                             generate_content=AsyncMock(return_value=SimpleNamespace(text="OK")))
+    monkeypatch.setitem(sys.modules, "gemini_webapi", SimpleNamespace(GeminiClient=lambda *a: client))
+    return client
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("text", [None, "", " \n", *worker.CANNED_REFUSAL_PREFIXES])
+async def test_worker_rejects_empty_and_canned_responses(generation_client, text):
+    generation_client.generate_content.return_value = SimpleNamespace(text=text)
+    with pytest.raises(RuntimeError) as error:
+        await worker.generate({"auth": AUTH, "model": "gemini-pro", "prompt": "hi"})
+    assert worker.safe_error(error.value)["error_code"] == "request_failed"
+    generation_client.generate_content.assert_awaited_once()
+    generation_client.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [
+    SimpleNamespace(text="I'm having a hard time fulfilling your request. Please try again."),
+    TimeoutError(),
+])
+async def test_flash_falls_back_to_lite_and_keeps_requested_model(generation_client, monkeypatch, failure):
+    generation_client.generate_content.side_effect = [failure, SimpleNamespace(text="42")]
+    wait_for = asyncio.wait_for
+    timeouts = []
+
+    async def observed_wait_for(awaitable, timeout):
+        timeouts.append(timeout)
+        return await wait_for(awaitable, timeout)
+
+    monkeypatch.setattr(worker.asyncio, "wait_for", observed_wait_for)
+    result = await worker.generate({"auth": AUTH, "model": "gemini-flash", "prompt": "17+25"})
+    assert result["text"] == "42"
+    assert result["selected_model"] == "gemini-flash"
+    assert result["selected_display_name"] == auth.MODELS["gemini-flash-lite"]
+    assert [call.kwargs["model"].model_name for call in generation_client.generate_content.await_args_list] == [
+        "gemini-flash", "gemini-flash-lite"]
+    assert all(call.args == ("17+25",) and call.kwargs["temporary"] is True
+               for call in generation_client.generate_content.await_args_list)
+    assert timeouts == [45, 25, 100]
+    generation_client.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_flash_falls_back_in_order_and_stops_on_pro_success(generation_client):
+    generation_client.generate_content.side_effect = [
+        TimeoutError(), SimpleNamespace(text="Я просто языковая модель..."), SimpleNamespace(text="OK")]
+    result = await worker.generate({"auth": AUTH, "model": "gemini-flash", "prompt": "hi"})
+    assert result["selected_display_name"] == auth.MODELS["gemini-pro"]
+    assert [call.kwargs["model"].model_name for call in generation_client.generate_content.await_args_list] == [
+        "gemini-flash", "gemini-flash-lite", "gemini-pro"]
+
+
+@pytest.mark.asyncio
+async def test_successful_flash_does_not_try_fallbacks(generation_client):
+    result = await worker.generate({"auth": AUTH, "model": "gemini-flash", "prompt": "hi"})
+    assert result["selected_display_name"] == auth.MODELS["gemini-flash"]
+    generation_client.generate_content.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_flash_skips_unavailable_fallback(generation_client):
+    for model in generation_client.list_models():
+        if model.model_name == "gemini-flash-lite":
+            model.is_available = False
+    generation_client.generate_content.side_effect = [TimeoutError(), SimpleNamespace(text="OK")]
+    result = await worker.generate({"auth": AUTH, "model": "gemini-flash", "prompt": "hi"})
+    assert result["selected_display_name"] == auth.MODELS["gemini-pro"]
+
+
+@pytest.mark.asyncio
+async def test_flash_unavailable_does_not_fall_back(generation_client):
+    for model in generation_client.list_models():
+        if model.model_name == "gemini-flash":
+            model.is_available = False
+    with pytest.raises(RuntimeError, match="requested model unavailable"):
+        await worker.generate({"auth": AUTH, "model": "gemini-flash", "prompt": "hi"})
+    generation_client.generate_content.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_flash_exhausted_fallbacks_reraise_last_error(generation_client):
+    last_error = RuntimeError(worker.SAFE_ERROR_CODES["request_failed"])
+    generation_client.generate_content.side_effect = [TimeoutError(), TimeoutError(), last_error]
+    with pytest.raises(RuntimeError) as error:
+        await worker.generate({"auth": AUTH, "model": "gemini-flash", "prompt": "hi"})
+    assert error.value is last_error
+    assert generation_client.generate_content.await_count == 3
+    generation_client.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_flash_cancellation_does_not_fall_back(generation_client):
+    generation_client.generate_content.side_effect = asyncio.CancelledError()
+    with pytest.raises(asyncio.CancelledError):
+        await worker.generate({"auth": AUTH, "model": "gemini-flash", "prompt": "hi"})
+    generation_client.generate_content.assert_awaited_once()
+    generation_client.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_vendor_post_stream_read_chat_times_out_immediately(vendor, monkeypatch):
+    history_poll = AsyncMock(side_effect=AssertionError("history polling must be disabled"))
+    recovered = []
+
+    class Client:
+        __slots__ = ()
+        read_chat = history_poll
+        close = AsyncMock()
+        account_status = SimpleNamespace(name="AVAILABLE")
+
+        async def init(self, **kwargs):
+            vendor.access._extract_payload(SimpleNamespace(text=json.dumps({"oPEP7c": AUTH["expected_email"]})))
+
+        def list_models(self):
+            return [SimpleNamespace(model_name="gemini-pro", display_name="Pro", is_available=True)]
+
+        async def _generate(self):
+            yield SimpleNamespace(text="partial")
+            yield SimpleNamespace(text="complete")
+            # Mirror 2.1.1's post-stream recovery and its TimeoutError handler.
+            try:
+                await self.read_chat("cid")
+            except TimeoutError:
+                recovered.append(True)
+
+        async def generate_content(self, *args, **kwargs):
+            async for chunk in self._generate():
+                output = chunk
+            return output
+
+    vendor.client.GeminiClient = Client
+    client = Client()
+    monkeypatch.setitem(sys.modules, "gemini_webapi", SimpleNamespace(GeminiClient=lambda *a: client))
+    result = await asyncio.wait_for(worker.generate({"auth": AUTH, "model": "gemini-pro", "prompt": "hi"}), 1)
+    assert result["text"] == "complete"
+    assert recovered == [True]
+    with pytest.raises(TimeoutError):
+        await client.read_chat("cid")
+    history_poll.assert_not_awaited()
     client.close.assert_awaited_once()
 
 
@@ -589,6 +826,27 @@ def test_cookie_rotation_cas_updates_shared_slots_only(private_auth):
     assert list(private_auth.parent.iterdir()) == [private_auth]
 
 
+def test_cookie_rotation_updates_drifted_shared_slot_after_cas(private_auth):
+    drifted = {**AUTH, "expected_email": "other@example.com",
+               "cookies": {**AUTH["cookies"], "__Secure-1PSIDTS": "drifted-ts", "SIDCC": "drifted-sidcc"}}
+    auth.write_auth({"accounts": [AUTH, drifted, POOL["accounts"][0]]})
+    updated = {"__Secure-1PSIDTS": "fresh-ts", "SIDCC": "fresh-sidcc"}
+    assert auth.persist_cookies(AUTH, updated)
+    accounts = auth.read_accounts()
+    assert [account["cookies"] for account in accounts[:2]] == [{**AUTH["cookies"], **updated}] * 2
+    assert accounts[2] == POOL["accounts"][0]
+    before = private_auth.read_bytes()
+    assert not auth.persist_cookies(AUTH, {"__Secure-1PSIDTS": "stale"})
+    assert private_auth.read_bytes() == before
+
+
+def test_cookie_rotation_noop_does_not_write(private_auth, monkeypatch):
+    write = AsyncMock()
+    monkeypatch.setattr(auth, "atomic_private_write", write)
+    assert not auth.persist_cookies(AUTH, AUTH["cookies"])
+    write.assert_not_called()
+
+
 @pytest.mark.asyncio
 async def test_expired_cookies_refresh_once_and_keep_sticky_account(private_auth, monkeypatch):
     client = web.GeminiWebClient('gemini-web/gemini-flash')
@@ -726,3 +984,23 @@ async def test_usage_endpoint_exposes_only_safe_pool_metadata(private_auth, monk
     assert response['gemini_web']['accounts'][0]['status'] == 'ready'
     assert AUTH['expected_email'] not in json.dumps(response)
     assert not any(c in json.dumps(response) for c in AUTH['cookies'].values())
+
+
+def test_large_mcp_tool_catalog_is_compacted_in_format_prompt():
+    many_tools = [
+        {"type": "function", "function": {
+            "name": f"tool_{i}",
+            "description": f"Sentence one for tool {i}. " + ("Extra verbose docs. " * 40),
+            "parameters": {"type": "object", "properties": {
+                "path": {"title": "Path", "type": "string", "description": "Long field docs"},
+                "mode": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            }, "required": ["path"]},
+        }}
+        for i in range(12)
+    ]
+    messages = [{"role": "system", "content": "S" * 10000}, {"role": "user", "content": "hi"}]
+    prompt = web.format_prompt(messages, many_tools)
+    assert len(prompt) < 10000
+    assert '"name": "tool_0"' in prompt
+    assert '"path": "string"' in prompt
+    assert '"mode?": "string"' in prompt

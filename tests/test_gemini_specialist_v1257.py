@@ -93,7 +93,7 @@ def test_real_pipeline_assembles_terminal_argon_specialist():
     assert role.can_spawn == []
     assert set(role.skills) == set(cfg.defaults.skills)
     assert "hub_generate_image" in role.disabled_tools
-    assert pipeline.resolve_effort(role.effort, ARGON, "hub") == "high"
+    assert pipeline.resolve_effort(role.effort, ARGON, "hub") == "medium"
     assembled = ROLE_SYSTEM_PROMPT("default", "specialist")
     for rel in ("base.md", "roles/specialist.md", "modules/model-routing.md"):
         assert pipeline.prompt_path("default", rel).read_text().strip() in assembled
@@ -333,7 +333,7 @@ async def test_spawn_resolves_task_and_publishes_dedicated_role(admission, monke
         role="specialist", pipeline="default", task_id="V-1257", owned_dirs=["design"],
     )
     assert models.hub_worker_context(worker) == identity(str(tmp_path))
-    assert worker.model == ARGON and worker.effort == "high"
+    assert worker.model == ARGON and worker.effort == "medium"
     resolve.assert_called_once_with(str(tmp_path), "V-1257")
     assert publish.call_args.args[1] == task
     start.assert_awaited_once_with(persist=False)

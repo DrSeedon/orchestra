@@ -244,7 +244,7 @@ ALIASES = {
     "agy-sonnet": "antigravity/claude-sonnet-4-6",
     "agy-opus": "antigravity/claude-opus-4-6-thinking",
     "agy-gptoss": "antigravity/gpt-oss-120b-medium",
-    "agy-argon": "antigravity/gemini-4-argon-high",
+    "agy-argon": "antigravity/gemini-4-argon-medium",
     "fable": "claude-fable-5-1[1m]",
     "fable5": "claude-fable-5-1[1m]",
     "fable5.1": "claude-fable-5-1[1m]",
@@ -823,7 +823,7 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
         if runtime not in ("claude", "codex"):
             return ""
     return ("The MultiCode hub pool has its own quota: ordinary workers may use "
-            "model='hubsol', model='hubargon' (high effort), model='hubsonnet' or model='hubluna'. "
+            "model='hubsol', model='hubargon' (medium effort), model='hubsonnet' or model='hubluna'. "
             "Select the route explicitly; if unavailable, report the blocker or wait; "
             "no automatic model or API fallback.")
 

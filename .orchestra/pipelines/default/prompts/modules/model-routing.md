@@ -15,18 +15,47 @@ orchestrators use the same operating rules; do not change their model merely to 
 | native Astra | Hard coding, debugging, architecture or difficult reasoning | Native manual-only admission currently prevents automatic worker selection |
 | `hubsol` | General Hub implementation; deep read-only audits and synthesis when assigned that scope | Ordinary admitted Hub route; read-only assignments must remain read-only |
 | unregistered Hub Terra route | Deep read-only audit or synthesis when exposed and admitted | Not in the current registry; do not invent an alias or dispatch an unknown route |
-| `hubargon` | Independent second opinion, bounded audit, frontend/UI design or document comparison | Ordinary Hub workers and specialists; high effort, role and task boundaries still apply |
+| `hubargon` | Independent second opinion, bounded audit, frontend/UI design or document comparison | Ordinary Hub workers and specialists; medium effort, role and task boundaries still apply |
 | `hubsonnet` | Hub implementation, reading and analysis | Ordinary Hub workers; medium effort |
 | `hubluna` | Fast Hub implementation, focused checks and deterministic collection | Ordinary Hub workers; high effort |
 
 These are task-fit preferences, not new runtime permissions. The current guards in
 app/models.py admit ordinary Hub workers on `hubsol`,
-`hubargon` (high effort), `hubsonnet` and
+`hubargon` (medium effort), `hubsonnet` and
 `hubluna`. Native `luna` is only for explicitly local work with
 a non-empty model_reason naming the local-processing constraint. Company data and KB
 are authorized Hub inputs and do not by themselves require this native route. If broader routing is not activated,
 use an admitted route fitting the assignment or report the precise blocker. Never rename
 a role, change catalog flags or retry aliases to evade admission.
+
+### Hub model & effort benchmark guide (03–04.11.2026)
+
+Historical task-fit evidence, not admission policy: one run on four tasks; differences
+below about 5/40 are noise. See `.orchestra/kb/hub-model-benchmarks.md` for sources,
+full results and conflicting measurements. Keep current role defaults and explicit choices.
+
+- `hubargon`: default `medium`. ARC-AGI-1 98.5% equals high; ARC-AGI-2 is
+  87.1% versus 91.3% high and 42.1% low. The four-task Hub trial scored 34/40
+  at high (medium was not directly scored). Owner's 04.11 operational report:
+  ~4.3s TTFT versus ~41s high, 2.5–3x lower weekly quota burn and avoidance of
+  observed 60s response-header timeouts; high uses ~3 hidden thinking tokens per
+  visible token. Use `high` only for heavy math, physics or architecture. `low`
+  scored 5/10 on the 1430-line document audit and confuses open and closed issues.
+- `hubsol` / `sol`: `high` for implementation (34/40, 9.5 min, among the fewest
+  hallucinations). `low` reached 33/40 on reading/review, but the secondary
+  Terminal-Bench 4.0 effort table reports 30.8% low versus 51.5% high (not verified
+  on its cited page). `xhigh` took about 3x longer than low without a score gain;
+  the task brief also reports 28.6 min for 34/40, a variant absent from the source table.
+- `hubsonnet`: `medium` for reading, analysis and summaries (35/40 in the separate
+  Antigravity pool, 26–35/40 across harnesses); `high` for complex agentic coding.
+- `hubluna` / `luna`: fast mechanical collection, formatting and bounded checks.
+  Open-ended multi-task scores were 7–11/40; require strict format/test verification.
+  This recommendation does not change the manifest's high effort for admitted Luna workers.
+- native Terra: `high` for orchestrators by owner choice; `low` for simple scripts
+  and code (27/40, 1.5 min, fastest local run). Worker admission still applies.
+- native Astra: `medium` for judge/advisor (32/40, about 6 min); `high` for hard
+  science, math, economics and formulas. Historical research reports Terminal-Bench
+  Science #1 at 68.1% and FrontierSWE v2 #1 at 65.5%; these were not medium-effort Hub tests.
 
 ### Simple subtasks and tool profiles
 
