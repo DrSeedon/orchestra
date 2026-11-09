@@ -1,0 +1,93 @@
+{
+  "before": {
+    "orchestra_pid": 2099437,
+    "telegram_bot_api_pid": 769,
+    "cut_names": [],
+    "interrupted_names": []
+  },
+  "arithmetic": {
+    "accepted": true,
+    "status": "idle",
+    "error_count": 0,
+    "types": {
+      "user_message": 1,
+      "text": 1,
+      "status": 3
+    },
+    "answer_contains_expected": false,
+    "tool_executed": false,
+    "provider_account": "u/0 the…ool",
+    "after_id": 1236706,
+    "success": false,
+    "answer": "Я просто языковая модель. К сожалению, с такими вопросами я помочь не могу."
+  },
+  "usage": {
+    "available": true,
+    "total": 3,
+    "usable": 3,
+    "models": [
+      "gemini-argon",
+      "gemini-pro",
+      "gemini-flash",
+      "gemini-flash-lite"
+    ],
+    "accounts": [
+      {
+        "slot": 1,
+        "authuser_index": 0,
+        "label": "the…ool@gmail.com",
+        "badge_label": "u/0 the…ool",
+        "status": "ok",
+        "requests_ok": 1,
+        "requests_failed": 0,
+        "last_error": null,
+        "last_model": "gemini-web/gemini-flash",
+        "last_used_at": "2026-11-05T13:14:43.086710+00:00",
+        "sessions": [
+          "gemini-web-check-1793881789"
+        ]
+      },
+      {
+        "slot": 2,
+        "authuser_index": 1,
+        "label": "max…0as@gmail.com",
+        "badge_label": "u/1 max…0as",
+        "status": "ready",
+        "requests_ok": 0,
+        "requests_failed": 0,
+        "last_error": null,
+        "last_model": null,
+        "last_used_at": null,
+        "sessions": []
+      },
+      {
+        "slot": 3,
+        "authuser_index": 3,
+        "label": "kat….ks@gmail.com",
+        "badge_label": "u/3 kat….ks",
+        "status": "ready",
+        "requests_ok": 0,
+        "requests_failed": 0,
+        "last_error": null,
+        "last_model": null,
+        "last_used_at": null,
+        "sessions": []
+      }
+    ]
+  },
+  "session_accounts": [
+    {
+      "name": "gemini-web-check-1793881789",
+      "model": "gemini-web/gemini-flash",
+      "provider_account": "u/0 the…ool",
+      "status": "idle"
+    }
+  ],
+  "after": {
+    "orchestra_pid": 2099437,
+    "telegram_bot_api_pid": 769,
+    "cut_names": [],
+    "interrupted_names": []
+  },
+  "success": false
+}

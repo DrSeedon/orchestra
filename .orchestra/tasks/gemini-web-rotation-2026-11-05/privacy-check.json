@@ -1,0 +1,7 @@
+{
+  "credential_value_hits_in_evidence": [],
+  "vendor_cache_files": 0,
+  "auth_mode": "0o600",
+  "auth_directory_mode": "0o700",
+  "app_path": "/home/kesha/orchestra/app/__init__.py"
+}

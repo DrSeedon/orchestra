@@ -50,6 +50,10 @@ unresolved decision before stopping; continue independent safe work while it is 
 5. Set the outcome, acceptance evidence and boundaries using worker-lifecycle. Let the
    executor choose method and depth unless a required method protects a named contract
    or is itself being tested. Expected files guide investigation; explicit exclusions bind.
+   When a task authorizes fetching external pages, documents or live status, execute the
+   real fetch and inspect the actual payload; never build "unarmed" or "prepare-only"
+   dry-run controllers with zero live calls or run repetitive offline TSV-to-TSV
+   reconciliation loops in place of real work.
 6. Read the final report in full, inspect the actual diff and verify named evidence.
    Return concrete defects or questions. Do not restart unchanged work merely because
    another model could inspect it.
@@ -117,7 +121,10 @@ and check live status/task identity with `list_agents` when assigning or retaski
   or warm context. Wait for idle or use a separate admitted worker.
 
 Do not send acknowledgement-only messages, keepalives, future-task hints or ordered lists
-of unrelated tasks. A real answer or corrective instruction is useful; silence communicates
+of unrelated tasks. Write worker prompts and steering instructions in normal, properly
+spaced, concise prose (typically 10-25 lines); never glue words together without spaces
+("telegraph cipher") to cram excessive boilerplate into a prompt. A real answer or
+corrective instruction is useful; silence communicates
 that no new action is required. Workers can coordinate interfaces directly through
 `send_message`; do not relay messages when they can resolve the approved interface themselves.
 

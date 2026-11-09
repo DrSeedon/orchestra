@@ -531,7 +531,12 @@ class OpenRouterClient:
             # неудачи тоже). Сбой счётчика не роняет стрим — вызовы тотальны,
             # но страхуемся try/except: оплаченный результат дороже учёта.
             try:
-                attempt_row = _counter.record_attempt_start()
+                # Direct cloud/local clients share the SSE parser, but do not
+                # consume OpenRouter's request quota.
+                attempt_row = (
+                    _counter.record_attempt_start()
+                    if getattr(self, "counts_openrouter_attempts", True) else None
+                )
             except Exception as e:  # pragma: no cover — страховка от любого сбоя учёта
                 logger.warning(f"openrouter counter hook failed: {e}")
                 try:

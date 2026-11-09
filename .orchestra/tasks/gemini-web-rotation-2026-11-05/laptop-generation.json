@@ -1,0 +1,5 @@
+{
+  "error_type": "RuntimeError",
+  "error_code": "authorization_unconfirmed",
+  "error": "Gemini Web account authorization not confirmed"
+}

@@ -1,0 +1,24 @@
+{
+  "orchestra_pid": 2084568,
+  "telegram_bot_api_pid": 769,
+  "status_counts": {
+    "waiting": 3,
+    "idle": 81
+  },
+  "cut_names": [],
+  "interrupted_names": [],
+  "targets": [
+    {
+      "name": "seedon-orchestrator",
+      "scope": "/home/kesha/projects/seedon",
+      "model": "gpt-6.1-sol",
+      "status": "waiting"
+    },
+    {
+      "name": "gemini-web-check-1793881789",
+      "scope": "/home/kesha/orchestra",
+      "model": "gemini-web/gemini-flash",
+      "status": "idle"
+    }
+  ]
+}

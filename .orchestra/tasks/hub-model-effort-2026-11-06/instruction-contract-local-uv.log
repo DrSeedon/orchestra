@@ -1,0 +1,5 @@
+Instruction contract: Broken relative references:
+  .orchestra/kb/hub-model-benchmarks.md: `batch_index.py`
+  .orchestra/kb/hub-model-benchmarks.md: `poller.py`
+  .orchestra/kb/hub-model-benchmarks.md: `tools/tgbot/poller.py`
+  .orchestra/kb/hub-model-benchmarks.md: `write.md`

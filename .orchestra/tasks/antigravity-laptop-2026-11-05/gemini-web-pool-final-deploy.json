@@ -1,0 +1,64 @@
+{
+  "before": {
+    "orchestra_pid": 2084568,
+    "telegram_bot_api_pid": 769,
+    "status_counts": {
+      "waiting": 3,
+      "idle": 81
+    },
+    "cut_names": [],
+    "interrupted_names": [],
+    "targets": [
+      {
+        "name": "seedon-orchestrator",
+        "scope": "/home/kesha/projects/seedon",
+        "model": "gpt-6.1-sol",
+        "status": "waiting"
+      },
+      {
+        "name": "gemini-web-check-1793881789",
+        "scope": "/home/kesha/orchestra",
+        "model": "gemini-web/gemini-flash",
+        "status": "idle"
+      }
+    ]
+  },
+  "service_active": "active",
+  "after": {
+    "orchestra_pid": 2087567,
+    "telegram_bot_api_pid": 769,
+    "status_counts": {
+      "waiting": 3,
+      "idle": 81
+    },
+    "cut_names": [],
+    "interrupted_names": [],
+    "targets": [
+      {
+        "name": "seedon-orchestrator",
+        "scope": "/home/kesha/projects/seedon",
+        "model": "gpt-6.1-sol",
+        "status": "waiting"
+      },
+      {
+        "name": "gemini-web-check-1793881789",
+        "scope": "/home/kesha/orchestra",
+        "model": "gemini-web/gemini-flash",
+        "status": "idle"
+      }
+    ]
+  },
+  "restarted": true,
+  "telegram_bot_api_unchanged": true,
+  "live_web_models": [
+    "gemini-web/gemini-argon",
+    "gemini-web/gemini-pro",
+    "gemini-web/gemini-flash",
+    "gemini-web/gemini-flash-lite"
+  ],
+  "app_path": "/home/kesha/orchestra/app/__init__.py",
+  "account_count": 3,
+  "auth_file_mode": "0o600",
+  "auth_directory_mode": "0o700",
+  "cookie_cache_files": 0
+}

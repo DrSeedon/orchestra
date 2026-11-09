@@ -24,6 +24,15 @@ async def run_oneshot(
     if llm is None and spec.provider == "gigachat":
         llm = GigaChatClient(model=model)
     elif llm is None:
+        from app.harness.free_pool import create_free_pool_llm_client
+
+        llm = create_free_pool_llm_client(
+            model,
+            supported_parameters=spec.supported_parameters,
+            input_modalities=spec.input_modalities,
+            workspace_root=str(cwd),
+        )
+    if llm is None:
         key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENROUTER_KEY", "")
         if not key:
             raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")

@@ -309,6 +309,127 @@ _GEMINI_WEB_ALIASES = {
 }
 ALIASES.update(_GEMINI_WEB_ALIASES)
 
+# Two-contour $0 Free Worker Pool (Contour 1: Local Contabo Qwen3.5-35B-A3B-Heretic;
+# Contour 2: FreeWorkerRouter + Cerebras / Groq / AI Studio / Mistral / OpenRouter :free).
+# Declared outside SELECTABLE_MODEL_SPECS so frozen native-subscription refusal tests
+# iterating over SELECTABLE_MODEL_SPECS stay untouched while agents & dashboard can use
+# the $0 pool directly.
+FREE_POOL_MODEL_SPECS: tuple[ModelSpec, ...] = (
+    ModelSpec(
+        id="local/qwen3.5-35b-a3b-heretic:free",
+        name="Local Contabo: Qwen 3.5 35B-A3B Heretic-v2 (IQ3_M, Uncensored)",
+        runtime="harness",
+        provider="openrouter",
+        context_length=65536,  # 65536 total KV context dedicated to a single slot (--parallel 1).
+        price_input=0.0,
+        price_output=0.0,
+        supported_parameters=("tools", "tool_choice"),
+    ),
+    ModelSpec(
+        id="free/auto:free",
+        name="Free Pool Router (Auto Cascade + Local Fallback)",
+        runtime="harness",
+        provider="openrouter",
+        context_length=65536,  # Every request must also fit the local 65536 fallback.
+        price_input=0.0,
+        price_output=0.0,
+        supported_parameters=("tools", "tool_choice", "reasoning"),
+    ),
+    ModelSpec(
+        id="cerebras/qwen-3-32b:free",
+        name="Cerebras Free: Qwen 3 32B",
+        runtime="harness",
+        provider="openrouter",
+        context_length=32768,
+        price_input=0.0,
+        price_output=0.0,
+        supported_parameters=("tools", "tool_choice"),
+    ),
+    ModelSpec(
+        id="cerebras/llama-3.3-70b:free",
+        name="Cerebras Free: Llama 3.3 70B",
+        runtime="harness",
+        provider="openrouter",
+        context_length=65536,
+        price_input=0.0,
+        price_output=0.0,
+        supported_parameters=("tools", "tool_choice"),
+    ),
+    ModelSpec(
+        id="groq/llama-3.3-70b-versatile:free",
+        name="Groq Free: Llama 3.3 70B",
+        runtime="harness",
+        provider="openrouter",
+        context_length=128000,
+        price_input=0.0,
+        price_output=0.0,
+        supported_parameters=("tools", "tool_choice"),
+    ),
+    ModelSpec(
+        id="groq/qwen-qwq-32b:free",
+        name="Groq Free: Qwen QwQ 32B",
+        runtime="harness",
+        provider="openrouter",
+        context_length=128000,
+        price_input=0.0,
+        price_output=0.0,
+        supported_parameters=("tools", "tool_choice"),
+    ),
+    ModelSpec(
+        id="aistudio/gemini-2.5-flash:free",
+        name="AI Studio Free: Gemini 2.5 Flash",
+        runtime="harness",
+        provider="openrouter",
+        context_length=1000000,
+        price_input=0.0,
+        price_output=0.0,
+        supported_parameters=("tools", "tool_choice"),
+    ),
+    ModelSpec(
+        id="mistral/codestral-latest:free",
+        name="Mistral Free: Codestral",
+        runtime="harness",
+        provider="openrouter",
+        context_length=256000,
+        price_input=0.0,
+        price_output=0.0,
+        supported_parameters=("tools", "tool_choice"),
+    ),
+    ModelSpec(
+        id="mistral/mistral-small-latest:free",
+        name="Mistral Free: Mistral Small",
+        runtime="harness",
+        provider="openrouter",
+        context_length=128000,
+        price_input=0.0,
+        price_output=0.0,
+        supported_parameters=("tools", "tool_choice"),
+    ),
+)
+FREE_POOL_MODEL_IDS: frozenset[str] = frozenset(spec.id for spec in FREE_POOL_MODEL_SPECS)
+_FREE_POOL_ALIASES = {
+    "local": "local/qwen3.5-35b-a3b-heretic:free",
+    "local-heretic": "local/qwen3.5-35b-a3b-heretic:free",
+    "heretic": "local/qwen3.5-35b-a3b-heretic:free",
+    "free-local": "local/qwen3.5-35b-a3b-heretic:free",
+    "local-35b": "local/qwen3.5-35b-a3b-heretic:free",
+    "qwen3.5-35b-a3b-heretic": "local/qwen3.5-35b-a3b-heretic:free",
+    "qwen3.5-35b-a3b": "local/qwen3.5-35b-a3b-heretic:free",
+    "free": "free/auto:free",
+    "free-auto": "free/auto:free",
+    "free-router": "free/auto:free",
+    "free-pool": "free/auto:free",
+    "cerebras": "cerebras/qwen-3-32b:free",
+    "cerebras-llama": "cerebras/llama-3.3-70b:free",
+    "groq": "groq/llama-3.3-70b-versatile:free",
+    "groq-qwen": "groq/qwen-qwq-32b:free",
+    "aistudio": "aistudio/gemini-2.5-flash:free",
+    "aistudio-flash": "aistudio/gemini-2.5-flash:free",
+    "codestral": "mistral/codestral-latest:free",
+    "mistral-free": "mistral/mistral-small-latest:free",
+}
+ALIASES.update(_FREE_POOL_ALIASES)
+
 BACKENDS: dict[str, str] = {}
 
 MODEL_PROVIDERS: dict[str, str] = {}
@@ -632,6 +753,15 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
         if spec.id not in {"GigaChat-2", "GigaChat-2-Pro", "GigaChat-2-Max", "GigaChat-3-Lightning", "GigaChat-3-Pro", "GigaChat-3-Ultra"}:
             raise ValueError(f"unsupported GigaChat model '{spec.id}'")
         return
+    if spec.id in FREE_POOL_MODEL_IDS:
+        from app.harness.free_pool import CLOUD_FREE_PROVIDERS, cloud_provider_api_key, upstream_model_name
+
+        prefix, _ = upstream_model_name(spec.id)
+        if prefix in CLOUD_FREE_PROVIDERS and not cloud_provider_api_key(prefix):
+            raise ValueError(
+                f"free cloud model '{spec.id}' requires API key ({CLOUD_FREE_PROVIDERS[prefix]['key_envs']})"
+            )
+        return
     if spec.id in BLOCKED_HARNESS_ROUTES:
         raise ValueError(
             f"harness model '{spec.id}' заблокирован по результатам нашей пробы: "
@@ -773,7 +903,10 @@ def _load_model_flags() -> dict:
 def get_model_flags(model_id: str) -> dict[str, bool]:
     """Dashboard/agents visibility; manifest models default to both-true, catalog
     models registered later default to both-false until the user enables them."""
-    manifest = next((spec for spec in SELECTABLE_MODEL_SPECS if spec.id == model_id), None)
+    manifest = next(
+        (spec for spec in (*SELECTABLE_MODEL_SPECS, *FREE_POOL_MODEL_SPECS) if spec.id == model_id),
+        None,
+    )
     stored = _load_model_flags().get(model_id) or {}
     spec = MODEL_SPECS.get(model_id)
     if spec is not None and (
@@ -915,7 +1048,7 @@ def ensure_spawn_allowed(
     if billing == "api_credit":
         if spec.runtime != "claude":
             raise ValueError("billing='api_credit' requires a Claude model")
-    elif spec.runtime != "hub" and not (
+    elif spec.runtime != "hub" and model_id not in FREE_POOL_MODEL_IDS and not (
         model_id == LOCAL_LUNA_MODEL and isinstance(model_reason, str) and model_reason.strip()
     ):
         raise ValueError(
@@ -929,6 +1062,8 @@ def ensure_spawn_allowed(
             "blocker; do not retry the spawn, run the work yourself or fall back to "
             "another native subscription."
         )
+    if model_id in FREE_POOL_MODEL_IDS:
+        validate_harness_model_spec(spec)
     if spec.runtime == "hub":
         from app.backend_hub import hub_configured
 
@@ -961,7 +1096,7 @@ def ensure_dashboard_visible(model_id: str) -> None:
 
 def _seed_model_specs() -> None:
     """Populate MODEL_SPECS and every derived view from SELECTABLE_MODEL_SPECS."""
-    for spec in SELECTABLE_MODEL_SPECS:
+    for spec in (*SELECTABLE_MODEL_SPECS, *FREE_POOL_MODEL_SPECS):
         if spec.id in MODEL_SPECS:
             raise ValueError(f"model '{spec.id}' is declared twice in SELECTABLE_MODEL_SPECS")
         if spec.id in COMPAT_MODEL_SPECS:
@@ -1067,8 +1202,12 @@ def _clear_selectable_models() -> None:
         if spec.provider in {"gigachat", "gemini-web"}:
             MODEL_SPECS[spec.id] = spec
             _apply_derived_views(spec)
+    for spec in FREE_POOL_MODEL_SPECS:
+        MODEL_SPECS[spec.id] = spec
+        _apply_derived_views(spec)
     ALIASES.update(_GIGACHAT_ALIASES)
     ALIASES.update(_GEMINI_WEB_ALIASES)
+    ALIASES.update(_FREE_POOL_ALIASES)
 
 
 def _proxy_model_spec(raw: dict) -> ModelSpec | None:

@@ -1,0 +1,21 @@
+{
+  "test": "missing_ts_live_recovery",
+  "before_accounts_without_ts": 3,
+  "arithmetic": {
+    "accepted": true,
+    "status": "idle",
+    "error_count": 1,
+    "types": {
+      "user_message": 1,
+      "error": 1,
+      "status": 4
+    },
+    "answer_contains_expected": false,
+    "tool_executed": false,
+    "provider_account": "u/3 kat….ks",
+    "after_id": 1236834,
+    "success": false,
+    "answer": ""
+  },
+  "ts_restored_accounts": 3
+}

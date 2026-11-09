@@ -591,6 +591,13 @@ async def get_models_catalog():
             entry = {"supports_tools": True, "harness_eligible": readiness["ready"],
                      "available": readiness["ready"], "is_free": False,
                      "input_modalities": ["text"], "output_modalities": ["text"]}
+        elif model_id in getattr(models_mod := __import__("app.models", fromlist=["FREE_POOL_MODEL_IDS"]), "FREE_POOL_MODEL_IDS", ()):
+            from app.harness.free_pool import CLOUD_FREE_PROVIDERS, cloud_provider_api_key, upstream_model_name
+            prefix, _ = upstream_model_name(model_id)
+            ready = bool(cloud_provider_api_key(prefix)) if prefix in CLOUD_FREE_PROVIDERS else True
+            entry = {"supports_tools": True, "harness_eligible": ready,
+                     "available": ready, "is_free": True,
+                     "input_modalities": ["text"], "output_modalities": ["text"]}
         catalog.append({
             "id": model_id,
             "name": spec.name,

@@ -1,0 +1,98 @@
+{
+  "test": "missing_ts_live_recovery",
+  "before_accounts_without_ts": 3,
+  "arithmetic": {
+    "accepted": true,
+    "status": "idle",
+    "error_count": 1,
+    "types": {
+      "user_message": 1,
+      "error": 1,
+      "status": 4
+    },
+    "answer_contains_expected": false,
+    "tool_executed": false,
+    "provider_account": "u/3 kat….ks",
+    "after_id": 1236834,
+    "success": false,
+    "answer": ""
+  },
+  "ts_restored_accounts": 3,
+  "tools": {
+    "accepted": true,
+    "status": "idle",
+    "error_count": 1,
+    "types": {
+      "user_message": 1,
+      "error": 1,
+      "status": 4
+    },
+    "answer_contains_expected": false,
+    "tool_executed": false,
+    "provider_account": "u/3 kat….ks",
+    "after_id": 1236872,
+    "success": false,
+    "answer": ""
+  },
+  "usage": {
+    "available": true,
+    "total": 3,
+    "usable": 0,
+    "models": [
+      "gemini-argon",
+      "gemini-pro",
+      "gemini-flash",
+      "gemini-flash-lite"
+    ],
+    "accounts": [
+      {
+        "slot": 1,
+        "authuser_index": 0,
+        "label": "the…ool@gmail.com",
+        "badge_label": "u/0 the…ool",
+        "status": "error",
+        "requests_ok": 2,
+        "requests_failed": 3,
+        "last_error": "request_failed",
+        "last_model": "gemini-web/gemini-flash",
+        "last_used_at": "2026-11-05T13:34:49.698913+00:00",
+        "sessions": []
+      },
+      {
+        "slot": 2,
+        "authuser_index": 1,
+        "label": "max…0as@gmail.com",
+        "badge_label": "u/1 max…0as",
+        "status": "error",
+        "requests_ok": 0,
+        "requests_failed": 3,
+        "last_error": "request_failed",
+        "last_model": "gemini-web/gemini-flash",
+        "last_used_at": "2026-11-05T13:36:48.796613+00:00",
+        "sessions": []
+      },
+      {
+        "slot": 3,
+        "authuser_index": 3,
+        "label": "kat….ks@gmail.com",
+        "badge_label": "u/3 kat….ks",
+        "status": "error",
+        "requests_ok": 2,
+        "requests_failed": 2,
+        "last_error": "request_failed",
+        "last_model": "gemini-web/gemini-flash",
+        "last_used_at": "2026-11-05T13:32:53.693514+00:00",
+        "sessions": [
+          "gemini-web-check-1793881789"
+        ]
+      }
+    ]
+  },
+  "after": {
+    "orchestra_pid": 2099437,
+    "telegram_bot_api_pid": 769,
+    "cut_names": [],
+    "interrupted_names": []
+  },
+  "success": false
+}

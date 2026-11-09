@@ -1,0 +1,9 @@
+{
+  "orchestra_pid": 2071496,
+  "telegram_bot_api_pid": 769,
+  "status_counts": {
+    "waiting": 3,
+    "idle": 81
+  },
+  "cut_names": []
+}

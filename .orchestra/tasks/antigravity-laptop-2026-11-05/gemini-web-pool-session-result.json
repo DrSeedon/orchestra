@@ -1,0 +1,81 @@
+{
+  "before": {
+    "orchestra_pid": 2084568,
+    "telegram_bot_api_pid": 769,
+    "status_counts": {
+      "waiting": 3,
+      "idle": 81
+    },
+    "cut_names": [],
+    "interrupted_names": [],
+    "targets": [
+      {
+        "name": "seedon-orchestrator",
+        "scope": "/home/kesha/projects/seedon",
+        "model": "gpt-6.1-sol",
+        "status": "waiting"
+      },
+      {
+        "name": "gemini-web-check-1793881789",
+        "scope": "/home/kesha/orchestra",
+        "model": "gemini-web/gemini-flash",
+        "status": "idle"
+      }
+    ]
+  },
+  "flash_live": {
+    "name": "gemini-web-check-1793881789",
+    "model": "gemini-web/gemini-flash",
+    "before_status": "idle",
+    "accepted": true,
+    "after_status": "idle",
+    "error_count": 0,
+    "text_chars": 91,
+    "new_log_types": {
+      "user_message": 1,
+      "text": 1,
+      "status": 3
+    },
+    "success": true
+  },
+  "seedon_replay": {
+    "name": "seedon-orchestrator",
+    "live_model_preserved": "gpt-6.1-sol",
+    "probe_mode": "read-only-context-replay",
+    "model": "gemini-web/gemini-argon",
+    "system_chars": 94330,
+    "history_messages": 1,
+    "prompt_bytes": 199574,
+    "events": [
+      "text_delta",
+      "final"
+    ],
+    "text_chars": 65,
+    "success": true
+  },
+  "after": {
+    "orchestra_pid": 2084568,
+    "telegram_bot_api_pid": 769,
+    "status_counts": {
+      "waiting": 3,
+      "idle": 81
+    },
+    "cut_names": [],
+    "interrupted_names": [],
+    "targets": [
+      {
+        "name": "seedon-orchestrator",
+        "scope": "/home/kesha/projects/seedon",
+        "model": "gpt-6.1-sol",
+        "status": "waiting"
+      },
+      {
+        "name": "gemini-web-check-1793881789",
+        "scope": "/home/kesha/orchestra",
+        "model": "gemini-web/gemini-flash",
+        "status": "idle"
+      }
+    ]
+  },
+  "success": true
+}

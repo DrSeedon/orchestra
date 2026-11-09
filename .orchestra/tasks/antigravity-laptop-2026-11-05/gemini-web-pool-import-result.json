@@ -1,0 +1,97 @@
+{
+  "checks": [
+    {
+      "profile": ".config/opera/Default/Cookies",
+      "index": 0,
+      "email": "the…ool@gmail.com",
+      "account_status": "AVAILABLE",
+      "models": [
+        {
+          "name": "gemini-flash-lite",
+          "available": true
+        },
+        {
+          "name": "gemini-flash",
+          "available": true
+        },
+        {
+          "name": "gemini-pro",
+          "available": true
+        },
+        {
+          "name": "gemini-argon",
+          "available": true
+        }
+      ]
+    },
+    {
+      "profile": ".config/opera/Default/Cookies",
+      "index": 1,
+      "email": "max…0as@gmail.com",
+      "account_status": "AVAILABLE",
+      "models": [
+        {
+          "name": "gemini-flash-lite",
+          "available": true
+        },
+        {
+          "name": "gemini-flash",
+          "available": true
+        },
+        {
+          "name": "gemini-pro",
+          "available": true
+        },
+        {
+          "name": "gemini-argon",
+          "available": true
+        }
+      ]
+    },
+    {
+      "profile": ".config/opera/Default/Cookies",
+      "index": 2,
+      "email": "ste…uis@gmail.com",
+      "account_status": "TOS_PENDING",
+      "models": [
+        {
+          "name": "gemini-авто",
+          "available": true
+        }
+      ]
+    },
+    {
+      "profile": ".config/opera/Default/Cookies",
+      "index": 3,
+      "email": "kat….ks@gmail.com",
+      "account_status": "AVAILABLE",
+      "models": [
+        {
+          "name": "gemini-flash-lite",
+          "available": true
+        },
+        {
+          "name": "gemini-flash",
+          "available": true
+        },
+        {
+          "name": "gemini-pro",
+          "available": true
+        },
+        {
+          "name": "gemini-argon",
+          "available": true
+        }
+      ]
+    },
+    {
+      "profile": ".config/opera/Default/Cookies",
+      "index": 4,
+      "error_type": "RuntimeError",
+      "error_code": "request_failed",
+      "error": "Gemini Web request failed (authentication, model or transport)"
+    }
+  ],
+  "account_count": 3,
+  "installed": true
+}

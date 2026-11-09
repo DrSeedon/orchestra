@@ -1,0 +1,169 @@
+{
+  "model_requests": 38,
+  "questions": 3,
+  "repetitions": 1,
+  "max_rounds": 3,
+  "max_tokens": 1536,
+  "effort": "medium",
+  "provider_reported_cost_usd": 0,
+  "checks": {
+    "protocol": {
+      "same_input": true,
+      "same_oracle": true,
+      "frozen_oracle_unchanged": true
+    },
+    "repair": {
+      "same_input": true,
+      "same_oracle": true,
+      "frozen_oracle_unchanged": true
+    },
+    "document": {
+      "same_input": true,
+      "same_oracle": true,
+      "frozen_oracle_unchanged": true
+    }
+  },
+  "models": [
+    {
+      "model": "recursive/flint-v1.0:free",
+      "name": "Flint",
+      "developer": "Recursive",
+      "source": "https://recursive.com/updates/introducing-recursive-flint",
+      "n": 3,
+      "oracle_pass": 2,
+      "completed_correct": 1,
+      "requests": 9,
+      "cost_usd": 0,
+      "tasks": {
+        "protocol": {
+          "oracle_pass": false,
+          "runtime_ok": false,
+          "stop_reason": "error"
+        },
+        "repair": {
+          "oracle_pass": true,
+          "runtime_ok": false,
+          "stop_reason": "max_turns"
+        },
+        "document": {
+          "oracle_pass": true,
+          "runtime_ok": true,
+          "stop_reason": "end_turn"
+        }
+      }
+    },
+    {
+      "model": "dots-studio/dots-3-note-preview:free",
+      "name": "Dots3-Note",
+      "developer": "Dots Studio",
+      "source": "https://huggingface.co/dots-studio/dots3-note-prev",
+      "n": 3,
+      "oracle_pass": 2,
+      "completed_correct": 2,
+      "requests": 8,
+      "cost_usd": 0,
+      "tasks": {
+        "protocol": {
+          "oracle_pass": true,
+          "runtime_ok": true,
+          "stop_reason": "end_turn"
+        },
+        "repair": {
+          "oracle_pass": false,
+          "runtime_ok": false,
+          "stop_reason": "max_turns"
+        },
+        "document": {
+          "oracle_pass": true,
+          "runtime_ok": true,
+          "stop_reason": "end_turn"
+        }
+      }
+    },
+    {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "name": "Nemotron 3 Ultra",
+      "developer": "NVIDIA",
+      "source": "https://research.nvidia.com/labs/nemotron/Nemotron-3-Ultra/",
+      "n": 3,
+      "oracle_pass": 3,
+      "completed_correct": 2,
+      "requests": 7,
+      "cost_usd": 0,
+      "tasks": {
+        "protocol": {
+          "oracle_pass": true,
+          "runtime_ok": true,
+          "stop_reason": "end_turn"
+        },
+        "repair": {
+          "oracle_pass": true,
+          "runtime_ok": false,
+          "stop_reason": "max_turns"
+        },
+        "document": {
+          "oracle_pass": true,
+          "runtime_ok": true,
+          "stop_reason": "end_turn"
+        }
+      }
+    },
+    {
+      "model": "cohere/north-mini-code:free",
+      "name": "North Mini Code",
+      "developer": "Cohere",
+      "source": "https://cohere.com/blog/north-mini-code",
+      "n": 3,
+      "oracle_pass": 1,
+      "completed_correct": 1,
+      "requests": 7,
+      "cost_usd": 0,
+      "tasks": {
+        "protocol": {
+          "oracle_pass": true,
+          "runtime_ok": true,
+          "stop_reason": "end_turn"
+        },
+        "repair": {
+          "oracle_pass": false,
+          "runtime_ok": false,
+          "stop_reason": "max_turns"
+        },
+        "document": {
+          "oracle_pass": false,
+          "runtime_ok": true,
+          "stop_reason": "end_turn"
+        }
+      }
+    },
+    {
+      "model": "nvidia/nemotron-3.5-super-vl:free",
+      "name": "Nemotron 3.5 Super VL",
+      "developer": "NVIDIA",
+      "source": "https://research.nvidia.com/labs/nemotron/Nemotron-3.5-Super-and-Lightning/",
+      "n": 3,
+      "oracle_pass": 3,
+      "completed_correct": 2,
+      "requests": 7,
+      "cost_usd": 0,
+      "tasks": {
+        "protocol": {
+          "oracle_pass": true,
+          "runtime_ok": true,
+          "stop_reason": "end_turn"
+        },
+        "repair": {
+          "oracle_pass": true,
+          "runtime_ok": false,
+          "stop_reason": "max_turns"
+        },
+        "document": {
+          "oracle_pass": true,
+          "runtime_ok": true,
+          "stop_reason": "end_turn"
+        }
+      }
+    }
+  ],
+  "privacy_issue": "Host username appeared in tool output and was sent in Flint/repair and North/repair; adapter hardened afterward; full model run not repeated."
+}

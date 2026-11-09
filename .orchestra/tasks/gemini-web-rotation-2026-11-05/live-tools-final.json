@@ -1,0 +1,18 @@
+{
+  "status": "idle",
+  "types": {
+    "user_message": 1,
+    "tool": 1,
+    "tool_result": 1,
+    "text": 1,
+    "status": 3
+  },
+  "tool_names": [
+    "read"
+  ],
+  "answer": "Sorry, something went wrong. Please try your request again.",
+  "expected": "<p align=\"center\">",
+  "provider_account": "u/3 kat….ks",
+  "error_count": 0,
+  "success": false
+}

@@ -1,0 +1,23 @@
+{
+  "orchestra_pid": 2065841,
+  "telegram_bot_api_pid": 769,
+  "telegram_bot_api_unchanged": true,
+  "live_web_models": [
+    "gemini-web/gemini-argon",
+    "gemini-web/gemini-pro",
+    "gemini-web/gemini-flash",
+    "gemini-web/gemini-flash-lite"
+  ],
+  "catalog_web_ready": [
+    "gemini-web/gemini-argon",
+    "gemini-web/gemini-pro",
+    "gemini-web/gemini-flash",
+    "gemini-web/gemini-flash-lite"
+  ],
+  "status_counts": {
+    "waiting": 3,
+    "idle": 80
+  },
+  "cut_names": [],
+  "interrupted_names": []
+}

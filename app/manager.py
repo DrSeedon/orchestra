@@ -825,9 +825,9 @@ class SessionManager:
             )
             task_id = public_task_ref(task_identity)
 
-        # Root orchestrators get a dedicated TG topic so users can message them
+        # Root orchestrators and Argon agents get a dedicated TG topic so users can message them
         # directly from Telegram without knowing worker names
-        if is_orch and not parent_name:
+        if (is_orch and not parent_name) or "argon" in (model or "").lower():
             tg_topic = True
 
         custom_mcp = _parse_custom_mcp(mcp_servers)

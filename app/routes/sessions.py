@@ -576,6 +576,10 @@ async def create_session(req: CreateSessionRequest):
             initial_deliveries.record_spawn_intent(
                 session.id, req.initial_delivery_id, req.initial_task_title,
             )
+        if session.tg_topic:
+            topic_updater = getattr(manager, "tg_topic_updater", None)
+            if topic_updater:
+                await topic_updater(session.name)
         d = session.to_dict()
         if req.initial_task_title:
             from app.models import recommend_task_route
@@ -2085,6 +2089,11 @@ async def change_model(name: str, req: dict):
         {"model_reason": req["model_reason"]} if "model_reason" in req else {}))
     if not result.get("ok"):
         return JSONResponse(result, status_code=409)
+    if "argon" in new_model.lower() and not getattr(found, "tg_topic", False):
+        manager.update_session_fields(name, found.scope or scope, tg_topic=True)
+        topic_updater = getattr(manager, "tg_topic_updater", None)
+        if topic_updater:
+            await topic_updater(name)
     if result.get("changed"):
         from app import quota_queue
 

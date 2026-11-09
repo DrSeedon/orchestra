@@ -1,0 +1,27 @@
+{
+  "snapshot": {
+    "orchestra_pid": 2114717,
+    "telegram_bot_api_pid": 769,
+    "cut_names": [],
+    "interrupted_names": []
+  },
+  "usage_total": 3,
+  "usage_available": true,
+  "usage_slots": [
+    0,
+    1,
+    3
+  ],
+  "target": {
+    "name": "gemini-web-check-1793881789",
+    "status": "idle",
+    "provider": "gemini-web",
+    "provider_account": null
+  },
+  "accounts_with_ts": 3,
+  "auth_mode": "0o600",
+  "deployed_process_identity_mismatch_count": 0,
+  "deployed_process_cookies_expired_count": 3,
+  "remaining_chrome_processes": 0,
+  "app_path": "/home/kesha/orchestra/app/__init__.py"
+}

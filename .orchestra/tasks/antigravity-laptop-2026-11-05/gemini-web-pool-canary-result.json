@@ -1,0 +1,95 @@
+{
+  "app_path": "/home/kesha/orchestra/app/__init__.py",
+  "account_count": 3,
+  "auth_file_mode": "0o600",
+  "auth_directory_mode": "0o700",
+  "checks": [
+    {
+      "model": "gemini-argon",
+      "expected_account": "the…ool@gmail.com",
+      "prompt_bytes": 627,
+      "owner_match": true,
+      "selected_model": "gemini-argon",
+      "account_status": "AVAILABLE",
+      "expected_owner_match": true,
+      "actual_account": "the…ool@gmail.com",
+      "events": [
+        "text_delta",
+        "final"
+      ],
+      "response_chars": 84,
+      "success": true,
+      "duration_seconds": 6.407
+    },
+    {
+      "model": "gemini-pro",
+      "expected_account": "max…0as@gmail.com",
+      "prompt_bytes": 627,
+      "owner_match": true,
+      "selected_model": "gemini-pro",
+      "account_status": "AVAILABLE",
+      "expected_owner_match": true,
+      "actual_account": "max…0as@gmail.com",
+      "events": [
+        "text_delta",
+        "final"
+      ],
+      "response_chars": 2,
+      "success": true,
+      "duration_seconds": 18.371
+    },
+    {
+      "model": "gemini-flash",
+      "expected_account": "kat….ks@gmail.com",
+      "prompt_bytes": 627,
+      "owner_match": true,
+      "selected_model": "gemini-flash",
+      "account_status": "AVAILABLE",
+      "expected_owner_match": false,
+      "actual_account": "the…ool@gmail.com",
+      "events": [
+        "text_delta",
+        "final"
+      ],
+      "response_chars": 69,
+      "success": false,
+      "duration_seconds": 159.58
+    },
+    {
+      "model": "gemini-flash-lite",
+      "expected_account": "the…ool@gmail.com",
+      "prompt_bytes": 627,
+      "owner_match": true,
+      "selected_model": "gemini-flash-lite",
+      "account_status": "AVAILABLE",
+      "expected_owner_match": true,
+      "actual_account": "the…ool@gmail.com",
+      "events": [
+        "text_delta",
+        "final"
+      ],
+      "response_chars": 2,
+      "success": true,
+      "duration_seconds": 7.654
+    },
+    {
+      "model": "gemini-argon",
+      "expected_account": "the…ool@gmail.com",
+      "prompt_bytes": 110942,
+      "owner_match": true,
+      "selected_model": "gemini-argon",
+      "account_status": "AVAILABLE",
+      "expected_owner_match": true,
+      "actual_account": "the…ool@gmail.com",
+      "events": [
+        "text_delta",
+        "final"
+      ],
+      "response_chars": 2,
+      "success": true,
+      "duration_seconds": 30.153
+    }
+  ],
+  "helper_processes_remaining": 0,
+  "success": false
+}

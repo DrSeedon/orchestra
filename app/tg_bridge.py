@@ -2856,9 +2856,13 @@ def _ensure_stream(orch_name: str, thread_id: int) -> asyncio.Task:
 
 
 def _session_uses_primary_topic(session: dict) -> bool:
-    return bool(session.get("tg_topic")) or session.get("role", "worker") in (
-        "orchestrator",
-        "sub-orchestrator",
+    return (
+        bool(session.get("tg_topic"))
+        or "argon" in str(session.get("model") or "").lower()
+        or session.get("role", "worker") in (
+            "orchestrator",
+            "sub-orchestrator",
+        )
     )
 
 

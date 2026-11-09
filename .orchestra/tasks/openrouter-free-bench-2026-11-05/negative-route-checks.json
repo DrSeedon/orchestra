@@ -1,0 +1,12 @@
+[
+  {
+    "model": "openai/gpt-4o",
+    "refused": true,
+    "model_requests": 0
+  },
+  {
+    "model": "google/gemma-4-31b-it:free",
+    "refused": true,
+    "model_requests": 0
+  }
+]

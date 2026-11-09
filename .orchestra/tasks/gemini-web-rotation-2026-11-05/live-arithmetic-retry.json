@@ -1,0 +1,16 @@
+{
+  "accepted": true,
+  "status": "idle",
+  "error_count": 0,
+  "types": {
+    "user_message": 1,
+    "text": 1,
+    "status": 3
+  },
+  "answer_contains_expected": false,
+  "tool_executed": false,
+  "provider_account": "u/0 the…ool",
+  "after_id": 1236724,
+  "success": false,
+  "answer": "Sorry, something went wrong. Please try your request again."
+}

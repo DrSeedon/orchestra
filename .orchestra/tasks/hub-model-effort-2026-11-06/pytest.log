@@ -1,0 +1,35 @@
+........................................................................ [ 18%]
+........................................................................ [ 37%]
+........................................................................ [ 56%]
+..................................F..................................... [ 75%]
+........................................................................ [ 94%]
+......................                                                   [100%]
+=================================== FAILURES ===================================
+_______________ test_selectable_models_match_the_curated_catalog _______________
+
+    def test_selectable_models_match_the_curated_catalog():
+        expected = {
+            "claude-opus-5-5[1m]", "claude-sonnet-5-5[1m]", "gpt-6-luna",
+            "gpt-5.3-codex-spark", "grok-4.6", "claude-opus-4-6[1m]",
+            "claude-haiku-5-5", "claude-fable-5-1[1m]", "gpt-6-astra",
+            "gpt-6.1-sol", "gpt-6.1-terra", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
+            "GigaChat-2-Pro", "GigaChat-3-Lightning", "GigaChat-3-Pro",
+            "hub-claude-haiku-5-5", "hub-claude-sonnet-5-5", "hub-claude-opus-5-5",
+            "hub-gpt-6-luna", "hub-gpt-6.1-sol", "hub-grok-4.7", "hub-gemini-4-argon",
+        }
+>       assert {spec.id for spec in SELECTABLE_MODEL_SPECS} == expected
+E       AssertionError: assert {'GigaChat-2'...3-Ultra', ...} == {'GigaChat-2'...3-Ultra', ...}
+E         
+E         Extra items in the left set:
+E         'antigravity/gemini-4-argon-high'
+E         'antigravity/gemini-3.6-flash-high'
+E         'gemini-web/gemini-argon'
+E         'antigravity/gemini-3.1-pro-high'
+E         'antigravity/gemini-3.5-flash-medium'...
+E         
+E         ...Full output truncated (17 lines hidden), use '-vv' to show
+
+tests/test_models.py:89: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_models.py::test_selectable_models_match_the_curated_catalog
+1 failed, 381 passed in 11.27s

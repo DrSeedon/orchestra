@@ -1,0 +1,17 @@
+{
+  "model": "gemini-flash-lite",
+  "expected_account": "kat….ks@gmail.com",
+  "prompt_bytes": 623,
+  "owner_match": true,
+  "selected_model": "gemini-flash-lite",
+  "account_status": "AVAILABLE",
+  "expected_owner_match": true,
+  "actual_account": "kat….ks@gmail.com",
+  "events": [
+    "text_delta",
+    "final"
+  ],
+  "response_chars": 2,
+  "success": true,
+  "duration_seconds": 7.267
+}

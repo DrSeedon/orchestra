@@ -1,0 +1,9 @@
+Imported app: /mnt/claude-data/astrahancev-maxim-911aird/orchestra/app/__init__.py
+Existing modified files preserved byte-for-byte: 5
+Source benchmark table preserved: 33/33 rows; KB lines: 455
+KB topic indexed and injected by app.kb_index: OK
+Routing guide contains no exact selectable model IDs: OK
+Argon medium across six roles: OK
+Antigravity alias medium: OK
+git diff --check: OK
+Orphan pytest processes observed: 0

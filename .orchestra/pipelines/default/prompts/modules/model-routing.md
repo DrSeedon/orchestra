@@ -16,8 +16,10 @@ orchestrators use the same operating rules; do not change their model merely to 
 | `hubsol` | General Hub implementation; deep read-only audits and synthesis when assigned that scope | Ordinary admitted Hub route; read-only assignments must remain read-only |
 | unregistered Hub Terra route | Deep read-only audit or synthesis when exposed and admitted | Not in the current registry; do not invent an alias or dispatch an unknown route |
 | `hubargon` | Independent second opinion, bounded audit, frontend/UI design or document comparison | Ordinary Hub workers and specialists; medium effort, role and task boundaries still apply |
-| `hubsonnet` | Hub implementation, reading and analysis | Ordinary Hub workers; medium effort |
-| `hubluna` | Fast Hub implementation, focused checks and deterministic collection | Ordinary Hub workers; high effort |
+| `free` / `openrouter-free` | Zero-cost cloud worker pool with automatic failover across top free coding/agentic models | Preferred $0 route for routine collection, parsing, drafting and bounded checks |
+| `local` / `local-heretic` | Local uncensored Contabo worker (4 parallel slots, shared KV cache, $0 cost) | Preferred $0 route for confidential local processing, sensitive text or uncensored tasks |
+| `hubsonnet` | Legacy Hub reading and analysis when explicitly admitted | Disabled by default under current policy; prefer `hubsol`, `hubargon` or `free` |
+| `hubluna` | Legacy Hub collection when explicitly admitted | Prefer `hubsol` or `free` / `local` for new workers |
 
 These are task-fit preferences, not new runtime permissions. The current guards in
 app/models.py admit ordinary Hub workers on `hubsol`,
@@ -59,9 +61,11 @@ full results and conflicting measurements. Keep current role defaults and explic
 
 ### Simple subtasks and tool profiles
 
-For bounded lookup, counting, extraction or formatting, prefer `hubluna`, then
-`hubsonnet`, when the exact route is admitted. Explicitly local tasks may use `luna`
-only under the existing local-work rule. Keep `hubsol`, `sol` or `hubargon` for coding,
+For bounded lookup, counting, extraction or formatting, prefer the `$0` worker pool
+(`free` for cloud tasks or `local` / `local-heretic` for local/uncensored tasks) or
+`hubsol` when the exact route is admitted; do not spawn new `hubluna`, `luna` or
+`hubsonnet` workers unless an explicit legacy constraint requires them. Keep `hubsol`,
+`sol` or `hubargon` for coding,
 architecture and debugging. The startup classifier is advisory: preserve the user's
 explicit selection and always run the canonical admission and quota checks.
 Role profiles show only relevant tool schemas; disabled tools and access policy remain

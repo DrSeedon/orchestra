@@ -168,6 +168,9 @@ class HarnessBackend:
         env = (self._mcp_servers.get("orchestra") or {}).get("env") or {}
         offered = role_tool_names(names, str(env.get("ORCHESTRA_ROLE") or ""))
         schemas = [schema for schema in schemas if schema.get("function", {}).get("name") in offered]
+        if str(self.model or "").startswith("local/"):
+            from app.harness.free_pool import _compact_local_tools
+            return _compact_local_tools(schemas)
         extra: list[dict] = []
         # V-636: GigaChat answered "which tasks exist?" by calling review, whose English
         # reviewer replied in the chat; a policy naming "review" switches it off like MCP tools.
@@ -233,8 +236,37 @@ class HarnessBackend:
                 raise RuntimeError("cannot retarget an active GigaChat session to OpenRouter")
             if isinstance(self._llm, GigaChatClient):
                 self._llm.retarget(model, spec.supported_parameters)
-            else:
+            elif isinstance(self._llm, GeminiWebClient):
                 self._llm.retarget(model, spec.supported_parameters, spec.input_modalities)
+            else:
+                from app.harness.free_pool import create_free_pool_llm_client
+
+                free_client = create_free_pool_llm_client(
+                    model,
+                    supported_parameters=spec.supported_parameters,
+                    input_modalities=spec.input_modalities,
+                    workspace_root=self.cwd,
+                )
+                if free_client is not None:
+                    self._llm = free_client
+                elif type(self._llm) is OpenRouterClient:
+                    self._llm.retarget(model, spec.supported_parameters, spec.input_modalities)
+                else:
+                    api_key = (os.environ.get("OPENROUTER_API_KEY")
+                               or os.environ.get("OPENROUTER_KEY", ""))
+                    if not api_key:
+                        raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
+                    base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+                    if base_url and not base_url.endswith("/v1"):
+                        base_url = base_url.rstrip("/") + "/v1"
+                    self._llm = OpenRouterClient(
+                        api_key=api_key,
+                        model=model,
+                        base_url=base_url,
+                        supported_parameters=spec.supported_parameters,
+                        input_modalities=spec.input_modalities,
+                        workspace_root=self.cwd,
+                    )
         self.model = model
 
     # ── lifecycle ──
@@ -249,21 +281,32 @@ class HarnessBackend:
         elif spec.provider == "gemini-web":
             self._llm = GeminiWebClient(model=self.model)
         else:
-            api_key = (os.environ.get("OPENROUTER_API_KEY")
-                       or os.environ.get("OPENROUTER_KEY", ""))
-            if not api_key:
-                raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
-            base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-            if base_url and not base_url.endswith("/v1"):
-                base_url = base_url.rstrip("/") + "/v1"
-            self._llm = OpenRouterClient(
-                api_key=api_key,
-                model=self.model,
-                base_url=base_url,
+            from app.harness.free_pool import create_free_pool_llm_client
+
+            free_client = create_free_pool_llm_client(
+                self.model,
                 supported_parameters=spec.supported_parameters,
                 input_modalities=spec.input_modalities,
                 workspace_root=self.cwd,
             )
+            if free_client is not None:
+                self._llm = free_client
+            else:
+                api_key = (os.environ.get("OPENROUTER_API_KEY")
+                           or os.environ.get("OPENROUTER_KEY", ""))
+                if not api_key:
+                    raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
+                base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+                if base_url and not base_url.endswith("/v1"):
+                    base_url = base_url.rstrip("/") + "/v1"
+                self._llm = OpenRouterClient(
+                    api_key=api_key,
+                    model=self.model,
+                    base_url=base_url,
+                    supported_parameters=spec.supported_parameters,
+                    input_modalities=spec.input_modalities,
+                    workspace_root=self.cwd,
+                )
 
         # MCP must NEVER break backend startup. connect() is atomic (clears its own state on
         # a hard error), and merge_tool_schemas can itself raise on a builtin↔MCP name
@@ -319,6 +362,11 @@ class HarnessBackend:
 
     def _reset_system_message(self) -> None:
         sys_msg = {"role": "system", "content": self._full_system_prompt}
+        if str(self.model or "").startswith("local/"):
+            from app.harness.free_pool import _compact_local_messages
+            sys_msg = _compact_local_messages([sys_msg])[0]
+            if self._history:
+                self._history = _compact_local_messages(self._history)
         if self._history and self._history[0].get("role") == "system":
             self._history[0] = sys_msg
         else:
@@ -329,6 +377,9 @@ class HarnessBackend:
     async def send(self, message: str) -> None:
         if self._llm is None:
             raise RuntimeError("HarnessBackend not connected")
+        if str(self.model or "").startswith("local/"):
+            from app.harness.free_pool import _compact_local_messages
+            message = _compact_local_messages([{"role": "user", "content": message}])[0]["content"]
         if self._turn_active:
             # Steering, not an error: the running loop picks this up at the top of its
             # next round. Without it a correction waits for the whole turn to finish —

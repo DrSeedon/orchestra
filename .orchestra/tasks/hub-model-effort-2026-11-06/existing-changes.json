@@ -1,0 +1,7 @@
+{
+  "AGENTS.md": "04125165d2323ccd68ec7774f1828cf65a3a2f56b7704bf63fa8ad2acfba42b0",
+  "app/gemini_web_auth.py": "66de66c3b163e67bf5ed140a57369765b1bcd47edefdeebff6df55be97e1a78c",
+  "app/harness/gemini_web.py": "c872aaa3dc000d661f2fb25a444830a3bb6b929920bfd824ddefb7800e491c45",
+  "app/harness/gemini_web_worker.py": "cac7302fa7f4f66c80b4f224075eb6c022282ea538c7787e367fdacaa1a13458",
+  "tests/test_gemini_web_harness.py": "30b6cd5a682981f2c496f3adeaf73b61a1a3f506528c17a476398cd221db5f3b"
+}

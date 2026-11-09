@@ -42,11 +42,13 @@ missing generation ownership must hold optional cleanup instead of closing new w
 
 ### Native workers
 
-Retain suitable idle native workers for an active project/module line. Review idle workers
-without an attached task after complete merges and at session start:
-- One-shot: archive once completion and the shared gate are satisfied.
-- Persistent/unmarked: retain if the line received a task within 72 hours or has a
-  new/in_progress queued task; otherwise archive after the shared gate.
+Archive completed native workers promptly after merge or task completion so idle sessions
+do not accumulate in the project sidebar:
+- One-shot, date-stamped, urgent or task-specific workers: archive immediately via
+  kill_worker in the same completion turn once the shared close gate is satisfied.
+- Persistent role workers: retain at most one idle worker per active recurring line if
+  it has an imminent queued task; otherwise archive after the shared gate. Never accumulate
+  dozens of idle native workers across finished tasks.
 Do not keep a native line alive with acknowledgement messages or fabricated assignments.
 This retention policy does not override prompt Hub archival.
 
