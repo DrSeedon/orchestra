@@ -32,4 +32,12 @@ Five historical browser failures were observed before continuation: three quota-
 
 ## Deployment
 
-Code verification complete. Publication initially blocked by two forbidden literals in legacy evidence already present in origin/main. They were redacted from current files. Publication is reconstructed from origin/main without the unsafe inherited merge; all original local commits are preserved privately, and application/test/pipeline content is identical to tested dd9119a16. No force push or gate bypass. Old public Git history still contains those literals; no credential rotation/history rewrite was performed. Authorized push/restart follows. Unrelated uncommitted video-artifact changes in the production checkout must remain untouched. telegram-bot-api must retain its original PID and start time. Runtime evidence will be recorded separately in deployment.json.
+- Published code commit: 52c02cdbba3fd3ac45ae0d6fab3284b49d580076, origin/main fast-forward from the previous public head. Complete tested app/tests/pipeline tree preserved.
+- Original unpublished local history is retained under preserve/stream-b-local-history-20261110 and fix/stream-b-audit-20261110. No commits were discarded, no force push and no disabled hooks.
+- Two legacy files already in origin/main contained forbidden literals: .orchestra-continuation-2026-11-04.md and .orchestra/tasks/gemini-web-rotation-2026-11-05/pytest-local.log. Current copies are redacted; the original public history still contains them. Values were never printed. Credential rotation or public-history rewriting was not performed.
+- sudo systemctl restart orchestra.service completed. New PID 1845619; active since 2026-11-10 12:35:39 UTC.
+- Authenticated HTTP /api/models returned 200, with free/auto:free context_length=131072 from the running application. Imported application path: /home/kesha/orchestra/app/__init__.py.
+- Both restart-cut sessions are running again; restart_cut_turns is empty. Before/after metadata: deployment-before.json and deployment.json.
+- telegram-bot-api unchanged: PID 2786980, original start time 2026-11-06 13:17:03 UTC.
+- Both unrelated video-artifact modifications were preserved byte-for-byte.
+- This final report commit changes evidence only and requires no further service restart.

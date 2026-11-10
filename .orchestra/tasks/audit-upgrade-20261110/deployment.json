@@ -1,0 +1,36 @@
+{
+  "checked_at": "2026-11-10T12:36:43.741473+00:00",
+  "code_commit": "52c02cdbba3fd3ac45ae0d6fab3284b49d580076",
+  "app_import_path": "/home/kesha/orchestra/app/__init__.py",
+  "orchestra_after": "MainPID=1845619\nExecMainStartTimestamp=Tue 2026-11-10 13:35:39 CET\nActiveState=active",
+  "http_status": 200,
+  "http_free_context": 131072,
+  "sessions_after": [
+    {
+      "id": "09b75a6c-c93f-45ea-b2f4-6728851a1bbd",
+      "name": "seedon-orchestrator",
+      "status": "running",
+      "backend_type": "codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "id": "6d2647c0-1396-49e1-8ac0-0f537eae4120",
+      "name": "evening1900-full-read",
+      "status": "running",
+      "backend_type": "hub",
+      "model": "hub-gpt-6.1-sol"
+    }
+  ],
+  "cut_names": [
+    "seedon-orchestrator",
+    "evening1900-full-read"
+  ],
+  "restart_recovered_names": [
+    "evening1900-full-read",
+    "evening1900-full-read"
+  ],
+  "pending_cut_turns": [],
+  "startup_complete": true,
+  "telegram_unchanged": true,
+  "telegram_after": "MainPID=2786980\nExecMainStartTimestamp=Fri 2026-11-06 14:17:03 CET\nActiveState=active"
+}
