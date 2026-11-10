@@ -1373,6 +1373,120 @@ def _insert_error_rows(path, rows, stamp):
         )
 
 
+_V1287_READ_REFUSAL = "[read error] path '/outside/file.txt' is outside the workspace"
+_V1287_NOISE = "harness read workspace guard refusal"
+
+
+@pytest.mark.parametrize("path", [
+    "/outside/file.txt", "../outside.txt", "/tmp/task-1287/file.txt",
+    "/outside/папка с пробелами/file.txt",
+])
+def test_v1287_standalone_read_guard_refusal_is_event_noise(path):
+    message = f"[read error] path '{path}' is outside the workspace"
+    event = dict(_event(message, source="logs"), type="tool_result", tool_name="read")
+    before = dict(event)
+    signature = watch.normalize_signature(message)
+    assert watch.classify_noise(message) is None
+    assert watch.classify_noise(signature) is None
+    candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+    assert candidates == []
+    assert [(item["noise"], item["count"]) for item in noise] == [(_V1287_NOISE, 1)]
+    started = datetime.fromisoformat(event["ts"])
+    assert watch.post_fix_verdict([event], signature, started, 1)["count"] == 0
+    assert event == before
+
+
+@pytest.mark.parametrize("overrides", [
+    {"source": "journalctl"}, {"source": None},
+    {"type": "error"}, {"type": "tool_use"}, {"type": None},
+    {"tool_name": "Read"}, {"tool_name": "Bash"}, {"tool_name": "hub"},
+    {"tool_name": None},
+    {"message": _V1287_READ_REFUSAL + "\nRuntimeError: storage failed"},
+    {"message": "RuntimeError: storage failed\n" + _V1287_READ_REFUSAL},
+    {"message": _V1287_READ_REFUSAL + "; PermissionError: denied"},
+    {"message": _V1287_READ_REFUSAL + "\n"},
+    {"message": " " + _V1287_READ_REFUSAL},
+    {"message": _V1287_READ_REFUSAL.replace("read error", "write error")},
+    {"message": "[read error] path '/outside/file.txt' PermissionError: denied"},
+    {"message": "[read error] path '' is outside the workspace"},
+    {"message": "[read error] path '/outside/line\nbreak' is outside the workspace"},
+    {"message": "[read error] path '/outside/line\rbreak' is outside the workspace"},
+    {"message": "[read error] path '/outside/ambiguous'quote' is outside the workspace"},
+    {"message": "[read error] path '/a' is outside the workspace; "
+                "[read error] path '/b' is outside the workspace"},
+    # Long mixed output must be checked raw, regardless of normalization/truncation.
+    {"message": "[read error] path '/outside/'\nRuntimeError:/bad" + "x" * 1100
+                + "' is outside the workspace"},
+])
+def test_v1287_other_provenance_and_mixed_errors_remain_actionable(overrides):
+    event = dict(_event(_V1287_READ_REFUSAL, source="logs"),
+                 type="tool_result", tool_name="read")
+    event.update(overrides)
+    signature = watch.normalize_signature(event["message"])
+    candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 1)]
+    assert noise == []
+    assert watch.post_fix_verdict(
+        [event], signature, datetime.fromisoformat(event["ts"]), 168,
+    )["count"] == 1
+
+
+def test_v1287_db_scan_separates_noise_and_keeps_real_post_fix_recurrence(
+    hub_finish_db, monkeypatch, capsys, scan_reports,
+):
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    stamp = started + timedelta(seconds=1)
+    signature = watch.normalize_signature(_V1287_READ_REFUSAL)
+    noise_row = ("tool_result", _V1287_READ_REFUSAL, "read", 1)
+    _insert_error_rows(hub_finish_db, [noise_row] * 10, stamp)
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+    args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=10, dry_run=True)
+    assert watch.scan(args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["signals"] == []
+    assert output["noise_by_class"] == {_V1287_NOISE: 10}
+    assert output["noise_events"] == 10
+
+    state_path = hub_finish_db.parent / "error_watch.json"
+    fix = {"task": "V-1287", "commit": "example", "started_at": started.isoformat(),
+           "window_hours": 168}
+    watch._write_state(state_path, {"alerts": {}, "fixes": {signature: fix}})
+    args.dry_run = False
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert not scan_reports.called
+    assert watch._load_state(state_path)["fixes"] == {signature: fix}
+
+    # Same normalized signature, but unknown tool provenance: count the real event.
+    real_row = ("tool_result", _V1287_READ_REFUSAL, None, 1)
+    _insert_error_rows(hub_finish_db, [real_row], stamp)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert signals == []
+    assert [(item["signature"], item["count"]) for item in verdicts] == [(signature, 1)]
+    state = watch._load_state(state_path)
+    assert state["fixes"][signature]["recurrence_reported"] is True
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+    assert watch._load_state(state_path) == state
+
+    _insert_error_rows(hub_finish_db, [real_row] * 9, stamp)
+    events = watch.collect_db_events(hub_finish_db, started)
+    candidates, noise = watch.aggregate(events, stamp, threshold=10)
+    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 10)]
+    assert [(item["signature"], item["count"], item["noise"]) for item in noise] == [
+        (signature, 10, _V1287_NOISE),
+    ]
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert [(item["signature"], item["count"]) for item in signals] == [(signature, 10)]
+    assert verdicts == []
+
+
 @pytest.mark.parametrize("message", ["Terminated", "Terminated ", "Terminated\n", " \tTerminated\r\n"])
 def test_bash_terminated_result_is_noise(message):
     event = dict(_event(message, source="logs"), type="tool_result", tool_name="Bash")

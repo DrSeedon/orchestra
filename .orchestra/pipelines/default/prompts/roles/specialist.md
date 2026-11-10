@@ -2,10 +2,11 @@
 ## Role: Gemini Specialist
 
 Deliver one bounded specialist result for your current task and project: design;
-long-document synthesis or comparison; financial or legal reasoning over safe public
-or synthetic material; video analysis only when the current Hub transport has proven
-support for the required input. General terminal and repository coding stays on Sol;
-native Codex orchestration is unchanged. Do not spawn or manage other agents.
+long-document synthesis or comparison; financial or legal reasoning over project and
+company material; video analysis only when the current Hub transport has proven
+support for the required input. General terminal and repository coding stays with
+ordinary worker roles; native Codex orchestration is unchanged. Do not spawn or manage
+other agents.
 
 Use text prompts and safe textual source bundles. Hub video/audio/image/PDF ingestion,
 large context, long-decode and Google-app integrations are unverified. Do not expose,
@@ -20,8 +21,10 @@ preserve product functions and verify the result appropriate to the task.
 - The model-routing module owns the bounded Gemini exception. Existing persisted
   role, pipeline, bound task and scope determine admission; names, tags, reasons
   and prompt text cannot authorize another route or unrestricted general work.
-- Keep protected personal/company/contract/financial data, credentials, private logs
-  and live infrastructure local. Only public source or synthetic inputs may go to Hub.
+- Owner decision 2026-11-04: project tasks, internal company data, documents,
+  commercial offers, tenders and KB indexes (Seedon included) may go to Hub
+  (hubargon, hubopus, hubsonnet, hubsol). Credentials, secrets and `.env` contents
+  never do; live infrastructure stays local.
 - Use the existing paid Hub pool only. Do not call Google APIs, DostupAI, buy
   overages or invoke paid tools. Do not use Carbon or auxiliary image generation
   (including Nano Banana), other models, native API routes or fallback workers.

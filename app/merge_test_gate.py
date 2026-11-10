@@ -38,6 +38,7 @@ import tarfile
 import tempfile
 import time
 import ast
+import contextvars
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -241,11 +242,29 @@ def changed_paths(
     return sorted(set(paths))
 
 
+# Prompt sources have no `app/<stem>.py` to map from, so a pipeline or root-instruction
+# edit used to select nothing and merged without the contracts that pin module delivery,
+# role isolation and template placeholders.
+PROMPT_CONTRACT_TESTS = (
+    "tests/test_default_pipeline.py",
+    "tests/test_prompting.py",
+    "tests/test_local_delegation_prompts.py",
+    "tests/test_check_pipeline_manifest.py",
+)
+_PROMPT_SOURCE_EXACT = frozenset({"AGENTS.md", "CLAUDE.md"})
+
+
 def select_tests(changed: list[str], *, worktree: str) -> list[str]:
     wt = Path(worktree)
     selected: set[str] = set()
     for raw in changed:
-        path = raw.replace("\\", "/").lstrip("./")
+        norm = raw.replace("\\", "/")
+        while norm.startswith("./"):
+            norm = norm[2:]
+        # `.orchestra/...` keeps its leading dot here; `lstrip("./")` below would eat it.
+        if norm.startswith(".orchestra/pipelines/") or norm in _PROMPT_SOURCE_EXACT:
+            selected.update(test for test in PROMPT_CONTRACT_TESTS if (wt / test).is_file())
+        path = norm.lstrip("./")
         if path.startswith("app/routes/") or path in _ROUTE_EXACT:
             if (wt / ROUTE_TEST).is_file():
                 selected.add(ROUTE_TEST)
@@ -817,6 +836,47 @@ def _copy_artifact_into_tree(worker: Path, target: Path, relative: str) -> None:
         shutil.copy2(source, destination)
 
 
+# One `evaluate_mutation_gate` builds two trees (control and mutation) from the SAME target
+# commit; archiving the whole repository twice doubled the slowest step of the gate.
+_ARCHIVE_CACHE: contextvars.ContextVar[dict | None] = contextvars.ContextVar(
+    "merge_gate_archive_cache", default=None,
+)
+
+
+@contextmanager
+def _shared_target_archive():
+    """Within this block every `_mutation_tree` of one target commit reuses one archive."""
+    holder = tempfile.TemporaryDirectory(prefix="orchestra-merge-archive-")
+    token = _ARCHIVE_CACHE.set({"dir": Path(holder.name), "archives": {}})
+    try:
+        yield
+    finally:
+        _ARCHIVE_CACHE.reset(token)
+        holder.cleanup()
+
+
+def _target_archive(worker: str, target_commit: str, scratch: Path) -> Path:
+    cache = _ARCHIVE_CACHE.get()
+    key = (str(Path(worker).resolve()), target_commit)
+    if cache is not None and key in cache["archives"]:
+        return cache["archives"][key]
+    directory = cache["dir"] if cache is not None else scratch
+    archive = directory / f"target-{len(cache['archives']) if cache is not None else 0}.tar"
+    with archive.open("wb") as stream:
+        proc = subprocess.run(
+            ["git", "archive", "--format=tar", target_commit],
+            cwd=worker, stdout=stream, stderr=subprocess.PIPE,
+            text=False, timeout=30, check=False,
+        )
+    if proc.returncode != 0:
+        archive.unlink(missing_ok=True)
+        detail = (proc.stderr or b"").decode("utf-8", "replace").strip() or f"exit {proc.returncode}"
+        raise RuntimeError(f"git archive target failed: {detail}")
+    if cache is not None:
+        cache["archives"][key] = archive
+    return archive
+
+
 @contextmanager
 def _mutation_tree(
     worker: str, target_commit: str, test_artifacts: list[str],
@@ -826,16 +886,7 @@ def _mutation_tree(
     temporary = tempfile.TemporaryDirectory(prefix="orchestra-merge-mutation-")
     root = Path(temporary.name)
     try:
-        archive = root / "target.tar"
-        with archive.open("wb") as stream:
-            proc = subprocess.run(
-                ["git", "archive", "--format=tar", target_commit],
-                cwd=worker, stdout=stream, stderr=subprocess.PIPE,
-                text=False, timeout=30, check=False,
-            )
-        if proc.returncode != 0:
-            detail = (proc.stderr or b"").decode("utf-8", "replace").strip() or f"exit {proc.returncode}"
-            raise RuntimeError(f"git archive target failed: {detail}")
+        archive = _target_archive(worker, target_commit, root)
         tree = root / "tree"
         tree.mkdir()
         with tarfile.open(archive, "r:") as tar:
@@ -909,35 +960,36 @@ def evaluate_mutation_gate(
     selected_tests = selected_nodes
     exclude_orchestra_markers = _is_orchestra_worktree(worktree)
     try:
-        with _mutation_tree(
-            worktree, commit, test_artifacts, source_artifacts=sources,
-        ) as control_tree:
-            control = run_pytest(
-                str(control_tree), selected_tests,
-                timeout=MUTATION_MAX_TIMEOUT_SECONDS,
-                interpreter=result["interpreter"],
-                exclude_orchestra_markers=exclude_orchestra_markers,
-            )
-        if control["status"] == SKIPPED and control.get("reason") == "no_tests_after_deselect":
-            return {
-                **result,
-                "status": SKIPPED,
-                "reason": "changed_tests_excluded",
-                "output": "all changed test nodes are excluded by the browser/live_probe policy",
-                "target_sha": commit,
-                "interpreter": result["interpreter"],
-                "selected_nodes": selected_nodes,
-                "fallback_files": [],
-                "control_status": control["status"],
-                "control_reason": control.get("reason", ""),
-            }
-        with _mutation_tree(worktree, commit, test_artifacts) as tree:
-            second = run_pytest(
-                str(tree), selected_tests,
-                timeout=MUTATION_MAX_TIMEOUT_SECONDS,
-                interpreter=result["interpreter"],
-                exclude_orchestra_markers=exclude_orchestra_markers,
-            )
+        with _shared_target_archive():
+            with _mutation_tree(
+                worktree, commit, test_artifacts, source_artifacts=sources,
+            ) as control_tree:
+                control = run_pytest(
+                    str(control_tree), selected_tests,
+                    timeout=MUTATION_MAX_TIMEOUT_SECONDS,
+                    interpreter=result["interpreter"],
+                    exclude_orchestra_markers=exclude_orchestra_markers,
+                )
+            if control["status"] == SKIPPED and control.get("reason") == "no_tests_after_deselect":
+                return {
+                    **result,
+                    "status": SKIPPED,
+                    "reason": "changed_tests_excluded",
+                    "output": "all changed test nodes are excluded by the browser/live_probe policy",
+                    "target_sha": commit,
+                    "interpreter": result["interpreter"],
+                    "selected_nodes": selected_nodes,
+                    "fallback_files": [],
+                    "control_status": control["status"],
+                    "control_reason": control.get("reason", ""),
+                }
+            with _mutation_tree(worktree, commit, test_artifacts) as tree:
+                second = run_pytest(
+                    str(tree), selected_tests,
+                    timeout=MUTATION_MAX_TIMEOUT_SECONDS,
+                    interpreter=result["interpreter"],
+                    exclude_orchestra_markers=exclude_orchestra_markers,
+                )
     except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
         return {
             **result,

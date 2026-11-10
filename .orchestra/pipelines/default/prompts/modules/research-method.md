@@ -6,14 +6,11 @@ a reference, not a mandatory sequence or an obligation to produce every artifact
 Check the task's premise and seek counter-evidence for load-bearing conclusions.
 
 ### Step 0 — Frame the question before searching
-Restate the task as a structured question. Name explicitly:
-- **Context** — the system/component/situation under study
-- **Change under test** — the approach, claim, or hypothesis being evaluated
-- **Baseline** — what it's compared against (the alternative / status quo)
-- **Outcome** — the *measurable* thing that decides the answer
-If the question is a "does A beat B on metric M" → this is a comparison, plan a measurement.
-If it's "what are the tradeoffs / how does X behave" → this is qualitative, plan multi-source.
-A vague question produces duplicated, misdirected searches. Frame first.
+Name the **context** (system under study), the **change under test** (claim or approach),
+the **baseline** (alternative / status quo) and the **outcome** (the measurable thing that
+decides). "Does A beat B on M" is a comparison: plan a measurement. "What are the tradeoffs /
+how does X behave" is qualitative: plan multiple sources. A vague question produces
+duplicated, misdirected searches.
 
 ### Step 1 — Hypotheses for causal or disputed questions
 For a causal explanation or disputed claim, state the leading hypothesis, a plausible
@@ -34,12 +31,9 @@ State a concrete retrieval/measurement ceiling before the first call (calls, rou
 or spend). Stop when the outcome is decidable; do not repeat an unchanged query or spend a
 round only rephrasing it.
 
-For the code the task touches: grep/read the ACTUAL source before proposing —
-understand before theorizing. Check fallback paths and real call-sites, not just
-string matches.
-
-Judge retrieval relevance before using it. Irrelevant retrieval **poisons**
-reasoning — discard it, don't reason on top of it.
+For the code the task touches, read the ACTUAL source, fallback paths and real
+call-sites before theorizing, not just string matches. Judge retrieval relevance before
+using it: irrelevant retrieval **poisons** reasoning — discard it.
 
 **Prior art — has someone already solved this?**
 RUN THIS WHEN the task turns on the behavior of a system outside our code (a protocol, someone
@@ -62,9 +56,8 @@ Rank what a claim rests on, best → worst:
 4. **A single secondary source** (one blog / one thread)
 5. **Your own memory with no source** — weakest, frequently fabricated (don't assert it)
 
-Apply the tier to EVERY source, including famous ones. Big-name ≠ correct.
-New ≠ better than a foundational primary source. If a recent claim contradicts a
-primary source, flag the conflict — don't silently prefer the newer one.
+Apply the tier to EVERY source: big-name ≠ correct, new ≠ better than a foundational
+primary source. If a recent claim contradicts a primary source, flag the conflict.
 
 ### Step 4 — Seek counter-evidence, then decompose & verify
 - **Actively search for refutation** of your leading hypothesis (Step 1 falsifier).
@@ -86,12 +79,11 @@ primary source, flag the conflict — don't silently prefer the newer one.
 - Before a full run, pilot the complete measurement path on 2–3 candidates. If candidates can
   change external state, give blind judges each candidate's measured side effects/artifact diffs;
   transcript-only scoring is invalid because real actions look fabricated.
-- Run experiments in isolation, not production. Choose repeats based on noise and decision risk,
+- Run experiments in isolation, not production. Choose repeats by noise and decision risk,
   not a fixed count; a deterministic reproduction may need only one run.
-  **Do not put large files in `/tmp`** — check `findmnt /tmp` first: on the laptop it is tmpfs,
-  so "files on disk" are RAM you are taking from other agents, and a reboot erases them.
-  Models, DB snapshots and datasets go on a real disk (`data/`, project dir); keep `/tmp`
-  for the scripts themselves.
+  **Do not put large files in `/tmp`** (`findmnt /tmp`: on the laptop it is tmpfs, i.e. RAM
+  of other agents, erased on reboot); models, DB snapshots and datasets go to `data/` or the
+  project dir.
 - Record raw numbers/outputs/errors verbatim.
 - For every reproduction, record the revision, outcome-sensitive effective configuration/input
   (including environment/model when relevant), and observable end effect in the production-shaped
@@ -116,23 +108,17 @@ primary source, flag the conflict — don't silently prefer the newer one.
 
 The knowledge module owns what belongs in the report, KB and personal notes.
 
-### Do NOT (each is a measured failure mode):
-- **Do NOT seek confirmation.** Go looking for what proves you WRONG. Step-by-step
-  reasoning locks in an early wrong guess — counter it deliberately.
-- **Do NOT flip your answer just because challenged/pushed.** Flip only when NEW
-  EVIDENCE warrants it. Caving to pushback = instability, not reasoning.
-- **Do NOT cite a source you didn't open.** Models can fabricate references from memory,
-  including when search is available. If you didn't fetch it, you may not cite it.
-- **Do NOT paraphrase without analysis.** A summary is not a finding. Decompose into
-  atomic claims and verify each. Grounding + traceability over fluency.
-- **Do NOT trust a source because it's famous or recent.** Rank by susceptibility to
-  bias, not by brand or date. Corroborate big names too.
-- **Do NOT reason on top of irrelevant retrieval.** Bad retrieval poisons the chain — discard it.
-- **Do NOT move the goalposts.** Define pass/fail before running; don't redefine "success" after seeing results.
-- **Do NOT state memory as fact.** "I think" / "typically" / "should be" without a
-  source is a hypothesis — label it UNCERTAIN, or go verify it.
-- **Do NOT assume one source = truth.** The cited source can be outdated, disputed,
-  or cherry-picked; real questions have conflicting evidence. Present the conflict.
+### Do NOT (each is a measured failure mode; Steps 2–5 cover confirmation-seeking,
+source fame, poisoned retrieval and moved goalposts):
+- **Do NOT flip your answer just because challenged/pushed.** Flip only on NEW evidence.
+- **Do NOT cite a source you didn't open.** Models fabricate references from memory, even
+  with search available.
+- **Do NOT paraphrase without analysis.** A summary is not a finding: decompose into atomic
+  claims and verify each.
+- **Do NOT state memory as fact.** "I think" / "typically" / "should be" without a source is
+  a hypothesis — label it UNCERTAIN, or verify it.
+- **Do NOT assume one source = truth.** Sources can be outdated, disputed or cherry-picked;
+  present the conflict.
 
 ### Effort scaling (don't over-ceremony a trivial lookup):
 - **One fact** → inspect its authoritative source and verify relevance; stop when answered.

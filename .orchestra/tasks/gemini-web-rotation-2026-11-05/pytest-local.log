@@ -39,7 +39,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -88,7 +88,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -137,7 +137,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -186,7 +186,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -235,7 +235,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -284,7 +284,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -333,7 +333,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -382,7 +382,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -431,7 +431,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -480,7 +480,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -529,7 +529,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -578,7 +578,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -627,7 +627,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -676,7 +676,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -725,7 +725,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║
@@ -774,7 +774,7 @@ is_internal = False, title = None
             return await cb()
         except Exception as error:
 >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/claude-astrahancev-maxim-911aird/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/[redacted]/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
 E           ╔════════════════════════════════════════════════════════════╗
 E           ║ Looks like Playwright was just installed or updated.       ║
 E           ║ Please run the following command to download new browsers: ║

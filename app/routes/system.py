@@ -593,8 +593,13 @@ async def get_models_catalog():
                      "input_modalities": ["text"], "output_modalities": ["text"]}
         elif model_id in getattr(models_mod := __import__("app.models", fromlist=["FREE_POOL_MODEL_IDS"]), "FREE_POOL_MODEL_IDS", ()):
             from app.harness.free_pool import CLOUD_FREE_PROVIDERS, cloud_provider_api_key, upstream_model_name
+            from app.models import BLOCKED_HARNESS_ROUTES
             prefix, _ = upstream_model_name(model_id)
-            ready = bool(cloud_provider_api_key(prefix)) if prefix in CLOUD_FREE_PROVIDERS else True
+            ready = (
+                model_id not in BLOCKED_HARNESS_ROUTES
+                and prefix != "local"
+                and (bool(cloud_provider_api_key(prefix)) if prefix in CLOUD_FREE_PROVIDERS else True)
+            )
             entry = {"supports_tools": True, "harness_eligible": ready,
                      "available": ready, "is_free": True,
                      "input_modalities": ["text"], "output_modalities": ["text"]}
@@ -675,7 +680,7 @@ async def patch_model_flags(request: Request):
     dashboard = body.get("dashboard")
     agents = body.get("agents")
     spec = MODEL_SPECS[model_id]
-    if agents is True and spec.runtime == "harness":
+    if (agents is True or dashboard is True) and spec.runtime == "harness":
         try:
             validate_harness_model_spec(spec)
         except ValueError as exc:

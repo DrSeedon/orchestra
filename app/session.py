@@ -27,7 +27,7 @@ from app.models import backend_for_model, get_model_spec, ensure_hub_worker_allo
 from app.prompting import (
     codex_project_doc_preflight, inject_skills_to_worktree,
     inject_skills_to_worktree_report, is_orchestrator_role,
-    prompt_template_hash, refresh_worker_memory,
+    prompt_template_hash, refresh_worker_memory, strip_worker_memory,
 )
 from app.quota_gate import QuotaGateError, session_requires_quota
 from app.runtime_registry import (
@@ -80,6 +80,8 @@ from app.errtext import err_text
 
 
 logger = logging.getLogger(__name__)
+PERSIST_RETRIES = 3
+PERSIST_RETRY_DELAY = 0.2  # seconds; ×1, ×2 between the bounded retries
 
 _HANDOFF_LOG_RETRY_BUDGET_S = 6.0
 # Ожидание уже поставленных в пул записей журнала. Ограничено: зависший пул или «застрявший»
@@ -1007,7 +1009,17 @@ class AgentSession:
                 else config_dir_override
             ),
         )
-        return build_backend(runtime, context)
+        backend = build_backend(runtime, context)
+        if runtime == "claude" and not validation_profile:
+            # ClaudeBackend hands this exact text to the CLI through
+            # --append-system-prompt-file on every connect, resume included. `send`
+            # compares it with the rebuilt prompt: an equal prompt is already in the
+            # system channel and is not replayed into the user turn a second time.
+            try:
+                backend._orchestra_system_channel_prompt = system_prompt
+            except AttributeError:
+                pass
+        return backend
 
     def _log_codex_connect_stage(self, stage: str, started: float) -> None:
         if self.backend_type == "codex":
@@ -1735,6 +1747,7 @@ class AgentSession:
             did_inject = False
             pending_th = ""
             templates_changed = False
+            inject_prefix = ""
             prompt_started = time.monotonic()
             rules_now = temp_rules.fingerprint(
                 role=self.role, is_orch=self.is_orchestrator, scope=self.scope, name=self.name)
@@ -1753,7 +1766,9 @@ class AgentSession:
                 # Only on first message after resume; subsequent turns use cached prompt.
                 current_th = prompt_template_hash(self.role)
                 old_th = self._template_hash or current_th
-                templates_changed = old_th != current_th or rules_changed
+                prompt_before_refresh = self._current_prompt
+                role_changed = old_th != current_th
+                templates_changed = role_changed or rules_changed
                 pending_th = current_th
                 # Personal memory is re-read here, not reused from the assembled string:
                 # the prompt is built at spawn / _load_from_db, so anything the agent
@@ -1805,7 +1820,39 @@ class AgentSession:
                 self._current_prompt = temp_rules.with_block(
                     self._current_prompt, role=self.role, is_orch=self.is_orchestrator,
                     scope=self.scope, name=self.name)
-                message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
+                old_memory = re.findall(r"<worker-memory>.*?</worker-memory>", prompt_before_refresh, re.S)
+                new_memory = re.findall(r"<worker-memory>.*?</worker-memory>", self._current_prompt, re.S)
+                static_before = temp_rules.strip_block(strip_worker_memory(prompt_before_refresh)).strip()
+                static_after = temp_rules.strip_block(strip_worker_memory(self._current_prompt)).strip()
+                if (not role_changed and static_before == static_after
+                        and (rules_changed or old_memory != new_memory)
+                        and (self._prompt_injected or old_memory != new_memory)):
+                    # Deliver only changed dynamic layers; keep the full rebuilt role for reconnects.
+                    blocks = []
+                    changed = []
+                    if rules_changed:
+                        changed.append("temporary-rules")
+                        blocks.append(temp_rules.current_block(self._current_prompt) or (
+                            "<temporary-rules>\n(no active temporary rules)\n</temporary-rules>"
+                        ))
+                    if old_memory != new_memory:
+                        changed.append("worker-memory")
+                        blocks.append("\n\n".join(new_memory) or (
+                            "<worker-memory>\n(no current personal memory)\n</worker-memory>"
+                        ))
+                    inject_prefix = (
+                        "[Orchestra platform note: your role instructions were updated. Only the "
+                        + ", ".join(changed) + " blocks changed: they replace the earlier blocks; "
+                        "everything else stays as delivered. This is from the server, not another agent.]\n"
+                        + "\n\n".join(blocks) + "\n\n---\n\n"
+                    )
+                else:
+                    inject_prefix = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n"
+                if self.backend_type == "claude":
+                    # A CLI that (re)connects on this turn reads `system_prompt` from
+                    # --append-system-prompt-file (resume included): give it the rebuilt
+                    # prompt instead of the one assembled at startup.
+                    self.system_prompt = self._current_prompt
                 did_inject = True
             self._log_codex_connect_stage("prompt_assembly", prompt_started)
 
@@ -1856,6 +1903,18 @@ class AgentSession:
                 backend.resume_failed = False
                 self._log("status", "native Claude transcript missing — restored from Orchestra logs")
                 self._persist()
+
+            if inject_prefix:
+                if (
+                    self.backend_type == "claude"
+                    and getattr(backend, "_orchestra_system_channel_prompt", None)
+                    == self._current_prompt
+                ):
+                    # This CLI was started with exactly the rebuilt prompt in its system
+                    # channel; a copy in the user turn would bake it into the history twice.
+                    self._log("status", "prompt delivered via system channel; not replayed")
+                else:
+                    message = f"{inject_prefix}{message}"
 
             # Rows the owner's Stop held back go out first, with this new turn (02.11).
             held = self._turns.claim_mailbox_held_after_stop()
@@ -5078,13 +5137,25 @@ class AgentSession:
             logger.error(f"[{self.name}] persist task crashed: {e}")
 
     async def _persist_loop(self) -> None:
+        failures = 0
         while self._persist_dirty:
             self._persist_dirty = False
             snapshot = self._to_db_dict()
             try:
                 await asyncio.get_running_loop().run_in_executor(_db_executor(), save_session, snapshot)
+                failures = 0
             except Exception as e:
-                logger.error(f"[{self.name}] persist failed: {e}")
+                # The flag was cleared before the write: without re-arming it a failed
+                # save (locked/full disk) silently dropped this state until some
+                # unrelated later change happened to persist the session again.
+                self._persist_dirty = True
+                failures += 1
+                logger.error(f"[{self.name}] persist failed ({failures}/{PERSIST_RETRIES}): {e}")
+                if failures >= PERSIST_RETRIES:
+                    # Bounded: `_drain_persist` (compact, shutdown) awaits this task. The
+                    # flag stays set, so the next `_persist()` call retries the write.
+                    return
+                await asyncio.sleep(PERSIST_RETRY_DELAY * failures)
 
     async def _drain_persist(self) -> None:
         if self._persist_task and not self._persist_task.done():

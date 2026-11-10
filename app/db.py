@@ -1428,7 +1428,7 @@ def get_compact_segment(session_id: str, tool_cap: int = 4000) -> list[dict]:
         ).fetchone()
         start = row[0] or 0
         rows = c.execute(
-            "SELECT id, ts, type, tool_name, tool_is_error, "
+            "SELECT id, ts, type, tool_name, tool_is_error, origin, origin_detail, "
             "CASE WHEN type IN ('tool', 'tool_result') THEN substr(content, 1, ?) "
             "ELSE content END AS content "
             "FROM logs WHERE session_id = ? AND id >= ? "

@@ -13,18 +13,18 @@ orchestrators use the same operating rules; do not change their model merely to 
 |---|---|---|
 | `luna` | Explicit local implementation, focused tests and deterministic collection | Local worker admission requires a non-empty model_reason naming the local-processing constraint |
 | native Astra | Hard coding, debugging, architecture or difficult reasoning | Native manual-only admission currently prevents automatic worker selection |
+| `hubopus` | Hard coding, architecture, multi-step debugging and refactors (owner stack 09.11.2026) | Ordinary admitted Hub route; xhigh effort from the manifest, never max |
+| `hubsonnet` | Routine implementation, reading, scripts and bounded collection (owner stack 09.11.2026) | Ordinary admitted Hub route; high effort from the manifest |
 | `hubsol` | General Hub implementation; deep read-only audits and synthesis when assigned that scope | Ordinary admitted Hub route; read-only assignments must remain read-only |
 | unregistered Hub Terra route | Deep read-only audit or synthesis when exposed and admitted | Not in the current registry; do not invent an alias or dispatch an unknown route |
 | `hubargon` | Independent second opinion, bounded audit, frontend/UI design or document comparison | Ordinary Hub workers and specialists; medium effort, role and task boundaries still apply |
-| `free` / `openrouter-free` | Zero-cost cloud worker pool with automatic failover across top free coding/agentic models | Preferred $0 route for routine collection, parsing, drafting and bounded checks |
-| `local` / `local-heretic` | Local uncensored Contabo worker (4 parallel slots, shared KV cache, $0 cost) | Preferred $0 route for confidential local processing, sensitive text or uncensored tasks |
-| `hubsonnet` | Legacy Hub reading and analysis when explicitly admitted | Disabled by default under current policy; prefer `hubsol`, `hubargon` or `free` |
-| `hubluna` | Legacy Hub collection when explicitly admitted | Prefer `hubsol` or `free` / `local` for new workers |
+| `free` / `openrouter-free` | Zero-cost cloud worker pool with automatic failover across top free coding/agentic models | Preferred zero-cost route for routine collection, parsing, drafting and bounded checks |
+| `local` / `local-heretic` | Disabled by owner decision (09.11.2026) | Blocked in `app/models.py`; never spawn `local`, `heretic` or `local-heretic` workers |
+| `hubluna` | Legacy Hub collection when explicitly admitted | Prefer `hubsol` or `free` for new workers |
 
 These are task-fit preferences, not new runtime permissions. The current guards in
-app/models.py admit ordinary Hub workers on `hubsol`,
-`hubargon` (medium effort), `hubsonnet` and
-`hubluna`. Native `luna` is only for explicitly local work with
+app/models.py admit ordinary Hub workers on `hubopus` (xhigh), `hubsonnet` (high),
+`hubargon` (medium), `hubsol` and `hubluna`. Native `luna` is only for explicitly local work with
 a non-empty model_reason naming the local-processing constraint. Company data and KB
 are authorized Hub inputs and do not by themselves require this native route. If broader routing is not activated,
 use an admitted route fitting the assignment or report the precise blocker. Never rename
@@ -48,8 +48,12 @@ full results and conflicting measurements. Keep current role defaults and explic
   Terminal-Bench 4.0 effort table reports 30.8% low versus 51.5% high (not verified
   on its cited page). `xhigh` took about 3x longer than low without a score gain;
   the task brief also reports 28.6 min for 34/40, a variant absent from the source table.
-- `hubsonnet`: `medium` for reading, analysis and summaries (35/40 in the separate
-  Antigravity pool, 26–35/40 across harnesses); `high` for complex agentic coding.
+- `hubsonnet`: `high` by the 09.11.2026 owner stack (source: owner model map 09.11.2026,
+  Artificial Analysis: FrontierCode 2.0 26% versus 11% on medium); the earlier 35/40 reading
+  score was measured in the separate Antigravity pool (source: `.orchestra/kb/hub-model-benchmarks.md`).
+- `hubopus`: `xhigh` by the 09.11.2026 owner stack (source: owner model map 09.11.2026,
+  Artificial Analysis: FrontierCode 2.0 44% versus 36% on high, Terminal-Bench 4.0 60%);
+  `max` adds no Terminal-Bench gain at a far longer TTFT.
 - `hubluna` / `luna`: fast mechanical collection, formatting and bounded checks.
   Open-ended multi-task scores were 7–11/40; require strict format/test verification.
   This recommendation does not change the manifest's high effort for admitted Luna workers.
@@ -62,11 +66,10 @@ full results and conflicting measurements. Keep current role defaults and explic
 ### Simple subtasks and tool profiles
 
 For bounded lookup, counting, extraction or formatting, prefer the `$0` worker pool
-(`free` for cloud tasks or `local` / `local-heretic` for local/uncensored tasks) or
-`hubsol` when the exact route is admitted; do not spawn new `hubluna`, `luna` or
-`hubsonnet` workers unless an explicit legacy constraint requires them. Keep `hubsol`,
-`sol` or `hubargon` for coding,
-architecture and debugging. The startup classifier is advisory: preserve the user's
+(`free` for cloud tasks; `local` / `local-heretic` / `heretic` is disabled and must not be used),
+`hubsonnet` or `hubsol` when the exact route is admitted; do not spawn new `hubluna` or
+`luna` workers unless an explicit legacy constraint requires them. Keep `hubopus`, `hubsol`
+or `hubargon` for coding, architecture and debugging. The startup classifier is advisory: preserve the user's
 explicit selection and always run the canonical admission and quota checks.
 Role profiles show only relevant tool schemas; disabled tools and access policy remain
 independent. Large tool previews provide an archive ID: read_tool_result_page reads

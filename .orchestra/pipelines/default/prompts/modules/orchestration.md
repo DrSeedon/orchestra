@@ -2,12 +2,10 @@
 ## Shared orchestration
 
 These rules apply to agents managing workers. A top-level orchestrator reports to the
-user; a sub-orchestrator reports explicitly to its parent. Role prompts own identity and
-user presentation; model-routing owns model choice, worker-lifecycle owns retention and
-closure, and git-workflow owns repository isolation. Do not duplicate those policies in
-task overlays or infer new authority from tool availability.
-The owner's project-data permission in model-routing covers Hub tasks for every
-orchestrator, including Seedon and tasks containing KB indexes or internal company data.
+user; a sub-orchestrator reports to its parent. Role prompts own identity and presentation,
+model-routing owns model choice (and the owner's project-data permission for Hub tasks,
+Seedon included), worker-lifecycle owns retention and closure, git-workflow owns repository
+isolation. Do not duplicate them in task overlays or infer authority from tool availability.
 
 <approval-gate>
 ## Work within existing authorization
@@ -50,10 +48,9 @@ unresolved decision before stopping; continue independent safe work while it is 
 5. Set the outcome, acceptance evidence and boundaries using worker-lifecycle. Let the
    executor choose method and depth unless a required method protects a named contract
    or is itself being tested. Expected files guide investigation; explicit exclusions bind.
-   When a task authorizes fetching external pages, documents or live status, execute the
-   real fetch and inspect the actual payload; never build "unarmed" or "prepare-only"
-   dry-run controllers with zero live calls or run repetitive offline TSV-to-TSV
-   reconciliation loops in place of real work.
+   When a task authorizes fetching external pages, documents or live status, do the real
+   fetch and inspect the payload; never substitute "unarmed"/"prepare-only" dry-run
+   controllers or repetitive offline TSV-to-TSV reconciliation for the real work.
 6. Read the final report in full, inspect the actual diff and verify named evidence.
    Return concrete defects or questions. Do not restart unchanged work merely because
    another model could inspect it.
@@ -121,12 +118,10 @@ and check live status/task identity with `list_agents` when assigning or retaski
   or warm context. Wait for idle or use a separate admitted worker.
 
 Do not send acknowledgement-only messages, keepalives, future-task hints or ordered lists
-of unrelated tasks. Write worker prompts and steering instructions in normal, properly
-spaced, concise prose (typically 10-25 lines); never glue words together without spaces
-("telegraph cipher") to cram excessive boilerplate into a prompt. A real answer or
-corrective instruction is useful; silence communicates
-that no new action is required. Workers can coordinate interfaces directly through
-`send_message`; do not relay messages when they can resolve the approved interface themselves.
+of unrelated tasks; silence communicates that no new action is required. Write worker
+prompts, steering and reports in normal, properly spaced, concise prose (typically 10-25
+lines); never glue words together without spaces ("telegraph cipher") to cram boilerplate.
+Workers coordinate interfaces directly through `send_message`; do not relay for them.
 
 Reuse suitable idle native workers under worker-lifecycle; running or waiting workers are
 unavailable for another task. Hub completion has its own immediate archival rule, so a
@@ -149,11 +144,10 @@ creation and the next-task transition. After an accepted merge, assigning the ne
 normally creates a fresh branch from main; use switch_worker_branch only for explicit
 branch control. A merge is not permission to close a worker with assigned phases remaining.
 
-Inspect worker work before merging. Its worktree is a separate checkout, but you CAN read
-it, run `git log <branch>` and `git diff main...<branch>`, or inspect committed artifacts
-with `git show <branch>:<path>`. Unmerged files do not automatically appear in the main
-checkout or other workers' checkouts. On remote backends use their supported artifact/diff
-retrieval; an unavailable local path is not a reason to merge unreviewed work.
+Inspect worker work before merging: read its worktree, `git log <branch>`,
+`git diff main...<branch>` or `git show <branch>:<path>`. Unmerged files do not appear in the
+main or other workers' checkouts. On remote backends use their artifact/diff retrieval; an
+unavailable local path is not a reason to merge unreviewed work.
 
 Merge accepted work promptly within authority. When another worker depends on it, merge
 and have that worker consume the integrated result, or provide a clearly identified

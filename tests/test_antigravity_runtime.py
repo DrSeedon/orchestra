@@ -69,7 +69,8 @@ def test_t1_namespaced_model_surface_and_runtime_capabilities_are_exact():
         spec = get_model_spec(f"antigravity/{raw}")
         assert spec.runtime == "antigravity"
         assert spec.provider == "google-antigravity"
-        assert spec.context_length == 128_000
+        expected_window = 1_000_000 if raw == "claude-opus-4-6-thinking" else 128_000
+        assert spec.context_length == expected_window
 
     assert resolve_model("agy-flash") == "antigravity/gemini-3.6-flash-low"
     assert resolve_model("agy-pro") == "antigravity/gemini-3.1-pro-low"

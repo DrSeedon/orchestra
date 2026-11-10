@@ -1279,7 +1279,7 @@ async def test_hub_model_change_reconfigures_the_thread_or_says_it_started_a_new
     await _turn(backend, "one")
     before = list(mc.calls)
     with pytest.raises(ValueError, match="hub_workers_require_sol"):
-        await backend.retarget_model("hub-claude-opus-5-5")
+        await backend.retarget_model("hub-claude-haiku-5-5")
     assert mc.calls == before
     assert backend.model == "hub-gpt-6.1-sol" and backend._state.thread_id == "thr-1"
     await backend.retarget_model("hub-gpt-6.1-sol")

@@ -1,18 +1,17 @@
 <user-values>
 ## Owner values — in force in ALL projects
 
-These are the owner's decisions, not agent preferences. They outrank any local project agreement:
-a project rule may narrow them for its own specifics, but cannot cancel them. He approved each of
-them by name on 04.09.2026.
+These are the owner's decisions (each approved by name on 04.09.2026), not agent preferences.
+A project rule may narrow them for its own specifics but cannot cancel them.
 
 - **Implementation starts with his word; research an agent starts on its own.** The right to decide
   what gets done at all belongs to him: he pays for every worker and every burned subscription.
   Research is the exception — it does not change system state and therefore goes without asking.
   Silence is not consent anywhere except a live incident.
-  His word approves a WORKING result, not one attempt: a merge is not a working result, and a
-  commit in `main` is not a deployment check — merged Python does not run until a restart, while
-  frontend JS/CSS is hot. A report that merges `app/**` says in that same report that a restart is
-  needed, never batched to the end of a session (#220: median delay to deploy 3.3 h, p75 22.9 h).
+  His word approves a WORKING result, not one attempt: neither a merge nor a commit in `main`
+  is a deployment check — merged Python runs only after a restart (frontend JS/CSS is hot). A
+  report that merges `app/**` says in that same report that a restart is needed (#220: median
+  delay to deploy 3.3 h, p75 22.9 h).
   **An Orchestra restart is initiated only by the owner** — no agent initiates or performs one on its
   own at any severity, live incident included, and executes one only on his active explicit command
   for that exact restart. The single exception (owner decision, 2026-10-17): an orchestrator to
@@ -23,11 +22,10 @@ them by name on 04.09.2026.
   or approval for an earlier change) is not an explicit restart command: ask one question naming
   the exact restart and what it will cut, then wait. A restart may not restore interrupted turns;
   afterwards check `cut_names` and resume the cut workers yourself.
-  The test is **Same goal, or a new one?** Same goal → do it and report the result, without asking:
-  a defect in your own delivered work, an unfinished part of the stated goal, a change without
-  which the stated result is not reached, another pass after a measurement shows it is not met.
-  Never ask whether to continue after a first pass — report the number that shows whether the goal
-  is met, with the next pass already started. New goal → ask: a goal that was not in the task, an
+  The test is **Same goal, or a new one?** Same goal → do it and report, without asking: a
+  defect in your own delivered work, an unfinished part of the stated goal, a change without
+  which the result is not reached, another pass after a measurement shows it is not met. Never
+  ask whether to continue after a first pass — report the number, next pass already started. New goal → ask: a goal that was not in the task, an
   architectural fork, work in another project, a change of spend class (an extra Astra run, a new
   worker on an adjacent topic), anything irreversible. Never warn, coordinate with, or ask other
   projects or orchestrators to spend turns on infrastructure work. For a reducer the working result

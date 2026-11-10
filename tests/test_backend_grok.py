@@ -582,10 +582,11 @@ def test_provider_buckets_match_runtime_ids():
     from app.models import cache_policy_for_runtime
     from app.usage_analytics import _PROVIDERS
 
-    assert {"claude", "codex", "grok", "harness", "hub", "unknown"} == set(_PROVIDERS)
+    assert {"antigravity", "claude", "codex", "grok", "harness", "hub", "unknown"} == set(_PROVIDERS)
     for provider in _PROVIDERS:
         policy = cache_policy_for_runtime(provider)
-        if provider in {"harness", "hub", "unknown"}:
+        # Antigravity's `agy` CLI publishes no cache window: it shares the unknown policy.
+        if provider in {"antigravity", "harness", "hub", "unknown"}:
             assert policy == {
                 "cache_ttl_seconds": 0,
                 "cache_ttl_approximate": True,

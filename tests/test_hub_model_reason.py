@@ -6,7 +6,7 @@ import pytest
 
 from app.models import HUB_SOL_ONLY_RULE, validate_model_reason
 
-FORBIDDEN = ['hubopus', 'hubhaiku', 'hubgrok', 'hub-claude-opus-5-5']
+FORBIDDEN = ['hubhaiku', 'hubgrok', 'hub-claude-haiku-5-5', 'hub-grok-4.7']
 REASON = 'Creative scene direction and visual judgment'
 
 
@@ -23,7 +23,7 @@ def test_claude_reason_cannot_authorize_a_forbidden_model(model):
         validate_model_reason(model, '  ' + REASON + '  ')
 
 
-@pytest.mark.parametrize('model', ['hubsol', 'hubargon', 'hubsonnet', 'hubluna', 'hub-gpt-6.1-sol', 'sonnet', 'opus', 'sol'])
+@pytest.mark.parametrize('model', ['hubopus', 'hubsol', 'hubargon', 'hubsonnet', 'hubluna', 'hub-gpt-6.1-sol', 'hub-claude-opus-5-5', 'sonnet', 'opus', 'sol'])
 def test_default_hub_and_own_models_need_no_reason(model):
     assert validate_model_reason(model) == ''
 
@@ -123,7 +123,7 @@ async def test_direct_model_change_refuses_missing_reason_and_preserves_previous
                           model='hub-gpt-6.1-sol', backend_type='hub')
     change = AsyncMock()
     monkeypatch.setattr(worker, '_change_model_locked', change)
-    result = await worker.change_model('hub-claude-opus-5-5')
+    result = await worker.change_model('hub-claude-haiku-5-5')
     assert result['error_code'] == HUB_SOL_ONLY_RULE
     change.assert_not_awaited()
     assert worker.model == 'hub-gpt-6.1-sol' and worker.model_reason == ''
@@ -197,11 +197,11 @@ async def test_failed_claude_switch_keeps_previous_reason(manager, monkeypatch):
 
     worker = AgentSession(id='worker', name='worker', scope='/repo', cwd='/repo',
                           model='hub-claude-sonnet-5-5', model_reason=REASON, backend_type='hub')
-    result = await worker.change_model('hub-claude-opus-5-5', ' ')
+    result = await worker.change_model('hub-claude-haiku-5-5', ' ')
     assert result['error_code'] == HUB_SOL_ONLY_RULE
     assert worker.model_reason == REASON
     monkeypatch.setattr(worker, '_change_model_locked', AsyncMock(return_value={'ok': False, 'error': 'refused'}))
-    result = await worker.change_model('hub-claude-opus-5-5', 'A different named reason')
+    result = await worker.change_model('hub-claude-haiku-5-5', 'A different named reason')
     assert result['ok'] is False and worker.model_reason == REASON
 
 

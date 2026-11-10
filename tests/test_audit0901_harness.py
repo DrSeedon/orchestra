@@ -20,6 +20,11 @@ from app.harness.loop import CARRIED_OVER_PREFIX, AgentLoop
 
 MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 
+@pytest.fixture(autouse=True)
+def _registered_test_route(live_harness_route):
+    live_harness_route("nvidia/nemotron-3-ultra-550b-a55b:free")
+
+
 
 class _FakeStore:
     session_id = "harness-audit0901"

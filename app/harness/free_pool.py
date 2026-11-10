@@ -455,14 +455,7 @@ class FreeWorkerRouter:
 
     def build_candidates(self, messages: list[dict], tools: list[dict]) -> list[tuple[str, OpenRouterClient]]:
         """Build the ordered cascade of (route_id, client) for this request."""
-        local_client = LocalLlamaClient(
-            LOCAL_HERETIC_MODEL_ID,
-            http=self._http,
-            supported_parameters=("tools", "tool_choice"),
-            workspace_root=self.workspace_root,
-        )
-        if is_private_conversation(messages):
-            return [(LOCAL_HERETIC_MODEL_ID, local_client)]
+        # Local Heretic is disabled by owner decision (09.11.2026) — never route or fallback to it.
 
         candidates: list[tuple[str, OpenRouterClient]] = []
 
@@ -522,8 +515,6 @@ class FreeWorkerRouter:
                         ),
                     ))
 
-        # 6. Always append Local Contabo Qwen3.5-35B-A3B-Heretic as the final 100% autonomous fallback
-        candidates.append((LOCAL_HERETIC_MODEL_ID, local_client))
         return candidates
 
     async def stream(
@@ -580,11 +571,8 @@ def create_free_pool_llm_client(
     """Instantiate the right Harness LLM client for a Free Worker Pool model id."""
     prefix, _ = upstream_model_name(model_id)
     if prefix == "local":
-        return LocalLlamaClient(
-            model=model_id,
-            supported_parameters=supported_parameters,
-            input_modalities=input_modalities,
-            workspace_root=workspace_root,
+        raise ValueError(
+            f"harness model '{model_id}' заблокирован: отключено решением владельца (09.11.2026)"
         )
     if prefix == "free":
         return FreeWorkerRouter(

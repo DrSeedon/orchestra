@@ -66,13 +66,14 @@ def client():
 
 
 @pytest.fixture()
-def vendor_model():
+def vendor_model(live_harness_route):
+    live_harness_route("test/vendor-x:free")
     spec = ModelSpec(
         id="test/vendor-x:free", name="Vendor X", runtime="harness",
         provider="openrouter", context_length=128000,
         price_input=0.0, price_output=0.0, supported_parameters=("tools",),
     )
-    registry.register_model(spec)
+    registry.register_model(spec, replace=True)
     yield spec
     registry.unregister_model("test/vendor-x:free")
 

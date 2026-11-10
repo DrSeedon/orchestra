@@ -1193,6 +1193,11 @@ class ClaudeBackend:
             )
         elif resume_id:
             options.resume = resume_id
+            # Claude CLI does not keep the appended system prompt in its transcript: a
+            # resumed CLI started without the file ran with no role at all, and the
+            # platform had to replay ~77 KB of it into the user history on every resume.
+            if self.system_prompt:
+                self._set_appended_system_prompt(options, self.system_prompt)
         else:
             self._set_appended_system_prompt(options, self.system_prompt)
         # MCP merge order: user < scope < instance — more specific wins.

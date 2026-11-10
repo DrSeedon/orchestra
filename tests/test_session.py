@@ -1663,15 +1663,42 @@ class TestPersistSingleFlight:
                 raise RuntimeError("db locked")
 
         monkeypatch.setattr("app.session.save_session", flaky_save)
+        monkeypatch.setattr("app.session.PERSIST_RETRY_DELAY", 0)
         session.progress_pct = 1
         session._persist()
         await session._drain_persist()
-        # first persist crashed; trigger a second — loop must still work
+        # the failed write is retried, not dropped until some later change happens
+        assert [c["progress_pct"] for c in calls] == [1, 1]
+        assert session._persist_dirty is False
+        # and the loop keeps working for the next change
         session.progress_pct = 2
         session._persist()
         await session._drain_persist()
-        assert len(calls) == 2
+        assert len(calls) == 3
         assert calls[-1]["progress_pct"] == 2
+
+    @pytest.mark.asyncio
+    async def test_persist_retries_are_bounded_and_keep_the_state_dirty(self, session, monkeypatch):
+        calls = []
+
+        def broken_save(snapshot):
+            calls.append(dict(snapshot))
+            raise OSError("disk full")
+
+        monkeypatch.setattr("app.session.save_session", broken_save)
+        monkeypatch.setattr("app.session.PERSIST_RETRY_DELAY", 0)
+        session.progress_pct = 7
+        session._persist()
+        # `_drain_persist` (compact, shutdown) must return even while the DB keeps failing.
+        await asyncio.wait_for(session._drain_persist(), timeout=5)
+        from app.session import PERSIST_RETRIES
+        assert len(calls) == PERSIST_RETRIES
+        assert session._persist_dirty is True, "the next _persist() call retries the write"
+
+        monkeypatch.setattr("app.session.save_session", lambda snapshot: calls.append(dict(snapshot)))
+        session._persist()
+        await session._drain_persist()
+        assert calls[-1]["progress_pct"] == 7 and session._persist_dirty is False
 
 
 class TestCompactGuards:
@@ -3197,6 +3224,7 @@ class TestRateLimitClassification:
             provider_source_records=None,
             quota_primary_pct=None,
             quota_sampled_at="2026-07-29T08:00:00+00:00",
+            normalized_usage=None,
         )
 
     @pytest.mark.asyncio

@@ -377,6 +377,8 @@ class HarnessBackend:
     async def send(self, message: str) -> None:
         if self._llm is None:
             raise RuntimeError("HarnessBackend not connected")
+        from app.models import get_model_spec, validate_harness_model_spec
+        validate_harness_model_spec(get_model_spec(self.model))
         if str(self.model or "").startswith("local/"):
             from app.harness.free_pool import _compact_local_messages
             message = _compact_local_messages([{"role": "user", "content": message}])[0]["content"]

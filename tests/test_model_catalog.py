@@ -297,7 +297,8 @@ def test_blocked_route_is_refused_and_never_registered():
     import app.models as registry
     from app.model_catalog import apply_model_catalog
 
-    blocked_id = next(iter(registry.BLOCKED_HARNESS_ROUTES))
+    blocked_id = "thinkingmachines/inkling:free"
+    assert blocked_id in registry.BLOCKED_HARNESS_ROUTES
     blocked_row = {**NORMALIZED, "id": blocked_id, "name": "Blocked Route"}
     db.kv_set(CATALOG_KV_KEY, json.dumps(
         {"fetched_at": 1726500000.0, "models": [blocked_row, NORMALIZED]}))

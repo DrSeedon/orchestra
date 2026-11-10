@@ -146,9 +146,11 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         id="hub-claude-sonnet-5-5", name="Hub: Sonnet 5.5",
         runtime="hub", provider="multicode", default_agents=True,
     ),
+    # Owner 2026-11-09: Hub Opus 5.5 (xhigh) joins Sonnet 5.5 (high) and Argon (medium)
+    # as the main Hub worker stack.
     ModelSpec(
         id="hub-claude-opus-5-5", name="Hub: Opus 5.5",
-        runtime="hub", provider="multicode", default_agents=False,
+        runtime="hub", provider="multicode", default_agents=True,
     ),
     ModelSpec(
         id="hub-gpt-6-luna", name="Hub: GPT-6 Luna",
@@ -226,9 +228,18 @@ ANTIGRAVITY_RAW_MODELS = (
     "gemini-4-argon-high", "gemini-4-argon-medium", "gemini-4-argon-low",
     "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
 )
+# 128 000 is the conservative default; these routes serve long contexts (owner 09.11.2026)
+# and a too-small window compacted them several times earlier than needed.
+ANTIGRAVITY_CONTEXT_LENGTHS = {
+    "gemini-4-argon-high": 1_000_000,
+    "gemini-4-argon-medium": 1_000_000,
+    "gemini-4-argon-low": 1_000_000,
+    "claude-opus-4-6-thinking": 1_000_000,
+}
 SELECTABLE_MODEL_SPECS += tuple(
     ModelSpec(id=f"antigravity/{raw}", name=f"Antigravity {raw}",
-              runtime="antigravity", provider="google-antigravity", context_length=128_000,
+              runtime="antigravity", provider="google-antigravity",
+              context_length=ANTIGRAVITY_CONTEXT_LENGTHS.get(raw, 128_000),
               default_dashboard=False, default_agents=False)
     for raw in ANTIGRAVITY_RAW_MODELS
 )
@@ -324,13 +335,18 @@ FREE_POOL_MODEL_SPECS: tuple[ModelSpec, ...] = (
         price_input=0.0,
         price_output=0.0,
         supported_parameters=("tools", "tool_choice"),
+        available=False,
+        default_dashboard=False,
+        default_agents=False,
     ),
     ModelSpec(
         id="free/auto:free",
         name="Free Pool Router (Auto Cascade + Local Fallback)",
         runtime="harness",
         provider="openrouter",
-        context_length=65536,  # Every request must also fit the local 65536 fallback.
+        # The 65 536 cap existed for the local Heretic fallback, removed by owner decision
+        # 09.11.2026; cloud routes too small for a request fail over to the next route.
+        context_length=131072,
         price_input=0.0,
         price_output=0.0,
         supported_parameters=("tools", "tool_choice", "reasoning"),
@@ -703,6 +719,7 @@ def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
 # провайдера продолжает обещать инструменты, но воркер на них не работает. Каждая строка —
 # наблюдение, а не мнение; появится противоположный замер — снимать по одной, не списком.
 BLOCKED_HARNESS_ROUTES: dict[str, str] = {
+    "local/qwen3.5-35b-a3b-heretic:free": "отключено решением владельца (09.11.2026)",
     "thinkingmachines/inkling:free": "HTTP 403: маршрут открыт только в харнесах провайдера",
     "thinkingmachines/inkling-small:free": "HTTP 403: маршрут открыт только в харнесах провайдера",
     "poolside/laguna-s-2.1:free": "HTTP 429 в обоих прогонах пробы",
@@ -753,6 +770,11 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
         if spec.id not in {"GigaChat-2", "GigaChat-2-Pro", "GigaChat-2-Max", "GigaChat-3-Lightning", "GigaChat-3-Pro", "GigaChat-3-Ultra"}:
             raise ValueError(f"unsupported GigaChat model '{spec.id}'")
         return
+    if spec.id in BLOCKED_HARNESS_ROUTES:
+        raise ValueError(
+            f"harness model '{spec.id}' заблокирован по результатам нашей пробы: "
+            f"{BLOCKED_HARNESS_ROUTES[spec.id]}"
+        )
     if spec.id in FREE_POOL_MODEL_IDS:
         from app.harness.free_pool import CLOUD_FREE_PROVIDERS, cloud_provider_api_key, upstream_model_name
 
@@ -762,11 +784,6 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
                 f"free cloud model '{spec.id}' requires API key ({CLOUD_FREE_PROVIDERS[prefix]['key_envs']})"
             )
         return
-    if spec.id in BLOCKED_HARNESS_ROUTES:
-        raise ValueError(
-            f"harness model '{spec.id}' заблокирован по результатам нашей пробы: "
-            f"{BLOCKED_HARNESS_ROUTES[spec.id]}"
-        )
     if not harness_route_allowed(spec.id):
         raise ValueError(
             f"harness model '{spec.id}' is not an exact :free route; "
@@ -909,8 +926,10 @@ def get_model_flags(model_id: str) -> dict[str, bool]:
     )
     stored = _load_model_flags().get(model_id) or {}
     spec = MODEL_SPECS.get(model_id)
-    if spec is not None and (
-        is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider)
+    if model_id in BLOCKED_HARNESS_ROUTES or (
+        spec is not None and (
+            is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider)
+        )
     ):
         return {"dashboard": False, "agents": False}
     return {
@@ -956,7 +975,8 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
         if runtime not in ("claude", "codex"):
             return ""
     return ("The MultiCode hub pool has its own quota: ordinary workers may use "
-            "model='hubsol', model='hubargon' (medium effort), model='hubsonnet' or model='hubluna'. "
+            "model='hubopus' (xhigh effort), model='hubsonnet' (high), model='hubargon' (medium), "
+            "model='hubsol' or model='hubluna'. "
             "Select the route explicitly; if unavailable, report the blocker or wait; "
             "no automatic model or API fallback.")
 
@@ -967,9 +987,12 @@ HUB_SOL_ONLY_RULE = "hub_workers_require_sol"
 HUB_SOL_MODEL = "hub-gpt-6.1-sol"
 HUB_ARGON_MODEL = "hub-gemini-4-argon"
 HUB_SONNET_MODEL = "hub-claude-sonnet-5-5"
+HUB_OPUS_MODEL = "hub-claude-opus-5-5"
 HUB_LUNA_MODEL = "hub-gpt-6-luna"
+# Owner stack 09.11.2026: Opus 5.5 xhigh for heavy work, Sonnet 5.5 high for routine work,
+# Argon medium for second opinions and UI. Sol and Luna stay admitted for existing flows.
 ALLOWED_HUB_WORKER_MODELS = frozenset({
-    HUB_SOL_MODEL, HUB_ARGON_MODEL, HUB_SONNET_MODEL, HUB_LUNA_MODEL,
+    HUB_OPUS_MODEL, HUB_SONNET_MODEL, HUB_ARGON_MODEL, HUB_SOL_MODEL, HUB_LUNA_MODEL,
 })
 HUB_SPECIALIST_ROLE = "specialist"
 
@@ -987,7 +1010,8 @@ def ensure_hub_worker_allowed(
 ) -> None:
     """Canonical hub routing admission, including old rows and backend recovery.
 
-    Owner decision 2026-11-04 admits Sol, Argon, Sonnet and Luna for Hub workers
+    Owner decision 2026-11-04 admits Sol, Argon, Sonnet and Luna for Hub workers, and
+    the 09.11.2026 stack adds Opus 5.5,
     in every role, pipeline, scope and task. Other Hub routes stay closed regardless
     of catalog flags or reasons. Native routing, manual native orchestrators and
     explicitly local Luna keep their own guards.
@@ -1009,7 +1033,7 @@ def ensure_hub_worker_allowed(
     if is_hub and model_id not in ALLOWED_HUB_WORKER_MODELS:
         raise ValueError(
             f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
-            "use hubsol, hubargon, hubsonnet or hubluna. "
+            "use hubopus, hubsonnet, hubargon, hubsol or hubluna. "
             "model_reason and catalog flags do not grant an exception. If the selected "
             "route is at capacity or unavailable, report the blocker or wait; do not "
             "automatically fall back to another model, native workers or API credits. "

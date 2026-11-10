@@ -15,6 +15,12 @@ import pytest
 from scripts import orchestra_backup as backup
 
 
+@pytest.fixture(autouse=True)
+def _fresh_backup_job_budget(monkeypatch):
+    # Collection can precede execution by many minutes; each simulated job starts here.
+    monkeypatch.setattr(backup, "_JOB_STARTED", time.monotonic())
+
+
 def _git(repo: Path, *args: str) -> str:
     return subprocess.run(
         ["git", "-C", str(repo), *args],

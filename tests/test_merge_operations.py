@@ -317,7 +317,8 @@ async def test_real_runner_causes_reach_durable_recovery(
     monkeypatch.setenv("PYTHONUNBUFFERED", "1")
     evidence = gate.run_pytest(
         str(tmp_path), ["test_probe.py"],
-        timeout=2 if case in {"budget", "partial_red"} else 10,
+        # Include cold child collection; the 30-second sleeper still exceeds this budget.
+        timeout=8 if case in {"budget", "partial_red"} else 10,
     )
     assert evidence["status"] == status, evidence["output"]
     assert evidence["reason"] == reason, evidence["output"]

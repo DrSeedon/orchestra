@@ -15,6 +15,11 @@ from app.harness.llm import OpenRouterClient
 from app.harness.loop import AgentLoop
 from app.runtime_registry import get_runtime
 
+@pytest.fixture(autouse=True)
+def _registered_test_route(live_harness_route):
+    live_harness_route("nvidia/nemotron-3-ultra-550b-a55b:free")
+
+
 
 def test_runtime_declares_mid_turn_inject():
     assert get_runtime("harness").capabilities.mid_turn_inject is True

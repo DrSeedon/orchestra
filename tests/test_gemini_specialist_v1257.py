@@ -183,7 +183,7 @@ async def test_backend_refuses_forbidden_route_in_every_live_context(admission, 
     backend._pending = "retained design input"
     backend._turn_active = True
     context[field] = value
-    backend.model = "hub-claude-opus-5-5"
+    backend.model = "hub-claude-haiku-5-5"
     before = (backend.model, backend._pending, backend._turn_active, dict(state.__dict__))
     with pytest.raises(ValueError, match=models.HUB_SOL_ONLY_RULE):
         if operation == "connect":
@@ -191,7 +191,7 @@ async def test_backend_refuses_forbidden_route_in_every_live_context(admission, 
         elif operation == "send":
             await backend.send("new input")
         elif operation == "retarget":
-            await backend.retarget_model("hub-claude-opus-5-5")
+            await backend.retarget_model("hub-claude-haiku-5-5")
         elif operation == "reconnect":
             await backend.reconnect()
         elif operation == "events":
@@ -222,7 +222,7 @@ async def test_forbidden_session_preserves_recovery(admission, operation):
     context = identity()
     context["role"] = "worker"
     worker = AgentSession(id="old", name="specialist-by-name", cwd=context["scope"],
-                          model="hub-claude-opus-5-5", backend_type="hub", model_reason="specialist", **context)
+                          model="hub-claude-haiku-5-5", backend_type="hub", model_reason="specialist", **context)
     worker.session_id = "retained-workspace"
     worker._session_limit_hit = worker._manually_interrupted = True
     worker._handoff_recovery_required = True
@@ -282,7 +282,7 @@ async def test_forbidden_queued_delivery_refuses_before_submit_and_keeps_payload
     context = identity(str(tmp_path))
     context["role"] = "worker"
     worker = AgentSession(id="old-argon", name="specialist-by-name", cwd=str(tmp_path),
-                          model="hub-claude-opus-5-5", backend_type="hub", session_id="retained-workspace", **context)
+                          model="hub-claude-haiku-5-5", backend_type="hub", session_id="retained-workspace", **context)
     worker.session_id_history = [{"session_id": "retained-history"}]
     db.save_session(worker._to_db_dict())
     manager = SessionManager()
@@ -377,8 +377,12 @@ async def test_direct_model_change_checks_current_session(admission, monkeypatch
 @pytest.mark.parametrize("via", ["mcp", "dashboard"])
 @pytest.mark.parametrize("role", ["specialist", "worker"])
 async def test_change_route_accepts_argon_for_worker_and_specialist(admission, monkeypatch, via, role):
+    from app import db
     from app.routes import sessions
 
+    # The route resolves the target through `get_session_by_name` first: every test owns
+    # an isolated database, so its schema must exist here, not by an earlier test's luck.
+    db.init_db()
     context = identity()
     context["role"] = role
     target = SimpleNamespace(**context, change_model=AsyncMock(return_value={"ok": True, "changed": False}))

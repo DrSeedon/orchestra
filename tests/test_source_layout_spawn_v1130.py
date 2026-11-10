@@ -112,16 +112,6 @@ async def test_fresh_source_starts_without_layout_or_migration(env, model, repor
         add_state(env, ".orchestra/tasks/result.md")
     before = git(env.repo, "rev-parse", "HEAD")
     response = await create(env, model=model, model_reason="Synthetic model parity check")
-    if model == "hubopus":
-        assert response.status_code == 409
-        assert 'hub_workers_require_sol' in response.json()['error']
-        assert env.db.get_all_sessions(str(env.repo)) == []
-        env.allocate_task.assert_not_called()
-        env.create_worktree.assert_not_called()
-        env.start.assert_not_awaited()
-        assert git(env.repo, "rev-parse", "HEAD") == before
-        assert git(env.repo, "status", "--porcelain=v1") == ""
-        return
     assert response.status_code == 201, response.text
     assert len(env.db.get_all_sessions(str(env.repo))) == 1
     assert env.allocate_task.call_count == env.create_worktree.call_count == 1
@@ -151,15 +141,12 @@ async def test_layout_prerequisite_refuses_before_any_allocation(env, model, pat
                 delivery_id="11111111-1111-4111-8111-111111111111",
             )
         error = caught.value
-        if model == "hubopus":
-            assert error.code == 'hub_workers_require_sol'
-        else:
-            assert "ORCHESTRA_LAYOUT_MISSING" in error.message
-            assert "migrate_orchestra_layout.py --repair" in error.message
-            assert error.status == 409
-            assert error.outcome_unknown is False
-            assert error.retryable is False
-    assert env.calls == ([] if model == "hubopus" else [("POST", "/api/sessions")] * 2)
+        assert "ORCHESTRA_LAYOUT_MISSING" in error.message
+        assert "migrate_orchestra_layout.py --repair" in error.message
+        assert error.status == 409
+        assert error.outcome_unknown is False
+        assert error.retryable is False
+    assert env.calls == [("POST", "/api/sessions")] * 2
     env.allocate_task.assert_not_called()
     env.create_worktree.assert_not_called()
     env.start.assert_not_awaited()

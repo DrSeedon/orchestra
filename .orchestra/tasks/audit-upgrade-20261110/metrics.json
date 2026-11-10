@@ -1,0 +1,39 @@
+{
+  "prompt_modules": [
+    {
+      "module": "research-method",
+      "before_bytes": 9942,
+      "after_bytes": 8849,
+      "saved_bytes": 1093
+    },
+    {
+      "module": "orchestration",
+      "before_bytes": 13553,
+      "after_bytes": 13123,
+      "saved_bytes": 430
+    },
+    {
+      "module": "user-values",
+      "before_bytes": 4889,
+      "after_bytes": 4704,
+      "saved_bytes": 185
+    }
+  ],
+  "orchestrator_only_names": 21,
+  "names_present_in_current_mcp": [
+    "bind_worker_task",
+    "change_worker_model",
+    "compact_worker",
+    "dynamic_workflow",
+    "kill_worker",
+    "list_orchestrators",
+    "merge_worker",
+    "resolve_merge_operation",
+    "set_worker_owned_dirs",
+    "spawn_worker",
+    "switch_worker_branch",
+    "temp_rule_remove",
+    "temp_rule_set",
+    "temp_rule_update"
+  ]
+}

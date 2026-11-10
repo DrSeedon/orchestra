@@ -309,7 +309,25 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
         catalog = _roles_catalog_from_manifest(pipeline, role)
         if catalog:
             base += f"\n\n{catalog}"
-    return base
+    return _identity_last(base)
+
+
+_IDENTITY_BLOCK = re.compile(r"\n*(<identity>\n.*?\n</identity>)\n*", re.S)
+
+
+def _identity_last(prompt: str) -> str:
+    """Move the per-agent `<identity>` block behind every static layer.
+
+    Worker name and branch differ for each worker; everything before them is identical for
+    one role and scope. Providers with automatic prefix caching (Codex/OpenAI) reuse a
+    prefix only up to the first differing token, so the identity block sitting right after
+    `<role>` made the whole module text a cache miss for every new worker.
+    """
+    match = _IDENTITY_BLOCK.search(prompt)
+    if match is None:
+        return prompt
+    rest = (prompt[:match.start()] + "\n\n" + prompt[match.end():]).strip("\n")
+    return f"{rest}\n\n{match.group(1)}"
 
 
 def ORCHESTRATOR_SYSTEM_PROMPT(pipeline: str = DEFAULT_PIPELINE, scope: str = "") -> str:

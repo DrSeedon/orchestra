@@ -87,13 +87,28 @@ def _is_context_overflow(error: Exception) -> bool:
     ))
 
 
-def _inspected_path(name: str, args: dict) -> str:
-    if name == "read":
-        return os.path.basename(str(args.get("path", "")))
+def _normalized(path: str, cwd: str = "") -> str:
+    path = path.strip().strip("'\"")
+    if not path:
+        return ""
+    path = os.path.expanduser(path)
+    if cwd and not os.path.isabs(path):
+        path = os.path.join(cwd, path)
+    return os.path.normpath(path)
+
+
+def _inspected_path(name: str, args: dict, cwd: str = "") -> str:
+    """The file a call reads or changes, as one normalized key.
+
+    The key used to be `basename`: eight different `pkg*/__init__.py` (or `index.html`)
+    read once each counted as eight re-reads of one file and switched every tool off.
+    """
+    if name in ("read", "write", "edit"):
+        return _normalized(str(args.get("path", "")), cwd)
     if name == "bash":
         m = _INSPECT.match(str(args.get("command", "")))
         if m and not m.group(1).startswith("-"):
-            return os.path.basename(m.group(1).strip("'\""))
+            return _normalized(m.group(1), cwd)
     return ""
 
 
@@ -478,7 +493,8 @@ class AgentLoop:
         elif name == "bash":
             self._unrun_code.clear()
         if name in ("write", "edit"):
-            self._reads.pop(_inspected_path(name, args), None)
+            # The file changed (or a change was attempted): reading it again is fresh work.
+            self._reads.pop(_inspected_path(name, args, self.cwd), None)
         reread = self._reread_note(name, args)
         if name == "write" and is_file_change and not result.startswith("[") and _has_shell_template(args):
             result += ("\n[harness] This file contains $(...) command substitutions. write stores "
@@ -528,7 +544,9 @@ class AgentLoop:
                 "Do not repeat it: change the arguments, use another tool, or answer the user.")
 
     def _reread_note(self, name: str, args: dict) -> str:
-        path = _inspected_path(name, args)
+        if name in ("write", "edit"):
+            return ""
+        path = _inspected_path(name, args, self.cwd)
         if not path:
             return ""
         count = self._reads.get(path, 0) + 1

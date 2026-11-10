@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import io
 import json
 import os
 import re
@@ -455,21 +456,49 @@ def _file_has_secret(path: Path, known: list[str]) -> bool:
         data = path.read_bytes()
     except OSError:
         return False
+    return _bytes_has_secret(data, known)
+
+
+def _bytes_has_secret(data: bytes, known: list[str]) -> bool:
     if b"\0" in data[:4096]:
         return any(v.encode() in data for v in known)
     return secret_in_text(data.decode("utf-8", "ignore"), known) is not None
 
 
-def write_tar(root: Path, rels: list[str], out: Path) -> None:
+def write_tar(root: Path, rels: list[str], out: Path, known: list[str] | None = None) -> None:
+    """Pack exactly the bytes that were checked for credentials.
+
+    `plan_upload` scans a file, the upload happens later: a file rewritten in between
+    (or swapped for a symlink) used to go out unchecked. Each file is now opened without
+    following links, read once, scanned, and that same buffer is what enters the archive.
+    """
     assert_file_policy(rels)
+    known = known_secret_values() if known is None else known
     with tarfile.open(out, "w") as archive:
         for rel in rels:
             full = root / rel
-            info = archive.gettarinfo(str(full), arcname=rel)
+            try:
+                fd = os.open(full, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            except OSError as error:
+                raise HubWorkspaceError(
+                    f"{rel}: cannot be read for upload ({error.strerror or error}); "
+                    f"it changed after the upload was planned") from error
+            with os.fdopen(fd, "rb") as handle:
+                st = os.fstat(handle.fileno())
+                if not stat.S_ISREG(st.st_mode):
+                    raise HubWorkspaceError(f"{rel}: is no longer a regular file; upload stopped")
+                data = handle.read()
+            if _bytes_has_secret(data, known):
+                raise HubWorkspaceError(
+                    f"{rel}: contains a credential after the upload was planned; upload stopped")
+            info = tarfile.TarInfo(rel)
+            info.size = len(data)
+            info.mode = stat.S_IMODE(st.st_mode)
+            info.mtime = int(st.st_mtime)
+            info.type = tarfile.REGTYPE
             info.uid = info.gid = 0
             info.uname = info.gname = ""
-            with full.open("rb") as handle:
-                archive.addfile(info, handle)
+            archive.addfile(info, io.BytesIO(data))
 
 
 # ── transport (SSH) ──────────────────────────────────────────────────────────────────

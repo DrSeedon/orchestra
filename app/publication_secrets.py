@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 _MIN_LEN = 12
@@ -69,14 +71,68 @@ def credential_value(value: str) -> bool:
     return lower not in {"changeme", "change-me", "change_me", "placeholder", "not-a-real-secret"}
 
 
+# Every hub upload, publication check and worktree scan asks for the same inventory.
+# `main_checkout` forked `git rev-parse` and `literal_rules` re-read every .env and
+# data/secrets file on each call. Both now reuse their last answer while the sources'
+# stat stamps are unchanged. A source modified within RACY_SECONDS is never cached:
+# file timestamps tick coarsely, so a rewrite inside one tick keeps the same stamp.
+RACY_SECONDS = 2.0
+_CACHE_LIMIT = 256
+_cache_lock = threading.Lock()
+_checkout_cache: dict[tuple, Path] = {}
+_rules_cache: dict[tuple, list[tuple[str, str]]] = {}
+
+
+def _stamp(path: Path) -> tuple | None:
+    try:
+        st = path.stat()
+    except FileNotFoundError:
+        return None
+    return (st.st_mtime_ns, st.st_ctime_ns, st.st_size, st.st_ino)
+
+
+def _racy(*stamps: tuple | None) -> bool:
+    newest = max((stamp[0] for stamp in stamps if stamp), default=0)
+    return newest > time.time_ns() - int(RACY_SECONDS * 1e9)
+
+
+def _remember(cache: dict, key: tuple, value) -> None:
+    with _cache_lock:
+        if len(cache) >= _CACHE_LIMIT:
+            cache.clear()
+        cache[key] = value
+
+
+def clear_caches() -> None:
+    with _cache_lock:
+        _checkout_cache.clear()
+        _rules_cache.clear()
+
+
 def main_checkout(repo: str | Path) -> Path:
+    key = None
+    try:
+        dot_git = Path(repo).resolve() / ".git"
+        st = dot_git.stat()
+        # A worktree's `.git` is a pointer file (content may be repaired); the main
+        # checkout's `.git` directory mtime moves on every index write, its inode does not.
+        key = (str(dot_git), st.st_ino, st.st_mtime_ns if dot_git.is_file() else 0)
+    except OSError:
+        key = None
+    if key is not None:
+        cached = _checkout_cache.get(key)
+        if cached is not None:
+            return cached
     done = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "--path-format=absolute", "--git-common-dir"],
         capture_output=True, text=True,
     )
     if done.returncode:
         raise RuntimeError("publish guard: cannot resolve project's git common directory")
-    return Path(done.stdout.strip()).parent
+    result = Path(done.stdout.strip()).parent
+    if key is not None and not (key[2] and _racy((key[2],))):
+        _remember(_checkout_cache, key, result)
+    return result
 
 
 def _env_values(path: Path) -> list[tuple[str, str]]:
@@ -107,7 +163,10 @@ def _env_values(path: Path) -> list[tuple[str, str]]:
 def literal_rules(
     repo: str | Path | None = None, *, data_dir: Path | None = None,
 ) -> list[tuple[str, str]]:
-    """Refresh per operation: process env, target + main .env, platform .env and secrets.
+    """Process env, target + main .env, platform .env and secrets, current per operation.
+
+    The environment is read on every call; file sources are re-read whenever their stat
+    stamp changes (and always while freshly modified), see `_file_rules`.
 
     Missing sources are normal; unreadable sources fail closed. Environment names
     must look secret. Files explicitly stored under data/secrets are credentials
@@ -119,9 +178,30 @@ def literal_rules(
         env_files.update({Path(repo) / ".env", main_checkout(repo) / ".env"})
     rules = [(f"env {key}", value.strip()) for key, value in os.environ.items()
              if secret_name(key) and credential_value(value)]
-    for path in sorted(env_files):
-        rules.extend((f".env {key}", value) for key, value in _env_values(path))
     directory = (data_dir if data_dir is not None else root / "data") / "secrets"
+    rules.extend(_file_rules(sorted(env_files), directory))
+    return list(dict.fromkeys(rules))
+
+
+def _secret_dir_stamps(directory: Path) -> tuple:
+    if not directory.exists():
+        return ()
+    return (_stamp(directory),) + tuple(
+        (path.name, _stamp(path)) for path in sorted(directory.iterdir())
+    )
+
+
+def _file_rules(env_files: list[Path], directory: Path) -> list[tuple[str, str]]:
+    env_stamps = tuple((str(path), _stamp(path)) for path in env_files)
+    dir_stamps = _secret_dir_stamps(directory)
+    # `${VAR}` in a .env expands from the process environment, so it is part of the key.
+    key = (env_stamps, str(directory), dir_stamps, hash(tuple(sorted(os.environ.items()))))
+    cached = _rules_cache.get(key)
+    if cached is not None:
+        return list(cached)
+    rules: list[tuple[str, str]] = []
+    for path in env_files:
+        rules.extend((f".env {key}", value) for key, value in _env_values(path))
     if directory.exists():
         for path in sorted(directory.iterdir()):
             if not path.is_file():
@@ -133,7 +213,13 @@ def literal_rules(
             text = path.read_text(encoding="utf-8").strip()
             if credential_value(text):
                 rules.append((f"secret file {path.name}", text))
-    return list(dict.fromkeys(rules))
+    stamps = [stamp for _, stamp in env_stamps] + [
+        item[1] if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str) else item
+        for item in dir_stamps
+    ]
+    if not _racy(*stamps):
+        _remember(_rules_cache, key, list(rules))
+    return rules
 
 
 def safe_text(text: str, rules: list[tuple[str, str]]) -> str:

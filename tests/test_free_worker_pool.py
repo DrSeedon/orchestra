@@ -59,14 +59,25 @@ def test_free_pool_aliases_and_resolution():
 
 
 def test_free_pool_model_flags_and_spawn_admission(monkeypatch):
-    # Local and Free Router do not require cloud API keys to spawn
-    for mid in (LOCAL_HERETIC_MODEL_ID, FREE_ROUTER_MODEL_ID):
+    # Local Heretic is explicitly blocked by owner decision (09.11.2026)
+    heretic_spec = get_model_spec(LOCAL_HERETIC_MODEL_ID)
+    assert get_model_flags(LOCAL_HERETIC_MODEL_ID) == {"dashboard": False, "agents": False}
+    for alias in (LOCAL_HERETIC_MODEL_ID, "local", "heretic", "local-heretic", "free-local", "local-35b"):
+        with pytest.raises(ValueError, match="отключено решением владельца"):
+            ensure_spawn_allowed(resolve_model(alias))
+    with pytest.raises(ValueError, match="отключено решением владельца"):
+        validate_harness_model_spec(heretic_spec)
+    with pytest.raises(ValueError, match="отключено решением владельца"):
+        create_free_pool_llm_client(LOCAL_HERETIC_MODEL_ID)
+
+    # Free Router remains admitted
+    for mid in (FREE_ROUTER_MODEL_ID,):
         assert mid in FREE_POOL_MODEL_IDS
         spec = get_model_spec(mid)
         validate_harness_model_spec(spec)
         flags = get_model_flags(mid)
         assert spec.runtime == "harness"
-        assert spec.context_length == 65536
+        assert spec.context_length == 131072
         assert spec.price_input == spec.price_output == 0.0
         assert flags["agents"] is True
         ensure_spawn_allowed(mid)
@@ -130,25 +141,25 @@ def test_private_conversation_detection_routes_strictly_to_local(monkeypatch):
 
     router = FreeWorkerRouter()
     priv_candidates = router.build_candidates(private_msgs, [])
-    assert [cid for cid, _ in priv_candidates] == [LOCAL_HERETIC_MODEL_ID]
+    assert LOCAL_HERETIC_MODEL_ID not in [cid for cid, _ in priv_candidates]
 
     gen_candidates = router.build_candidates(general_msgs, [])
     gen_ids = [cid for cid, _ in gen_candidates]
     assert "cerebras/qwen-3-32b:free" in gen_ids
     assert "groq/llama-3.3-70b-versatile:free" in gen_ids
-    assert gen_ids[-1] == LOCAL_HERETIC_MODEL_ID
+    assert LOCAL_HERETIC_MODEL_ID not in gen_ids
 
 
 @pytest.mark.asyncio
-async def test_free_worker_router_cascades_on_429_to_local_fallback(monkeypatch):
+async def test_free_worker_router_cascades_on_429_to_next_cloud_provider(monkeypatch):
     from app import openrouter_counter
 
     def no_openrouter_attempt():
-        pytest.fail("Direct Groq/local inference must not consume OpenRouter quota")
+        pytest.fail("Direct Cerebras/Groq inference must not consume OpenRouter quota")
 
     monkeypatch.setattr(openrouter_counter, "record_attempt_start", no_openrouter_attempt)
+    monkeypatch.setenv("CEREBRAS_API_KEY", "csk_test")
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
-    monkeypatch.delenv("CEREBRAS_API_KEY", raising=False)
     monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
     monkeypatch.delenv("CODESTRAL_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -161,9 +172,8 @@ async def test_free_worker_router_cascades_on_429_to_local_fallback(monkeypatch)
     def handler(request: httpx.Request) -> httpx.Response:
         url = str(request.url)
         called_urls.append(url)
-        if "api.groq.com" in url:
+        if "api.cerebras.ai" in url:
             return httpx.Response(429, json={"error": {"message": "Rate limit reached"}})
-        # Local llama-server fallback responds with 200 SSE stream
         sse_payload = (
             'data: {"choices":[{"delta":{"content":"Fallback OK"},"finish_reason":null}]}\n\n'
             'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":3}}\n\n'
@@ -185,12 +195,44 @@ async def test_free_worker_router_cascades_on_429_to_local_fallback(monkeypatch)
         ):
             events.append(ev)
 
+    assert any("api.cerebras.ai" in u for u in called_urls)
     assert any("api.groq.com" in u for u in called_urls)
-    assert any("127.0.0.1:8091" in u for u in called_urls)
-    assert is_route_cooled_down("groq/llama-3.3-70b-versatile:free") is True
-    assert router.last_routed_model == LOCAL_HERETIC_MODEL_ID
+    assert not any("127.0.0.1:8091" in u for u in called_urls)
+    assert is_route_cooled_down("cerebras/qwen-3-32b:free") is True
+    assert router.last_routed_model == "groq/llama-3.3-70b-versatile:free"
     text_events = [e.text for e in events if e.kind == "text_delta"]
     assert "".join(text_events) == "Fallback OK"
     final_events = [e for e in events if e.kind == "final"]
     assert len(final_events) == 1
-    assert final_events[0].usage.get("routed_model") == LOCAL_HERETIC_MODEL_ID
+    assert final_events[0].usage.get("routed_model") == "groq/llama-3.3-70b-versatile:free"
+
+
+
+@pytest.mark.asyncio
+async def test_heretic_blocked_across_all_aliases_and_backend():
+    from app.models import ensure_dashboard_visible, ensure_spawn_allowed, resolve_model
+    from app.backend_harness import HarnessBackend
+
+    for alias in (
+        "local",
+        "local-heretic",
+        "heretic",
+        "free-local",
+        "local-35b",
+        "qwen3.5-35b-a3b-heretic",
+        "qwen3.5-35b-a3b",
+        "local/qwen3.5-35b-a3b-heretic:free",
+    ):
+        resolved = resolve_model(alias)
+        assert resolved == "local/qwen3.5-35b-a3b-heretic:free"
+        with pytest.raises(ValueError, match="отключено решением владельца"):
+            ensure_spawn_allowed(resolved)
+        with pytest.raises(ValueError, match="отключено решением владельца"):
+            ensure_dashboard_visible(resolved)
+
+    backend = HarnessBackend(model="local/qwen3.5-35b-a3b-heretic:free", cwd="/tmp")
+    with pytest.raises(ValueError, match="отключено решением владельца"):
+        await backend.connect()
+    backend._llm = object()
+    with pytest.raises(ValueError, match="отключено решением владельца"):
+        await backend.send("hello")

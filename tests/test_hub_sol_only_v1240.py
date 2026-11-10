@@ -64,7 +64,7 @@ def test_api_credit_is_not_an_escape_for_forbidden_hub_models(admission, model):
 
 
 @pytest.mark.parametrize('model_request', [
-    'hubsol', 'hubargon', 'hubsonnet', 'hubluna', *sorted(models.ALLOWED_HUB_WORKER_MODELS),
+    'hubopus', 'hubsol', 'hubargon', 'hubsonnet', 'hubluna', *sorted(models.ALLOWED_HUB_WORKER_MODELS),
 ])
 @pytest.mark.parametrize('context', [
     {},
@@ -275,12 +275,14 @@ async def test_persisted_queued_delivery_recovery_fails_before_submit_and_keeps_
     pipeline.load_pipeline.cache_clear()
 
 
-def test_only_four_hub_models_are_enabled_for_agents_by_default(monkeypatch):
+def test_only_the_owner_hub_stack_is_enabled_for_agents_by_default(monkeypatch):
+    # 04.11.2026: Sol, Argon, Sonnet, Luna; 09.11.2026 adds Opus 5.5 (xhigh) to that stack.
     monkeypatch.setattr(models, '_load_model_flags', lambda: {})
     enabled = {
         spec.id for spec in models.SELECTABLE_MODEL_SPECS
         if spec.runtime == 'hub' and models.get_model_flags(spec.id)['agents']
     }
     assert enabled == models.ALLOWED_HUB_WORKER_MODELS == {
-        'hub-gpt-6.1-sol', 'hub-gemini-4-argon', 'hub-claude-sonnet-5-5', 'hub-gpt-6-luna',
+        'hub-claude-opus-5-5', 'hub-claude-sonnet-5-5', 'hub-gemini-4-argon',
+        'hub-gpt-6.1-sol', 'hub-gpt-6-luna',
     }

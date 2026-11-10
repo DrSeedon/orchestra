@@ -30,11 +30,17 @@ _HUB_CREDENTIAL_REFUSAL = re.compile(
 )
 _HUB_UNFINISHED_TOOL_NOISE = "hub unfinished tool closure"
 _BASH_TERMINATED_NOISE = "bash child process termination"
+_HARNESS_READ_PATH_NOISE = "harness read workspace guard refusal"
+# Only the complete, single-line harness refusal. Ambiguous quotes or line breaks
+# in a path stay actionable rather than swallowing a second error as path text.
+_HARNESS_READ_PATH_REFUSAL = re.compile(
+    r"\[read error\] path '[^'\r\n]+' is outside the workspace",
+)
 # Only these event classes are excluded from registered-fix observation. In
 # particular, HTTP success requires the raw journal record checked by _event_noise.
 _POST_FIX_EVENT_NOISE = {
     "hub provider limit", "hub credential guard refusal", "hub owned_dirs guard refusal",
-    _HUB_UNFINISHED_TOOL_NOISE, "successful HTTP access log",
+    _HUB_UNFINISHED_TOOL_NOISE, "successful HTTP access log", _HARNESS_READ_PATH_NOISE,
 }
 # session.py emits only these reset labels and ISO times (or "неизвестно").
 # Accept <N> as well so classification survives numeric signature normalization.
@@ -193,6 +199,13 @@ def classify_noise(signature: str) -> str | None:
 
 
 def _event_noise(event: dict, signature: str) -> str | None:
+    # V-1287: tools.read reports PathPolicyError as an ordinary tool result.
+    # Check provenance and unnormalized text; identical signatures from other
+    # tools or mixed/truncated messages must still count as real errors.
+    if (event.get("source") == "logs" and event.get("type") == "tool_result"
+            and event.get("tool_name") == "read"
+            and _HARNESS_READ_PATH_REFUSAL.fullmatch(event["message"])):
+        return _HARNESS_READ_PATH_NOISE
     # HubActivityStream.finish closes open tools with this exact synthetic result.
     # Check raw content and provenance before grouping identical text from real errors.
     if (event.get("source") == "logs" and event.get("type") == "tool_result"

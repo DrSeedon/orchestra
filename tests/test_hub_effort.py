@@ -113,20 +113,22 @@ async def test_retarget_refuses_claude_without_changing_effort():
     await backend._start(hub, state, "task")
     before = list(hub.calls)
     with pytest.raises(ValueError, match="hub_workers_require_sol"):
-        await backend.retarget_model("hub-claude-opus-5-5")
+        await backend.retarget_model("hub-claude-haiku-5-5")
     assert hub.calls == before
     assert backend._effort == "high"
     await backend.retarget_model("hub-gpt-6.1-sol")
     assert hub.calls[-1][1]["modelSelection"]["options"] == {"reasoningEffort": "high"}
 
 
-@pytest.mark.parametrize("role,opus", [("orchestrator", "high"), ("worker", "medium")])
-def test_hub_policy_matches_native_claude(role, opus):
+@pytest.mark.parametrize("role", ["orchestrator", "worker"])
+def test_hub_policy_matches_native_claude(role):
+    # Owner stack 09.11.2026: Opus 5.5 xhigh, Sonnet 5.5 high, Argon medium in every role.
     policy = get_role("default", role).effort
     assert resolve_effort(policy, "hub-gpt-6.1-sol", "hub") == "high"
+    assert resolve_effort(policy, "hub-gemini-4-argon", "hub") == "medium"
     for hub, native, expected in [
-        ("hub-claude-opus-5-5", "claude-opus-5-5[1m]", opus),
-        ("hub-claude-sonnet-5-5", "claude-sonnet-5-5[1m]", "medium"),
+        ("hub-claude-opus-5-5", "claude-opus-5-5[1m]", "xhigh"),
+        ("hub-claude-sonnet-5-5", "claude-sonnet-5-5[1m]", "high"),
         ("hub-claude-haiku-5-5", "claude-haiku-5-5", "low")]:
         assert resolve_effort(policy, hub, "hub") == resolve_effort(policy, native, "claude") == expected
 

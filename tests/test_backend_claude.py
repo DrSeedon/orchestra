@@ -67,7 +67,12 @@ def test_imported_resume_uses_session_store_and_current_system_prompt():
     ) == "CURRENT ROLE\n\n" + HISTORICAL_TOOL_INSTRUCTION
 
 
-def test_ordinary_resume_options_are_unchanged_without_import_marker():
+def test_ordinary_resume_keeps_the_role_in_the_system_channel_without_import_marker(
+    tmp_path, monkeypatch,
+):
+    # Claude CLI does not persist the appended prompt in its transcript: an ordinary
+    # resume must hand it over again, but without the history-import session store.
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     backend = ClaudeBackend(
         model="claude-sonnet-5-5[1m]",
         cwd="/tmp",
@@ -79,6 +84,22 @@ def test_ordinary_resume_options_are_unchanged_without_import_marker():
 
     assert options.resume == "ordinary-session"
     assert options.session_store is None
+    assert "append" not in options.system_prompt
+    assert Path(options.extra_args["append-system-prompt-file"]).read_text(
+        encoding="utf-8",
+    ) == "CURRENT ROLE"
+    assert HISTORICAL_TOOL_INSTRUCTION not in Path(
+        options.extra_args["append-system-prompt-file"]).read_text(encoding="utf-8")
+
+
+def test_resume_without_a_prompt_adds_no_empty_prompt_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    backend = ClaudeBackend(model="claude-sonnet-5-5[1m]", cwd="/tmp",
+                            resume_session_id="ordinary-session")
+
+    options = backend._make_client().options
+
+    assert options.resume == "ordinary-session"
     assert options.system_prompt is None
 
 

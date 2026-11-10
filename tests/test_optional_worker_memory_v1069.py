@@ -220,7 +220,11 @@ async def test_cold_hydrate_then_send_reaches_native_submit(
         assert outbound.endswith("continue existing task")
         assert "STALE" not in outbound
         if native_id:
-            assert ("OPERATOR" if overlay is None else "ROLE") in outbound
+            # Only personal memory changed: retain the role for reconnect, deliver its delta.
+            role_text = "OPERATOR" if overlay is None else "ROLE"
+            assert role_text in session.system_prompt
+            assert role_text not in outbound
+            assert "<worker-memory>\n(no current personal memory)\n</worker-memory>" in outbound
         if keyed:
             delivery.before_submit.assert_awaited_once()
             delivery.mark_submitted.assert_awaited_once()

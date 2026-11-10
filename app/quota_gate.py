@@ -1038,6 +1038,16 @@ def _exhausted_window_reset(provider: object, now: float) -> float | None:
     return max(resets) if resets else None
 
 
+# Suggestions attached to a blocked Antigravity decision, never an automatic switch: the
+# other Antigravity bucket first, then the owner's 09.11.2026 Hub stack (separate pool).
+ANTIGRAVITY_ALTERNATIVES: dict[str, tuple[str, ...]] = {
+    "antigravity_gemini": ("antigravity/claude-sonnet-4-6", "hub-gemini-4-argon"),
+    "antigravity_3p": (
+        "antigravity/gemini-4-argon-medium", "hub-claude-opus-5-5", "hub-claude-sonnet-5-5",
+    ),
+}
+
+
 def evaluate_worker_admission(
     model: str,
     providers: Mapping[str, object],
@@ -1237,15 +1247,17 @@ def evaluate_worker_admission(
         reason_params = {"reset_at": reset_at_str}
 
     alternatives = ()
-    if runtime == "antigravity" and state == "blocked":
-        other = ("antigravity/claude-sonnet-4-6" if bucket == "antigravity_gemini"
-                 else "antigravity/gemini-3.6-flash-low")
-        alternative = evaluate_worker_admission(
-            other, providers, observed_at_by_provider, now=checked_at, policy=policy,
-            _include_alternatives=False,
-        ) if _include_alternatives else None
-        if alternative is not None and alternative.state == "available":
-            alternatives = ({"provider": alternative.provider, "model": other},)
+    if runtime == "antigravity" and state == "blocked" and _include_alternatives:
+        found = []
+        for other in ANTIGRAVITY_ALTERNATIVES.get(bucket, ()):
+            alternative = evaluate_worker_admission(
+                other, providers, observed_at_by_provider, now=checked_at, policy=policy,
+                _include_alternatives=False,
+            )
+            # Hub routes answer `not_applicable`: their pool quota is outside this policy.
+            if alternative.state in ("available", "not_applicable"):
+                found.append({"provider": alternative.provider, "model": other})
+        alternatives = tuple(found)
     return QuotaDecision(
         state=state, model=resolved, provider=bucket, provider_label=label,
         lane=lane, gated=gated, utilization=utilization, progress=progress,

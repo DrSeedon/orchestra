@@ -1,0 +1,15 @@
+{
+  "phase": "deploying",
+  "full": {
+    "passed": 8126,
+    "failed_before_fixture_updates": 8,
+    "skipped": 11,
+    "deselected": 266
+  },
+  "followup": {
+    "passed": 267,
+    "failed": 0
+  },
+  "instruction_contract": "passed",
+  "manifest_contract": "passed"
+}

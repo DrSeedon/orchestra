@@ -576,7 +576,7 @@ async def create_session(req: CreateSessionRequest):
             initial_deliveries.record_spawn_intent(
                 session.id, req.initial_delivery_id, req.initial_task_title,
             )
-        if session.tg_topic:
+        if getattr(session, "tg_topic", 0):
             topic_updater = getattr(manager, "tg_topic_updater", None)
             if topic_updater:
                 await topic_updater(session.name)

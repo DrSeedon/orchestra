@@ -45,6 +45,7 @@ Canonical credential при такой уборке не удаляется. Н�
 `telegram-bot-api`. При credential/eligibility отказе повторите штатный login;
 автоматических платных fallback или повторов inference нет.
 
+<!-- LEGACY_PATH_HISTORY: the source below is pinned to a commit made before the .orchestra/ move. -->
 Источник контракта: `ac39a669a:docs/tasks/249/plan.md`, frozen тесты #249/#279.
 Дополнение пользователя от 2026-11-05: Argon 4 и Flash 3.8 на high/medium/low,
 alias `agy-argon`, поддержка новых версий CLI, включая 1.5.0.

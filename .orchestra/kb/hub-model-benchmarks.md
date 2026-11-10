@@ -10,15 +10,15 @@
 
 Пять файлов прочитаны непосредственно. Ссылки S1–S5 далее означают их разделы:
 
-- **S1** — [model-map-2026-11-03](../../../multicode/docs/research/model-map-2026-11-03.md):
+- **S1** — model-map-2026-11-03 (MultiCode hub: multicode/docs/research/model-map-2026-11-03.md, not in this repository):
   `model-bench`, покомпонентные оценки, hallucinations, время, ограничения судьи.
-- **S2** — [gemini-4-argon-2026-11-03](../../../multicode/docs/research/gemini-4-argon-2026-11-03.md):
+- **S2** — gemini-4-argon-2026-11-03 (MultiCode hub: multicode/docs/research/gemini-4-argon-2026-11-03.md, not in this repository):
   Argon/Flash, публичные результаты и собственный `argon-trial-r2` (§12).
-- **S3** — [models-openai-2026-11-03](../../../multicode/docs/research/models-openai-2026-11-03.md):
+- **S3** — models-openai-2026-11-03 (MultiCode hub: multicode/docs/research/models-openai-2026-11-03.md, not in this repository):
   Codex, effort low…ultra, service tiers, противоречия публичных источников.
-- **S4** — [models-grok-google-2026-11-03](../../../multicode/docs/research/models-grok-google-2026-11-03.md):
+- **S4** — models-grok-google-2026-11-03 (MultiCode hub: multicode/docs/research/models-grok-google-2026-11-03.md, not in this repository):
   xAI/Google, ARC по effort, Claude, отдельные пулы Antigravity (§5).
-- **S5** — [models-opencode-2026-11-03](../../../multicode/docs/research/models-opencode-2026-11-03.md):
+- **S5** — models-opencode-2026-11-03 (MultiCode hub: multicode/docs/research/models-opencode-2026-11-03.md, not in this repository):
   Zen/Go, кандидаты, Claude по effort, privacy/ZDR и ограничения free.
 
 Разделяем **локальный замер**, **публичный ресерч** (вендорский, независимый,

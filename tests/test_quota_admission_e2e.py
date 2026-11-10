@@ -114,7 +114,8 @@ async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, mo
     with pytest.raises(QuotaGateError, match="hub") as exc:
         await _spawn(mgr, f"{name}-above", model)
 
-    assert "spawn the worker with model='hubsol'" in str(exc.value)
+    assert "The MultiCode hub pool has its own quota" in str(exc.value)
+    assert "model='hubopus'" in str(exc.value) and "model='hubsol'" in str(exc.value)
     assert mgr.get_by_name(f"{name}-above", "/s") is None
 
 

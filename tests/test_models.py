@@ -15,7 +15,10 @@ def test_hub_alternative_hint_is_available_for_native_subscription_routes(model,
 
     hint = hub_alternative_hint(model)
 
-    assert "hubargon' (medium effort)" in hint
+    # Owner stack 09.11.2026: each admitted Hub route is named with its manifest effort.
+    for route in ("hubopus' (xhigh effort)", "hubsonnet' (high)", "hubargon' (medium)",
+                  "model='hubsol'", "model='hubluna'"):
+        assert route in hint
 
 
 @pytest.mark.parametrize("model", [None, "claude-opus-5-5[1m]", "gpt-6.1-sol"])
@@ -86,8 +89,14 @@ def test_selectable_models_match_the_curated_catalog():
         "hub-claude-haiku-5-5", "hub-claude-sonnet-5-5", "hub-claude-opus-5-5",
         "hub-gpt-6-luna", "hub-gpt-6.1-sol", "hub-grok-4.7", "hub-gemini-4-argon",
     }
+    # Antigravity (05.11.2026) and Gemini Web (05.11.2026) runtimes declare their own rows.
+    from app.gemini_web_auth import MODELS as gemini_web_models
+    from app.models import ANTIGRAVITY_RAW_MODELS
+    expected |= {f"antigravity/{raw}" for raw in ANTIGRAVITY_RAW_MODELS}
+    expected |= {f"gemini-web/{raw}" for raw in gemini_web_models}
     assert {spec.id for spec in SELECTABLE_MODEL_SPECS} == expected
-    assert set(MODELS) == expected
+    from app.models import FREE_POOL_MODEL_IDS
+    assert set(MODELS) == expected | set(FREE_POOL_MODEL_IDS)
     retired_ids = RETIRED_SELECTABLE_MODEL_IDS
     assert retired_ids.isdisjoint(ALIASES.values())
     assert retired_ids.isdisjoint(MODELS)

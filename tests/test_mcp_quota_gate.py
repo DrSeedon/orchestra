@@ -222,7 +222,7 @@ async def test_change_model_is_control_action_even_when_target_bucket_blocked(ap
     ("gpt-5.6-sol", "unknown model"),
     ("not-a-registered-model", "unknown model"),
     ("hub-unregistered-model", "unknown model"),
-    ("hub-claude-opus-5-5", HUB_SOL_ONLY_RULE),
+    ("hub-claude-haiku-5-5", HUB_SOL_ONLY_RULE),
 ])
 async def test_change_model_rejects_invalid_target_without_forwarding(api, model, message):
     api.state["readiness"] = _readiness("blocked")

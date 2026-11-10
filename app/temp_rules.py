@@ -512,13 +512,10 @@ def block_fingerprint(prompt: str) -> str:
     return hashlib.md5(found.group(1).encode()).hexdigest()[:8] if found else ""
 
 
-def fingerprint(**agent) -> str:
-    return block_fingerprint(active_block(**agent))
-
-
-def block_fingerprint(prompt: str) -> str:
-    found = _BLOCK.search(prompt)
-    return hashlib.md5(found.group(1).encode()).hexdigest()[:8] if found else ""
+def current_block(prompt: str) -> str:
+    """The `<temporary-rules>` block of an assembled prompt, or "" when it has none."""
+    found = _BLOCK.search(prompt or "")
+    return found.group(1) if found else ""
 
 
 # ── reminder state (the only thing kept in the database) ──

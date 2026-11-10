@@ -203,7 +203,11 @@ def test_t2_gemini_and_third_party_models_use_independent_gate_buckets():
 
     assert gemini.state == "blocked"
     assert gemini.provider == "antigravity_gemini"
-    assert {item["provider"] for item in gemini.alternatives} == {"antigravity_3p"}
+    # The other Antigravity bucket first, then the Hub stack (its own pool, not_applicable here).
+    assert [item["model"] for item in gemini.alternatives] == [
+        "antigravity/claude-sonnet-4-6", "hub-gemini-4-argon",
+    ]
+    assert {item["provider"] for item in gemini.alternatives} == {"antigravity_3p", "hub"}
     assert third_party.state == "available"
     assert third_party.provider == "antigravity_3p"
     assert quota_gate.evaluate_worker_admission(
