@@ -118,6 +118,8 @@ class HubActivityStream:
             events.append(AgentEvent("tool_use", f"{name}: {summary[:300]}", metadata=_meta(name, item_id)))
             self._stage[item_id] = stage = 1
         if done and stage == 1:
+            if failed and (not output.strip() or output.strip() == "applied"):
+                output = f"{name} completion failed; no successful result"
             events.append(AgentEvent("tool_result", (output or "(no output)")[:RESULT_LIMIT],
                                      metadata=_meta(name, item_id, is_error=failed)))
             self._stage[item_id] = 2

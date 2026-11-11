@@ -618,6 +618,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._thread_id: str | None = resume_thread_id
+        self.resume_failed = False
         self._mcp_env: dict[str, str] = mcp_env or {}
         self._mcp_servers: dict = mcp_servers or {}
         if evaluation_actor_id:
@@ -976,7 +977,17 @@ class CodexBackend(JsonRpcStdioTransport):
                 # in production; Orchestra only needs the live subscription and thread id.
                 params["excludeTurns"] = True
                 resume_started = time.monotonic()
-                result = await self._request("thread/resume", params)
+                try:
+                    result = await self._request("thread/resume", params)
+                except Exception as error:
+                    if "no rollout found for thread id" not in str(error).lower():
+                        raise
+                    logger.warning("Codex rollout missing; starting fresh thread with Orchestra handoff")
+                    self._thread_id = None
+                    requested_thread_id = None
+                    self.resume_failed = True
+                    fresh = {key: value for key, value in params.items() if key not in {"threadId", "excludeTurns"}}
+                    result = await self._request("thread/start", fresh)
                 self._log_connect_stage("cli_thread_resume", resume_started)
             else:
                 start_started = time.monotonic()

@@ -1,4 +1,4 @@
-"""Approved V-1244 archival keeps actual history objects through lifecycle paths."""
+"""Approved 11.11 lifecycle deletes remote resources after durable local archive."""
 import copy
 import hashlib
 import json
@@ -56,8 +56,7 @@ class HistoryMc:
                 self.lost_archive_reply = False
                 raise OSError('lost archive response after remote acceptance')
         elif name == 't3_project_delete':
-            # Intentionally destructive fake: a regression is detected by object
-            # survival assertions as well as the actual routed action names.
+            self.before_delete(args)
             self.project.clear()
             self.thread.clear()
         else:
@@ -81,6 +80,13 @@ def history(tmp_path, monkeypatch):
     ws.save()
     ws.path().with_suffix('.sync.tar').write_bytes(b'recovery provenance')
     mc = HistoryMc()
+    def before_delete(args):
+        record = hw.WorkspaceState.load(ws.ws_id)
+        assert record is not None and record.archived
+        hw.assert_archive_ready(record)
+        assert args == {"projectId": ws.project_id, "force": True}
+        assert Path(ws.remote_dir).is_dir()  # directory is removed after the project
+    mc.before_delete = before_delete
     monkeypatch.setattr(hw.HubSsh, 'from_env', classmethod(lambda _: ssh))
     monkeypatch.setattr(hub.MultiCodeClient, 'from_env', classmethod(lambda _: mc))
     monkeypatch.setattr(hub, 'hub_configured', lambda: None)
@@ -89,21 +95,30 @@ def history(tmp_path, monkeypatch):
 
 
 def assert_history_survives(h, *, archived=True):
-    assert h.mc.project == h.project
-    assert {k: v for k, v in h.mc.thread.items() if k != 'archived'} == {
-        k: v for k, v in h.thread.items() if k != 'archived'}
-    assert h.mc.thread['archived'] is archived
-    assert (Path(h.ws.remote_dir) / 'provider.jsonl').read_text() == 'provider history and accounting\n'
-    assert (Path(h.ws.remote_dir) / 'result.py').read_text() == 'accepted work\n'
+    if archived:
+        assert h.mc.project == {} and h.mc.thread == {}
+        assert not Path(h.ws.remote_dir).exists()
+        assert h.ssh.removed == [h.ws.remote_dir]
+        assert [(name, args) for name, args in h.mc.calls if name == 't3_project_delete'] == [
+            ('t3_project_delete', {'projectId': h.ws.project_id, 'force': True}),
+        ]
+    else:
+        assert h.mc.project == h.project
+        assert {k: v for k, v in h.mc.thread.items() if k != 'archived'} == {
+            k: v for k, v in h.thread.items() if k != 'archived'}
+        assert h.mc.thread['archived'] is False
+        assert (Path(h.ws.remote_dir) / 'provider.jsonl').read_text() == 'provider history and accounting\n'
+        assert (Path(h.ws.remote_dir) / 'result.py').read_text() == 'accepted work\n'
+        assert not h.ssh.removed and not getattr(h.ssh, 'scrubbed', [])
+        assert not any(name == 't3_project_delete' for name, _ in h.mc.calls)
     record = hw.WorkspaceState.load(h.ws.ws_id)
     assert record is not None
     assert record.archived is archived
+    assert record.remote_released is archived
     assert record.manifest == h.ws.manifest
     assert record.input_manifest == h.ws.input_manifest
     assert record.project_id == h.ws.project_id and record.thread_id == h.ws.thread_id
     assert h.ws.path().with_suffix('.sync.tar').read_bytes() == b'recovery provenance'
-    assert not h.ssh.removed and not getattr(h.ssh, 'scrubbed', [])
-    assert not any(name == 't3_project_delete' for name, _ in h.mc.calls)
 
 
 @pytest.mark.asyncio
@@ -514,7 +529,8 @@ async def test_archived_generation_is_not_resumed_by_stale_or_reconstructed_back
     before = list(mc.calls)
     await _turn(backend, 'new assigned task')
     assert backend.session_id != old.ws_id
-    assert old.path().exists() and Path(old.remote_dir).exists()
+    assert old.path().exists() and not Path(old.remote_dir).exists()
+    assert hw.WorkspaceState.load(old.ws_id).remote_released
     assert not any(n == 't3_project_delete' for n, _ in mc.calls[len(before):])
 
 
@@ -653,7 +669,7 @@ async def test_native_lifecycle_archives_legacy_company_history_without_blocking
         monkeypatch.setattr(manager, '_cleanup_cli_home', Mock())
         await manager.remove(session.id)
         assert db.get_session(session.id)['status'] == 'archived'
-    assert json.loads(h.ws.path().read_bytes()) == {**json.loads(retained), 'archived': True}
+    assert json.loads(h.ws.path().read_bytes()) == {**json.loads(retained), 'archived': True, 'remote_released': True}
     assert_history_survives(h)
     assert any(name == 't3_thread_organize' for name, _ in h.mc.calls)
 

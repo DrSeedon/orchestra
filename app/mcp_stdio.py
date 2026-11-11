@@ -1139,7 +1139,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None,
                        model_reason: str = "") -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Ordinary Hub workers may use hubopus (xhigh), hubsonnet (high), hubargon (medium), hubsol or hubluna. Protected local luna retains its reason requirement. If the selected route is unavailable, report the blocker or wait; no native, model or API fallback. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation. If the gate closes after creation, the initial task is held durably until it opens."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Claude Hub routes hubopus (xhigh) and hubsonnet (high) require a Multicast project; other projects use hubsol (xhigh), hubastra (high) or hubluna (high). Hubargon (medium) retains its own role constraints. Protected local luna retains its reason requirement. If the selected route is unavailable, report the blocker or wait; no native, model or API fallback. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation. If the gate closes after creation, the initial task is held durably until it opens."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -1158,7 +1158,10 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     except ValueError as exc:
         raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
                            details={"field": "model"}) from exc
+    from app.models import ensure_project_model_allowed
+    ensure_project_model_allowed(model, repo_path)
     scope = SCOPE or repo_path
+    ensure_project_model_allowed(model, scope)
     body = {
         "name": name, "scope": scope, "cwd": repo_path,
         "model": model, "system_prompt": system_prompt,
@@ -2086,12 +2089,14 @@ async def compact_worker(name: str) -> str:
 @mcp.tool()
 async def temp_rule_set(
     text: str, reason: str, targets: list[str], mode: str,
-    expires_at: str = "", project: str = "",
+    expires_at: str = "", project: str = "", failure_bucket: str = "skill_or_rules",
 ) -> str:
-    """Orchestrators only. Set a temporary rule that enters the system prompt of the targeted agents from their next turn, with no restart. reason (required): why the rule exists and what caused it; the agents see it. targets: "all", "orchestrators", "workers", a role name, or "agent:<name>". mode: "expires" (the rule drops out by itself at expires_at), "review" (it stays in force and you are told once at expires_at that it is time to review it; then extend with temp_rule_update expires_at, make it permanent with keep=true, or remove it), "permanent" (no date, stays until removed). expires_at: ISO UTC with timezone, e.g. 2026-10-20T07:00Z; required for expires and review, forbidden for permanent. project: empty = your own project (scope); "*" = every project, allowed only for the Orchestra project orchestrator."""
+    """Orchestrators only. Set a temporary rule that enters the system prompt of the targeted agents from their next turn, with no restart. failure_bucket: model|skill_or_rules|tool_or_harness|test_or_fixture|infra. Only model and skill_or_rules may create prompt rules; fix code/fixtures or report_bug for other buckets. reason (required): why the rule exists and what caused it; the agents see it. targets: "all", "orchestrators", "workers", a role name, or "agent:<name>". mode: "expires" (the rule drops out by itself at expires_at), "review" (it stays in force and you are told once at expires_at that it is time to review it; then extend with temp_rule_update expires_at, make it permanent with keep=true, or remove it), "permanent" (no date, stays until removed). expires_at: ISO UTC with timezone, e.g. 2026-10-20T07:00Z; required for expires and review, forbidden for permanent. project: empty = your own project (scope); "*" = every project, allowed only for the Orchestra project orchestrator."""
+    from app.temp_rules import check_failure_bucket
+    check_failure_bucket(failure_bucket)
     result = await _api("POST", "/api/temp-rules", json={
         "text": text, "reason": reason, "targets": targets, "mode": mode,
-        "expires_at": expires_at, "project": project})
+        "expires_at": expires_at, "project": project, "failure_bucket": failure_bucket})
     return (f"Rule {result['id']} set ({result['mode']}, {result['expires_at'] or 'no date'}) "
             f"for {result['targets']} in {result['project']}")
 
@@ -2485,11 +2490,11 @@ async def update_checklist(
 
 
 @mcp.tool()
-async def change_worker_model(name: str, model: str, model_reason: str = "") -> str:
+async def change_worker_model(name: str, model: str, model_reason: str = "", clean_handoff: bool = False) -> str:
     """Change an idle worker's model while preserving its dialog. Within one runtime the
-    native session continues. Between Claude and Codex, recent chat history is handed off
+    native session continues. clean_handoff=True (automatic after a failed turn) starts fresh with task, git state and deterministic failure only. Otherwise, between runtimes recent chat history is handed off
     (chat_history_v1); a refused transfer returns an error. Refused while the worker is
-    running or compacting. Ordinary Hub workers may use hubopus (xhigh), hubsonnet (high), hubargon (medium), hubsol or hubluna. Protected local luna retains its reason requirement. No native, model or API fallback."""
+    running or compacting. Claude Hub routes hubopus (xhigh) and hubsonnet (high) require a Multicast project; other projects use hubsol (xhigh), hubastra (high) or hubluna (high). Hubargon (medium) retains its own role constraints. Protected local luna retains its reason requirement. No native, model or API fallback."""
     from app.models import validate_model_reason, HUB_SOL_ONLY_RULE, resolve_model
 
     try:
@@ -2498,7 +2503,7 @@ async def change_worker_model(name: str, model: str, model_reason: str = "") -> 
     except ValueError as exc:
         raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
                            details={"field": "model"}) from exc
-    body = {"scope": SCOPE, "model": model, "via": "mcp"}
+    body = {"scope": SCOPE, "model": model, "via": "mcp", "clean_handoff": clean_handoff}
     if model_reason:
         body["model_reason"] = model_reason
     result = await _api("POST", f"/api/sessions/{name}/change-model", json=body)

@@ -284,5 +284,5 @@ def test_only_the_owner_hub_stack_is_enabled_for_agents_by_default(monkeypatch):
     }
     assert enabled == models.ALLOWED_HUB_WORKER_MODELS == {
         'hub-claude-opus-5-5', 'hub-claude-sonnet-5-5', 'hub-gemini-4-argon',
-        'hub-gpt-6.1-sol', 'hub-gpt-6-luna',
+        'hub-gpt-6.1-sol', 'hub-gpt-6-luna', 'hub-gpt-6-astra',
     }

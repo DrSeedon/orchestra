@@ -1,7 +1,7 @@
 """02.11 «Codex stable and sharp like Claude»: a Codex orchestrator's running turn.
 
-1: agent / background / cron input is not steered into it; the mailbox gives it to the
-   turn end, once (escapes: worker escalation, a 10-minute-old turn, more than 8 waiting).
+1: background / cron input waits for turn end across age/count escapes; worker
+   reports retain their escalation/age/count escapes. Owner input still steers.
 2: a delivered batch puts the owner's messages first, the rest in arrival order.
 3: the idle precompact timer is cancelled only by a turn that really starts.
 No provider CLI, no live DB: every database is a tmp file.
@@ -235,41 +235,42 @@ async def test_an_ordinary_kind_is_held(tmp_db):
 
 
 @pytest.mark.asyncio
-async def test_old_turn_steers_the_held_block_then_the_message(tmp_db):
+async def test_old_turn_steers_worker_but_retains_background_until_turn_end(tmp_db):
     session = _session()
     await session.send("bg one", provenance=BG)
     session._turn_start -= TURN_END_HOLD_MAX_TURN_SECONDS + 1
-
     await session.send("[from:worker-a] late report", provenance=WORKER)
-
-    assert _steered(session) == ["[from:job-1] bg one", "[from:worker-a] late report"]
-    # Steered held rows back up the running turn: done on its success, replayed otherwise.
+    assert _steered(session) == ["[from:worker-a] late report"]
     rows = mailbox.pending(session.name, session.scope)
-    assert {(r["body"], r["provenance"].subtype, r["provenance"].ref) for r in rows} >= {
-        ("bg one", "codex_steer_backup", "turn-running"),
-    }
-    assert any("held message(s) steered into the running turn (turn older than 10 min)"
-               in s for s in _statuses(session))
-
+    assert [(r["body"], r["provenance"].subtype) for r in rows] == [
+        ("bg one", "codex_turn_end_hold"),
+        ("late report", "codex_steer_backup"),
+    ]
+    await session.send("owner correction", provenance=USER)
+    assert _steered(session)[-1] == "owner correction"
+    mailbox.complete_codex_steers(session.name, session.scope, "turn-running")
+    assert await _end_turn(session) == 1
+    assert _steered(session) == ["[from:job-1] bg one"]
+    assert mailbox.pending(session.name, session.scope) == []
 
 @pytest.mark.asyncio
-async def test_more_than_eight_waiting_steer_as_one_block(tmp_db):
+async def test_more_than_eight_background_messages_wait_for_turn_end(tmp_db):
     session = _session()
     for n in range(TURN_END_HOLD_MAX_WAITING):
         await session.send(f"bg {n}", provenance=BG)
-    session._backend.send.assert_not_awaited()
-
     await session.send("bg last", provenance=BG)
-
-    sent = _steered(session)
-    assert len(sent) == 2
-    assert [f"bg {n}" in sent[0] for n in range(TURN_END_HOLD_MAX_WAITING)] == [True] * 8
-    assert sent[1] == "bg last"
-    assert any("(9 messages waiting)" in s for s in _statuses(session))
-
+    session._backend.send.assert_not_awaited()
+    rows = mailbox.pending(session.name, session.scope)
+    assert len(rows) == TURN_END_HOLD_MAX_WAITING + 1
+    assert all(r["provenance"].subtype == "codex_turn_end_hold" for r in rows)
+    assert await _end_turn(session) == 1
+    assert len(_steered(session)) == 1
+    assert all(f"bg {n}" in _steered(session)[0] for n in range(TURN_END_HOLD_MAX_WAITING))
+    assert "bg last" in _steered(session)[0]
+    assert mailbox.pending(session.name, session.scope) == []
 
 @pytest.mark.asyncio
-async def test_age_timer_steers_held_rows_without_a_new_message(tmp_db):
+async def test_age_timer_keeps_background_rows_until_turn_end(tmp_db):
     session = _session()
     await session.send("bg one", provenance=BG)
     timers = [c for c in session.spawned
@@ -284,12 +285,14 @@ async def test_age_timer_steers_held_rows_without_a_new_message(tmp_db):
 
     await session._turns._steer_turn_end_holds_when_turn_ages(session._turn_gen)
 
-    assert _steered(session) == ["[from:job-1] bg one\n\n[from:job-1] bg two"]
-    # A successful turn end completes them; nothing is replayed.
+    session._backend.send.assert_not_awaited()
+    assert len(mailbox.pending(session.name, session.scope)) == 2
     mailbox.complete_codex_steers(session.name, session.scope, "turn-running")
+    assert len(mailbox.pending(session.name, session.scope)) == 2
+    assert await _end_turn(session) == 1
+    assert _steered(session) == ["[from:job-1] bg one\n\n[from:job-1] bg two"]
     assert mailbox.pending(session.name, session.scope) == []
     _close(session)
-
 
 @pytest.mark.asyncio
 async def test_age_timer_of_a_finished_turn_does_nothing(tmp_db):

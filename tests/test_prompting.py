@@ -309,7 +309,8 @@ class TestCodexProjectDocPreflight:
         assert result.first_truncated_line == 2
         assert "4" in result.diagnostic
         assert "line 2" in result.diagnostic
-        assert "from line 2 through EOF once" in result.instruction
+        assert ".orchestra/kb/" in result.instruction
+        assert "Do not bulk-read the truncated tail" in result.instruction
         assert len(result.instruction) < 600
         assert (repo / "AGENTS.md").read_text(encoding="utf-8") == content
 

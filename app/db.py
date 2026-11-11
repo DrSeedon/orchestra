@@ -908,6 +908,22 @@ def dashboard_voice_mark_failed(voice_id: str, error: str) -> None:
         )
 
 
+def get_clean_handoff_evidence(session_id: str) -> dict:
+    with _conn() as connection:
+        task = connection.execute(
+            "SELECT content FROM logs WHERE session_id=? AND type='user_message' "
+            "AND COALESCE(origin,'') NOT IN ('platform','background_task') ORDER BY id LIMIT 1",
+            (session_id,),
+        ).fetchone()
+        failure = connection.execute(
+            "SELECT content FROM logs WHERE session_id=? AND "
+            "(type='error' OR (type='tool_result' AND tool_is_error=1)) ORDER BY id DESC LIMIT 1",
+            (session_id,),
+        ).fetchone()
+    return {"original_task": str(task[0])[:6000] if task else "",
+            "last_failure": str(failure[0])[:4000] if failure else ""}
+
+
 def get_recent_chat_logs(session_id: str) -> list[dict]:
     """Read a bounded chat window and any tool call paired across its boundary."""
     from app.chat_history import MAX_MESSAGES

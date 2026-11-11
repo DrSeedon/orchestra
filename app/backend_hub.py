@@ -40,6 +40,7 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
     "hub-claude-haiku-5-5": ("claudeAgent", "claude-haiku-5-5"),
     "hub-claude-sonnet-5-5": ("claudeAgent", "claude-sonnet-5-5"),
     "hub-claude-opus-5-5": ("claudeAgent", "claude-opus-5-5"),
+    "hub-gpt-6-astra": ("codex", "gpt-6-astra"),
     "hub-gpt-6-luna": ("codex", "gpt-6-luna"),
     "hub-gpt-6.1-sol": ("codex", "gpt-6.1-sol"),
     "hub-gemini-4-argon": ("antigravity", "gemini-4-argon"),
@@ -289,6 +290,9 @@ class HubBackend:
         self._run_id: Optional[str] = None
         self._early_steer: list[str] = []
         self._turn_started: float | None = None
+        self._prompt_chars = 0
+        self._response_chars = 0
+        self._sync_changed_files = 0
         self._watch_status = ''
         self._watch_limit: str | None = None
         self._run_evidence: _RunEvidence | None = None
@@ -457,11 +461,15 @@ class HubBackend:
         self._ensure_model_allowed()
         message, self._pending = self._pending, None
         self._turn_started = time.perf_counter()
+        self._prompt_chars = 0
+        self._response_chars = 0
+        self._sync_changed_files = 0
         ok, stop_reason, detail = True, "end_turn", ""
         reply = ""
         try:
             async for event in self._run_turn(message):
                 if event.type == "text":
+                    self._response_chars += len(event.content)
                     reply = event.content
                 yield event
         except asyncio.CancelledError:
@@ -583,6 +591,7 @@ class HubBackend:
                 yield AgentEvent("status", note)
             steer_count = len(self._early_steer)
             prompt = self._prompt(message, first=not state.thread_id)
+            self._prompt_chars += len(prompt)
             async with _turn_slots():
                 try:
                     await hw.check_workspace_file_policy(ssh, state)
@@ -1049,7 +1058,27 @@ class HubBackend:
                              + ", ".join(pending["conflicts"][:20]))
             if pending["rejected"]:
                 lines.append("rejected: " + "; ".join(f"{p} ({why})" for p, why in pending["rejected"][:20]))
-            failed = bool(pending.get("commit_error") or unstaged or pending["conflicts"] or pending["rejected"])
+            warnings = [(p, why) for p, why in pending["rejected"]
+                        if hw.benign_artifact_rejection(p, why)]
+            bad_rejected = [(p, why) for p, why in pending["rejected"]
+                            if not hw.benign_artifact_rejection(p, why)]
+            bad_unstaged = []
+            for path, why in unstaged:
+                ignored = await asyncio.to_thread(hw._git_out, root, "check-ignore", "--quiet", "--", path)
+                if (Path(path).suffix.lower() in hw.MEDIA_ARTIFACT_SUFFIXES
+                        and ignored is not None and ignored.returncode == 0):
+                    warnings.append((path, "gitignored media artifact"))
+                else:
+                    bad_unstaged.append((path, why))
+            for path, why in warnings:
+                record = [path, why]
+                if record not in state.artifact_warnings:
+                    logger.warning("hub sync artifact excluded: %s (%s)", path, why)
+                    state.artifact_warnings.append(record)
+            failed = bool(pending.get("commit_error") or bad_unstaged or pending["conflicts"] or bad_rejected)
+            if warnings:
+                lines.append("warning: oversized/ignored artifacts excluded; code sync retained")
+                pending["no_work"] = False  # Artifact-only output is complete, not a reason to rerun the model.
             pending.update(phase="report", summary="\n".join(lines), failed=failed)
             # Final outcome and report identities are durable before any delivery.
             state.save()
@@ -1092,6 +1121,7 @@ class HubBackend:
         state.manifest = result.manifest
         state.hub_made = sorted((set(state.hub_made) | {r for r, d in result.manifest.items()
                                                          if before.get(r) != d}) & set(result.manifest))
+        self._sync_changed_files += len(result.changed) + len(result.deleted)
         state.turns += 1
         entries, dropped = parse_outbox(result.outbox)
         for entry in entries:
@@ -1181,6 +1211,9 @@ class HubBackend:
             "cost_unaccounted": False,
             "provider_source_records": [],
             "turn_duration_ms": elapsed,
+            "prompt_chars": self._prompt_chars,
+            "response_chars": self._response_chars,
+            "sync_changed_files": self._sync_changed_files,
             "api_duration_ms": None,
             "reasoning_tokens": None,
             "duration_basis": "turn" if elapsed is not None else None,
@@ -1199,7 +1232,7 @@ class HubBackend:
 async def archive_for_worktree(worktree: str, *, keep_ws_id: str = "",
                                ssh: hw.HubSsh | None = None, mc=None,
                                skip: frozenset[str] = frozenset()) -> list[str]:
-    """Ordinary lifecycle close: retain Hub history and existing workspace records.
+    """Close remote Hub resources after retaining local workspace metadata.
 
     Destructive release_for_worktree keeps its separate explicit-purge meaning.
     Preflight every record before remote archival or caller lifecycle teardown.
@@ -1208,11 +1241,11 @@ async def archive_for_worktree(worktree: str, *, keep_ws_id: str = "",
               if state.ws_id != keep_ws_id and state.ws_id not in skip]
     for state in states:
         hw.assert_archive_ready(state)
-    states = [state for state in states if not state.archived]
+    states = [state for state in states if not state.remote_released]
     if not states:
         return []
     ssh = ssh or hw.HubSsh.from_env()
-    owns_client = mc is None and any(state.thread_id for state in states)
+    owns_client = mc is None and any(state.thread_id or state.project_id for state in states)
     if owns_client:
         problem = hub_configured()
         if problem:

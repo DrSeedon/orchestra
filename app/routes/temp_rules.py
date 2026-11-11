@@ -18,6 +18,7 @@ class RuleCreate(BaseModel):
     mode: str = ""
     expires_at: str = ""
     project: str = ""
+    failure_bucket: str = "skill_or_rules"
 
 
 class RuleUpdate(BaseModel):
@@ -47,7 +48,7 @@ def _run(call):
 def create_rule(req: RuleCreate, request: Request):
     return _run(lambda: temp_rules.add_rule(
         _actor(request), req.text, req.reason, req.targets, req.mode, req.expires_at,
-        project=req.project))
+        project=req.project, failure_bucket=req.failure_bucket))
 
 
 @router.get("")

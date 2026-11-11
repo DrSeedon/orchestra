@@ -655,9 +655,10 @@ def codex_project_doc_preflight(
     )
     instruction = (
         "[Orchestra project-doc warning: Codex auto-load is incomplete. "
-        f"{doc} is {actual} bytes with configured budget {budget}. Before task "
-        f"actions, read {doc} from line {first_truncated_line} through EOF once; "
-        "that line may overlap the auto-loaded prefix. Do not rewrite the file.]"
+        f"{doc} is {actual} bytes with configured budget {budget}. "
+        "Keep task context bounded: consult only task-relevant sections on demand. "
+        "Maintainer action: slim AGENTS.md and move detailed guidance into .orchestra/kb/ "
+        "with a descriptive index entry. Do not bulk-read the truncated tail.]"
     )
     return CodexProjectDocPreflight(
         str(doc), actual, budget, first_truncated_line,

@@ -4,7 +4,7 @@ A hub worker never gets credentials. The platform packs only what the task needs
 worker's VPS worktree, copies it to a private directory on the hub over SSH, lets the hub
 thread edit it there, then imports the result back into the worktree through a validator
 (`apply_changes`) and commits it. Ordinary archival retains history and provenance;
-destructive `release` is a separate, explicitly authorized operation.
+remote copies are deleted after durable archival; explicit release also removes local metadata.
 
 The hub side is untrusted input: whatever comes back is checked for path escape, links,
 size and credential shapes before a single byte reaches the worktree.
@@ -39,6 +39,15 @@ STATE_DIR = DATA_DIR / "hub-workspaces"
 MAX_FILE_BYTES = 20 * 1024 * 1024
 MAX_TOTAL_BYTES = 300 * 1024 * 1024
 MAX_FILES = 20_000
+MEDIA_ARTIFACT_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".wav", ".mp3", ".ogg", ".zip", ".whl"})
+
+
+def benign_artifact_rejection(path: str, reason: str) -> bool:
+    # Reasons originate only from the validator, never from provider prose.
+    return reason == "exceeds per-file size limit" or (
+        reason == "gitignored media artifact" and Path(path).suffix.lower() in MEDIA_ARTIFACT_SUFFIXES
+    )
+
 
 # Broker transport only: retained for pending/uncertain sends until workspace release,
 # never uploaded as source or imported/committed as a worker result.
@@ -932,7 +941,10 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
                     result.rejected.append((rel, reason))
                 continue
             seen.add(rel)
-            if member.size > MAX_FILE_BYTES or total + member.size > MAX_TOTAL_BYTES:
+            if member.size > MAX_FILE_BYTES:
+                result.rejected.append((rel, "exceeds per-file size limit"))
+                continue
+            if total + member.size > MAX_TOTAL_BYTES:
                 result.rejected.append((rel, "exceeds the size limit"))
                 continue
             handle = archive.extractfile(member)
@@ -953,6 +965,11 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
             if b"\0" not in data[:4096] and secret_in_text(data.decode("utf-8", "ignore"), known):
                 result.rejected.append((rel, "contains a credential"))
                 continue
+            if Path(rel).suffix.lower() in MEDIA_ARTIFACT_SUFFIXES:
+                ignored = _git_out(root, "check-ignore", "--quiet", "--", rel)
+                if ignored is not None and ignored.returncode == 0:
+                    result.rejected.append((rel, "gitignored media artifact"))
+                    continue
             pending.append((rel, member, digest))
     # Validate the complete snapshot before applying anything (including deletions).
     # Re-read accepted slices from the broker-owned file instead of retaining up
@@ -1194,9 +1211,11 @@ class WorkspaceState:
     clean_start: bool = False
     clean_start_of: list[str] = field(default_factory=list)
     pending_sync: dict = field(default_factory=dict)
-    # V-1244: ordinary close retains this record and all Hub history. Legacy
-    # records default active; neither their age nor absent owners permits purge.
+    # Closure retains local provenance before remote project/directory deletion.
+    # Legacy records remain active until lifecycle ownership proves closure.
     archived: bool = False
+    remote_released: bool = False
+    artifact_warnings: list[list[str]] = field(default_factory=list)
 
     def assert_file_policy(self) -> None:
         assert_file_policy(self.manifest, self.input_manifest or {}, self.hub_made)
@@ -1540,7 +1559,7 @@ def assert_archive_ready(state: WorkspaceState) -> None:
 
 
 async def archive_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mcp=None) -> None:
-    """Close a known generation without removing project/history/recovery data.
+    """Archive local metadata, then delete the closed remote project and directory.
 
     Repeated archive is idempotent, including retry after a lost remote reply.
     Pending import/report work must recover through its owner before closure.
@@ -1548,6 +1567,8 @@ async def archive_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mc
     state = WorkspaceState.load(state.ws_id) or state
     assert_archive_ready(state)
     if state.archived:
+        if not state.remote_released:
+            await _delete_archived_remote(state, ssh, mcp)
         return
     await check_workspace_file_policy(ssh, state)
     if state.thread_id:
@@ -1570,6 +1591,26 @@ async def archive_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mc
     assert_archive_ready(latest)
     latest.archived = True
     latest.save()
+    await _delete_archived_remote(latest, ssh, mcp)
+
+
+async def _delete_archived_remote(state: WorkspaceState, ssh: HubSsh | None, mcp) -> None:
+    assert_archive_ready(state)
+    if not state.archived or not _WS_ID.fullmatch(state.ws_id):
+        raise HubWorkspaceError("Hub remote deletion requires an archived workspace")
+    ssh = ssh or HubSsh.from_env()
+    if ssh is None or mcp is None:
+        raise HubWorkspaceError("Hub archive cleanup pending: transports unavailable")
+    # remove() independently validates installation root and exact hub-* directory.
+    if state.project_id:
+        try:
+            await mcp.tool_call("t3_project_delete", {"projectId": state.project_id, "force": True})
+        except Exception as error:
+            if not _gone(error):
+                raise
+    await ssh.remove(state.remote_dir)
+    state.remote_released = True
+    state.save()
 
 
 async def release_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mcp=None) -> None:

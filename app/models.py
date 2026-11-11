@@ -153,6 +153,10 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="hub", provider="multicode", default_agents=True,
     ),
     ModelSpec(
+        id="hub-gpt-6-astra", name="Hub: GPT-6 Astra",
+        runtime="hub", provider="multicode", default_agents=True,
+    ),
+    ModelSpec(
         id="hub-gpt-6-luna", name="Hub: GPT-6 Luna",
         runtime="hub", provider="multicode", default_agents=True,
     ),
@@ -298,6 +302,7 @@ ALIASES = {
     "hubopus": "hub-claude-opus-5-5",
     "hubluna": "hub-gpt-6-luna",
     "hubsol": "hub-gpt-6.1-sol",
+    "hubastra": "hub-gpt-6-astra",
     "hubargon": "hub-gemini-4-argon",
     "hubgrok": "hub-grok-4.7",
 }
@@ -988,11 +993,12 @@ HUB_SOL_MODEL = "hub-gpt-6.1-sol"
 HUB_ARGON_MODEL = "hub-gemini-4-argon"
 HUB_SONNET_MODEL = "hub-claude-sonnet-5-5"
 HUB_OPUS_MODEL = "hub-claude-opus-5-5"
+HUB_ASTRA_MODEL = "hub-gpt-6-astra"
 HUB_LUNA_MODEL = "hub-gpt-6-luna"
 # Owner stack 09.11.2026: Opus 5.5 xhigh for heavy work, Sonnet 5.5 high for routine work,
 # Argon medium for second opinions and UI. Sol and Luna stay admitted for existing flows.
 ALLOWED_HUB_WORKER_MODELS = frozenset({
-    HUB_OPUS_MODEL, HUB_SONNET_MODEL, HUB_ARGON_MODEL, HUB_SOL_MODEL, HUB_LUNA_MODEL,
+    HUB_OPUS_MODEL, HUB_SONNET_MODEL, HUB_ARGON_MODEL, HUB_SOL_MODEL, HUB_LUNA_MODEL, HUB_ASTRA_MODEL,
 })
 HUB_SPECIALIST_ROLE = "specialist"
 
@@ -1003,6 +1009,27 @@ def hub_worker_context(worker) -> dict:
     if isinstance(worker, Mapping):
         return {key: worker.get(key, "") for key in keys}
     return {key: getattr(worker, key, "") for key in keys}
+
+
+MULTICAST_PATH_TOKENS = frozenset({"multicode", "multicast", "obelisk", "polus", "empire-front"})
+
+
+def ensure_project_model_allowed(model: str, scope: str) -> None:
+    """Claude quota is reserved for explicit Multicast project path components."""
+    model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+    if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+        return
+    # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+    if not scope:
+        return
+    extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+    components = {part.lower() for part in Path(scope).resolve().parts}
+    if components & (MULTICAST_PATH_TOKENS | extra):
+        return
+    raise ValueError(
+        "claude_multicast_only: Claude is allowed only in Multicast projects; "
+        "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+    )
 
 
 def ensure_hub_worker_allowed(
@@ -1017,6 +1044,7 @@ def ensure_hub_worker_allowed(
     explicitly local Luna keep their own guards.
     This pure check never rewrites a model, thread, queue or recovery latch.
     """
+    ensure_project_model_allowed(model, scope)
     normalized = model.lower().strip()
     model_id = ALIASES.get(normalized, model.strip())
     # Registry validity for native/opaque runtime identities belongs to their

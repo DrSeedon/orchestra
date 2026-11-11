@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import sqlite3
+import subprocess
 import tempfile
 import time
 import uuid
@@ -1901,7 +1902,7 @@ class AgentSession:
                 self.session_id = None
                 self._last_context = empty_context()
                 backend.resume_failed = False
-                self._log("status", "native Claude transcript missing — restored from Orchestra logs")
+                self._log("status", f"native {self.backend_type} transcript missing — restored from Orchestra logs")
                 self._persist()
 
             if inject_prefix:
@@ -2782,8 +2783,30 @@ class AgentSession:
         backend = self._backend
         cancelled = False
         my_gen = self._turn_gen
+        from app import runaway_guard
+        started = self._turn_start or asyncio.get_running_loop().time()
+        tools = 0
+        iterator = backend.events().__aiter__()
         try:
-            async for event in backend.events():
+            while True:
+                if self._turn_gen != my_gen:
+                    break
+                elapsed = asyncio.get_running_loop().time() - started
+                reason = runaway_guard.turn_limit_reason(tools, elapsed, orchestrator=self.is_orchestrator)
+                if reason:
+                    await self._checkpoint_runaway_turn(backend, reason, tools, elapsed, turn_gen=my_gen)
+                    break
+                remaining = max(0.001, runaway_guard.MAX_TURN_WALL_SECONDS - elapsed)
+                try:
+                    event = await asyncio.wait_for(anext(iterator), timeout=remaining)
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError:
+                    await self._checkpoint_runaway_turn(backend, "wall_limit", tools,
+                                                        asyncio.get_running_loop().time() - started, turn_gen=my_gen)
+                    break
+                if event.type == "tool_use":
+                    tools += 1
                 self._last_msg_time = asyncio.get_event_loop().time()
                 self._last_event = describe_event(event)
                 if (
@@ -2829,6 +2852,31 @@ class AgentSession:
                         self._hibernate.schedule()
             if not self._compacting:
                 self._wake_durable_message_deliveries()
+
+    async def _checkpoint_runaway_turn(
+        self, backend, reason: str, tools: int, elapsed: float, *, turn_gen: int,
+    ) -> None:
+        """Stop the same provider generation without auto-continuing it."""
+        async with self._lifecycle_lock:
+            if self._turn_gen != turn_gen or self._backend is not backend or self.status != AgentStatus.RUNNING:
+                return
+            self._manually_interrupted = True
+            self._last_turn_ok = False
+            self._turns.cancel_auto_report()
+            checkpoint = {"schema": "runaway_checkpoint_v1", "reason": reason,
+                          "tools": tools, "wall_seconds": round(elapsed),
+                          "branch": self.branch, "task_id": self.task_id,
+                          "next_action": "Review checkpoint and resume in a new bounded turn"}
+            self._log("warning", json.dumps(checkpoint, ensure_ascii=False))
+            try:
+                acknowledged = await asyncio.wait_for(backend.interrupt(), timeout=10)
+                if acknowledged is False:
+                    await backend.disconnect()
+            except Exception as error:
+                self._log("warning", f"runaway provider interrupt failed: {type(error).__name__}")
+                await backend.disconnect()
+            self._finish_failed_running_turn("runaway turn stopped: " + reason)
+
 
     def _wake_durable_message_deliveries(self) -> None:
         try:
@@ -4342,6 +4390,7 @@ class AgentSession:
         self,
         exclude_latest_user: str = "",
         exclude_user_messages: tuple[str, ...] = (),
+        clean_handoff: bool = False,
     ) -> str:
         """Read recent user/assistant/tool messages without native-history conversion."""
         from app.chat_history import render_chat_history
@@ -4351,6 +4400,31 @@ class AgentSession:
         logs = await asyncio.get_running_loop().run_in_executor(
             _db_executor(), get_recent_chat_logs, self.id,
         )
+        if clean_handoff:
+            def git_brief():
+                result = {}
+                for key, args in (
+                    ("branch", ("branch", "--show-current")),
+                    ("status", ("status", "--short")),
+                    ("diff_stat", ("diff", "--stat")),
+                ):
+                    try:
+                        proc = subprocess.run(
+                            ["git", "-C", self.worktree_path or self.cwd, *args],
+                            capture_output=True, text=True, timeout=5,
+                        )
+                        result[key] = proc.stdout[:4000] if proc.returncode == 0 else "unavailable"
+                    except (OSError, subprocess.TimeoutExpired):
+                        result[key] = "unavailable"
+                return result
+            from app.db import get_clean_handoff_evidence
+            evidence = await asyncio.to_thread(get_clean_handoff_evidence, self.id)
+            brief = {"schema": "clean_handoff_v1", **evidence,
+                     **await asyncio.to_thread(git_brief)}
+            if not brief["last_failure"]:
+                brief["last_failure"] = (self._runtime_error or "")[:4000]
+            from app.secret_mask import mask_secrets
+            return mask_secrets(json.dumps(brief, ensure_ascii=False))
         excluded = Counter(message.strip() for message in exclude_user_messages)
         if exclude_latest_user:
             excluded[exclude_latest_user.strip()] += 1
@@ -4369,19 +4443,25 @@ class AgentSession:
         pending = self._pending_model_reason
         return pending[1] if pending and pending[0] == self.model else self.model_reason
 
-    async def change_model(self, new_model: str, model_reason: str = "") -> dict:
+    async def change_model(self, new_model: str, model_reason: str = "", clean_handoff: bool = False) -> dict:
         from app.models import validate_model_reason, HUB_SOL_ONLY_RULE
 
         async with self._lifecycle_lock:
             if self._compacting:
                 return {"ok": False, "error": "cannot change model while compacting"}
             try:
+                from app.models import ensure_project_model_allowed
+                ensure_project_model_allowed(new_model, self.scope or self.cwd)
                 reason = validate_model_reason(new_model, model_reason, **hub_worker_context(self))
             except ValueError as exc:
                 return {"ok": False, "error": str(exc), "error_code": HUB_SOL_ONLY_RULE}
             self._pending_model_reason = (new_model, reason)
             try:
-                result = await self._change_model_locked(new_model)
+                use_clean_handoff = clean_handoff or not self._last_turn_ok or bool(self._runtime_error)
+                if use_clean_handoff:
+                    result = await self._change_model_locked(new_model, clean_handoff=True)
+                else:
+                    result = await self._change_model_locked(new_model)
             finally:
                 if self.model == new_model:
                     self.model_reason = reason
@@ -4396,9 +4476,11 @@ class AgentSession:
         new_model: str,
         old_model: str,
         old_runtime: str,
+        *, clean_handoff: bool = False,
     ) -> dict:
-        """Start a fresh runtime with recent DB messages on its first real turn."""
-        tail = await self._build_runtime_handoff()
+        """Start a fresh runtime with a bounded, explicit handoff."""
+        tail = await self._build_runtime_handoff(clean_handoff=clean_handoff)
+        handoff_mode = "clean_handoff_v1" if clean_handoff else "chat_history_v1"
 
         old_session_id = self.session_id
         try:
@@ -4419,7 +4501,7 @@ class AgentSession:
                 "runtime": old_runtime,
                 "model": old_model,
                 "switched_at": datetime.now(timezone.utc).isoformat(),
-                "handoff_mode": "chat_history_v1",
+                "handoff_mode": handoff_mode,
             })
             new_history = new_history[-10:]
 
@@ -4479,7 +4561,7 @@ class AgentSession:
         self._log(
             "status",
             f"model change: {old_model} ({old_runtime}) → "
-            f"{new_model} ({new_runtime}); chat_history_v1 chars={len(tail)}",
+            f"{new_model} ({new_runtime}); {handoff_mode} chars={len(tail)}",
         )
         return {
             "ok": True,
@@ -4487,10 +4569,10 @@ class AgentSession:
             "old_model": old_model,
             "runtime": new_runtime,
             "old_runtime": old_runtime,
-            "runtime_changed": True,
+            "runtime_changed": new_runtime != old_runtime,
             "native_session_reset": True,
             "history_transfer": {
-                "mode": "chat_history_v1",
+                "mode": handoff_mode,
                 "chars": len(tail),
                 "max_messages": 100,
             },
@@ -4672,7 +4754,7 @@ class AgentSession:
             native_context_tokens=native_tokens,
         )
 
-    async def _change_model_locked(self, new_model: str) -> dict:
+    async def _change_model_locked(self, new_model: str, *, clean_handoff: bool = False) -> dict:
         old_model = self.model
         if old_model == new_model:
             return {"ok": True, "model": new_model, "changed": False}
@@ -4697,8 +4779,8 @@ class AgentSession:
         old_runtime = self.backend_type or backend_for_model(old_model)
         new_runtime = get_model_spec(new_model).runtime
         runtime_changed = old_runtime != new_runtime
-        if runtime_changed:
-            return await self._change_runtime_chat_locked(new_model, old_model, old_runtime)
+        if runtime_changed or clean_handoff:
+            return await self._change_runtime_chat_locked(new_model, old_model, old_runtime, clean_handoff=clean_handoff)
         runtime_capabilities = get_runtime(new_runtime).capabilities
         if runtime_capabilities.model_retarget:
             return await self._change_model_in_place_locked(

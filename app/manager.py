@@ -104,7 +104,7 @@ async def _archive_hub_workspaces(worktree: str, name: str, *, required: bool = 
         logger.warning("[%s] retained Hub archive pending (history kept): %s", name, exc)
         return
     if archived:
-        logger.info("[%s] archived hub workspaces %s (history retained)", name, archived)
+        logger.info("[%s] archived hub workspaces %s (local metadata retained; remote projects removed)", name, archived)
 
 
 

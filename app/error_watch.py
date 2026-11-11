@@ -246,8 +246,9 @@ def collect_db_events(db_path: Path, since: datetime) -> list[dict]:
         rows = connection.execute(
             "SELECT l.ts, l.type, l.content, s.scope, s.name, l.tool_name FROM logs l "
             "LEFT JOIN sessions s ON s.id=l.session_id "
-            "WHERE (l.tool_is_error=1 OR l.type='error') AND l.ts >= ? ORDER BY l.ts",
-            (since.isoformat(),),
+            "WHERE (l.tool_is_error=1 OR l.type='error') AND l.ts >= ? "
+            "AND date(l.ts) >= substr(?, 1, 10) ORDER BY l.ts",
+            (since.isoformat(), since.isoformat()),
         ).fetchall()
     return [
         {
@@ -257,6 +258,7 @@ def collect_db_events(db_path: Path, since: datetime) -> list[dict]:
         }
         for ts, kind, content, scope, session_name, tool_name in rows
         if _parse_ts(ts) and _parse_ts(ts) >= since
+        and str(content or "").strip().lower() not in {"applied", "(no output)"}
     ]
 
 

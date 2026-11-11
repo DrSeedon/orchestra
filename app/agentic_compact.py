@@ -289,6 +289,6 @@ Edit summary.md in place. Reply "audit done"."""
 
 
 def final_prompt(journal_dir: Path, summary_path: Path) -> str:
-    cap = TARGET_CHARS
+    cap = max_chars()
     return _common(journal_dir, summary_path) + f"""
 This is the last pass — FINALIZE. Make summary.md a clean handoff of at most {cap} characters: merge duplicates, remove what is not needed to continue, keep every verbatim requirement, decision, path, id, number, ban and open item. Do not add facts found neither in the journal nor in the previous handoff. Check the size with python (len of the file text) and iterate until it fits. Reply "final done"."""

@@ -15,7 +15,7 @@ def capabilities():
                 "options": [{"id": v} for v in values]}]}
     return {"providers": [
         {"providerInstanceId": "codex", "models": [
-            model("gpt-6.1-sol", "reasoningEffort", ["low", "medium", "high", "ultra"]),
+            model("gpt-6.1-sol", "reasoningEffort", ["low", "medium", "high", "xhigh", "ultra"]),
             model("gpt-6-luna", "reasoningEffort", ["low", "medium", "high"])]},
         {"providerInstanceId": "claudeAgent", "models": [
             model("claude-opus-5-5", "effort", ["low", "medium", "high"])]}]}
@@ -69,7 +69,7 @@ async def test_configure_carries_effort_and_reuses_catalog():
 async def test_unknown_effort_refused_before_mutation(configure):
     backend, hub, state = setup("bogus")
     state.thread_id = "thread" if configure else ""
-    with pytest.raises(ValueError, match="bogus.*allowed values: low, medium, high, ultra"):
+    with pytest.raises(ValueError, match="bogus.*allowed values: low, medium, high, xhigh, ultra"):
         if configure:
             await backend.retarget_model("hub-gpt-6.1-sol")
         else:
@@ -84,7 +84,7 @@ async def test_value_is_validated_against_target_model():
     await backend._start(hub, state, "task")
     backend._effort_options = None
     hub.catalog["providers"][0]["models"][0]["options"][0]["options"].pop()
-    with pytest.raises(ValueError, match="gpt-6.1-sol.*ultra.*allowed values: low, medium, high$"):
+    with pytest.raises(ValueError, match="gpt-6.1-sol.*ultra.*allowed values: low, medium, high, xhigh$"):
         await backend.retarget_model("hub-gpt-6.1-sol")
     assert backend.model == "hub-gpt-6.1-sol" and state.thread_id == "thread"
 
@@ -117,14 +117,14 @@ async def test_retarget_refuses_claude_without_changing_effort():
     assert hub.calls == before
     assert backend._effort == "high"
     await backend.retarget_model("hub-gpt-6.1-sol")
-    assert hub.calls[-1][1]["modelSelection"]["options"] == {"reasoningEffort": "high"}
+    assert hub.calls[-1][1]["modelSelection"]["options"] == {"reasoningEffort": "xhigh"}
 
 
 @pytest.mark.parametrize("role", ["orchestrator", "worker"])
 def test_hub_policy_matches_native_claude(role):
     # Owner stack 09.11.2026: Opus 5.5 xhigh, Sonnet 5.5 high, Argon medium in every role.
     policy = get_role("default", role).effort
-    assert resolve_effort(policy, "hub-gpt-6.1-sol", "hub") == "high"
+    assert resolve_effort(policy, "hub-gpt-6.1-sol", "hub") == "xhigh"
     assert resolve_effort(policy, "hub-gemini-4-argon", "hub") == "medium"
     for hub, native, expected in [
         ("hub-claude-opus-5-5", "claude-opus-5-5[1m]", "xhigh"),

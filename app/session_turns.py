@@ -615,9 +615,17 @@ class TurnManager:
                 f" {PRICE_MAY_BE_UNDERSTATED_MARKER}"
                 " (цена API-эквивалента может быть занижена)"
             )
+        measurements = ""
+        if s.backend_type == "hub":
+            measurements = (
+                f"; prompt_chars={meta.get('prompt_chars', 0)}"
+                f" response_chars={meta.get('response_chars', 0)}"
+                f" sync_changed_files={meta.get('sync_changed_files', 0)}"
+                f" duration_ms={meta.get('turn_duration_ms')}"
+            )
         s._log(
             "status",
-            f"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s})",
+            f"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s}){measurements}",
             event_id=event_id,
         )
 
@@ -880,6 +888,8 @@ class TurnManager:
             return None, ""
         from app import fan_barrier, mailbox
 
+        if provenance.origin == "background_task":
+            return "hold", ""  # Cron completion never extends a running orchestrator turn.
         if fan_barrier.is_blocker_kind(message_kind):
             return "flush", f"worker escalation ({message_kind})"
         started = getattr(s, "_turn_start", 0) or 0
@@ -943,6 +953,10 @@ class TurnManager:
         except Exception as error:
             s._log("error", f"mailbox: held messages stay for the turn end: {_err(error)}")
             return 0
+        backgrounds = [m for m in held if m["provenance"].origin == "background_task"]
+        if backgrounds:
+            mailbox.release_claim([m["id"] for m in backgrounds])
+            held = [m for m in held if m not in backgrounds]
         if not held:
             return 0
         turn_id = getattr(backend, "active_turn_id", None)

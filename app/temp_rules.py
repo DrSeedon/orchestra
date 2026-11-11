@@ -19,7 +19,7 @@ import os
 import re
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import yaml
@@ -35,6 +35,17 @@ ORCHESTRA_ORCHESTRATOR = "Orchestra-orchestrator"
 GLOBAL = "*"
 THIS = "this"  # stored in the file instead of a machine-specific path
 MODES = ("expires", "review", "permanent")
+FAILURE_BUCKETS = frozenset({"model", "skill_or_rules", "tool_or_harness", "test_or_fixture", "infra"})
+NON_PROMPT_FAILURE_BUCKETS = frozenset({"tool_or_harness", "test_or_fixture", "infra"})
+
+
+def check_failure_bucket(bucket: str) -> str:
+    if bucket not in FAILURE_BUCKETS:
+        raise RuleError(422, "failure_bucket must be model|skill_or_rules|tool_or_harness|test_or_fixture|infra")
+    if bucket in NON_PROMPT_FAILURE_BUCKETS:
+        raise RuleError(422, "Do not create prompt rules for this failure_bucket; fix code/fixture or file report_bug")
+    return bucket
+
 RULES_FILE = Path(".orchestra") / "temp-rules.yaml"
 _BLOCK = re.compile(r"\n*(<temporary-rules>.*?</temporary-rules>)", re.DOTALL)
 _FILE_HEADER = (
@@ -93,6 +104,10 @@ def _validate(entry) -> str:
     for key in ("id", "text", "reason", "author"):
         if not str(entry.get(key) or "").strip():
             return f"missing {key}"
+    try:
+        check_failure_bucket(entry.get("failure_bucket", "skill_or_rules"))
+    except RuleError as error:
+        return error.detail
     targets = entry.get("targets")
     if not isinstance(targets, list) or not targets or not all(isinstance(t, str) and t.strip() for t in targets):
         return "targets must be a non-empty list"
@@ -142,7 +157,7 @@ def _read(scope: str, *, strict: bool = False) -> list[dict]:
 def _dump(entries: list[dict]) -> str:
     plain = []
     for e in entries:
-        item = {k: e[k] for k in ("id", "project", "mode", "expires_at", "targets", "author", "created_at", "text", "reason")
+        item = {k: e[k] for k in ("id", "project", "mode", "expires_at", "targets", "author", "created_at", "text", "reason", "failure_bucket")
                 if e.get(k) not in (None, "")}
         for key in ("expires_at", "created_at"):
             if isinstance(item.get(key), datetime):
@@ -323,9 +338,10 @@ def _check_deadline(mode: str, expires_at, *, future: bool = True) -> str | None
 
 def add_rule(
     actor: dict | None, text: str, reason: str, targets: list[str], mode: str,
-    expires_at: str = "", *, project: str = "",
+    expires_at: str = "", *, project: str = "", failure_bucket: str = "skill_or_rules",
 ) -> dict:
     actor = _require_orchestrator(actor)
+    failure_bucket = check_failure_bucket(failure_bucket)
     text = _check_text(text)
     reason = _check_reason(reason)
     deadline = _check_deadline(mode, expires_at)
@@ -341,7 +357,7 @@ def add_rule(
         "project": stored_project, "mode": mode,
         "expires_at": deadline,
         "targets": _check_targets(targets), "author": actor["name"],
-        "created_at": created.isoformat(), "text": text, "reason": reason,
+        "created_at": created.isoformat(), "text": text, "reason": reason, "failure_bucket": failure_bucket,
     }
     _mutate(
         file_scope, lambda entries: entries.append(entry) or entry,
@@ -528,6 +544,38 @@ def _state_schema(conn: sqlite3.Connection) -> None:
     )
 
 
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS temp_rule_notice_retries (
+            scope TEXT NOT NULL, rule_id TEXT NOT NULL, due_at TEXT NOT NULL,
+            attempts INTEGER NOT NULL, retry_at TEXT NOT NULL, quarantined INTEGER NOT NULL,
+            PRIMARY KEY(scope, rule_id, due_at))"""
+    )
+
+
+def _notice_retry_ready(row: dict) -> bool:
+    with db._conn() as conn:
+        _state_schema(conn)
+        prior = conn.execute(
+            "SELECT retry_at,quarantined FROM temp_rule_notice_retries WHERE scope=? AND rule_id=? AND due_at=?",
+            (_norm(row["scope"]), row["id"], row["due_at"]),
+        ).fetchone()
+    return not prior or (not prior[1] and _parse_utc(prior[0]) <= _now())
+
+
+def _notice_failed(row: dict) -> int:
+    key = (_norm(row["scope"]), row["id"], row["due_at"])
+    with db._conn() as conn:
+        _state_schema(conn)
+        prior = conn.execute(
+            "SELECT attempts FROM temp_rule_notice_retries WHERE scope=? AND rule_id=? AND due_at=?", key,
+        ).fetchone()
+        attempts = (prior[0] if prior else 0) + 1
+        retry_at = (_now() + timedelta(seconds=(60, 300, 1800)[min(attempts-1, 2)])).isoformat()
+        conn.execute("INSERT OR REPLACE INTO temp_rule_notice_retries VALUES(?,?,?,?,?,?)",
+                     (*key, attempts, retry_at, int(attempts >= 3)))
+    return attempts
+
+
 def _project_scopes() -> list[str]:
     scopes = {_norm(r.get("scope")) for r in db.get_all_sessions()} | {_norm(ORCHESTRA_SCOPE)}
     return sorted(s for s in scopes if s)
@@ -596,6 +644,8 @@ async def notify_due(session_manager) -> int:
     sent = 0
     for row in claim_due_notices():
         key = (row["scope"], row["id"])
+        if not _notice_retry_ready(row):
+            continue
         recipient, fallback = _recipient(row)
         if recipient is None:
             if key not in _warned_no_recipient:
@@ -614,7 +664,9 @@ async def notify_due(session_manager) -> int:
                     origin="platform", senders=("Orchestra",), subtype="temp_rule", ref=row["id"]),
             )
         except Exception as error:
-            logger.warning("temp rule %s: notice failed, will retry: %s", row["id"], error)
+            attempts = _notice_failed(row)
+            logger.warning("temp rule %s: notice failed (%s/3, %s): %s", row["id"], attempts,
+                           "quarantined" if attempts >= 3 else "backoff", error)
             continue
         _warned_no_recipient.discard(key)
         mark_notified(row["scope"], row["id"], row["due_at"])

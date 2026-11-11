@@ -2075,7 +2075,7 @@ async def change_model(name: str, req: dict):
     if new_model not in MODELS:
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
     try:
-        ensure_hub_worker_allowed(new_model)
+        ensure_hub_worker_allowed(new_model, scope=scope)
         if via == "mcp":
             ensure_spawn_allowed(new_model, model_reason=req.get("model_reason") or "")
         else:
@@ -2085,8 +2085,8 @@ async def change_model(name: str, req: dict):
     found = await manager.ensure_loaded(name, scope)
     if not found:
         return _worker_not_found(name, scope)
-    result = await found.change_model(new_model, **(
-        {"model_reason": req["model_reason"]} if "model_reason" in req else {}))
+    options = {key: req[key] for key in ("model_reason", "clean_handoff") if key in req}
+    result = await found.change_model(new_model, **options)
     if not result.get("ok"):
         return JSONResponse(result, status_code=409)
     if "argon" in new_model.lower() and not getattr(found, "tg_topic", False):

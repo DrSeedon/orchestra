@@ -28,6 +28,20 @@ STRIKES_TO_KILL = 2
 ENABLED = os.getenv("RUNAWAY_GUARD_ENABLED", "1").strip().lower() in ("1", "true", "yes")
 _CGROUP = "/sys/fs/cgroup/system.slice/orchestra.service/cgroup.procs"
 
+MAX_TOOLS_PER_TURN = int(os.getenv("ORCHESTRA_MAX_TOOLS_PER_TURN", "250"))
+MAX_ORCHESTRATOR_TOOLS_PER_TURN = int(os.getenv("ORCHESTRA_MAX_ORCHESTRATOR_TOOLS_PER_TURN", "80"))
+MAX_TURN_WALL_SECONDS = float(os.getenv("ORCHESTRA_MAX_TURN_WALL_SECONDS", "3600"))
+
+
+def turn_limit_reason(tools: int, elapsed: float, *, orchestrator: bool) -> str:
+    limit = MAX_ORCHESTRATOR_TOOLS_PER_TURN if orchestrator else MAX_TOOLS_PER_TURN
+    if tools >= max(1, limit):
+        return "tool_limit"
+    if elapsed >= max(1, MAX_TURN_WALL_SECONDS):
+        return "wall_limit"
+    return ""
+
+
 # pid → сколько замеров подряд процесс превышает потолок
 _STRIKES: dict[int, int] = {}
 

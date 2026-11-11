@@ -169,12 +169,28 @@ def test_notice_sent_once_survives_restart_and_rearms_on_extend(env, monkeypatch
     assert asyncio.run(temp_rules.notify_due(sender)) == 1
 
 
-def test_failed_delivery_is_retried_not_lost(env, monkeypatch):
-    temp_rules.add_rule(env["orch"], "R", "why", ["all"], "review", iso(1))
-    monkeypatch.setattr(temp_rules, "_now", lambda: datetime.now(timezone.utc) + timedelta(hours=2))
-    assert asyncio.run(temp_rules.notify_due(MagicMock(send=AsyncMock(side_effect=RuntimeError("down"))))) == 0
-    assert asyncio.run(temp_rules.notify_due(MagicMock(send=AsyncMock()))) == 1
-
+def test_failed_delivery_backs_off_and_quarantines_after_three_failures(env, monkeypatch):
+    from app import db
+    rule = temp_rules.add_rule(env["orch"], "R", "why", ["all"], "review", iso(1))
+    now = datetime.now(timezone.utc) + timedelta(hours=2)
+    monkeypatch.setattr(temp_rules, "_now", lambda: now)
+    sender = MagicMock(send=AsyncMock(side_effect=RuntimeError("down")))
+    for attempt, seconds in enumerate((60, 300, 1800), 1):
+        assert asyncio.run(temp_rules.notify_due(sender)) == 0
+        assert sender.send.await_count == attempt
+        with db._conn() as conn:
+            row = dict(conn.execute(
+                "SELECT * FROM temp_rule_notice_retries WHERE rule_id=?", (rule["id"],)
+            ).fetchone())
+        assert row["attempts"] == attempt
+        assert row["quarantined"] == int(attempt == 3)
+        retry_at = datetime.fromisoformat(row["retry_at"])
+        assert (retry_at - now).total_seconds() == seconds
+        assert asyncio.run(temp_rules.notify_due(sender)) == 0
+        assert sender.send.await_count == attempt
+        now = retry_at + timedelta(seconds=1)
+    assert asyncio.run(temp_rules.notify_due(MagicMock(send=AsyncMock()))) == 0
+    assert sender.send.await_count == 3
 
 def test_keep_removes_deadline_and_stops_notices(env, monkeypatch):
     rule = temp_rules.add_rule(env["orch"], "K", "why", ["all"], "review", iso(1))

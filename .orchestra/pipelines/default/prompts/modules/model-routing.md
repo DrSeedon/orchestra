@@ -7,14 +7,26 @@ permission to override a disabled route. The manifest owns defaults and effort; 
 explicit orchestrator selection takes precedence. Native `sol` and native Terra
 orchestrators use the same operating rules; do not change their model merely to match a worker.
 
+### Project quota boundary (owner decision 10.11.2026)
+
+Claude routes are Multicast-only: project path components multicode, multicast, obelisk,
+polus or empire-front (plus ORCHESTRA_MULTICAST_PATH_TOKENS). Personal D&D projects
+Claude-Code-Game-Master and dnd-game-master are NOT Multicast. Orchestra, Seedon,
+katya-work, University, VPN-Service and other personal projects use Codex:
+hubsol (xhigh), hubastra (high) for escalation, hubluna (high) for bounded collection.
+An unavailable route is a blocker, never permission for automatic fallback.
+For escalation after an errored turn use a clean handoff: original task, branch,
+git status/diff stat and deterministic failure; do not replay failed-model reasoning.
+
 ### Task fit
 
 | Route | Use when admitted | Boundary |
 |---|---|---|
 | `luna` | Explicit local implementation, focused tests and deterministic collection | Local worker admission requires a non-empty model_reason naming the local-processing constraint |
 | native Astra | Hard coding, debugging, architecture or difficult reasoning | Native manual-only admission currently prevents automatic worker selection |
-| `hubopus` | Hard coding, architecture, multi-step debugging and refactors (owner stack 09.11.2026) | Ordinary admitted Hub route; xhigh effort from the manifest, never max |
-| `hubsonnet` | Routine implementation, reading, scripts and bounded collection (owner stack 09.11.2026) | Ordinary admitted Hub route; high effort from the manifest |
+| `hubopus` | Hard coding, architecture, multi-step debugging and refactors (owner stack 09.11.2026) | Multicast projects only; xhigh effort from the manifest, never max |
+| `hubsonnet` | Routine implementation, reading, scripts and bounded collection (owner stack 09.11.2026) | Multicast projects only; high effort from the manifest |
+| `hubastra` | Complex debugging, science and reasoning escalated from Sol | Registered Codex Hub route, high effort; choose explicitly |
 | `hubsol` | General Hub implementation; deep read-only audits and synthesis when assigned that scope | Ordinary admitted Hub route; read-only assignments must remain read-only |
 | unregistered Hub Terra route | Deep read-only audit or synthesis when exposed and admitted | Not in the current registry; do not invent an alias or dispatch an unknown route |
 | `hubargon` | Independent second opinion, bounded audit, frontend/UI design or document comparison | Ordinary Hub workers and specialists; medium effort, role and task boundaries still apply |
@@ -23,8 +35,8 @@ orchestrators use the same operating rules; do not change their model merely to 
 | `hubluna` | Legacy Hub collection when explicitly admitted | Prefer `hubsol` or `free` for new workers |
 
 These are task-fit preferences, not new runtime permissions. The current guards in
-app/models.py admit ordinary Hub workers on `hubopus` (xhigh), `hubsonnet` (high),
-`hubargon` (medium), `hubsol` and `hubluna`. Native `luna` is only for explicitly local work with
+app/models.py admit ordinary Hub workers on `hubsol` (xhigh), `hubastra` (high),
+`hubluna` (high) and `hubargon` (medium); `hubopus` and `hubsonnet` additionally require a Multicast scope. Native `luna` is only for explicitly local work with
 a non-empty model_reason naming the local-processing constraint. Company data and KB
 are authorized Hub inputs and do not by themselves require this native route. If broader routing is not activated,
 use an admitted route fitting the assignment or report the precise blocker. Never rename
@@ -43,11 +55,9 @@ full results and conflicting measurements. Keep current role defaults and explic
   observed 60s response-header timeouts; high uses ~3 hidden thinking tokens per
   visible token. Use `high` only for heavy math, physics or architecture. `low`
   scored 5/10 on the 1430-line document audit and confuses open and closed issues.
-- `hubsol` / `sol`: `high` for implementation (34/40, 9.5 min, among the fewest
-  hallucinations). `low` reached 33/40 on reading/review, but the secondary
-  Terminal-Bench 4.0 effort table reports 30.8% low versus 51.5% high (not verified
-  on its cited page). `xhigh` took about 3x longer than low without a score gain;
-  the task brief also reports 28.6 min for 34/40, a variant absent from the source table.
+- `hubsol`: `xhigh` by owner decision 10.11.2026 for CTO and coding workers.
+  Earlier benchmark settings are historical evidence, not current effort policy.
+- `hubastra`: `high` for explicit escalation after Sol; use a clean handoff on failure.
 - `hubsonnet`: `high` by the 09.11.2026 owner stack (source: owner model map 09.11.2026,
   Artificial Analysis: FrontierCode 2.0 26% versus 11% on medium); the earlier 35/40 reading
   score was measured in the separate Antigravity pool (source: `.orchestra/kb/hub-model-benchmarks.md`).
@@ -67,7 +77,7 @@ full results and conflicting measurements. Keep current role defaults and explic
 
 For bounded lookup, counting, extraction or formatting, prefer the `$0` worker pool
 (`free` for cloud tasks; `local` / `local-heretic` / `heretic` is disabled and must not be used),
-`hubsonnet` or `hubsol` when the exact route is admitted; do not spawn new `hubluna` or
+`hubsol` or `hubluna` when the exact route is admitted; do not spawn new `hubluna` or
 `luna` workers unless an explicit legacy constraint requires them. Keep `hubopus`, `hubsol`
 or `hubargon` for coding, architecture and debugging. The startup classifier is advisory: preserve the user's
 explicit selection and always run the canonical admission and quota checks.
