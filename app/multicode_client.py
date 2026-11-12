@@ -234,7 +234,8 @@ class MultiCodeClient:
             "model": model or os.environ.get("MULTICODE_MCP_MODEL") or DEFAULT_MODEL,
         }
         if effort:
-            selection["options"] = {"effort": effort}
+            option_key = "effort" if selection["instanceId"] == "claudeAgent" else "reasoningEffort"
+            selection["options"] = {option_key: effort}
         launched = await self.tool_call("t3_thread_launch", {
             "title": title, "message": prompt, "scratch": True,
             "runtimeMode": "approval-required", "modelSelection": selection,

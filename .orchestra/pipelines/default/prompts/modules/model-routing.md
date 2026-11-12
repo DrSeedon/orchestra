@@ -29,6 +29,8 @@ git status/diff stat and deterministic failure; do not replay failed-model reaso
 | `hubastra` | Complex debugging, science and reasoning escalated from Sol | Registered Codex Hub route, high effort; choose explicitly |
 | `hubsol` | General Hub implementation; deep read-only audits and synthesis when assigned that scope | Ordinary admitted Hub route; read-only assignments must remain read-only |
 | unregistered Hub Terra route | Deep read-only audit or synthesis when exposed and admitted | Not in the current registry; do not invent an alias or dispatch an unknown route |
+| `hubcarbon` | Frontier reasoning, cross-domain architecture, UI/Vision review and deep synthesis (owner 12.11.2026) | Admitted Hub worker and specialist route; medium effort default (low for instant zero-CoT drafting) |
+| `hubhydrogen` | Fast agentic implementation, 1M-context document/code review, tests and bounded scripting (owner 12.11.2026) | Admitted Hub worker route; high effort default (250–449 tok/s; low for fast scouting; replaces Flash) |
 | `hubargon` | Independent second opinion, bounded audit, frontend/UI design or document comparison | Ordinary Hub workers and specialists; medium effort, role and task boundaries still apply |
 | `free` / `openrouter-free` | Zero-cost cloud worker pool with automatic failover across top free coding/agentic models | Preferred zero-cost route for routine collection, parsing, drafting and bounded checks |
 | `local` / `local-heretic` | Disabled by owner decision (09.11.2026) | Blocked in `app/models.py`; never spawn `local`, `heretic` or `local-heretic` workers |
@@ -36,7 +38,7 @@ git status/diff stat and deterministic failure; do not replay failed-model reaso
 
 These are task-fit preferences, not new runtime permissions. The current guards in
 app/models.py admit ordinary Hub workers on `hubsol` (xhigh), `hubastra` (high),
-`hubluna` (high) and `hubargon` (medium); `hubopus` and `hubsonnet` additionally require a Multicast scope. Native `luna` is only for explicitly local work with
+`hubcarbon` (medium), `hubhydrogen` (high), `hubluna` (high) and `hubargon` (medium); `hubopus` and `hubsonnet` additionally require a Multicast scope. Native `luna` is only for explicitly local work with
 a non-empty model_reason naming the local-processing constraint. Company data and KB
 are authorized Hub inputs and do not by themselves require this native route. If broader routing is not activated,
 use an admitted route fitting the assignment or report the precise blocker. Never rename

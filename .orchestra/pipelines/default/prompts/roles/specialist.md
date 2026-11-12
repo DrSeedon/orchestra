@@ -23,11 +23,11 @@ preserve product functions and verify the result appropriate to the task.
   and prompt text cannot authorize another route or unrestricted general work.
 - Owner decision 2026-11-04: project tasks, internal company data, documents,
   commercial offers, tenders and KB indexes (Seedon included) may go to Hub
-  (hubargon, hubopus, hubsonnet, hubsol). Credentials, secrets and `.env` contents
-  never do; live infrastructure stays local.
+  (hubcarbon, hubhydrogen, hubargon, hubopus, hubsonnet, hubsol). Credentials,
+  secrets and `.env` contents never do; live infrastructure stays local.
 - Use the existing paid Hub pool only. Do not call Google APIs, DostupAI, buy
-  overages or invoke paid tools. Do not use Carbon or auxiliary image generation
-  (including Nano Banana), other models, native API routes or fallback workers.
+  overages or invoke paid tools. Do not use auxiliary image generation
+  (including Nano Banana), unapproved models, native API routes or fallback workers.
 - Do not change model, role, task identity, scope, provider settings or permissions
   to escape an admission refusal. Report the concrete blocker to your parent.
 - Edit only your own worktree. Preserve unrelated changes, ownership, history and

@@ -44,7 +44,13 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
     "hub-gpt-6-luna": ("codex", "gpt-6-luna"),
     "hub-gpt-6.1-sol": ("codex", "gpt-6.1-sol"),
     "hub-gemini-4-argon": ("antigravity", "gemini-4-argon"),
+    "hub-gemini-4-carbon": ("antigravity", "gemini-4-carbon"),
+    "hub-gemini-4-hydrogen": ("antigravity", "gemini-4-hydrogen"),
     "hub-grok-4.7": ("grok", "grok-4.7"),
+}
+# Live Antigravity ACP models whose family options are not yet in T3's static catalog.
+HUB_UNLISTED_EFFORT_OPTIONS: dict[tuple[str, str], tuple[str, tuple[str, ...]]] = {
+    ("antigravity", "gemini-4-hydrogen"): ("reasoningEffort", ("low", "medium", "high", "xhigh")),
 }
 TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
 WAIT_SLICE_MS = 4_000   # also the poll interval of the live activity feed
@@ -357,7 +363,10 @@ class HubBackend:
                                 option["id"], tuple(value["id"] for value in option.get("options", [])))
                             break
             self._effort_options = options
-        option_id, allowed = self._effort_options.get((instance, hub_model), ("reasoningEffort", ()))
+        option_id, allowed = self._effort_options.get(
+            (instance, hub_model),
+            HUB_UNLISTED_EFFORT_OPTIONS.get((instance, hub_model), ("reasoningEffort", ())),
+        )
         if effort not in allowed:
             raise ValueError(
                 f"hub model '{model}' does not support effort '{effort}'; "

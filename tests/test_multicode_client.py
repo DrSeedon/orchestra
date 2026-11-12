@@ -205,7 +205,10 @@ async def test_launch_model_selection_env_and_args(monkeypatch):
         "instanceId": "grok", "model": "grok-4.7"}
     args = await _launch_args(monkeypatch, instance="codex", model="gpt-6.1-sol", effort="high")
     assert args["modelSelection"] == {
-        "instanceId": "codex", "model": "gpt-6.1-sol", "options": {"effort": "high"}}
+        "instanceId": "codex", "model": "gpt-6.1-sol", "options": {"reasoningEffort": "high"}}
+    claude_args = await _launch_args(monkeypatch, instance="claudeAgent", model="claude-sonnet-5-5", effort="high")
+    assert claude_args["modelSelection"] == {
+        "instanceId": "claudeAgent", "model": "claude-sonnet-5-5", "options": {"effort": "high"}}
 
 
 def test_last_assistant_text_reads_items_created_by_and_content():

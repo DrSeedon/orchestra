@@ -174,6 +174,16 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         input_modalities=(),
     ),
     ModelSpec(
+        id="hub-gemini-4-carbon", name="Hub: Gemini 4 Carbon",
+        runtime="hub", provider="multicode", context_length=0, default_agents=True,
+        input_modalities=(),
+    ),
+    ModelSpec(
+        id="hub-gemini-4-hydrogen", name="Hub: Gemini 4 Hydrogen",
+        runtime="hub", provider="multicode", context_length=0, default_agents=True,
+        input_modalities=(),
+    ),
+    ModelSpec(
         id="hub-grok-4.7", name="Hub: Grok 4.7",
         runtime="hub", provider="multicode", default_agents=False,
     ),
@@ -229,12 +239,21 @@ ANTIGRAVITY_RAW_MODELS = (
     "gemini-3.5-flash-high", "gemini-3.5-flash-medium", "gemini-3.5-flash-low",
     "gemini-3.1-pro-high", "gemini-3.1-pro-low", "claude-sonnet-4-6",
     "claude-opus-4-6-thinking", "gpt-oss-120b-medium",
+    "gemini-4-carbon-high", "gemini-4-carbon-medium", "gemini-4-carbon-low",
+    "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
     "gemini-4-argon-high", "gemini-4-argon-medium", "gemini-4-argon-low",
     "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
 )
 # 128 000 is the conservative default; these routes serve long contexts (owner 09.11.2026)
 # and a too-small window compacted them several times earlier than needed.
 ANTIGRAVITY_CONTEXT_LENGTHS = {
+    "gemini-4-carbon-high": 1_000_000,
+    "gemini-4-carbon-medium": 1_000_000,
+    "gemini-4-carbon-low": 1_000_000,
+    "gemini-4-hydrogen-xhigh": 1_000_000,
+    "gemini-4-hydrogen-high": 1_000_000,
+    "gemini-4-hydrogen-medium": 1_000_000,
+    "gemini-4-hydrogen-low": 1_000_000,
     "gemini-4-argon-high": 1_000_000,
     "gemini-4-argon-medium": 1_000_000,
     "gemini-4-argon-low": 1_000_000,
@@ -260,6 +279,8 @@ ALIASES = {
     "agy-opus": "antigravity/claude-opus-4-6-thinking",
     "agy-gptoss": "antigravity/gpt-oss-120b-medium",
     "agy-argon": "antigravity/gemini-4-argon-medium",
+    "agy-carbon": "antigravity/gemini-4-carbon-medium",
+    "agy-hydrogen": "antigravity/gemini-4-hydrogen-high",
     "fable": "claude-fable-5-1[1m]",
     "fable5": "claude-fable-5-1[1m]",
     "fable5.1": "claude-fable-5-1[1m]",
@@ -304,6 +325,8 @@ ALIASES = {
     "hubsol": "hub-gpt-6.1-sol",
     "hubastra": "hub-gpt-6-astra",
     "hubargon": "hub-gemini-4-argon",
+    "hubcarbon": "hub-gemini-4-carbon",
+    "hubhydrogen": "hub-gemini-4-hydrogen",
     "hubgrok": "hub-grok-4.7",
 }
 _GIGACHAT_ALIASES = {
@@ -980,7 +1003,8 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
         if runtime not in ("claude", "codex"):
             return ""
     return ("The MultiCode hub pool has its own quota: ordinary workers may use "
-            "model='hubopus' (xhigh effort), model='hubsonnet' (high), model='hubargon' (medium), "
+            "model='hubopus' (xhigh effort), model='hubsonnet' (high), model='hubcarbon' (medium), "
+            "model='hubhydrogen' (high), model='hubargon' (medium), "
             "model='hubsol' or model='hubluna'. "
             "Select the route explicitly; if unavailable, report the blocker or wait; "
             "no automatic model or API fallback.")
@@ -991,14 +1015,17 @@ LOCAL_LUNA_MODEL = "gpt-6-luna"
 HUB_SOL_ONLY_RULE = "hub_workers_require_sol"
 HUB_SOL_MODEL = "hub-gpt-6.1-sol"
 HUB_ARGON_MODEL = "hub-gemini-4-argon"
+HUB_CARBON_MODEL = "hub-gemini-4-carbon"
+HUB_HYDROGEN_MODEL = "hub-gemini-4-hydrogen"
 HUB_SONNET_MODEL = "hub-claude-sonnet-5-5"
 HUB_OPUS_MODEL = "hub-claude-opus-5-5"
 HUB_ASTRA_MODEL = "hub-gpt-6-astra"
 HUB_LUNA_MODEL = "hub-gpt-6-luna"
-# Owner stack 09.11.2026: Opus 5.5 xhigh for heavy work, Sonnet 5.5 high for routine work,
-# Argon medium for second opinions and UI. Sol and Luna stay admitted for existing flows.
+# Owner stack 09–12.11.2026: Opus 5.5 xhigh and Sonnet 5.5 high (Multicast), Carbon medium
+# for deep reasoning/UI, Hydrogen high for fast execution, Argon medium, Sol, Astra and Luna.
 ALLOWED_HUB_WORKER_MODELS = frozenset({
-    HUB_OPUS_MODEL, HUB_SONNET_MODEL, HUB_ARGON_MODEL, HUB_SOL_MODEL, HUB_LUNA_MODEL, HUB_ASTRA_MODEL,
+    HUB_OPUS_MODEL, HUB_SONNET_MODEL, HUB_CARBON_MODEL, HUB_HYDROGEN_MODEL,
+    HUB_ARGON_MODEL, HUB_SOL_MODEL, HUB_LUNA_MODEL, HUB_ASTRA_MODEL,
 })
 HUB_SPECIALIST_ROLE = "specialist"
 
@@ -1061,7 +1088,7 @@ def ensure_hub_worker_allowed(
     if is_hub and model_id not in ALLOWED_HUB_WORKER_MODELS:
         raise ValueError(
             f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
-            "use hubopus, hubsonnet, hubargon, hubsol or hubluna. "
+            "use hubopus, hubsonnet, hubcarbon, hubhydrogen, hubargon, hubsol or hubluna. "
             "model_reason and catalog flags do not grant an exception. If the selected "
             "route is at capacity or unavailable, report the blocker or wait; do not "
             "automatically fall back to another model, native workers or API credits. "
