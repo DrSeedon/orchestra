@@ -223,7 +223,11 @@ class AntigravityBackend:
             "commandExecutionPolicy: always-proceed\n---\n" + self.system_prompt
         ).encode())
         atomic_private_write(self.home / ".gemini/antigravity-cli/settings.json", json.dumps({
+            "useG1Credits": False,
             "permission": {"allow": ["command(*)", "read_file(*)", "write_file(*)", "mcp(*)"]}
+        }).encode())
+        atomic_private_write(self.home / ".gemini/config/config.json", json.dumps({
+            "userSettings": {"useAiCredits": False}
         }).encode())
         atomic_private_write(self.home / ".gemini/config/mcp_config.json",
                              json.dumps({"mcpServers": self.mcp_servers}).encode())

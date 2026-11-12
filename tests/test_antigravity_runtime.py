@@ -342,6 +342,7 @@ async def test_t1_two_workers_stream_tools_resume_and_keep_every_state_path_priv
                 },
             },
         }
+        assert captured["settings"]["useG1Credits"] is False
         assert captured["settings"]["permission"]["allow"] == [
             "command(*)",
             "read_file(*)",

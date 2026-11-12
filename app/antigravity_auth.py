@@ -64,6 +64,39 @@ def promote_staged_token(auth_home: Path, staged_token: Path) -> str:
     return hashlib.sha256(snapshot).hexdigest()
 
 
+
+def ensure_credits_disabled(home: Path) -> None:
+    import json
+    home = Path(home)
+    settings_path = home / ".gemini/antigravity-cli/settings.json"
+    settings_data = {}
+    if settings_path.is_file():
+        try:
+            loaded = json.loads(settings_path.read_text())
+            if isinstance(loaded, dict):
+                settings_data = loaded
+        except (OSError, ValueError):
+            pass
+    settings_data["useG1Credits"] = False
+    atomic_private_write(settings_path, json.dumps(settings_data, indent=2).encode())
+
+    cfg_path = home / ".gemini/config/config.json"
+    cfg_data = {}
+    if cfg_path.is_file():
+        try:
+            loaded = json.loads(cfg_path.read_text())
+            if isinstance(loaded, dict):
+                cfg_data = loaded
+        except (OSError, ValueError):
+            pass
+    user_settings = cfg_data.get("userSettings")
+    if not isinstance(user_settings, dict):
+        user_settings = {}
+    user_settings["useAiCredits"] = False
+    cfg_data["userSettings"] = user_settings
+    atomic_private_write(cfg_path, json.dumps(cfg_data, indent=2).encode())
+
+
 def main() -> int:
     """Operator-only login, staging validation and atomic account promotion."""
     import argparse
@@ -96,10 +129,13 @@ def main() -> int:
     try:
         with tempfile.TemporaryDirectory(prefix=".antigravity-login.", dir=args.auth_home.parent) as temporary:
             home = Path(temporary)
+            ensure_credits_disabled(home)
             # The official interactive OAuth command inherits the operator's TTY.
             subprocess.run([args.agy_bin], env=backend.cli_environment(home), check=True)
+            ensure_credits_disabled(home)
             asyncio.run(validate(home))
             generation = promote_staged_token(args.auth_home, home / TOKEN_RELATIVE_PATH)
+            ensure_credits_disabled(args.auth_home)
         print(f"Antigravity account validated: gemini-weekly, 3p-weekly; generation {generation}")
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, TimeoutError):
