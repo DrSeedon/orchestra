@@ -1,0 +1,203 @@
+FFFFF..........F..F..................................................... [ 45%]
+........................................................................ [ 90%]
+....EEEEEE......                                                         [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_t4_two_distinct_antigravity_groups_render_in_contract_order _
+tests/test_antigravity_usage_frontend.py:24: in browser
+    instance = playwright.chromium.launch(headless=True)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E   ╔════════════════════════════════════════════════════════════╗
+E   ║ Looks like Playwright was just installed or updated.       ║
+E   ║ Please run the following command to download new browsers: ║
+E   ║                                                            ║
+E   ║     playwright install                                     ║
+E   ║                                                            ║
+E   ║ <3 Playwright Team                                         ║
+E   ╚════════════════════════════════════════════════════════════╝
+_ ERROR at setup of test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity0-gemini-weekly] _
+tests/test_antigravity_usage_frontend.py:24: in browser
+    instance = playwright.chromium.launch(headless=True)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E   ╔════════════════════════════════════════════════════════════╗
+E   ║ Looks like Playwright was just installed or updated.       ║
+E   ║ Please run the following command to download new browsers: ║
+E   ║                                                            ║
+E   ║     playwright install                                     ║
+E   ║                                                            ║
+E   ║ <3 Playwright Team                                         ║
+E   ╚════════════════════════════════════════════════════════════╝
+_ ERROR at setup of test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity1-gemini-weekly] _
+tests/test_antigravity_usage_frontend.py:24: in browser
+    instance = playwright.chromium.launch(headless=True)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E   ╔════════════════════════════════════════════════════════════╗
+E   ║ Looks like Playwright was just installed or updated.       ║
+E   ║ Please run the following command to download new browsers: ║
+E   ║                                                            ║
+E   ║     playwright install                                     ║
+E   ║                                                            ║
+E   ║ <3 Playwright Team                                         ║
+E   ╚════════════════════════════════════════════════════════════╝
+_ ERROR at setup of test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity2-3p-weekly] _
+tests/test_antigravity_usage_frontend.py:24: in browser
+    instance = playwright.chromium.launch(headless=True)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E   ╔════════════════════════════════════════════════════════════╗
+E   ║ Looks like Playwright was just installed or updated.       ║
+E   ║ Please run the following command to download new browsers: ║
+E   ║                                                            ║
+E   ║     playwright install                                     ║
+E   ║                                                            ║
+E   ║ <3 Playwright Team                                         ║
+E   ╚════════════════════════════════════════════════════════════╝
+_ ERROR at setup of test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[None-gemini-weekly] _
+tests/test_antigravity_usage_frontend.py:24: in browser
+    instance = playwright.chromium.launch(headless=True)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E   ╔════════════════════════════════════════════════════════════╗
+E   ║ Looks like Playwright was just installed or updated.       ║
+E   ║ Please run the following command to download new browsers: ║
+E   ║                                                            ║
+E   ║     playwright install                                     ║
+E   ║                                                            ║
+E   ║ <3 Playwright Team                                         ║
+E   ╚════════════════════════════════════════════════════════════╝
+_ ERROR at setup of test_t4_antigravity_does_not_regress_desktop_usage_bar_overflow _
+tests/test_antigravity_usage_frontend.py:24: in browser
+    instance = playwright.chromium.launch(headless=True)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E   ╔════════════════════════════════════════════════════════════╗
+E   ║ Looks like Playwright was just installed or updated.       ║
+E   ║ Please run the following command to download new browsers: ║
+E   ║                                                            ║
+E   ║     playwright install                                     ║
+E   ║                                                            ║
+E   ║ <3 Playwright Team                                         ║
+E   ╚════════════════════════════════════════════════════════════╝
+=================================== FAILURES ===================================
+____________ test_t3_login_promotes_only_a_fully_validated_account _____________
+tests/test_antigravity_readiness.py:186: in test_t3_login_promotes_only_a_fully_validated_account
+    result = _run_login(fake, auth_home, {
+tests/test_antigravity_readiness.py:161: in _run_login
+    assert LOGIN_SCRIPT.is_file(), "account rotation entry point is missing"
+E   AssertionError: account rotation entry point is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('<checkout>/scripts/antigravity-login.sh').is_file
+_ test_t3_failed_login_preserves_previous_credential_byte_for_byte[quota-error] _
+tests/test_antigravity_readiness.py:211: in test_t3_failed_login_preserves_previous_credential_byte_for_byte
+    result = _run_login(fake, auth_home, {
+tests/test_antigravity_readiness.py:161: in _run_login
+    assert LOGIN_SCRIPT.is_file(), "account rotation entry point is missing"
+E   AssertionError: account rotation entry point is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('<checkout>/scripts/antigravity-login.sh').is_file
+_ test_t3_failed_login_preserves_previous_credential_byte_for_byte[eligibility-error] _
+tests/test_antigravity_readiness.py:211: in test_t3_failed_login_preserves_previous_credential_byte_for_byte
+    result = _run_login(fake, auth_home, {
+tests/test_antigravity_readiness.py:161: in _run_login
+    assert LOGIN_SCRIPT.is_file(), "account rotation entry point is missing"
+E   AssertionError: account rotation entry point is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('<checkout>/scripts/antigravity-login.sh').is_file
+_ test_t3_failed_login_preserves_previous_credential_byte_for_byte[oauth-prompt] _
+tests/test_antigravity_readiness.py:211: in test_t3_failed_login_preserves_previous_credential_byte_for_byte
+    result = _run_login(fake, auth_home, {
+tests/test_antigravity_readiness.py:161: in _run_login
+    assert LOGIN_SCRIPT.is_file(), "account rotation entry point is missing"
+E   AssertionError: account rotation entry point is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('<checkout>/scripts/antigravity-login.sh').is_file
+_ test_t3_failed_login_preserves_previous_credential_byte_for_byte[missing-model] _
+tests/test_antigravity_readiness.py:211: in test_t3_failed_login_preserves_previous_credential_byte_for_byte
+    result = _run_login(fake, auth_home, {
+tests/test_antigravity_readiness.py:161: in _run_login
+    assert LOGIN_SCRIPT.is_file(), "account rotation entry point is missing"
+E   AssertionError: account rotation entry point is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('<checkout>/scripts/antigravity-login.sh').is_file
+_____________ test_t3_runbook_is_copyable_and_has_no_api_key_path ______________
+tests/test_antigravity_readiness.py:433: in test_t3_runbook_is_copyable_and_has_no_api_key_path
+    assert RUNBOOK.is_file(), "Antigravity account-change runbook is missing"
+E   AssertionError: Antigravity account-change runbook is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('<checkout>/docs/antigravity-runtime.md').is_file
+_______ test_t1_tool_error_overrides_terminal_success_and_is_not_silent ________
+tests/test_antigravity_runtime.py:408: in test_t1_tool_error_overrides_terminal_success_and_is_not_silent
+    assert any(event.type == "error" and "credential vanished" in event.content for event in events)
+E   assert False
+E    +  where False = any(<generator object test_t1_tool_error_overrides_terminal_success_and_is_not_silent.<locals>.<genexpr> at 0x7ad2f82cd490>)
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_readiness.py::test_t3_login_promotes_only_a_fully_validated_account
+FAILED tests/test_antigravity_readiness.py::test_t3_failed_login_preserves_previous_credential_byte_for_byte[quota-error]
+FAILED tests/test_antigravity_readiness.py::test_t3_failed_login_preserves_previous_credential_byte_for_byte[eligibility-error]
+FAILED tests/test_antigravity_readiness.py::test_t3_failed_login_preserves_previous_credential_byte_for_byte[oauth-prompt]
+FAILED tests/test_antigravity_readiness.py::test_t3_failed_login_preserves_previous_credential_byte_for_byte[missing-model]
+FAILED tests/test_antigravity_readiness.py::test_t3_runbook_is_copyable_and_has_no_api_key_path
+FAILED tests/test_antigravity_runtime.py::test_t1_tool_error_overrides_terminal_success_and_is_not_silent
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_two_distinct_antigravity_groups_render_in_contract_order
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity0-gemini-weekly]
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity1-gemini-weekly]
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity2-3p-weekly]
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[None-gemini-weekly]
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_antigravity_does_not_regress_desktop_usage_bar_overflow
+7 failed, 147 passed, 6 errors in 7.44s

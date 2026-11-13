@@ -1,0 +1,496 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 63ms
+FFFFF..........F.....................................................EEE [ 88%]
+EEE......                                                                [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_t4_two_distinct_antigravity_groups_render_in_contract_order _
+
+    @pytest.fixture(scope="module")
+    def browser():
+        with sync_playwright() as playwright:
+>           instance = playwright.chromium.launch(headless=True)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_antigravity_usage_frontend.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7d31e2159910>
+cb = <function Channel.send.<locals>.<lambda> at 0x7d31e1e9f740>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_ ERROR at setup of test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity0-gemini-weekly] _
+
+    @pytest.fixture(scope="module")
+    def browser():
+        with sync_playwright() as playwright:
+>           instance = playwright.chromium.launch(headless=True)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_antigravity_usage_frontend.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7d31e2159910>
+cb = <function Channel.send.<locals>.<lambda> at 0x7d31e1e9f740>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_ ERROR at setup of test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity1-gemini-weekly] _
+
+    @pytest.fixture(scope="module")
+    def browser():
+        with sync_playwright() as playwright:
+>           instance = playwright.chromium.launch(headless=True)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_antigravity_usage_frontend.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7d31e2159910>
+cb = <function Channel.send.<locals>.<lambda> at 0x7d31e1e9f740>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_ ERROR at setup of test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity2-3p-weekly] _
+
+    @pytest.fixture(scope="module")
+    def browser():
+        with sync_playwright() as playwright:
+>           instance = playwright.chromium.launch(headless=True)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_antigravity_usage_frontend.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7d31e2159910>
+cb = <function Channel.send.<locals>.<lambda> at 0x7d31e1e9f740>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_ ERROR at setup of test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[None-gemini-weekly] _
+
+    @pytest.fixture(scope="module")
+    def browser():
+        with sync_playwright() as playwright:
+>           instance = playwright.chromium.launch(headless=True)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_antigravity_usage_frontend.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7d31e2159910>
+cb = <function Channel.send.<locals>.<lambda> at 0x7d31e1e9f740>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_ ERROR at setup of test_t4_antigravity_does_not_regress_desktop_usage_bar_overflow _
+
+    @pytest.fixture(scope="module")
+    def browser():
+        with sync_playwright() as playwright:
+>           instance = playwright.chromium.launch(headless=True)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_antigravity_usage_frontend.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7d31e2159910>
+cb = <function Channel.send.<locals>.<lambda> at 0x7d31e1e9f740>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at <home>/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+=================================== FAILURES ===================================
+____________ test_t3_login_promotes_only_a_fully_validated_account _____________
+
+tmp_path = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_login_promotes_only_a_0')
+
+    def test_t3_login_promotes_only_a_fully_validated_account(tmp_path):
+        fake = tmp_path / "agy"
+        auth_home = tmp_path / "auth"
+        _write_fake_agy(fake)
+        token_path = _canonical(auth_home, "old-token-not-real")
+        old_inode = token_path.stat().st_ino
+    
+>       result = _run_login(fake, auth_home, {
+            "FAKE_AGY_MODE": "success",
+            "FAKE_AGY_TOKEN": "new-token-not-real",
+        })
+
+tests/test_antigravity_readiness.py:186: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fake = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_login_promotes_only_a_0/agy')
+auth_home = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_login_promotes_only_a_0/auth')
+env = {'FAKE_AGY_MODE': 'success', 'FAKE_AGY_TOKEN': 'new-token-not-real'}
+
+    def _run_login(fake: Path, auth_home: Path, env: dict):
+>       assert LOGIN_SCRIPT.is_file(), "account rotation entry point is missing"
+E       AssertionError: account rotation entry point is missing
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('<checkout>/scripts/antigravity-login.sh').is_file
+
+tests/test_antigravity_readiness.py:161: AssertionError
+_ test_t3_failed_login_preserves_previous_credential_byte_for_byte[quota-error] _
+
+tmp_path = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves0')
+mode = 'quota-error'
+
+    @pytest.mark.parametrize(
+        "mode", ["quota-error", "eligibility-error", "oauth-prompt", "missing-model"]
+    )
+    def test_t3_failed_login_preserves_previous_credential_byte_for_byte(tmp_path, mode):
+        fake = tmp_path / "agy"
+        auth_home = tmp_path / "auth"
+        _write_fake_agy(fake)
+        token_path = _canonical(auth_home, "old-token-not-real")
+        token_inode = token_path.stat().st_ino
+    
+>       result = _run_login(fake, auth_home, {
+            "FAKE_AGY_MODE": mode,
+            "FAKE_AGY_TOKEN": "rejected-token-not-real",
+        })
+
+tests/test_antigravity_readiness.py:211: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fake = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves0/agy')
+auth_home = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves0/auth')
+env = {'FAKE_AGY_MODE': 'quota-error', 'FAKE_AGY_TOKEN': 'rejected-token-not-real'}
+
+    def _run_login(fake: Path, auth_home: Path, env: dict):
+>       assert LOGIN_SCRIPT.is_file(), "account rotation entry point is missing"
+E       AssertionError: account rotation entry point is missing
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('<checkout>/scripts/antigravity-login.sh').is_file
+
+tests/test_antigravity_readiness.py:161: AssertionError
+_ test_t3_failed_login_preserves_previous_credential_byte_for_byte[eligibility-error] _
+
+tmp_path = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves1')
+mode = 'eligibility-error'
+
+    @pytest.mark.parametrize(
+        "mode", ["quota-error", "eligibility-error", "oauth-prompt", "missing-model"]
+    )
+    def test_t3_failed_login_preserves_previous_credential_byte_for_byte(tmp_path, mode):
+        fake = tmp_path / "agy"
+        auth_home = tmp_path / "auth"
+        _write_fake_agy(fake)
+        token_path = _canonical(auth_home, "old-token-not-real")
+        token_inode = token_path.stat().st_ino
+    
+>       result = _run_login(fake, auth_home, {
+            "FAKE_AGY_MODE": mode,
+            "FAKE_AGY_TOKEN": "rejected-token-not-real",
+        })
+
+tests/test_antigravity_readiness.py:211: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fake = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves1/agy')
+auth_home = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves1/auth')
+env = {'FAKE_AGY_MODE': 'eligibility-error', 'FAKE_AGY_TOKEN': 'rejected-token-not-real'}
+
+    def _run_login(fake: Path, auth_home: Path, env: dict):
+>       assert LOGIN_SCRIPT.is_file(), "account rotation entry point is missing"
+E       AssertionError: account rotation entry point is missing
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('<checkout>/scripts/antigravity-login.sh').is_file
+
+tests/test_antigravity_readiness.py:161: AssertionError
+_ test_t3_failed_login_preserves_previous_credential_byte_for_byte[oauth-prompt] _
+
+tmp_path = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves2')
+mode = 'oauth-prompt'
+
+    @pytest.mark.parametrize(
+        "mode", ["quota-error", "eligibility-error", "oauth-prompt", "missing-model"]
+    )
+    def test_t3_failed_login_preserves_previous_credential_byte_for_byte(tmp_path, mode):
+        fake = tmp_path / "agy"
+        auth_home = tmp_path / "auth"
+        _write_fake_agy(fake)
+        token_path = _canonical(auth_home, "old-token-not-real")
+        token_inode = token_path.stat().st_ino
+    
+>       result = _run_login(fake, auth_home, {
+            "FAKE_AGY_MODE": mode,
+            "FAKE_AGY_TOKEN": "rejected-token-not-real",
+        })
+
+tests/test_antigravity_readiness.py:211: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fake = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves2/agy')
+auth_home = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves2/auth')
+env = {'FAKE_AGY_MODE': 'oauth-prompt', 'FAKE_AGY_TOKEN': 'rejected-token-not-real'}
+
+    def _run_login(fake: Path, auth_home: Path, env: dict):
+>       assert LOGIN_SCRIPT.is_file(), "account rotation entry point is missing"
+E       AssertionError: account rotation entry point is missing
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('<checkout>/scripts/antigravity-login.sh').is_file
+
+tests/test_antigravity_readiness.py:161: AssertionError
+_ test_t3_failed_login_preserves_previous_credential_byte_for_byte[missing-model] _
+
+tmp_path = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves3')
+mode = 'missing-model'
+
+    @pytest.mark.parametrize(
+        "mode", ["quota-error", "eligibility-error", "oauth-prompt", "missing-model"]
+    )
+    def test_t3_failed_login_preserves_previous_credential_byte_for_byte(tmp_path, mode):
+        fake = tmp_path / "agy"
+        auth_home = tmp_path / "auth"
+        _write_fake_agy(fake)
+        token_path = _canonical(auth_home, "old-token-not-real")
+        token_inode = token_path.stat().st_ino
+    
+>       result = _run_login(fake, auth_home, {
+            "FAKE_AGY_MODE": mode,
+            "FAKE_AGY_TOKEN": "rejected-token-not-real",
+        })
+
+tests/test_antigravity_readiness.py:211: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fake = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves3/agy')
+auth_home = PosixPath('<checkout>/.orchestra/tasks/V-1290/pytest-tmp/test_t3_failed_login_preserves3/auth')
+env = {'FAKE_AGY_MODE': 'missing-model', 'FAKE_AGY_TOKEN': 'rejected-token-not-real'}
+
+    def _run_login(fake: Path, auth_home: Path, env: dict):
+>       assert LOGIN_SCRIPT.is_file(), "account rotation entry point is missing"
+E       AssertionError: account rotation entry point is missing
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('<checkout>/scripts/antigravity-login.sh').is_file
+
+tests/test_antigravity_readiness.py:161: AssertionError
+_____________ test_t3_runbook_is_copyable_and_has_no_api_key_path ______________
+
+    def test_t3_runbook_is_copyable_and_has_no_api_key_path():
+>       assert RUNBOOK.is_file(), "Antigravity account-change runbook is missing"
+E       AssertionError: Antigravity account-change runbook is missing
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('<checkout>/docs/antigravity-runtime.md').is_file
+
+tests/test_antigravity_readiness.py:433: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_readiness.py::test_t3_login_promotes_only_a_fully_validated_account
+FAILED tests/test_antigravity_readiness.py::test_t3_failed_login_preserves_previous_credential_byte_for_byte[quota-error]
+FAILED tests/test_antigravity_readiness.py::test_t3_failed_login_preserves_previous_credential_byte_for_byte[eligibility-error]
+FAILED tests/test_antigravity_readiness.py::test_t3_failed_login_preserves_previous_credential_byte_for_byte[oauth-prompt]
+FAILED tests/test_antigravity_readiness.py::test_t3_failed_login_preserves_previous_credential_byte_for_byte[missing-model]
+FAILED tests/test_antigravity_readiness.py::test_t3_runbook_is_copyable_and_has_no_api_key_path
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_two_distinct_antigravity_groups_render_in_contract_order
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity0-gemini-weekly]
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity1-gemini-weekly]
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity2-3p-weekly]
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[None-gemini-weekly]
+ERROR tests/test_antigravity_usage_frontend.py::test_t4_antigravity_does_not_regress_desktop_usage_bar_overflow
+6 failed, 69 passed, 6 errors in 8.18s

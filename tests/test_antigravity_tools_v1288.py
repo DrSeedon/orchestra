@@ -131,8 +131,12 @@ async def test_repeated_updates_terminal_only_and_compaction_ids(tmp_path, monke
         "agy-conversation-a-step-1", "agy-conversation-b-step-1", "agy-conversation-c-step-1"]
     assert emitted[1].metadata["input"] == {"Path": "a.py"}
     assert emitted[-1].metadata["is_error"] is True
-    assert any(e.type == "error" and "edit failed" in e.content for e in events)
-    assert next(e for e in events if e.type == "turn_end").metadata["ok"] is False
+    assert "edit failed" in emitted[-1].content
+    assert not any(e.type == "error" for e in events)
+    end = next(e for e in events if e.type == "turn_end")
+    assert end.metadata["ok"] is True
+    assert end.metadata["stop_reason"] == "end_turn"
+    assert "model_error" not in end.metadata
 
 
 @pytest.mark.asyncio

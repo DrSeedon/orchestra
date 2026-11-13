@@ -1,0 +1,13 @@
+...........................F............................................ [ 91%]
+.......                                                                  [100%]
+=================================== FAILURES ===================================
+___________ test_metadata_reader_uses_read_only_uri_and_observes_wal ___________
+tests/test_antigravity_turn_health.py:257: in test_metadata_reader_uses_read_only_uri_and_observes_wal
+    assert agy._conversation_context(backend.home, "conversation-a", 1_000_000) == KnownContext(183159, 256000, 71)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/backend_antigravity.py:129: in _conversation_context
+    with closing(sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True,
+E   TypeError: test_metadata_reader_uses_read_only_uri_and_observes_wal.<locals>.read_only() got multiple values for argument 'uri'
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_turn_health.py::test_metadata_reader_uses_read_only_uri_and_observes_wal
+1 failed, 78 passed in 3.48s

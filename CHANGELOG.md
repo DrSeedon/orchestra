@@ -12,6 +12,14 @@
   and resume automatically with readable status logs; intermediate segments do not
   report completion. New ordinary turns reset the budget, while manual Stop and
   stale generations cannot trigger a continuation. Exhaustion ends with one concise error.
+- **Antigravity reports recovered turns, exact context and per-turn usage** (V-1290).
+  Assistant replies that recover from retried upstream errors complete successfully;
+  unrecovered model, authentication and quota failures remain visible. Failed tools
+  retain their error result without duplicate chat errors or failing completed turns.
+  Current context comes from the latest generation metadata when valid, with an
+  unknown fallback for missing or unreadable data. Persisted conversation baselines
+  turn cumulative token, cost, call-count and duration totals into per-turn deltas,
+  including after resume and counter resets. Offline regressions cover these cases.
 
 - **Antigravity tool calls retain arguments and render native dashboard cards** (V-1288).
   Stream events now serialize JSON arguments, canonicalize lazy/eager MCP calls and

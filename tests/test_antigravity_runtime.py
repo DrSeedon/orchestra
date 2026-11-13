@@ -391,7 +391,7 @@ async def test_t1_two_workers_stream_tools_resume_and_keep_every_state_path_priv
 
 
 @pytest.mark.asyncio
-async def test_t1_tool_error_overrides_terminal_success_and_is_not_silent(
+async def test_t1_tool_error_preserves_terminal_success_and_is_not_silent(
     tmp_path,
     monkeypatch,
 ):
@@ -405,10 +405,11 @@ async def test_t1_tool_error_overrides_terminal_success_and_is_not_silent(
     failed_tool = next(event for event in events if event.type == "tool_result")
     assert failed_tool.metadata["is_error"] is True
     assert "credential vanished" in failed_tool.content
-    assert any(event.type == "error" and "credential vanished" in event.content for event in events)
+    assert not any(event.type == "error" for event in events)
     end = next(event for event in events if event.type == "turn_end")
-    assert end.metadata["ok"] is False
-    assert end.metadata["stop_reason"] == "tool_error"
+    assert end.metadata["ok"] is True
+    assert end.metadata["stop_reason"] == "end_turn"
+    assert "model_error" not in end.metadata
 
 
 @pytest.mark.asyncio
