@@ -1,0 +1,285 @@
+........................................................................ [ 25%]
+........................................................................ [ 51%]
+........................................................................ [ 76%]
+..................................FF.............................        [100%]
+=================================== FAILURES ===================================
+__ test_t1_385_deferred_interrupt_waits_for_native_terminal_and_accounts_once __
+
+session = AgentSession(id='test-001', name='w1', scope='/multicast/test', cwd='/tmp', model='gpt-5.6-sol', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a1cad793320>
+
+    @pytest.mark.asyncio
+    async def test_t1_385_deferred_interrupt_waits_for_native_terminal_and_accounts_once(
+        session, monkeypatch,
+    ):
+        """RED #385 R4: deferred control is native accounting, not manual stop/end_turn."""
+        from app.backend_codex import CodexBackend
+        from app.session import AgentStatus
+        from app import bg_jobs
+    
+        provenance = {
+            "kind": "deferred_job",
+            "origin": "orchestra.bg_jobs",
+            "job_id": "bg-session-385",
+            "event_id": "bgjob:v1:bg-session-385:completed",
+            "turn_control": "interrupt",
+        }
+        result = {
+            "content": [{"type": "text", "text": "END YOUR TURN NOW"}],
+            "structuredContent": {"result": provenance, "error": None},
+            "isError": False,
+        }
+        backend = CodexBackend(model="gpt-5.6-sol", cwd="/fake")
+        backend._proc = SimpleNamespace(returncode=None)
+        backend._thread_id = "thread-session-385"
+        backend._active_turn_id = "turn-session-385"
+        backend._request = AsyncMock(return_value={})
+        backend._usage_baseline = {
+            "input_tokens": 100,
+            "cached_input_tokens": 40,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 10,
+        }
+        backend._thread_usage_total = {
+            "input_tokens": 160,
+            "cached_input_tokens": 50,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 15,
+        }
+        backend._last_call_usage = {
+            "input_tokens": 90,
+            "model_context_window": 258_400,
+        }
+    
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session._backend = backend
+        session.status = AgentStatus.RUNNING
+        session._turn_start = 1.0
+        session._manually_interrupted = False
+        persisted_statuses = []
+        session._persist = MagicMock(side_effect=lambda: persisted_statuses.append(session.status))
+        session._log = MagicMock()
+        session._submit_db_write = MagicMock()
+        session._cancel_precompact_timer = MagicMock()
+        session._hibernate.schedule = MagicMock()
+    
+        def discard_background(coro):
+            coro.close()
+            return MagicMock()
+    
+        session._spawn_bg = MagicMock(side_effect=discard_background)
+        monkeypatch.setattr(
+            bg_jobs,
+            "bg_manager",
+            SimpleNamespace(has_active_jobs=lambda session_id: session_id == session.id),
+        )
+    
+        for message in (
+            {
+                "method": "item/completed",
+                "params": {
+                    "threadId": "thread-session-385", "turnId": "turn-session-385",
+                    "item": {
+                        "id": "tool-session-385", "type": "mcpToolCall",
+                        "server": "orchestra", "tool": "codex_review",
+                        "arguments": {}, "result": result,
+                    },
+                },
+            },
+            {
+                "method": "turn/completed",
+                "params": {
+                    "threadId": "thread-session-385",
+                    "turn": {
+                        "id": "turn-session-385", "status": "interrupted", "items": [],
+                    },
+                },
+            },
+        ):
+            await backend._notifications.put(message)
+    
+        await asyncio.wait_for(session._turn_event_loop(), timeout=0.5)
+    
+>       backend._request.assert_awaited_once_with("turn/interrupt", {
+            "threadId": "thread-session-385",
+            "turnId": "turn-session-385",
+        })
+
+tests/test_session.py:5728: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <AsyncMock id='134263701364352'>
+args = ('turn/interrupt', {'threadId': 'thread-session-385', 'turnId': 'turn-session-385'})
+kwargs = {}, msg = 'Expected mock to have been awaited once. Awaited 2 times.'
+
+    def assert_awaited_once_with(self, /, *args, **kwargs):
+        """
+        Assert that the mock was awaited exactly once and with the specified
+        arguments.
+        """
+        if not self.await_count == 1:
+            msg = (f"Expected {self._mock_name or 'mock'} to have been awaited once."
+                   f" Awaited {self.await_count} times.")
+>           raise AssertionError(msg)
+E           AssertionError: Expected mock to have been awaited once. Awaited 2 times.
+
+/usr/lib/python3.12/unittest/mock.py:2333: AssertionError
+----------------------------- Captured stderr call -----------------------------
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] codex turn started
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] failed-turn mailbox claim failed: OperationalError: no such table: mailbox
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+INFO     app.session:session.py:2793 [w1] codex turn started
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+WARNING  app.session:session.py:2667 [w1] failed-turn mailbox claim failed: OperationalError: no such table: mailbox
+WARNING  app.session:session.py:2942 [w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+__ test_t1_385_message_during_deferred_interrupt_queues_until_native_terminal __
+
+session = AgentSession(id='test-001', name='w1', scope='/multicast/test', cwd='/tmp', model='gpt-5.6-sol', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a1cad8a0d40>
+
+    @pytest.mark.asyncio
+    async def test_t1_385_message_during_deferred_interrupt_queues_until_native_terminal(
+        session, monkeypatch,
+    ):
+        """RED #385 R4: a real wake racing the interrupt cannot steer the dying turn."""
+        from app.backend_codex import CodexBackend
+        from app.session import AgentStatus
+        from app import bg_jobs
+    
+        interrupt_seen = asyncio.Event()
+        release_interrupt = asyncio.Event()
+    
+        async def request(method, params):
+            assert method == "turn/interrupt"
+            assert params == {
+                "threadId": "thread-race-385",
+                "turnId": "turn-race-385",
+            }
+            interrupt_seen.set()
+            await release_interrupt.wait()
+            return {}
+    
+        backend = CodexBackend(model="gpt-5.6-sol", cwd="/fake")
+        backend._proc = SimpleNamespace(returncode=None)
+        backend._thread_id = "thread-race-385"
+        backend._active_turn_id = "turn-race-385"
+        backend._request = AsyncMock(side_effect=request)
+    
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session._backend = backend
+        session._ensure_backend = AsyncMock(return_value=backend)
+        session.status = AgentStatus.RUNNING
+        session._turn_start = 1.0
+        session._log = MagicMock()
+        session._persist = MagicMock()
+        session._submit_db_write = MagicMock()
+        session._cancel_precompact_timer = MagicMock()
+        session._hibernate.schedule = MagicMock()
+    
+        def discard_background(coro):
+            coro.close()
+            return MagicMock()
+    
+        session._spawn_bg = MagicMock(side_effect=discard_background)
+        monkeypatch.setattr(
+            bg_jobs,
+            "bg_manager",
+            SimpleNamespace(has_active_jobs=lambda session_id: session_id == session.id),
+        )
+    
+        control = {
+            "kind": "deferred_job",
+            "origin": "orchestra.bg_jobs",
+            "job_id": "bg-race-385",
+            "event_id": "bgjob:v1:bg-race-385:completed",
+            "turn_control": "interrupt",
+        }
+        await backend._notifications.put({
+            "method": "item/completed",
+            "params": {
+                "threadId": "thread-race-385", "turnId": "turn-race-385",
+                "item": {
+                    "id": "tool-race-385", "type": "mcpToolCall",
+                    "server": "orchestra", "tool": "codex_review", "arguments": {},
+                    "result": {
+                        "content": [{"type": "text", "text": "END YOUR TURN NOW"}],
+                        "structuredContent": {"result": control, "error": None},
+                        "isError": False,
+                    },
+                },
+            },
+        })
+    
+        listener = asyncio.create_task(session._turn_event_loop())
+        try:
+            try:
+                await asyncio.wait_for(interrupt_seen.wait(), timeout=0.2)
+            except asyncio.TimeoutError:
+                pytest.fail("structured deferred control did not request turn/interrupt")
+    
+            assert session.status == AgentStatus.RUNNING
+            wake = "[Background job completed] Codex review NEEDS WORK"
+>           await session.send(wake, provenance=USER_PROVENANCE)
+
+tests/test_session.py:5832: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1968: in send
+    await provider_send(outbound_message)
+app/backend_codex.py:1034: in send
+    await self.connect()
+app/backend_codex.py:867: in connect
+    await self._connect_unlocked()
+app/backend_codex.py:889: in _connect_unlocked
+    await self.disconnect()
+app/backend_codex.py:1497: in disconnect
+    await self._disconnect_direct(proc)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.backend_codex.CodexBackend object at 0x7a1cad7ab650>
+proc = namespace(returncode=None)
+
+    async def _disconnect_direct(self, proc: asyncio.subprocess.Process) -> None:
+        if proc.returncode is None:
+>           proc.terminate()
+            ^^^^^^^^^^^^^^
+E           AttributeError: 'types.SimpleNamespace' object has no attribute 'terminate'
+
+app/backend_codex.py:1453: AttributeError
+----------------------------- Captured stderr call -----------------------------
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] codex turn started
+Codex turn interrupt failed: 
+Codex turn interrupt failed: 
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] failed-turn mailbox claim failed: OperationalError: no such table: mailbox
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+codex_connect_stage worker=w1 stage=quota_gate duration=0.000s
+codex_connect_stage worker=w1 stage=prompt_assembly duration=0.000s
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+Codex turn interrupt failed: 
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+INFO     app.session:session.py:2793 [w1] codex turn started
+WARNING  app.backend_codex:backend_codex.py:1321 Codex turn interrupt failed: 
+WARNING  app.backend_codex:backend_codex.py:1321 Codex turn interrupt failed: 
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+WARNING  app.session:session.py:2667 [w1] failed-turn mailbox claim failed: OperationalError: no such table: mailbox
+WARNING  app.session:session.py:2942 [w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+INFO     app.session:session.py:1027 codex_connect_stage worker=w1 stage=quota_gate duration=0.000s
+INFO     app.session:session.py:1027 codex_connect_stage worker=w1 stage=prompt_assembly duration=0.000s
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+WARNING  app.session:session.py:1073 [w1] pending facts unavailable: OperationalError: no such table: undelivered_facts
+WARNING  app.backend_codex:backend_codex.py:1321 Codex turn interrupt failed: 
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+=========================== short test summary info ============================
+FAILED tests/test_session.py::test_t1_385_deferred_interrupt_waits_for_native_terminal_and_accounts_once
+FAILED tests/test_session.py::test_t1_385_message_during_deferred_interrupt_queues_until_native_terminal
+2 failed, 279 passed in 25.42s

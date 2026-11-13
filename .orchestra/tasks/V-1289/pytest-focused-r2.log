@@ -1,0 +1,61 @@
+...FF................................................................... [ 67%]
+...................................                                      [100%]
+=================================== FAILURES ===================================
+____ test_one_budget_is_consumed_across_segments_then_exhausted[tool_limit] ____
+
+session = AgentSession(id='turn-cap', name='turn-cap', scope='/home/<hub-user>/orchestra-ws/<vps-host>/hub...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+reason = 'tool_limit'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reason", ["tool_limit", "wall_limit"])
+    async def test_one_budget_is_consumed_across_segments_then_exhausted(session, reason):
+        for index in range(session.AUTO_CONTINUE_MAX + 1):
+            if index:
+                session._start_turn_state(auto_continuation=True)
+            old = session._backend = backend()
+            await session._checkpoint_runaway_turn(old, reason, 250, 3600, turn_gen=session._turn_gen)
+            assert session._auto_continue_count == min(index + 1, session.AUTO_CONTINUE_MAX)
+            assert session._turn_finished_event.is_set() == (index == session.AUTO_CONTINUE_MAX)
+    
+        assert session.scheduled.count("_auto_continue") == session.AUTO_CONTINUE_MAX
+        assert session.status == AgentStatus.IDLE
+        assert not session._manually_interrupted
+        errors = [call.args[1] for call in session._log.call_args_list if call.args[0] == "error"]
+        assert errors == [f"{reason}: auto-continue cap reached (5)"]
+        session._turns.report_abnormal_end.assert_called_once_with(errors[0])
+>       assert not session._last_turn_ok
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='turn-cap', name='turn-cap', scope='/home/<hub-user>/orchestra-ws/<vps-host>/hub...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._last_turn_ok
+
+tests/test_turn_cap_continue.py:119: AssertionError
+____ test_one_budget_is_consumed_across_segments_then_exhausted[wall_limit] ____
+
+session = AgentSession(id='turn-cap', name='turn-cap', scope='/home/<hub-user>/orchestra-ws/<vps-host>/hub...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+reason = 'wall_limit'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reason", ["tool_limit", "wall_limit"])
+    async def test_one_budget_is_consumed_across_segments_then_exhausted(session, reason):
+        for index in range(session.AUTO_CONTINUE_MAX + 1):
+            if index:
+                session._start_turn_state(auto_continuation=True)
+            old = session._backend = backend()
+            await session._checkpoint_runaway_turn(old, reason, 250, 3600, turn_gen=session._turn_gen)
+            assert session._auto_continue_count == min(index + 1, session.AUTO_CONTINUE_MAX)
+            assert session._turn_finished_event.is_set() == (index == session.AUTO_CONTINUE_MAX)
+    
+        assert session.scheduled.count("_auto_continue") == session.AUTO_CONTINUE_MAX
+        assert session.status == AgentStatus.IDLE
+        assert not session._manually_interrupted
+        errors = [call.args[1] for call in session._log.call_args_list if call.args[0] == "error"]
+        assert errors == [f"{reason}: auto-continue cap reached (5)"]
+        session._turns.report_abnormal_end.assert_called_once_with(errors[0])
+>       assert not session._last_turn_ok
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='turn-cap', name='turn-cap', scope='/home/<hub-user>/orchestra-ws/<vps-host>/hub...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._last_turn_ok
+
+tests/test_turn_cap_continue.py:119: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_turn_cap_continue.py::test_one_budget_is_consumed_across_segments_then_exhausted[tool_limit]
+FAILED tests/test_turn_cap_continue.py::test_one_budget_is_consumed_across_segments_then_exhausted[wall_limit]
+2 failed, 105 passed, 2 deselected in 7.33s

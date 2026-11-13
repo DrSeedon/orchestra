@@ -6,6 +6,13 @@
 
 ## Unreleased
 
+- **Turn limits continue automatically within the existing five-continuation budget**
+  (V-1289). Orchestrators now default to 250 tools per segment, with the existing
+  environment override retained. Tool and wall limits retire the provider stream
+  and resume automatically with readable status logs; intermediate segments do not
+  report completion. New ordinary turns reset the budget, while manual Stop and
+  stale generations cannot trigger a continuation. Exhaustion ends with one concise error.
+
 - **Antigravity tool calls retain arguments and render native dashboard cards** (V-1288).
   Stream events now serialize JSON arguments, canonicalize lazy/eager MCP calls and
   correlate tools by conversation and step, including terminal-only steps and repeated

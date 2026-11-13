@@ -1,0 +1,134 @@
+........................................................................ [ 48%]
+..................................................................FFF... [ 96%]
+.....                                                                    [100%]
+=================================== FAILURES ===================================
+___________ test_active_codex_message_is_steered_and_kept_as_backup ____________
+
+codex_session = AgentSession(id='codex-mailbox-session', name='codex-mailbox', scope='/repo', cwd='/repo', model='claude-sonnet-5-5[1m...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_active_codex_message_is_steered_and_kept_as_backup(codex_session):
+        session = codex_session
+    
+>       await session.send(
+            "urgent follow-up",
+            provenance=MessageProvenance(origin="user", senders=("user",)),
+        )
+
+tests/test_codex_mailbox_703.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/repo'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+______________ test_successful_turn_does_not_replay_steer_backup _______________
+
+codex_session = AgentSession(id='codex-mailbox-session', name='codex-mailbox', scope='/repo', cwd='/repo', model='claude-sonnet-5-5[1m...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72a3d57bf620>
+
+    @pytest.mark.asyncio
+    async def test_successful_turn_does_not_replay_steer_backup(codex_session, monkeypatch):
+        session = codex_session
+        import app.session_turns as turns
+    
+        origin = MessageProvenance(origin="user", senders=("user",))
+>       await session.send("urgent follow-up", provenance=origin)
+
+tests/test_codex_mailbox_703.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/repo'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+___________ test_failed_codex_turn_replays_steer_backup_exactly_once ___________
+
+codex_session = AgentSession(id='codex-mailbox-session', name='codex-mailbox', scope='/repo', cwd='/repo', model='claude-sonnet-5-5[1m...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_failed_codex_turn_replays_steer_backup_exactly_once(codex_session):
+        session = codex_session
+>       await session.send(
+            "urgent follow-up",
+            provenance=MessageProvenance(origin="user", senders=("user",)),
+        )
+
+tests/test_codex_mailbox_703.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/repo'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_codex_mailbox_703.py::test_active_codex_message_is_steered_and_kept_as_backup
+FAILED tests/test_codex_mailbox_703.py::test_successful_turn_does_not_replay_steer_backup
+FAILED tests/test_codex_mailbox_703.py::test_failed_codex_turn_replays_steer_backup_exactly_once
+3 failed, 146 passed, 2 deselected in 6.02s

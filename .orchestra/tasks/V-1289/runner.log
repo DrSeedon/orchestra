@@ -1,0 +1,2 @@
+app: /home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/__init__.py
+python: /home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.venv/bin/python3

@@ -1262,9 +1262,12 @@ class AgentSession:
         *,
         compact_ack: bool = False,
         owner_initiated: bool = False,
+        auto_continuation: bool = False,
     ) -> None:
         """Publish the single in-memory/DB transition into a running turn."""
         self._manually_interrupted = False
+        if not auto_continuation:
+            self._auto_continue_count = 0
         self._did_report = False
         self._report_calls.clear()
         self._owner_initiated_turn = owner_initiated
@@ -1862,7 +1865,13 @@ class AgentSession:
 
             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
                 _refuse_if_draining(self)  # no await between here and RUNNING below
-                self._start_turn_state(owner_initiated=owner_initiated)
+                self._start_turn_state(
+                    owner_initiated=owner_initiated,
+                    auto_continuation=(
+                        provenance.subtype == "turn_limit_continue"
+                        and retry_generation is not None
+                    ),
+                )
                 asyncio.create_task(self._notify_scope_running())
 
             try:
@@ -2784,6 +2793,7 @@ class AgentSession:
         logger.info(f"[{self.name}] {self.backend_type} turn started")
         backend = self._backend
         cancelled = False
+        continuing = False
         my_gen = self._turn_gen
         from app import runaway_guard
         started = self._turn_start or asyncio.get_running_loop().time()
@@ -2807,6 +2817,8 @@ class AgentSession:
                     await self._checkpoint_runaway_turn(backend, "wall_limit", tools,
                                                         asyncio.get_running_loop().time() - started, turn_gen=my_gen)
                     break
+                if self._turn_gen != my_gen:
+                    break
                 if event.type == "tool_use":
                     tools += 1
                 self._last_msg_time = asyncio.get_event_loop().time()
@@ -2821,6 +2833,12 @@ class AgentSession:
                         RuntimeError(str(event.metadata["reader_failure"])),
                     )
                 self._handle_event(event)
+                if event.type == "turn_end":
+                    continuing = (
+                        event.metadata.get("ok", True)
+                        and event.metadata.get("stop_reason") in ("error_max_turns", "max_turns")
+                        and self._auto_continue_count > 0
+                    )
         except asyncio.CancelledError:
             cancelled = True
             return
@@ -2828,6 +2846,9 @@ class AgentSession:
             logger.error(f"[{self.name}] {self.backend_type} turn error: {e}")
             self._log("error", f"{self.backend_type} turn error: {e}")
         finally:
+            close = getattr(iterator, "aclose", None)
+            if close is not None:
+                await close()
             self._ended_listener = (asyncio.current_task(), my_gen)
             if self.status == AgentStatus.RUNNING and self._turn_gen != my_gen:
                 # A mailbox/steer continuation already started the next turn while this
@@ -2835,7 +2856,10 @@ class AgentSession:
                 pass
             elif self.status == AgentStatus.RUNNING:
                 backend = self._backend
-                if (
+                if continuing and not cancelled and not self._manually_interrupted:
+                    self.status = AgentStatus.IDLE
+                    self._persist()
+                elif (
                     self.backend_type == "codex"
                     and hasattr(backend, "active_turn_id")
                     and not getattr(backend, "active_turn_id", None)
@@ -2858,26 +2882,55 @@ class AgentSession:
     async def _checkpoint_runaway_turn(
         self, backend, reason: str, tools: int, elapsed: float, *, turn_gen: int,
     ) -> None:
-        """Stop the same provider generation without auto-continuing it."""
+        """End a bounded provider segment, then resume within the shared budget."""
         async with self._lifecycle_lock:
-            if self._turn_gen != turn_gen or self._backend is not backend or self.status != AgentStatus.RUNNING:
+            def current() -> bool:
+                return (
+                    self._turn_gen == turn_gen and self._backend is backend
+                    and self.status == AgentStatus.RUNNING
+                    and not self._manually_interrupted
+                )
+
+            if not current():
                 return
-            self._manually_interrupted = True
-            self._last_turn_ok = False
-            self._turns.cancel_auto_report()
-            checkpoint = {"schema": "runaway_checkpoint_v1", "reason": reason,
-                          "tools": tools, "wall_seconds": round(elapsed),
-                          "branch": self.branch, "task_id": self.task_id,
-                          "next_action": "Review checkpoint and resume in a new bounded turn"}
-            self._log("warning", json.dumps(checkpoint, ensure_ascii=False))
             try:
-                acknowledged = await asyncio.wait_for(backend.interrupt(), timeout=10)
-                if acknowledged is False:
-                    await backend.disconnect()
+                await asyncio.wait_for(backend.interrupt(), timeout=10)
             except Exception as error:
                 self._log("warning", f"runaway provider interrupt failed: {type(error).__name__}")
+
+            if not current():
+                return
+            # An interrupt ACK does not consume the provider's terminal event. Retire
+            # this stream so its queued result cannot finish the continuation's turn.
+            # The next send resumes the retained native session through _ensure_backend.
+            try:
                 await backend.disconnect()
-            self._finish_failed_running_turn("runaway turn stopped: " + reason)
+            except Exception as error:
+                if current():
+                    self._finish_failed_running_turn(
+                        f"{reason}: provider disconnect failed ({type(error).__name__})"
+                    )
+                return
+            if not current():
+                return
+            self._backend = None
+            self._turns.cancel_auto_report()
+            self._cancel_checklist_reminder()
+            self._turn_start = 0
+            self._last_stop_reason = reason
+            self._active_delivery_context = None
+            if self._auto_continue_count >= self.AUTO_CONTINUE_MAX:
+                self._finish_failed_running_turn(
+                    f"{reason}: auto-continue cap reached ({self.AUTO_CONTINUE_MAX})"
+                )
+                return
+            self._auto_continue_count += 1
+            self.status = AgentStatus.IDLE
+            self._persist()
+            detail = f"{tools} tools" if reason == "tool_limit" else f"{elapsed:.0f}s"
+            self._log("status", f"{reason} ({detail}), auto-continuing "
+                               f"({self._auto_continue_count}/{self.AUTO_CONTINUE_MAX})")
+            self._spawn_bg(self._auto_continue(turn_gen))
 
 
     def _wake_durable_message_deliveries(self) -> None:

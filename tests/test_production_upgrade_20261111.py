@@ -173,7 +173,9 @@ async def test_archive_never_deletes_pending_sync(tmp_path, monkeypatch):
 
 
 def test_turn_limits():
-    assert runaway_guard.turn_limit_reason(80, 1, orchestrator=True) == "tool_limit"
+    assert runaway_guard.turn_limit_reason(80, 1, orchestrator=True) == ""
+    assert runaway_guard.turn_limit_reason(249, 1, orchestrator=True) == ""
+    assert runaway_guard.turn_limit_reason(250, 1, orchestrator=True) == "tool_limit"
     assert runaway_guard.turn_limit_reason(249, 1, orchestrator=False) == ""
     assert runaway_guard.turn_limit_reason(250, 1, orchestrator=False) == "tool_limit"
     assert runaway_guard.turn_limit_reason(0, 3600, orchestrator=False) == "wall_limit"
@@ -275,6 +277,8 @@ async def test_runaway_interrupt_failure_disconnects_only_its_generation(tmp_pat
     backend = SimpleNamespace(interrupt=AsyncMock(return_value=False), disconnect=AsyncMock())
     session._backend = backend
     session._log = MagicMock()
+    session._persist = MagicMock()
+    session._spawn_bg = lambda coroutine: coroutine.close()
     session._finish_failed_running_turn = MagicMock()
     session._turns.cancel_auto_report = MagicMock()
     await session._checkpoint_runaway_turn(backend, "tool_limit", 250, 10, turn_gen=session._turn_gen - 1)
@@ -282,7 +286,11 @@ async def test_runaway_interrupt_failure_disconnects_only_its_generation(tmp_pat
     await session._checkpoint_runaway_turn(backend, "tool_limit", 250, 10, turn_gen=session._turn_gen)
     backend.interrupt.assert_awaited_once()
     backend.disconnect.assert_awaited_once()
-    assert session._manually_interrupted
+    assert not session._manually_interrupted
+    assert session._auto_continue_count == 1
+    assert session._backend is None
+    assert session.status == AgentStatus.IDLE
+    session._finish_failed_running_turn.assert_not_called()
 
 
 @pytest.mark.asyncio

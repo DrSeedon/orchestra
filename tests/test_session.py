@@ -43,7 +43,7 @@ def mock_db(monkeypatch):
 def session(mock_db):
     from app.session import AgentSession
     return AgentSession(
-        id="test-001", name="w1", scope="/test", cwd="/tmp",
+        id="test-001", name="w1", scope="/multicast/test", cwd="/tmp",
         model="claude-sonnet-5-5[1m]", system_prompt="test",
         created_at=datetime.now(timezone.utc),
     )
@@ -280,7 +280,7 @@ async def test_explicit_tool_failure_is_correlated_before_persistence(
 
     add_error.assert_called_once_with(
         "w1",
-        "/test",
+        "/multicast/test",
         "Read",
         "file not found",
         runtime="claude",
@@ -1540,7 +1540,7 @@ class TestMakeBackendProfileWiring:
         monkeypatch.setattr("app.session.save_session", MagicMock())
         monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
         from app.session import AgentSession
-        defaults = dict(id="i", name="w", scope="/s", cwd="/tmp",
+        defaults = dict(id="i", name="w", scope="/multicast/test", cwd="/tmp",
                         model="claude-opus-5[1m]", system_prompt="x", role="worker")
         defaults.update(kw)
         return AgentSession(**defaults)
@@ -3197,7 +3197,7 @@ class TestRateLimitClassification:
         add_usage.assert_called_once_with(
             event_id="result-uuid-1",
             session_id="test-001",
-            scope="/test",
+            scope="/multicast/test",
             runtime="claude",
             model="claude-sonnet-5-5[1m]",
             billing_mode="subscription",
@@ -3676,10 +3676,11 @@ class TestCompactReArmsPromptInjection:
         from app.events import AgentEvent
         from app.session import AgentStatus
 
-        mem_dir = tmp_path / ".orchestra" / "workers"
+        scope = tmp_path / "multicast"
+        mem_dir = scope / ".orchestra" / "workers"
         mem_dir.mkdir(parents=True)
-        (tmp_path / ".orchestra" / "layout.json").write_text("{}\n")
-        session.scope = str(tmp_path)
+        (scope / ".orchestra" / "layout.json").write_text("{}\n")
+        session.scope = str(scope)
         session.role = "worker"
         session._log = MagicMock()
         session._prompt_injected = True
@@ -3726,8 +3727,8 @@ class TestCompactReArmsPromptInjection:
         from app.events import AgentEvent
         from app.session import AgentStatus
 
-        parent_scope = tmp_path / "parent"
-        worktree = tmp_path / "subrepo-worktree"
+        parent_scope = tmp_path / "multicast" / "parent"
+        worktree = tmp_path / "multicast" / "subrepo-worktree"
         for root, content in (
             (parent_scope, "STALE: copied into parent scope"),
             (worktree, "FRESH: canonical worktree memory"),
@@ -3915,7 +3916,7 @@ class TestManifestEffortAtTurnBoundary:
     def _session(self, effort="medium", role="hand", model="claude-sonnet-5-5[1m]"):
         from app.session import AgentSession
         s = AgentSession(
-            id="eff-001", name="w-eff", scope="/test", cwd="/tmp",
+            id="eff-001", name="w-eff", scope="/multicast/test", cwd="/tmp",
             model=model, system_prompt="test", pipeline="eff", role=role,
             effort=effort, created_at=datetime.now(timezone.utc),
         )
@@ -5678,7 +5679,7 @@ async def test_t1_385_deferred_interrupt_waits_for_native_terminal_and_accounts_
     session.backend_type = "codex"
     session._backend = backend
     session.status = AgentStatus.RUNNING
-    session._turn_start = 1.0
+    session._turn_start = asyncio.get_running_loop().time()
     session._manually_interrupted = False
     persisted_statuses = []
     session._persist = MagicMock(side_effect=lambda: persisted_statuses.append(session.status))
@@ -5778,7 +5779,7 @@ async def test_t1_385_message_during_deferred_interrupt_queues_until_native_term
     session._backend = backend
     session._ensure_backend = AsyncMock(return_value=backend)
     session.status = AgentStatus.RUNNING
-    session._turn_start = 1.0
+    session._turn_start = asyncio.get_running_loop().time()
     session._log = MagicMock()
     session._persist = MagicMock()
     session._submit_db_write = MagicMock()

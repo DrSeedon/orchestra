@@ -1,0 +1,1666 @@
+........................................................................ [ 18%]
+.......................................F......FF.......FFF...FF..F.F.F.. [ 36%]
+........................................................................ [ 54%]
+...............................F..............................F..FFF.... [ 73%]
+..FFFFFFF..FFFFFF.
+=================================== FAILURES ===================================
+______________ TestStart.test_with_message_sets_running_then_idle ______________
+
+self = <tests.test_session.TestStart object at 0x7aae2aca6d20>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_with_message_sets_running_then_idle(self, session):
+        """start("hi") → status=RUNNING, после turn_end → IDLE, cost обновлён."""
+        from app.session import AgentStatus
+        backend = _MockBackend()
+    
+        with patch.object(session, "_make_backend", return_value=backend):
+            # Запускаем send в фоне (он стартует event loop)
+            send_task = asyncio.create_task(
+                session.start("hi", provenance=USER_PROVENANCE)
+            )
+            # Ждём пока статус станет RUNNING
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+>           assert session.status == AgentStatus.RUNNING
+E           AssertionError: assert <AgentStatus.IDLE: 'idle'> == <AgentStatus....NG: 'running'>
+E             
+E             - running
+E             + idle
+
+tests/test_session.py:171: AssertionError
+_____________________ TestSend.test_send_idle_sets_running _____________________
+
+self = <tests.test_session.TestSend object at 0x7aae2aca4500>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_send_idle_sets_running(self, session):
+        """send() на IDLE сессии → status становится RUNNING."""
+        from app.session import AgentStatus
+        backend = _MockBackend()
+    
+        with patch.object(session, "_make_backend", return_value=backend):
+            send_task = asyncio.create_task(
+                session.send("task", provenance=USER_PROVENANCE)
+            )
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+>           assert session.status == AgentStatus.RUNNING
+E           AssertionError: assert <AgentStatus.IDLE: 'idle'> == <AgentStatus....NG: 'running'>
+E             
+E             - running
+E             + idle
+
+tests/test_session.py:362: AssertionError
+_________________ TestSend.test_send_on_running_queues_message _________________
+
+self = <tests.test_session.TestSend object at 0x7aae2b0a61b0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_send_on_running_queues_message(self, session):
+        """send() на RUNNING сессии (non-codex) → inject через backend.send() или в pending."""
+        from app.session import AgentStatus
+        backend = _MockBackend()
+    
+        with patch.object(session, "_make_backend", return_value=backend):
+            # Первый send запускает ход
+            send_task = asyncio.create_task(
+                session.send("first", provenance=USER_PROVENANCE)
+            )
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+>           assert session.status == AgentStatus.RUNNING
+E           AssertionError: assert <AgentStatus.IDLE: 'idle'> == <AgentStatus....NG: 'running'>
+E             
+E             - running
+E             + idle
+
+tests/test_session.py:384: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    asyncio:base_events.py:1821 Task exception was never retrieved
+future: <Task finished name='Task-164' coro=<AgentSession.start() done, defined at /home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py:1113> exception=ValueError('claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project')>
+Traceback (most recent call last):
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py", line 1125, in start
+    await self.send(initial_message, provenance=provenance)
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py", line 1438, in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/models.py", line 1116, in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/models.py", line 1098, in ensure_project_model_allowed
+    raise ValueError(
+ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+ERROR    asyncio:base_events.py:1821 Task exception was never retrieved
+future: <Task finished name='Task-182' coro=<AgentSession.send() done, defined at /home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py:1389> exception=ValueError('claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project')>
+Traceback (most recent call last):
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py", line 1438, in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/models.py", line 1116, in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/models.py", line 1098, in ensure_project_model_allowed
+    raise ValueError(
+ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+____________________ TestTurn.test_turn_end_returns_to_idle ____________________
+
+self = <tests.test_session.TestTurn object at 0x7aae2b3670e0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_turn_end_returns_to_idle(self, session):
+        """После turn_end event статус возвращается в IDLE."""
+        from app.session import AgentStatus
+        backend = _MockBackend()
+    
+        with patch.object(session, "_make_backend", return_value=backend):
+            send_task = asyncio.create_task(
+                session.send("task", provenance=USER_PROVENANCE)
+            )
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+>           assert session.status == AgentStatus.RUNNING
+E           AssertionError: assert <AgentStatus.IDLE: 'idle'> == <AgentStatus....NG: 'running'>
+E             
+E             - running
+E             + idle
+
+tests/test_session.py:564: AssertionError
+__________ TestTurn.test_stale_claude_resume_uses_bounded_log_handoff __________
+
+self = <tests.test_session.TestTurn object at 0x7aae2b366090>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_stale_claude_resume_uses_bounded_log_handoff(self, session):
+        backend = AsyncMock()
+        backend.resume_failed = True
+        backend.send = AsyncMock()
+        session.session_id = "stale-session"
+        session._current_prompt = "refreshed worker context"
+        session._ensure_backend = AsyncMock(return_value=backend)
+        session._build_runtime_handoff = AsyncMock(return_value=(
+            "User:\nold request\n\nAssistant:\nold answer"
+        ))
+    
+>       await session.send("what do you remember?", provenance=USER_PROVENANCE)
+
+tests/test_session.py:584: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+_________________ TestTurn.test_connect_error_returns_to_idle __________________
+
+self = <tests.test_session.TestTurn object at 0x7aae2b365010>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_connect_error_returns_to_idle(self, session):
+        """Ошибка connect() → status остаётся/возвращается в IDLE."""
+        from app.session import AgentStatus
+        backend = _MockBackend(connect_error=ConnectionError("connect failed"))
+    
+        with patch.object(session, "_make_backend", return_value=backend):
+            with pytest.raises(ConnectionError):
+>               await session.send("task", provenance=USER_PROVENANCE)
+
+tests/test_session.py:607: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+______ TestTurn.test_codex_compact_timeout_log_names_exception_and_stage _______
+
+self = <tests.test_session.TestTurn object at 0x7aae2b3645c0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_codex_compact_timeout_log_names_exception_and_stage(self, session):
+        session.backend_type = "codex"
+        session._backend = SimpleNamespace(
+            compact_context=AsyncMock(side_effect=TimeoutError(
+                "Codex compact timed out after 120s while waiting for completion notification"
+            )),
+        )
+        session._log = MagicMock()
+        session._hibernate.schedule = MagicMock()
+    
+        result = await session._compact_codex_context()
+    
+        assert result["ok"] is False
+>       assert result["error"] == (
+            "TimeoutError: Codex compact timed out after 120s while waiting for "
+            "completion notification"
+        )
+E       AssertionError: assert 'ValueError: ... this project' == 'TimeoutError... notification'
+E         
+E         - TimeoutError: Codex compact timed out after 120s while waiting for completion notification
+E         + ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+tests/test_session.py:720: AssertionError
+----------------------------- Captured stderr call -----------------------------
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+WARNING  app.session:session.py:2942 [w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+_____________ TestStop.test_stop_marks_running_session_interrupted _____________
+
+self = <tests.test_session.TestStop object at 0x7aae2b366a20>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_stop_marks_running_session_interrupted(self, session):
+        """stop() на РАБОТАЮЩЕЙ сессии → status=INTERRUPTED, backend disconnect вызван.
+    
+        Было IDLE. Изменено в #160: stop() зовётся только из shutdown_all, то есть
+        ход не завершён, а оборван выключением сервера. Запись 'idle' стирала этот
+        факт, и старт не знал, кого будить. Проверка поведения, не формы: агент,
+        застигнутый в RUNNING, обязан остаться отличимым от честно закончившего.
+        """
+        from app.session import AgentStatus
+        backend = _MockBackend()
+    
+        with patch.object(session, "_make_backend", return_value=backend):
+            send_task = asyncio.create_task(
+                session.send("task", provenance=USER_PROVENANCE)
+            )
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+>           assert session.status == AgentStatus.RUNNING
+E           AssertionError: assert <AgentStatus.IDLE: 'idle'> == <AgentStatus....NG: 'running'>
+E             
+E             - running
+E             + idle
+
+tests/test_session.py:752: AssertionError
+_____ TestStop.test_message_waits_for_interrupt_before_starting_clean_turn _____
+
+self = <tests.test_session.TestStop object at 0x7aae2b223d10>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_message_waits_for_interrupt_before_starting_clean_turn(self, session):
+        from app.session import AgentStatus
+    
+        interrupt_started = asyncio.Event()
+        release_interrupt = asyncio.Event()
+    
+        class InterruptBackend:
+            def __init__(self):
+                self.sent = []
+    
+            async def interrupt(self):
+                interrupt_started.set()
+                await release_interrupt.wait()
+                return True
+    
+            async def send(self, message):
+                self.sent.append(message)
+    
+        backend = InterruptBackend()
+        session._backend = backend
+        session.status = AgentStatus.RUNNING
+    
+        interrupt_task = asyncio.create_task(session.interrupt())
+        await interrupt_started.wait()
+        send_task = asyncio.create_task(
+            session.send("new direction", provenance=USER_PROVENANCE)
+        )
+        await asyncio.sleep(0)
+    
+        assert backend.sent == []
+        assert not send_task.done()
+    
+        release_interrupt.set()
+        await asyncio.sleep(0)
+        assert session.status == AgentStatus.RUNNING
+        assert backend.sent == []
+        session._turns.finish_turn_status()
+        await interrupt_task
+>       await send_task
+
+tests/test_session.py:849: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+----------------------------- Captured stderr call -----------------------------
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+_ TestClaudeTurnLifecycle.test_running_reconnect_continues_without_quota_admission _
+
+self = <tests.test_session.TestClaudeTurnLifecycle object at 0x7aae2b590e00>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aae27985880>
+
+    @pytest.mark.asyncio
+    async def test_running_reconnect_continues_without_quota_admission(
+        self, session, monkeypatch,
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+    
+        class ReconnectingBackend:
+            def __init__(self):
+                self.event_calls = 0
+                self.sent = []
+                self.reconnects = 0
+    
+            async def events(self):
+                self.event_calls += 1
+                if self.event_calls == 1:
+                    raise RuntimeError("stream dropped")
+                yield AgentEvent("turn_end", metadata={
+                    "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+                })
+    
+            async def reconnect(self):
+                self.reconnects += 1
+    
+            async def send(self, message):
+                self.sent.append(message)
+    
+        backend = ReconnectingBackend()
+        session._backend = backend
+        session.status = AgentStatus.RUNNING
+        session._admission_service = AsyncMock(side_effect=AssertionError("reconnect read quota"))
+        session._log = lambda *_args, **_kwargs: None
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+    
+        await session._persistent_event_loop()
+    
+>       assert backend.reconnects == 1
+E       assert 0 == 1
+E        +  where 0 = <tests.test_session.TestClaudeTurnLifecycle.test_running_reconnect_continues_without_quota_admission.<locals>.ReconnectingBackend object at 0x7aae27a9ebd0>.reconnects
+
+tests/test_session.py:914: AssertionError
+------------------------------ Captured log setup ------------------------------
+ERROR    asyncio:base_events.py:1821 Task exception was never retrieved
+future: <Task finished name='Task-242' coro=<AgentSession.send() done, defined at /home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py:1389> exception=ValueError('claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project')>
+Traceback (most recent call last):
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py", line 1438, in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/models.py", line 1116, in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/models.py", line 1098, in ensure_project_model_allowed
+    raise ValueError(
+ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+----------------------------- Captured stderr call -----------------------------
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+[w1] claude persistent event loop started
+[w1] persistent event loop died: stream dropped
+Traceback (most recent call last):
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py", line 2710, in _persistent_event_loop
+    async for event in self._backend.events():
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/tests/test_session.py", line 894, in events
+    raise RuntimeError("stream dropped")
+RuntimeError: stream dropped
+
+[w1] listener reconnect failed: ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] failed-turn mailbox claim failed: OperationalError: no such table: mailbox
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+INFO     app.session:session.py:2703 [w1] claude persistent event loop started
+ERROR    app.session:session.py:2740 [w1] persistent event loop died: stream dropped
+Traceback (most recent call last):
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py", line 2710, in _persistent_event_loop
+    async for event in self._backend.events():
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/tests/test_session.py", line 894, in events
+    raise RuntimeError("stream dropped")
+RuntimeError: stream dropped
+
+ERROR    app.session:session.py:2782 [w1] listener reconnect failed: ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+WARNING  app.session:session.py:2667 [w1] failed-turn mailbox claim failed: OperationalError: no such table: mailbox
+_ TestClaudeTurnLifecycle.test_imported_claude_listener_reconnect_refreshes_history_from_logs _
+
+self = <tests.test_session.TestClaudeTurnLifecycle object at 0x7aae2b365700>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aae2794c230>
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_imported_claude_listener_0')
+
+    @pytest.mark.asyncio
+    async def test_imported_claude_listener_reconnect_refreshes_history_from_logs(
+        self, session, monkeypatch, tmp_path,
+    ):
+        from app import db as dbmod
+        from app.events import AgentEvent
+        from app.runtime_history import CLAUDE_HISTORY_SOURCE
+        from app.session import AgentStatus
+    
+        db_path = tmp_path / "listener-reconnect.db"
+        monkeypatch.setattr(dbmod, "DB_PATH", db_path)
+        dbmod.init_db()
+        session.model = "claude-sonnet-5-5[1m]"
+        session.backend_type = "claude"
+        session.session_id = "11111111-2222-4333-8444-555555555555"
+        session.history_import_source = CLAUDE_HISTORY_SOURCE
+        dbmod.save_session(session._to_db_dict())
+        dbmod.add_log(
+            session.id,
+            datetime.now(timezone.utc),
+            "user_message",
+            "initial durable message",
+            provenance=USER_PROVENANCE,
+        )
+        initial = await session._build_claude_history_import(
+            session.session_id,
+            session.model,
+        )
+    
+        class ReconnectingBackend:
+            def __init__(self):
+                self.event_calls = 0
+                self.history = initial
+                self.sent = []
+    
+            async def events(self):
+                self.event_calls += 1
+                if self.event_calls == 1:
+                    raise RuntimeError("stream dropped")
+                yield AgentEvent("turn_end", metadata={
+                    "ok": True,
+                    "stop_reason": "end_turn",
+                    "num_turns": 1,
+                })
+    
+            def replace_history_import(self, history):
+                self.history = history
+    
+            async def reconnect(self):
+                return None
+    
+            async def send(self, message):
+                self.sent.append(message)
+    
+        dbmod.add_log(
+            session.id,
+            datetime.now(timezone.utc),
+            "text",
+            "answer added after first connect",
+        )
+        backend = ReconnectingBackend()
+        session._backend = backend
+        session.status = AgentStatus.RUNNING
+        session._log = lambda *_args, **_kwargs: None
+        session._admission_service = AsyncMock(
+            side_effect=AssertionError("reconnect read quota")
+        )
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+    
+        await session._persistent_event_loop()
+    
+>       assert backend.history.report.snapshot_id > initial.report.snapshot_id
+E       AssertionError: assert 1 > 1
+E        +  where 1 = HistoryImportReport(source_rows=1, snapshot_id=1, users=1, assistants=0, tool_calls=0, tool_results=0, tool_detailed_chars=0, truncated=0, secrets_redacted=0, reasoning_omitted=0).snapshot_id
+E        +    where HistoryImportReport(source_rows=1, snapshot_id=1, users=1, assistants=0, tool_calls=0, tool_results=0, tool_detailed_chars=0, truncated=0, secrets_redacted=0, reasoning_omitted=0) = ClaudeHistoryImport(session_id='11111111-2222-4333-8444-555555555555', entries=({'parentUuid': None, 'isSidechain': Fa...sistants=0, tool_calls=0, tool_results=0, tool_detailed_chars=0, truncated=0, secrets_redacted=0, reasoning_omitted=0)).report
+E        +      where ClaudeHistoryImport(session_id='11111111-2222-4333-8444-555555555555', entries=({'parentUuid': None, 'isSidechain': Fa...sistants=0, tool_calls=0, tool_results=0, tool_detailed_chars=0, truncated=0, secrets_redacted=0, reasoning_omitted=0)) = <tests.test_session.TestClaudeTurnLifecycle.test_imported_claude_listener_reconnect_refreshes_history_from_logs.<locals>.ReconnectingBackend object at 0x7aae27a97320>.history
+E        +  and   1 = HistoryImportReport(source_rows=1, snapshot_id=1, users=1, assistants=0, tool_calls=0, tool_results=0, tool_detailed_chars=0, truncated=0, secrets_redacted=0, reasoning_omitted=0).snapshot_id
+E        +    where HistoryImportReport(source_rows=1, snapshot_id=1, users=1, assistants=0, tool_calls=0, tool_results=0, tool_detailed_chars=0, truncated=0, secrets_redacted=0, reasoning_omitted=0) = ClaudeHistoryImport(session_id='11111111-2222-4333-8444-555555555555', entries=({'parentUuid': None, 'isSidechain': Fa...sistants=0, tool_calls=0, tool_results=0, tool_detailed_chars=0, truncated=0, secrets_redacted=0, reasoning_omitted=0)).report
+
+tests/test_session.py:1021: AssertionError
+----------------------------- Captured stderr call -----------------------------
+[w1] claude persistent event loop started
+[w1] persistent event loop died: stream dropped
+Traceback (most recent call last):
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py", line 2710, in _persistent_event_loop
+    async for event in self._backend.events():
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/tests/test_session.py", line 988, in events
+    raise RuntimeError("stream dropped")
+RuntimeError: stream dropped
+
+[w1] listener reconnect failed: ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:2703 [w1] claude persistent event loop started
+ERROR    app.session:session.py:2740 [w1] persistent event loop died: stream dropped
+Traceback (most recent call last):
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py", line 2710, in _persistent_event_loop
+    async for event in self._backend.events():
+  File "/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/tests/test_session.py", line 988, in events
+    raise RuntimeError("stream dropped")
+RuntimeError: stream dropped
+
+ERROR    app.session:session.py:2782 [w1] listener reconnect failed: ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+_ TestPrecompactTimer.test_codex_native_compact_queues_message_until_completion _
+
+self = <tests.test_session.TestPrecompactTimer object at 0x7aae2b5295e0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aae251edfa0>
+
+    @pytest.mark.asyncio
+    async def test_codex_native_compact_queues_message_until_completion(
+        self, session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+    
+        compact_started = asyncio.Event()
+        finish_compact = asyncio.Event()
+    
+        async def compact_context():
+            compact_started.set()
+            await finish_compact.wait()
+            return {
+                "ok": True,
+                "thread_id": "thread-1",
+                "context_tokens": 30_000,
+                "max_tokens": 258_400,
+            }
+    
+        backend = MagicMock()
+        backend.compact_context = AsyncMock(side_effect=compact_context)
+        session.backend_type = "codex"
+        session.session_id = "thread-1"
+        session.status = AgentStatus.WAITING
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager",
+            MagicMock(has_active_jobs=lambda *_: True),
+        )
+        session._ensure_backend = AsyncMock(return_value=backend)
+        session._log = MagicMock()
+        session._hibernate.schedule = MagicMock()
+        spawned = []
+    
+        def capture(coro):
+            spawned.append(coro.cr_code.co_name)
+            coro.close()
+            return MagicMock()
+    
+        session._spawn_bg = capture
+    
+        task = asyncio.create_task(session.compact())
+        await asyncio.wait_for(compact_started.wait(), timeout=1)
+>       await session.send(
+            "follow-up while compacting", provenance=USER_PROVENANCE,
+        )
+
+tests/test_session.py:2788: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+----------------------------- Captured stderr call -----------------------------
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+--------------------------- Captured stderr teardown ---------------------------
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+---------------------------- Captured log teardown -----------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+WARNING  app.session:session.py:2942 [w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+__ TestRetryAdmissionRaces.test_alternating_retry_types_preserve_both_budgets __
+
+self = <tests.test_session.TestRetryAdmissionRaces object at 0x7aae2b3e5cd0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_alternating_retry_types_preserve_both_budgets(self, session):
+        from app.session import AgentStatus
+    
+        backend = _MockBackend()
+        session._ensure_backend = AsyncMock(return_value=backend)
+        session._attach_pending_facts = lambda message: (message, ())
+        session._ack_pending_facts = lambda _keys: None
+        session.status = AgentStatus.RUNNING
+        session._rate_limit_retries = 2
+        session._server_error_retries = 3
+        for subtype in ("rate_limit_retry", "server_error_retry", "rate_limit_retry"):
+>           await session.send("retry", provenance=MessageProvenance(
+                origin="system", senders=("system",), subtype=subtype,
+            ))
+
+tests/test_session.py:3496: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+----------------------------- Captured stderr call -----------------------------
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+_ TestCompactReArmsPromptInjection.test_role_is_back_in_the_prompt_on_the_turn_after_compact _
+
+self = <tests.test_session.TestCompactReArmsPromptInjection object at 0x7aae2b3e5550>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aae27ab6db0>
+
+    @pytest.mark.asyncio
+    async def test_role_is_back_in_the_prompt_on_the_turn_after_compact(
+        self, session, monkeypatch
+    ):
+        """End-to-end: the requirement is the ROLE returns, not that a flag flipped."""
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+    
+        session._log = MagicMock()
+        session._prompt_injected = True
+        session._current_prompt = "ROLE: full-cycle worker. STOP at every gate."
+    
+        await self._run_compact(session, monkeypatch)
+    
+        # Now the first turn after compact, over a RESUMED backend (no system_prompt).
+        sent = []
+        resumed = AsyncMock()
+        resumed.send = AsyncMock(side_effect=lambda m: sent.append(m))
+    
+        async def events():
+            yield AgentEvent(type="turn_end", content="",
+                             metadata={"ok": True, "session_id": "post-compact-sid"})
+    
+        resumed.events = lambda: events()
+        session._backend = resumed
+        session.status = AgentStatus.IDLE
+        session._log = MagicMock()
+        session._persist = MagicMock()
+        monkeypatch.setattr("app.session.get_logs", lambda *_a, **_kw: [])
+    
+        with patch.object(session, "_ensure_backend", AsyncMock(return_value=resumed)):
+>           await session.send("next task", provenance=USER_PROVENANCE)
+
+tests/test_session.py:3656: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+----------------------------- Captured stderr call -----------------------------
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+WARNING  app.session:session.py:177 preserved tail unavailable for test-001: no such table: logs
+WARNING  app.session:session.py:2942 [w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+_ TestCompactReArmsPromptInjection.test_personal_memory_written_mid_session_is_re_read_from_disk _
+
+self = <tests.test_session.TestCompactReArmsPromptInjection object at 0x7aae2b5078f0>
+session = AgentSession(id='test-001', name='w1', scope='/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb2...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aae2797a4e0>
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_personal_memory_written_m0')
+
+    @pytest.mark.asyncio
+    async def test_personal_memory_written_mid_session_is_re_read_from_disk(
+        self, session, monkeypatch, tmp_path
+    ):
+        """#137: a lesson the worker writes to its own memory must come back to it.
+    
+        Measured before the fix: 11 of 13 live sessions carried a stale <worker-memory>
+        block, the worst missing 61% of its own file, because `_current_prompt` was only
+        ever assembled in `_load_from_db` — i.e. on server restart.
+        """
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+    
+        mem_dir = tmp_path / ".orchestra" / "workers"
+        mem_dir.mkdir(parents=True)
+        (tmp_path / ".orchestra" / "layout.json").write_text("{}\n")
+        session.scope = str(tmp_path)
+        session.role = "worker"
+        session._log = MagicMock()
+        session._prompt_injected = True
+        session._current_prompt = (
+            "ROLE: worker.\n\n<worker-memory>\nSTALE: written at spawn\n</worker-memory>"
+        )
+    
+        # The worker learns something and writes it down mid-session.
+        (mem_dir / f"{session.name}.md").write_text("FRESH: learned this mid-session")
+    
+        await self._run_compact(session, monkeypatch)
+    
+        sent = []
+        resumed = AsyncMock()
+        resumed.send = AsyncMock(side_effect=lambda m: sent.append(m))
+    
+        async def events():
+            yield AgentEvent(type="turn_end", content="",
+                             metadata={"ok": True, "session_id": "post-compact-sid"})
+    
+        resumed.events = lambda: events()
+        session._backend = resumed
+        session.status = AgentStatus.IDLE
+        session._log = MagicMock()
+        session._persist = MagicMock()
+        monkeypatch.setattr("app.session.get_logs", lambda *_a, **_kw: [])
+    
+        with patch.object(session, "_ensure_backend", AsyncMock(return_value=resumed)):
+>           await session.send("next task", provenance=USER_PROVENANCE)
+
+tests/test_session.py:3711: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]'
+scope = '/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_personal_memory_written_m0'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+----------------------------- Captured stderr call -----------------------------
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+preserved tail unavailable for test-001: no such table: logs
+[w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+[w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+WARNING  app.session:session.py:177 preserved tail unavailable for test-001: no such table: logs
+WARNING  app.session:session.py:2942 [w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: checklist_step_metrics
+_ TestCompactReArmsPromptInjection.test_prompt_reinjection_reads_worktree_memory_not_parent_copy _
+
+self = <tests.test_session.TestCompactReArmsPromptInjection object at 0x7aae2b504aa0>
+session = AgentSession(id='test-001', name='w1', scope='/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb2...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aae2797a210>
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_prompt_reinjection_reads_0')
+
+    @pytest.mark.asyncio
+    async def test_prompt_reinjection_reads_worktree_memory_not_parent_copy(
+        self, session, monkeypatch, tmp_path
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+    
+        parent_scope = tmp_path / "parent"
+        worktree = tmp_path / "subrepo-worktree"
+        for root, content in (
+            (parent_scope, "STALE: copied into parent scope"),
+            (worktree, "FRESH: canonical worktree memory"),
+        ):
+            memory_dir = root / ".orchestra" / "workers"
+            memory_dir.mkdir(parents=True)
+            (root / ".orchestra" / "layout.json").write_text("{}\n")
+            (memory_dir / f"{session.name}.md").write_text(content)
+    
+        session.scope = str(parent_scope)
+        session.worktree_path = str(worktree)
+        session.role = "worker"
+        session.session_id = "resumed-session"
+        session._prompt_injected = False
+        session.prompt_overlay = None
+        session._current_prompt = (
+            "ROLE: worker.\n\n<worker-memory>\nOLD\n</worker-memory>"
+        )
+    
+        sent = []
+        resumed = AsyncMock()
+        resumed.send = AsyncMock(side_effect=lambda message: sent.append(message))
+    
+        async def events():
+            yield AgentEvent(
+                type="turn_end", content="",
+                metadata={"ok": True, "session_id": "resumed-session"},
+            )
+    
+        resumed.events = lambda: events()
+        session._backend = resumed
+        session.status = AgentStatus.IDLE
+        session._log = MagicMock()
+        session._persist = MagicMock()
+        monkeypatch.setattr("app.session.get_logs", lambda *_a, **_kw: [])
+    
+        with patch.object(session, "_ensure_backend", AsyncMock(return_value=resumed)):
+>           await session.send("next task", provenance=USER_PROVENANCE)
+
+tests/test_session.py:3768: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]'
+scope = '/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_prompt_reinjection_reads_0/parent'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+__ TestManifestEffortAtTurnBoundary.test_unchanged_manifest_rebuilds_nothing ___
+
+self = <tests.test_session.TestManifestEffortAtTurnBoundary object at 0x7aae2b3e5430>
+mock_db = None
+manifest = <function TestManifestEffortAtTurnBoundary.manifest.<locals>.write at 0x7aae244d4f40>
+
+    @pytest.mark.asyncio
+    async def test_unchanged_manifest_rebuilds_nothing(self, mock_db, manifest):
+        """Требование: одинаковое значение → ноль дисконнектов, ноль пересборок."""
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        builds = 0
+    
+        def build(*a, **kw):
+            nonlocal builds
+            builds += 1
+            return backend
+    
+        disconnects = 0
+        orig_disconnect = session._disconnect_backend
+    
+        async def counting_disconnect():
+            nonlocal disconnects
+            disconnects += 1
+            await orig_disconnect()
+    
+        session._disconnect_backend = counting_disconnect
+        with patch.object(session, "_make_backend", side_effect=build):
+>           await self._turn(session, backend, "first")
+
+tests/test_session.py:3959: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_session.py:3934: in _turn
+    await send_task
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+___ TestManifestEffortAtTurnBoundary.test_manifest_edit_applies_on_next_turn ___
+
+self = <tests.test_session.TestManifestEffortAtTurnBoundary object at 0x7aae2acaa510>
+mock_db = None
+manifest = <function TestManifestEffortAtTurnBoundary.manifest.<locals>.write at 0x7aae244d6700>
+
+    @pytest.mark.asyncio
+    async def test_manifest_edit_applies_on_next_turn(self, mock_db, manifest):
+        """Правка файла между ходами → следующий ход идёт на новом эффорте."""
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        builds = 0
+    
+        def build(*a, **kw):
+            nonlocal builds
+            builds += 1
+            return backend
+    
+        with patch.object(session, "_make_backend", side_effect=build):
+>           await self._turn(session, backend, "first")
+
+tests/test_session.py:3979: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_session.py:3934: in _turn
+    await send_task
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+____ TestManifestEffortAtTurnBoundary.test_running_turn_is_not_interrupted _____
+
+self = <tests.test_session.TestManifestEffortAtTurnBoundary object at 0x7aae2aca9a90>
+mock_db = None
+manifest = <function TestManifestEffortAtTurnBoundary.manifest.<locals>.write at 0x7aae244e5260>
+
+    @pytest.mark.asyncio
+    async def test_running_turn_is_not_interrupted(self, mock_db, manifest):
+        """Требование юзера: значение принимается, но живой ход не прерывается."""
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        disconnects = 0
+        orig_disconnect = session._disconnect_backend
+    
+        async def counting_disconnect():
+            nonlocal disconnects
+            disconnects += 1
+            await orig_disconnect()
+    
+        session._disconnect_backend = counting_disconnect
+        with patch.object(session, "_make_backend", return_value=backend):
+            from app.session import AgentStatus
+            send_task = asyncio.create_task(
+                session.send("first", provenance=USER_PROVENANCE)
+            )
+            for _ in range(200):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+>           assert session.status == AgentStatus.RUNNING
+E           AssertionError: assert <AgentStatus.IDLE: 'idle'> == <AgentStatus....NG: 'running'>
+E             
+E             - running
+E             + idle
+
+tests/test_session.py:4017: AssertionError
+__ TestManifestEffortAtTurnBoundary.test_broken_manifest_keeps_current_effort __
+
+self = <tests.test_session.TestManifestEffortAtTurnBoundary object at 0x7aae2aca9430>
+mock_db = None
+manifest = <function TestManifestEffortAtTurnBoundary.manifest.<locals>.write at 0x7aae244e7880>
+
+    @pytest.mark.asyncio
+    async def test_broken_manifest_keeps_current_effort(self, mock_db, manifest):
+        """Требование: отказ тихий и безопасный — битый yaml ничего не пересобирает."""
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        disconnects = 0
+        orig_disconnect = session._disconnect_backend
+    
+        async def counting_disconnect():
+            nonlocal disconnects
+            disconnects += 1
+            await orig_disconnect()
+    
+        session._disconnect_backend = counting_disconnect
+        manifest("name: eff\nroles: {hand: {kind: worker, label: Hand, bogus_field: 1}}\n")
+        with patch.object(session, "_make_backend", return_value=backend):
+>           await self._turn(session, backend, "first")
+
+tests/test_session.py:4055: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_session.py:3934: in _turn
+    await send_task
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+_ TestManifestEffortAtTurnBoundary.test_typo_in_level_keeps_live_agent_on_current_effort _
+
+self = <tests.test_session.TestManifestEffortAtTurnBoundary object at 0x7aae2aca8590>
+mock_db = None
+manifest = <function TestManifestEffortAtTurnBoundary.manifest.<locals>.write at 0x7aae244d7ec0>
+
+    @pytest.mark.asyncio
+    async def test_typo_in_level_keeps_live_agent_on_current_effort(self, mock_db, manifest):
+        """Отказ манифеста по опечатке в ступени НЕ трогает живого агента.
+    
+        Манифест с неизвестной ступенью теперь отвергается целиком (fail-closed), и цена
+        этого — падающий спавн. Живые агенты платить не должны: сбой резолва оставляет
+        текущее значение и не пересобирает бэкенд. Проверяем именно ветку `raise`, а не
+        только ветку с warning.
+        """
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        disconnects = 0
+        orig_disconnect = session._disconnect_backend
+    
+        async def counting_disconnect():
+            nonlocal disconnects
+            disconnects += 1
+            await orig_disconnect()
+    
+        session._disconnect_backend = counting_disconnect
+        manifest(
+            "name: eff\nroles:\n  hand: {kind: worker, label: Hand, "
+            "effort: {\"claude-sonnet-5-5[1m]\": hgih, default: high}}\n"
+        )
+        with patch.object(session, "_make_backend", return_value=backend):
+>           await self._turn(session, backend, "first")
+
+tests/test_session.py:4085: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_session.py:3934: in _turn
+    await send_task
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+___ TestManifestEffortAtTurnBoundary.test_role_without_effort_keeps_db_value ___
+
+self = <tests.test_session.TestManifestEffortAtTurnBoundary object at 0x7aae2aca80b0>
+mock_db = None
+manifest = <function TestManifestEffortAtTurnBoundary.manifest.<locals>.write at 0x7aae244e5760>
+
+    @pytest.mark.asyncio
+    async def test_role_without_effort_keeps_db_value(self, mock_db, manifest):
+        """Роль без эффорта → остаёмся на значении из БД, а не обнуляем его."""
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        manifest("name: eff\nroles: {hand: {kind: worker, label: Hand}}\n")
+        with patch.object(session, "_make_backend", return_value=backend):
+>           await self._turn(session, backend, "first")
+
+tests/test_session.py:4097: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_session.py:3934: in _turn
+    await send_task
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+_ TestManifestEffortAtTurnBoundary.test_legacy_session_without_role_is_untouched _
+
+self = <tests.test_session.TestManifestEffortAtTurnBoundary object at 0x7aae2acaadb0>
+mock_db = None
+manifest = <function TestManifestEffortAtTurnBoundary.manifest.<locals>.write at 0x7aae244e5440>
+
+    @pytest.mark.asyncio
+    async def test_legacy_session_without_role_is_untouched(self, mock_db, manifest):
+        """Legacy-сессия (role='') манифеста не имеет — живёт на значении из БД."""
+        session = self._session(effort="xhigh", role="")
+        backend = _MockBackend()
+        with patch.object(session, "_make_backend", return_value=backend):
+>           await self._turn(session, backend, "first")
+
+tests/test_session.py:4106: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_session.py:3934: in _turn
+    await send_task
+app/session.py:1438: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+_ TestEnsureBackendForceFresh.test_codex_preflights_finish_before_backend_is_built_and_connected _
+
+self = <tests.test_session.TestEnsureBackendForceFresh object at 0x7aae2acaad50>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_codex_preflights_finish_before_backend_is_built_and_connected(
+        self, session,
+    ):
+        order = []
+        backend = SimpleNamespace(
+            connect=AsyncMock(side_effect=lambda: order.append("connect")),
+            has_owned_processes=False,
+        )
+        session.backend_type = "codex"
+        session._refresh_skills = AsyncMock(side_effect=lambda: order.append("skills"))
+        session._refresh_codex_project_doc = AsyncMock(
+            side_effect=lambda: order.append("project-doc"),
+        )
+        session._make_backend = MagicMock(
+            side_effect=lambda **_kwargs: order.append("build") or backend,
+        )
+        session._hibernate.heartbeat_loop = AsyncMock()
+    
+        with patch(
+            "app.workspace.sync_agents_md",
+            side_effect=lambda path: order.append(("agents", path)),
+        ) as sync_agents:
+>           result = await session._ensure_backend()
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_session.py:4178: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:2451: in _ensure_backend
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+____ TestEnsureBackendForceFresh.test_force_fresh_rebuilds_existing_backend ____
+
+self = <tests.test_session.TestEnsureBackendForceFresh object at 0x7aae2aca9a30>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_force_fresh_rebuilds_existing_backend(self, session):
+        # Codex diff #P1: _ensure_backend(force_fresh=True) must rebuild even
+        # when a backend already exists (old one disconnected, fresh one made).
+        old = object()
+        session._backend = old
+        new = AsyncMock()
+        new.connect = AsyncMock()
+        with patch.object(session, "_disconnect_backend", AsyncMock()) as disc, \
+             patch.object(session, "_make_backend", return_value=new) as mk, \
+             patch.object(session, "_persistent_event_loop", AsyncMock()), \
+             patch.object(session._hibernate, "heartbeat_loop", AsyncMock()):
+>           result = await session._ensure_backend(force_fresh=True)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_session.py:4198: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:2451: in _ensure_backend
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+_______ TestEnsureBackendForceFresh.test_no_force_fresh_reuses_existing ________
+
+self = <tests.test_session.TestEnsureBackendForceFresh object at 0x7aae2acb16a0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_no_force_fresh_reuses_existing(self, session):
+        existing = object()
+        session._backend = existing
+>       result = await session._ensure_backend()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_session.py:4207: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:2451: in _ensure_backend
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+_ TestEnsureBackendForceFresh.test_connect_failure_retains_backend_that_still_owns_processes _
+
+self = <tests.test_session.TestEnsureBackendForceFresh object at 0x7aae2acb06e0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_connect_failure_retains_backend_that_still_owns_processes(
+        self, session,
+    ):
+        backend = SimpleNamespace(
+            connect=AsyncMock(side_effect=RuntimeError("scope still populated")),
+            has_owned_processes=True,
+        )
+        with patch.object(session, "_make_backend", return_value=backend):
+            with pytest.raises(RuntimeError, match="scope still populated"):
+>               await session._ensure_backend()
+
+tests/test_session.py:4220: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:2451: in _ensure_backend
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+_ TestEnsureBackendForceFresh.test_connect_failure_releases_backend_without_owned_processes _
+
+self = <tests.test_session.TestEnsureBackendForceFresh object at 0x7aae2acb0fe0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_connect_failure_releases_backend_without_owned_processes(
+        self, session,
+    ):
+        backend = SimpleNamespace(
+            connect=AsyncMock(side_effect=RuntimeError("no process")),
+            has_owned_processes=False,
+        )
+        with patch.object(session, "_make_backend", return_value=backend):
+            with pytest.raises(RuntimeError, match="no process"):
+>               await session._ensure_backend()
+
+tests/test_session.py:4234: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:2451: in _ensure_backend
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+_ TestEnsureBackendForceFresh.test_codex_connect_failure_clears_running_status _
+
+self = <tests.test_session.TestEnsureBackendForceFresh object at 0x7aae2acb1880>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', model_reason='', syst...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_codex_connect_failure_clears_running_status(self, session):
+        from app.session import AgentStatus
+    
+        backend = SimpleNamespace(
+            connect=AsyncMock(side_effect=RuntimeError("app-server exited 0")),
+            has_owned_processes=False,
+        )
+        session.backend_type = "codex"
+        session.status = AgentStatus.RUNNING
+        session._log = MagicMock()
+        session._refresh_skills = AsyncMock()
+        session._refresh_codex_project_doc = AsyncMock()
+        session._make_backend = MagicMock(return_value=backend)
+        with patch("app.workspace.sync_agents_md"):
+            with pytest.raises(RuntimeError, match="app-server exited 0"):
+>               await session._ensure_backend()
+
+tests/test_session.py:4254: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:2451: in _ensure_backend
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1116: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = 'claude-sonnet-5-5[1m]', scope = '/test'
+
+    def ensure_project_model_allowed(model: str, scope: str) -> None:
+        """Claude quota is reserved for explicit Multicast project path components."""
+        model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+        if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
+            return
+        # Catalog-only validation has no project identity; dispatch supplies its actual scope.
+        if not scope:
+            return
+        extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
+        components = {part.lower() for part in Path(scope).resolve().parts}
+        if components & (MULTICAST_PATH_TOKENS | extra):
+            return
+>       raise ValueError(
+            "claude_multicast_only: Claude is allowed only in Multicast projects; "
+            "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        )
+E       ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+
+app/models.py:1098: ValueError
+----------------------------- Captured stderr call -----------------------------
+[w1] checklist clock update failed: OperationalError: no such table: session_checklists
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:928 [w1] checklist clock update failed: OperationalError: no such table: session_checklists
+=========================== short test summary info ============================
+FAILED tests/test_session.py::TestStart::test_with_message_sets_running_then_idle
+FAILED tests/test_session.py::TestSend::test_send_idle_sets_running - Asserti...
+FAILED tests/test_session.py::TestSend::test_send_on_running_queues_message
+FAILED tests/test_session.py::TestTurn::test_turn_end_returns_to_idle - Asser...
+FAILED tests/test_session.py::TestTurn::test_stale_claude_resume_uses_bounded_log_handoff
+FAILED tests/test_session.py::TestTurn::test_connect_error_returns_to_idle - ...
+FAILED tests/test_session.py::TestTurn::test_codex_compact_timeout_log_names_exception_and_stage
+FAILED tests/test_session.py::TestStop::test_stop_marks_running_session_interrupted
+FAILED tests/test_session.py::TestStop::test_message_waits_for_interrupt_before_starting_clean_turn
+FAILED tests/test_session.py::TestClaudeTurnLifecycle::test_running_reconnect_continues_without_quota_admission
+FAILED tests/test_session.py::TestClaudeTurnLifecycle::test_imported_claude_listener_reconnect_refreshes_history_from_logs
+FAILED tests/test_session.py::TestPrecompactTimer::test_codex_native_compact_queues_message_until_completion
+FAILED tests/test_session.py::TestRetryAdmissionRaces::test_alternating_retry_types_preserve_both_budgets
+FAILED tests/test_session.py::TestCompactReArmsPromptInjection::test_role_is_back_in_the_prompt_on_the_turn_after_compact
+FAILED tests/test_session.py::TestCompactReArmsPromptInjection::test_personal_memory_written_mid_session_is_re_read_from_disk
+FAILED tests/test_session.py::TestCompactReArmsPromptInjection::test_prompt_reinjection_reads_worktree_memory_not_parent_copy
+FAILED tests/test_session.py::TestManifestEffortAtTurnBoundary::test_unchanged_manifest_rebuilds_nothing
+FAILED tests/test_session.py::TestManifestEffortAtTurnBoundary::test_manifest_edit_applies_on_next_turn
+FAILED tests/test_session.py::TestManifestEffortAtTurnBoundary::test_running_turn_is_not_interrupted
+FAILED tests/test_session.py::TestManifestEffortAtTurnBoundary::test_broken_manifest_keeps_current_effort
+FAILED tests/test_session.py::TestManifestEffortAtTurnBoundary::test_typo_in_level_keeps_live_agent_on_current_effort
+FAILED tests/test_session.py::TestManifestEffortAtTurnBoundary::test_role_without_effort_keeps_db_value
+FAILED tests/test_session.py::TestManifestEffortAtTurnBoundary::test_legacy_session_without_role_is_untouched
+FAILED tests/test_session.py::TestEnsureBackendForceFresh::test_codex_preflights_finish_before_backend_is_built_and_connected
+FAILED tests/test_session.py::TestEnsureBackendForceFresh::test_force_fresh_rebuilds_existing_backend
+FAILED tests/test_session.py::TestEnsureBackendForceFresh::test_no_force_fresh_reuses_existing
+FAILED tests/test_session.py::TestEnsureBackendForceFresh::test_connect_failure_retains_backend_that_still_owns_processes
+FAILED tests/test_session.py::TestEnsureBackendForceFresh::test_connect_failure_releases_backend_without_owned_processes
+FAILED tests/test_session.py::TestEnsureBackendForceFresh::test_codex_connect_failure_clears_running_status
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/usr/lib/python3.12/asyncio/runners.py:123: KeyboardInterrupt
+(to show a full traceback on KeyboardInterrupt use --full-trace)
+29 failed, 277 passed, 2 deselected in 136.40s (0:02:16)

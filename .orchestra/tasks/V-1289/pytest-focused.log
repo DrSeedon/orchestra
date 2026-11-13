@@ -1,0 +1,1733 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 105ms
+..EEEEEEEEEEEEEEEEEEEEEEE............................................... [ 66%]
+.......................F....F........                                    [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_checkpoint_continues_without_terminal_side_effects[wall_limit-3-3600-3600s] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_checkpoint_continues_with1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f3e45520>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_one_budget_is_consumed_across_segments_then_exhausted[tool_limit] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_one_budget_is_consumed_ac0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efc77e60>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_one_budget_is_consumed_across_segments_then_exhausted[wall_limit] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_one_budget_is_consumed_ac1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efc77ce0>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+______ ERROR at setup of test_native_and_runaway_limits_share_the_budget _______
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_native_and_runaway_limits0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efc74830>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_stale_or_manually_stopped_checkpoint_cannot_interrupt[generation] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_stale_or_manually_stopped0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f12d6750>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_stale_or_manually_stopped_checkpoint_cannot_interrupt[backend] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_stale_or_manually_stopped1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f08d2720>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_stale_or_manually_stopped_checkpoint_cannot_interrupt[idle] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_stale_or_manually_stopped2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f0731730>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_stale_or_manually_stopped_checkpoint_cannot_interrupt[manual] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_stale_or_manually_stopped3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efad1490>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+__ ERROR at setup of test_checkpoint_rechecks_generation_after_provider_await __
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_checkpoint_rechecks_gener0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efad0380>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_failed_interrupt_still_retires_old_stream_and_continues[False] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_failed_interrupt_still_re0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efad02f0>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_failed_interrupt_still_retires_old_stream_and_continues[outcome1] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_failed_interrupt_still_re1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f100c4d0>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_failed_interrupt_still_retires_old_stream_and_continues[outcome2] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_failed_interrupt_still_re2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f100c3b0>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_failed_disconnect_does_not_start_an_overlapping_turn __
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_failed_disconnect_does_no0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f100d400>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_event_loop_enforces_boundary_without_reporting_completion[tool] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_event_loop_enforces_bound0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efad0a40>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_event_loop_enforces_boundary_without_reporting_completion[elapsed] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_event_loop_enforces_bound1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efad12e0>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_event_loop_enforces_boundary_without_reporting_completion[silence] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_event_loop_enforces_bound2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efad0e60>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_native_limit_listener_does_not_report_or_publish_terminal[max_turns] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_native_limit_listener_doe0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f08b7a70>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_native_limit_listener_does_not_report_or_publish_terminal[error_max_turns] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_native_limit_listener_doe1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f08b6f60>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_pending_auto_continue_yields_to_stop_or_new_turn[manual_stop] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_pending_auto_continue_yie0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f08b7020>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_pending_auto_continue_yields_to_stop_or_new_turn[new_turn] _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_pending_auto_continue_yie1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efad2180>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+_ ERROR at setup of test_manual_interrupt_wins_before_waiting_checkpoint_acquires_lock _
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_manual_interrupt_wins_bef0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efad0f20>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+____ ERROR at setup of test_real_send_resets_only_normal_turn_budget[False] ____
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_real_send_resets_only_nor0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2efad08c0>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+____ ERROR at setup of test_real_send_resets_only_normal_turn_budget[True] _____
+
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/.orchestra/tasks/V-1289/tmp/pytest/test_real_send_resets_only_nor1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75c2f08b6ed0>
+
+    @pytest.fixture
+    def session(tmp_path, monkeypatch):
+        db.init_db()
+        s = AgentSession(
+            id="turn-cap", name="turn-cap", scope=str(tmp_path), cwd=str(tmp_path),
+            model="gpt-6-luna", backend_type="codex", role="orchestrator",
+            created_at=datetime.now(timezone.utc),
+        )
+        s._persist = MagicMock()
+        s._log = MagicMock()
+        s._start_checklist_reminder = MagicMock()
+        s._wake_durable_message_deliveries = MagicMock()
+        s._hibernate.schedule = MagicMock()
+        s._turns.fire_auto_report = MagicMock()
+        s._turns.report_abnormal_end = MagicMock()
+        s.scheduled = []
+    
+        def discard(coroutine):
+            s.scheduled.append(coroutine.cr_code.co_name)
+            coroutine.close()
+    
+        s._spawn_bg = discard
+        monkeypatch.setattr("app.mailbox.claim", lambda *_: [])
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+>       s._start_turn_state()
+
+tests/test_turn_cap_continue.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/session.py:1283: in _start_turn_state
+    self._turn_start = asyncio.get_event_loop().time()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0x75c2f4c75070>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            stacklevel = 2
+            try:
+                f = sys._getframe(1)
+            except AttributeError:
+                pass
+            else:
+                # Move up the call stack so that the warning is attached
+                # to the line outside asyncio itself.
+                while f:
+                    module = f.f_globals.get('__name__')
+                    if not (module == 'asyncio' or module.startswith('asyncio.')):
+                        break
+                    f = f.f_back
+                    stacklevel += 1
+            import warnings
+            warnings.warn('There is no current event loop',
+                          DeprecationWarning, stacklevel=stacklevel)
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/lib/python3.12/asyncio/events.py:702: RuntimeError
+=================================== FAILURES ===================================
+____________________ test_swap_watch_cooldown_and_pressure _____________________
+
+    def test_swap_watch_cooldown_and_pressure():
+>       from scripts.swap_watch import check, GIB
+E       ModuleNotFoundError: No module named 'scripts'
+
+tests/test_production_upgrade_20261111.py:213: ModuleNotFoundError
+______________ test_cleanup_plan_protects_live_and_real_projects _______________
+
+    def test_cleanup_plan_protects_live_and_real_projects():
+>       from scripts.cleanup_closed_hub_projects import plan_cleanup
+E       ModuleNotFoundError: No module named 'scripts'
+
+tests/test_production_upgrade_20261111.py:323: ModuleNotFoundError
+=============================== warnings summary ===============================
+tests/test_turn_cap_continue.py::test_checkpoint_continues_without_terminal_side_effects[tool_limit-250-12-250 tools]
+  /home/<hub-user>/orchestra-ws/<vps-host>/hub-6edb24d54e164068/app/session.py:1283: DeprecationWarning: There is no current event loop
+    self._turn_start = asyncio.get_event_loop().time()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_production_upgrade_20261111.py::test_swap_watch_cooldown_and_pressure
+FAILED tests/test_production_upgrade_20261111.py::test_cleanup_plan_protects_live_and_real_projects
+ERROR tests/test_turn_cap_continue.py::test_checkpoint_continues_without_terminal_side_effects[wall_limit-3-3600-3600s]
+ERROR tests/test_turn_cap_continue.py::test_one_budget_is_consumed_across_segments_then_exhausted[tool_limit]
+ERROR tests/test_turn_cap_continue.py::test_one_budget_is_consumed_across_segments_then_exhausted[wall_limit]
+ERROR tests/test_turn_cap_continue.py::test_native_and_runaway_limits_share_the_budget
+ERROR tests/test_turn_cap_continue.py::test_stale_or_manually_stopped_checkpoint_cannot_interrupt[generation]
+ERROR tests/test_turn_cap_continue.py::test_stale_or_manually_stopped_checkpoint_cannot_interrupt[backend]
+ERROR tests/test_turn_cap_continue.py::test_stale_or_manually_stopped_checkpoint_cannot_interrupt[idle]
+ERROR tests/test_turn_cap_continue.py::test_stale_or_manually_stopped_checkpoint_cannot_interrupt[manual]
+ERROR tests/test_turn_cap_continue.py::test_checkpoint_rechecks_generation_after_provider_await
+ERROR tests/test_turn_cap_continue.py::test_failed_interrupt_still_retires_old_stream_and_continues[False]
+ERROR tests/test_turn_cap_continue.py::test_failed_interrupt_still_retires_old_stream_and_continues[outcome1]
+ERROR tests/test_turn_cap_continue.py::test_failed_interrupt_still_retires_old_stream_and_continues[outcome2]
+ERROR tests/test_turn_cap_continue.py::test_failed_disconnect_does_not_start_an_overlapping_turn
+ERROR tests/test_turn_cap_continue.py::test_event_loop_enforces_boundary_without_reporting_completion[tool]
+ERROR tests/test_turn_cap_continue.py::test_event_loop_enforces_boundary_without_reporting_completion[elapsed]
+ERROR tests/test_turn_cap_continue.py::test_event_loop_enforces_boundary_without_reporting_completion[silence]
+ERROR tests/test_turn_cap_continue.py::test_native_limit_listener_does_not_report_or_publish_terminal[max_turns]
+ERROR tests/test_turn_cap_continue.py::test_native_limit_listener_does_not_report_or_publish_terminal[error_max_turns]
+ERROR tests/test_turn_cap_continue.py::test_pending_auto_continue_yields_to_stop_or_new_turn[manual_stop]
+ERROR tests/test_turn_cap_continue.py::test_pending_auto_continue_yields_to_stop_or_new_turn[new_turn]
+ERROR tests/test_turn_cap_continue.py::test_manual_interrupt_wins_before_waiting_checkpoint_acquires_lock
+ERROR tests/test_turn_cap_continue.py::test_real_send_resets_only_normal_turn_budget[False]
+ERROR tests/test_turn_cap_continue.py::test_real_send_resets_only_normal_turn_budget[True]
+2 failed, 84 passed, 1 warning, 23 errors in 15.11s

@@ -29,7 +29,7 @@ ENABLED = os.getenv("RUNAWAY_GUARD_ENABLED", "1").strip().lower() in ("1", "true
 _CGROUP = "/sys/fs/cgroup/system.slice/orchestra.service/cgroup.procs"
 
 MAX_TOOLS_PER_TURN = int(os.getenv("ORCHESTRA_MAX_TOOLS_PER_TURN", "250"))
-MAX_ORCHESTRATOR_TOOLS_PER_TURN = int(os.getenv("ORCHESTRA_MAX_ORCHESTRATOR_TOOLS_PER_TURN", "80"))
+MAX_ORCHESTRATOR_TOOLS_PER_TURN = int(os.getenv("ORCHESTRA_MAX_ORCHESTRATOR_TOOLS_PER_TURN", "250"))
 MAX_TURN_WALL_SECONDS = float(os.getenv("ORCHESTRA_MAX_TURN_WALL_SECONDS", "3600"))
 
 
