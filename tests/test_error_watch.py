@@ -1373,6 +1373,188 @@ def _insert_error_rows(path, rows, stamp):
         )
 
 
+_V1291_READ_MISSING = '{"type": "TOOL_ERROR", "message": "file does not exist"}'
+_V1291_NOISE = "agent read of missing file"
+
+
+def test_v1291_db_scan_separates_missing_reads_from_legacy_error_banners(
+    hub_finish_db, monkeypatch, capsys, scan_reports,
+):
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    stamp = started + timedelta(seconds=1)
+    signature = watch.normalize_signature(_V1291_READ_MISSING)
+    missing_row = ("tool_result", _V1291_READ_MISSING, "read_file", 1)
+    _insert_error_rows(hub_finish_db, [missing_row] * 8, stamp)
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+
+    original = watch.collect_db_events(hub_finish_db, started)
+    assert len(original) == 8
+    assert all(
+        (event["source"], event["type"], event["tool_name"], event["message"])
+        == ("logs", "tool_result", "read_file", _V1291_READ_MISSING)
+        for event in original
+    )
+    # Signature-only suppression would incorrectly hide the legacy banners below.
+    assert watch.classify_noise(signature) is None
+    candidates, noise = watch.aggregate(original, stamp, threshold=8)
+    assert candidates == []
+    assert [(item["noise"], item["count"]) for item in noise] == [(_V1291_NOISE, 8)]
+    assert watch.post_fix_verdict(original, signature, started, 168)["count"] == 0
+
+    args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=8, dry_run=True)
+    assert watch.scan(args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["signals"] == []
+    assert output["noise_by_class"] == {_V1291_NOISE: 8}
+    assert output["noise_events"] == 8
+    assert output["events_by_source"] == {"logs": 8, "journalctl": 0}
+
+    state_path = watch._state_path(hub_finish_db)
+    fix = {"task": "V-1291", "commit": "example", "started_at": started.isoformat(),
+           "window_hours": 168}
+    watch._write_state(state_path, {"alerts": {}, "fixes": {signature: fix}})
+    args.dry_run = False
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert not scan_reports.called
+    assert watch._load_state(state_path)["fixes"] == {signature: fix}
+    assert watch.collect_db_events(hub_finish_db, started) == original
+
+    # Reproduce the supplied 8 pairs. Legacy errors must remain visible even
+    # without tool_is_error, and must not share the noise rows' candidate count.
+    _insert_error_rows(hub_finish_db, [("error", _V1291_READ_MISSING, None, 0)] * 8, stamp)
+    events = watch.collect_db_events(hub_finish_db, started)
+    assert len(events) == 16
+    candidates, noise = watch.aggregate(events, stamp, threshold=8)
+    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 8)]
+    assert [(item["signature"], item["count"], item["noise"]) for item in noise] == [
+        (signature, 8, _V1291_NOISE),
+    ]
+    assert watch.post_fix_verdict(events, signature, started, 168)["count"] == 8
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert [(item["signature"], item["count"]) for item in signals] == [(signature, 8)]
+    assert [(item["signature"], item["count"]) for item in verdicts] == [(signature, 8)]
+    state = watch._load_state(state_path)
+    assert state["fixes"][signature]["recurrence_reported"] is True
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+    assert watch._load_state(state_path) == state
+    assert watch.collect_db_events(hub_finish_db, started) == events
+
+
+@pytest.mark.parametrize("overrides", [
+    {"source": "journalctl"}, {"source": None},
+    {"type": "error"}, {"type": "tool_use"}, {"type": None},
+    {"tool_name": "read"}, {"tool_name": "Read"}, {"tool_name": "Read_file"},
+    {"tool_name": "call_mcp_tool"}, {"tool_name": "Bash"},
+    {"tool_name": "write_file"}, {"tool_name": "edit_file"}, {"tool_name": None},
+    {"message": _V1291_READ_MISSING[:-1] + ', "detail": "storage failed"}'},
+    {"message": _V1291_READ_MISSING + "\nRuntimeError: storage failed"},
+    {"message": "RuntimeError: storage failed\n" + _V1291_READ_MISSING},
+    {"message": _V1291_READ_MISSING + "; PermissionError: denied"},
+    {"message": _V1291_READ_MISSING + _V1291_READ_MISSING},
+    {"message": _V1291_READ_MISSING + "\n"},
+    {"message": _V1291_READ_MISSING + "\r"},
+    {"message": " " + _V1291_READ_MISSING},
+    {"message": _V1291_READ_MISSING + " "},
+    {"message": _V1291_READ_MISSING.replace(', ', ',\n')},
+    {"message": _V1291_READ_MISSING.replace(": ", ":")},
+    {"message": _V1291_READ_MISSING.replace("file does not exist", "permission denied")},
+    {"message": _V1291_READ_MISSING.replace("TOOL_ERROR", "ERROR")},
+    {"message": '[' + _V1291_READ_MISSING + ']'},
+    {"message": _V1291_READ_MISSING[:-1]},
+    {"message": _V1291_READ_MISSING + " " * 1100 + "RuntimeError: storage failed"},
+])
+def test_v1291_other_provenance_and_mixed_messages_stay_actionable(overrides):
+    event = dict(_event(_V1291_READ_MISSING, source="logs"),
+                 type="tool_result", tool_name="read_file")
+    event.update(overrides)
+    before = dict(event)
+    signature = watch.normalize_signature(event["message"])
+    candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 1)]
+    assert noise == []
+    assert watch.post_fix_verdict(
+        [event], signature, datetime.fromisoformat(event["ts"]), 168,
+    )["count"] == 1
+    assert event == before
+
+
+@pytest.mark.parametrize("row", [
+    ("error", _V1291_READ_MISSING, "read_file", 1),
+    *(("tool_result", _V1291_READ_MISSING, tool, 1) for tool in (
+        "call_mcp_tool", "Bash", "write_file", "edit_file", None,
+    )),
+    ("tool_result", _V1291_READ_MISSING[:-1] + ', "detail": "storage failed"}', "read_file", 1),
+    ("tool_result", _V1291_READ_MISSING + "\nRuntimeError: storage failed", "read_file", 1),
+    ("tool_result", _V1291_READ_MISSING + "; PermissionError: denied", "read_file", 1),
+    ("tool_result", _V1291_READ_MISSING + "\n", "read_file", 1),
+])
+def test_v1291_actionable_db_rows_still_alert_and_recur(
+    row, hub_finish_db, monkeypatch, capsys, scan_reports,
+):
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    stamp = started + timedelta(seconds=1)
+    _insert_error_rows(hub_finish_db, [row] * 2, stamp)
+    events = watch.collect_db_events(hub_finish_db, started)
+    assert len(events) == 2
+    assert all((event["type"], event["message"], event["tool_name"]) == row[:3] for event in events)
+    signature = watch.normalize_signature(row[1])
+    candidates, noise = watch.aggregate(events, stamp, threshold=2)
+    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 2)]
+    assert noise == []
+    assert watch.post_fix_verdict(events, signature, started, 168)["count"] == 2
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+    fix = {"task": "V-1291", "commit": "example", "started_at": started.isoformat(),
+           "window_hours": 168}
+    watch._write_state(watch._state_path(hub_finish_db), {"alerts": {}, "fixes": {signature: fix}})
+    args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=2, dry_run=False)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert [(item["signature"], item["count"]) for item in signals] == [(signature, 2)]
+    assert [(item["signature"], item["count"]) for item in verdicts] == [(signature, 2)]
+
+
+def test_v1291_journal_json_stays_actionable(v1191_journal_scan, capsys, scan_reports):
+    db_path, rows, runner = v1191_journal_scan
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    message = "ERROR:app.backend_antigravity: " + _V1291_READ_MISSING
+    rows.extend(_v1191_access_rows(message, started, count=2))
+    assert watch.collect_db_events(db_path, started) == []
+    events = watch.collect_journal_events(started, {})
+    assert len(events) == 2
+    signature = watch.normalize_signature(_V1291_READ_MISSING)
+    candidates, noise = watch.aggregate(events, started, threshold=2)
+    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 2)]
+    assert noise == []
+    assert watch.post_fix_verdict(events, signature, started, 168)["count"] == 2
+    fix = {"task": "V-1291", "commit": "example", "started_at": started.isoformat(),
+           "window_hours": 168}
+    watch._write_state(watch._state_path(db_path), {"alerts": {}, "fixes": {signature: fix}})
+    args = SimpleNamespace(db=str(db_path), window_hours=168, threshold=2, dry_run=False)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert [(item["signature"], item["count"]) for item in signals] == [(signature, 2)]
+    assert [(item["signature"], item["count"]) for item in verdicts] == [(signature, 2)]
+    assert runner.call_count == 2
+
+
+def test_v1291_missing_read_does_not_recur_in_completed_fix_window():
+    started = datetime.now(timezone.utc) - timedelta(hours=2)
+    event = dict(_event(_V1291_READ_MISSING, source="logs"), type="tool_result",
+                 tool_name="read_file", ts=started.isoformat())
+    result = watch.post_fix_verdict([event], watch.normalize_signature(_V1291_READ_MISSING), started, 1)
+    assert result["count"] == 0
+    assert result["complete"] is True
+
+
 _V1287_READ_REFUSAL = "[read error] path '/outside/file.txt' is outside the workspace"
 _V1287_NOISE = "harness read workspace guard refusal"
 

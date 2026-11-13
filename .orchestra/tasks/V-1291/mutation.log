@@ -1,0 +1,41 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_v1291_db_scan_separates_missing_reads_from_legacy_error_banners _____
+
+hub_finish_db = PosixPath('<workspace>/.orchestra/tasks/V-1291/mutation-tmp/test_v1291_db_scan_separates_m0/orchestra.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f2b8eb781d0>
+capsys = <_pytest.capture.CaptureFixture object at 0x7f2b8eb78350>
+scan_reports = <Mock id='139825054712752'>
+
+    def test_v1291_db_scan_separates_missing_reads_from_legacy_error_banners(
+        hub_finish_db, monkeypatch, capsys, scan_reports,
+    ):
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        stamp = started + timedelta(seconds=1)
+        signature = watch.normalize_signature(_V1291_READ_MISSING)
+        missing_row = ("tool_result", _V1291_READ_MISSING, "read_file", 1)
+        _insert_error_rows(hub_finish_db, [missing_row] * 8, stamp)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+    
+        original = watch.collect_db_events(hub_finish_db, started)
+        assert len(original) == 8
+        assert all(
+            (event["source"], event["type"], event["tool_name"], event["message"])
+            == ("logs", "tool_result", "read_file", _V1291_READ_MISSING)
+            for event in original
+        )
+        # Signature-only suppression would incorrectly hide the legacy banners below.
+        assert watch.classify_noise(signature) is None
+        candidates, noise = watch.aggregate(original, stamp, threshold=8)
+>       assert candidates == []
+E       assert [{'count': 8,...+00:00', ...}] == []
+E         
+E         Left contains one more item: {'count': 8, 'examples': ['{"type": "TOOL_ERROR", "message": "file does not exist"}'], 'first': '2026-11-13T22:19:16.323547+00:00', 'last': '2026-11-13T22:19:16.323547+00:00', ...}
+E         Use -v to get more diff
+
+tests/test_error_watch.py:1401: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_error_watch.py::test_v1291_db_scan_separates_missing_reads_from_legacy_error_banners
+1 failed in 0.24s
+EXPECTED_FAILURE_CONFIRMED: disabling only the new branch breaks the positive regression

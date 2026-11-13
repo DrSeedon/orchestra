@@ -41,6 +41,7 @@ _HARNESS_READ_PATH_REFUSAL = re.compile(
 _POST_FIX_EVENT_NOISE = {
     "hub provider limit", "hub credential guard refusal", "hub owned_dirs guard refusal",
     _HUB_UNFINISHED_TOOL_NOISE, "successful HTTP access log", _HARNESS_READ_PATH_NOISE,
+    "agent read of missing file",
 }
 # session.py emits only these reset labels and ISO times (or "неизвестно").
 # Accept <N> as well so classification survives numeric signature normalization.
@@ -199,6 +200,12 @@ def classify_noise(signature: str) -> str | None:
 
 
 def _event_noise(event: dict, signature: str) -> str | None:
+    # Antigravity's standalone read_file miss is an ordinary tool refusal.
+    # Keep legacy error banners, other tools and mixed errors actionable.
+    if (event.get("source") == "logs" and event.get("type") == "tool_result"
+            and event.get("tool_name") == "read_file"
+            and event["message"] == '{"type": "TOOL_ERROR", "message": "file does not exist"}'):
+        return "agent read of missing file"
     # V-1287: tools.read reports PathPolicyError as an ordinary tool result.
     # Check provenance and unnormalized text; identical signatures from other
     # tools or mixed/truncated messages must still count as real errors.

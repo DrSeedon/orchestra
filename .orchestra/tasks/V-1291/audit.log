@@ -1,0 +1,7 @@
+PASS: changes.patch reconstructs the initial SHA-256 for all three allowed source files.
+PASS: backend_antigravity.py, pyproject.toml and uv.lock remain unchanged.
+PASS: task reports/logs contain no actual workspace or host paths.
+PASS: final source hashes match final-sha256.json after the in-memory mutation probe.
+PASS: task temporary SQLite databases and pytest caches removed.
+PASS: one-shot process inspection found no remaining pytest or uv-run test process.
+HEAD: unavailable in this private copy without .git; assigned by platform after import.

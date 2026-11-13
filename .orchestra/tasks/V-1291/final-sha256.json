@@ -1,0 +1,8 @@
+{
+  "app/error_watch.py": "cbde7a300b105b21e1623465b9c75292963208c66c09761bdae1f1431b19f99a",
+  "tests/test_error_watch.py": "bf5aa85c505c179a916825b12e44502e6278872f0ce5a396061b76cc9aa8ccef",
+  "CHANGELOG.md": "fd9fe48e49bdeffe9a955838548bf90a3474f5e379da70cab79a73871ad5e13b",
+  "app/backend_antigravity.py": "6d2a95461041bd8ac200c46e9ba4768876d5411ab0a6167b35c1fd855274c46f",
+  "pyproject.toml": "91ad056de186c4be6d744474f12bb80a1763d883db0ba14916009dbad8c8d463",
+  "uv.lock": "b1b9364dd130ddc03376563d83c14d8ef15bc9753d3f421e682df1588a558a70"
+}

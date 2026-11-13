@@ -6,6 +6,15 @@
 
 ## Unreleased
 
+- **Error-watch treats exact Antigravity missing-file reads as agent noise**
+  (V-1291; `app/error_watch.py`). Only `logs` / `tool_result` / `read_file`
+  events with the complete single-line response
+  `{"type": "TOOL_ERROR", "message": "file does not exist"}` are classified as
+  `agent read of missing file` and excluded from registered-fix recurrence counts.
+  Legacy `error` banners, journal records, other tools and extended/mixed errors
+  remain actionable. Synthetic SQLite, scan and post-fix regressions cover these
+  boundaries; stored logs and the Antigravity backend are unchanged.
+
 - **Turn limits continue automatically within the existing five-continuation budget**
   (V-1289). Orchestrators now default to 250 tools per segment, with the existing
   environment override retained. Tool and wall limits retire the provider stream

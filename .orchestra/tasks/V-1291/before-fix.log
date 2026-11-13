@@ -1,0 +1,73 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 96ms
+F.......................................FF                               [100%]
+=================================== FAILURES ===================================
+_____ test_v1291_db_scan_separates_missing_reads_from_legacy_error_banners _____
+
+hub_finish_db = PosixPath('<workspace>/.orchestra/tasks/V-1291/pytest-tmp/test_v1291_db_scan_separates_m0/orchestra.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78bcd7b586e0>
+capsys = <_pytest.capture.CaptureFixture object at 0x78bcd7b58e30>
+scan_reports = <Mock id='132752468183424'>
+
+    def test_v1291_db_scan_separates_missing_reads_from_legacy_error_banners(
+        hub_finish_db, monkeypatch, capsys, scan_reports,
+    ):
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        stamp = started + timedelta(seconds=1)
+        signature = watch.normalize_signature(_V1291_READ_MISSING)
+        missing_row = ("tool_result", _V1291_READ_MISSING, "read_file", 1)
+        _insert_error_rows(hub_finish_db, [missing_row] * 8, stamp)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+    
+        original = watch.collect_db_events(hub_finish_db, started)
+        assert len(original) == 8
+        assert all(
+            (event["source"], event["type"], event["tool_name"], event["message"])
+            == ("logs", "tool_result", "read_file", _V1291_READ_MISSING)
+            for event in original
+        )
+        # Signature-only suppression would incorrectly hide the legacy banners below.
+        assert watch.classify_noise(signature) is None
+        candidates, noise = watch.aggregate(original, stamp, threshold=8)
+>       assert candidates == []
+E       assert [{'count': 8,...+00:00', ...}] == []
+E         
+E         Left contains one more item: {'count': 8, 'examples': ['{"type": "TOOL_ERROR", "message": "file does not exist"}'], 'first': '2026-11-13T22:17:44.692586+00:00', 'last': '2026-11-13T22:17:44.692586+00:00', ...}
+E         Use -v to get more diff
+
+tests/test_error_watch.py:1401: AssertionError
+___________________ test_v1291_journal_json_stays_actionable ___________________
+
+v1191_journal_scan = (PosixPath('<workspace>/.orchestra/tasks/V-129..._ERROR", "message": "file does not exist"}', '__REALTIME_TIMESTAMP': '1794608266122803'}], <Mock id='132752461609536'>)
+capsys = <_pytest.capture.CaptureFixture object at 0x78bcd7513e60>
+scan_reports = <Mock id='132752461609776'>
+
+    def test_v1291_journal_json_stays_actionable(v1191_journal_scan, capsys, scan_reports):
+        db_path, rows, runner = v1191_journal_scan
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        rows.extend(_v1191_access_rows(_V1291_READ_MISSING, started, count=2))
+        assert watch.collect_db_events(db_path, started) == []
+        events = watch.collect_journal_events(started, {})
+>       assert len(events) == 2
+E       assert 0 == 2
+E        +  where 0 = len([])
+
+tests/test_error_watch.py:1530: AssertionError
+________ test_v1291_missing_read_does_not_recur_in_completed_fix_window ________
+
+    def test_v1291_missing_read_does_not_recur_in_completed_fix_window():
+        started = datetime.now(timezone.utc) - timedelta(hours=2)
+        event = dict(_event(_V1291_READ_MISSING, source="logs"), type="tool_result",
+                     tool_name="read_file", ts=started.isoformat())
+        result = watch.post_fix_verdict([event], watch.normalize_signature(_V1291_READ_MISSING), started, 1)
+>       assert result["count"] == 0
+E       assert 1 == 0
+
+tests/test_error_watch.py:1553: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_error_watch.py::test_v1291_db_scan_separates_missing_reads_from_legacy_error_banners
+FAILED tests/test_error_watch.py::test_v1291_journal_json_stays_actionable - ...
+FAILED tests/test_error_watch.py::test_v1291_missing_read_does_not_recur_in_completed_fix_window
+3 failed, 39 passed, 284 deselected in 1.27s
