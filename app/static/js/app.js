@@ -2917,7 +2917,7 @@ function _isModelChoiceHidden(m) {
     return m.provider === 'gigachat' || /^gigachat/i.test(String(m.id || ''));
 }
 
-const _MODEL_PICKER_GROUPS = [['claude', 'Claude'], ['codex', 'Codex'], ['grok', 'Grok'], ['hub', 'Hub']];
+const _MODEL_PICKER_GROUPS = [['claude', 'Claude'], ['codex', 'Codex'], ['grok', 'Grok'], ['antigravity', 'Antigravity'], ['hub', 'Hub']];
 let _closeModelPicker = null;
 
 function _modelContextHint(m) {

@@ -235,16 +235,44 @@ SELECTABLE_MODEL_SPECS += tuple(
 # import them by name and fetch_models_from_proxy() mutates them in place;
 # _rebuild_derived_views() below is the only writer at import time.
 ANTIGRAVITY_RAW_MODELS = (
+    "gemini-4-carbon-medium", "gemini-4-carbon-high", "gemini-4-carbon-low",
+    "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
+    "gemini-4-argon-medium", "gemini-4-argon-high", "gemini-4-argon-low",
+    "gemini-pro-orchestrator", "gemini-pro-orchestrator-argon",
+    "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
+    "claude-opus-5-5-high", "claude-opus-5-5-medium", "claude-opus-5-5-low",
+    "claude-sonnet-5-5-high", "claude-sonnet-5-5-medium", "claude-sonnet-5-5-low",
+    "gpt-oss-120b-medium",
     "gemini-3.6-flash-high", "gemini-3.6-flash-medium", "gemini-3.6-flash-low",
     "gemini-3.5-flash-high", "gemini-3.5-flash-medium", "gemini-3.5-flash-low",
     "gemini-3.1-pro-high", "gemini-3.1-pro-low", "claude-sonnet-4-6",
-    "claude-opus-4-6-thinking", "gpt-oss-120b-medium",
-    "gemini-4-carbon-high", "gemini-4-carbon-medium", "gemini-4-carbon-low",
-    "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
-    "gemini-4-argon-high", "gemini-4-argon-medium", "gemini-4-argon-low",
-    "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
+    "claude-opus-4-6-thinking",
 )
-# 128 000 is the conservative default; these routes serve long contexts (owner 09.11.2026)
+ANTIGRAVITY_DISPLAY_NAMES = {
+    "gemini-4-carbon-medium": "Antigravity: Gemini 4 Carbon (Medium)",
+    "gemini-4-carbon-high": "Antigravity: Gemini 4 Carbon (High)",
+    "gemini-4-carbon-low": "Antigravity: Gemini 4 Carbon (Low)",
+    "gemini-4-hydrogen-xhigh": "Antigravity: Gemini 4 Hydrogen (XHigh)",
+    "gemini-4-hydrogen-high": "Antigravity: Gemini 4 Hydrogen (High)",
+    "gemini-4-hydrogen-medium": "Antigravity: Gemini 4 Hydrogen (Medium)",
+    "gemini-4-hydrogen-low": "Antigravity: Gemini 4 Hydrogen (Low)",
+    "gemini-4-argon-medium": "Antigravity: Gemini 4 Argon (Medium)",
+    "gemini-4-argon-high": "Antigravity: Gemini 4 Argon (High)",
+    "gemini-4-argon-low": "Antigravity: Gemini 4 Argon (Low)",
+    "gemini-pro-orchestrator": "Antigravity: Orchestrator (Carbon)",
+    "gemini-pro-orchestrator-argon": "Antigravity: Orchestrator (Argon)",
+    "gemini-3.8-flash-high": "Antigravity: Gemini 3.8 Flash (High)",
+    "gemini-3.8-flash-medium": "Antigravity: Gemini 3.8 Flash (Medium)",
+    "gemini-3.8-flash-low": "Antigravity: Gemini 3.8 Flash (Low)",
+    "claude-opus-5-5-high": "Antigravity: Claude Opus 5.5 (High)",
+    "claude-opus-5-5-medium": "Antigravity: Claude Opus 5.5 (Medium)",
+    "claude-opus-5-5-low": "Antigravity: Claude Opus 5.5 (Low)",
+    "claude-sonnet-5-5-high": "Antigravity: Claude Sonnet 5.5 (High)",
+    "claude-sonnet-5-5-medium": "Antigravity: Claude Sonnet 5.5 (Medium)",
+    "claude-sonnet-5-5-low": "Antigravity: Claude Sonnet 5.5 (Low)",
+    "gpt-oss-120b-medium": "Antigravity: GPT-OSS 120B (Medium)",
+}
+# 128 000 is the conservative default; these routes serve long contexts (owner 09–13.11.2026)
 # and a too-small window compacted them several times earlier than needed.
 ANTIGRAVITY_CONTEXT_LENGTHS = {
     "gemini-4-carbon-high": 1_000_000,
@@ -257,13 +285,26 @@ ANTIGRAVITY_CONTEXT_LENGTHS = {
     "gemini-4-argon-high": 1_000_000,
     "gemini-4-argon-medium": 1_000_000,
     "gemini-4-argon-low": 1_000_000,
+    "gemini-pro-orchestrator": 1_000_000,
+    "gemini-pro-orchestrator-argon": 1_000_000,
+    "gemini-3.8-flash-high": 1_000_000,
+    "gemini-3.8-flash-medium": 1_000_000,
+    "gemini-3.8-flash-low": 1_000_000,
+    "claude-opus-5-5-high": 1_000_000,
+    "claude-opus-5-5-medium": 1_000_000,
+    "claude-opus-5-5-low": 1_000_000,
+    "claude-sonnet-5-5-high": 1_000_000,
+    "claude-sonnet-5-5-medium": 1_000_000,
+    "claude-sonnet-5-5-low": 1_000_000,
     "claude-opus-4-6-thinking": 1_000_000,
 }
 SELECTABLE_MODEL_SPECS += tuple(
-    ModelSpec(id=f"antigravity/{raw}", name=f"Antigravity {raw}",
+    ModelSpec(id=f"antigravity/{raw}",
+              name=ANTIGRAVITY_DISPLAY_NAMES.get(raw, f"Antigravity {raw}"),
               runtime="antigravity", provider="google-antigravity",
               context_length=ANTIGRAVITY_CONTEXT_LENGTHS.get(raw, 128_000),
-              default_dashboard=False, default_agents=False)
+              default_dashboard=raw in ANTIGRAVITY_DISPLAY_NAMES,
+              default_agents=False)
     for raw in ANTIGRAVITY_RAW_MODELS
 )
 
@@ -281,6 +322,7 @@ ALIASES = {
     "agy-argon": "antigravity/gemini-4-argon-medium",
     "agy-carbon": "antigravity/gemini-4-carbon-medium",
     "agy-hydrogen": "antigravity/gemini-4-hydrogen-high",
+    "agy-hydrogen-xhigh": "antigravity/gemini-4-hydrogen-xhigh",
     "fable": "claude-fable-5-1[1m]",
     "fable5": "claude-fable-5-1[1m]",
     "fable5.1": "claude-fable-5-1[1m]",

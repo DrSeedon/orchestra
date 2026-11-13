@@ -75,3 +75,30 @@ async def test_hub_backend_model_selection_supports_carbon_and_unlisted_hydrogen
         }
     with pytest.raises(ValueError, match="does not support effort 'max'"):
         await hb._model_selection(mc, "hub-gemini-4-hydrogen", "max")
+
+
+def test_antigravity_gemini4_dashboard_visibility_and_frontend_tokens():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    assert models.resolve_model("agy-hydrogen-xhigh") == "antigravity/gemini-4-hydrogen-xhigh"
+    for raw in (
+        "gemini-4-carbon-medium", "gemini-4-carbon-high", "gemini-4-carbon-low",
+        "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
+        "gemini-4-argon-medium", "gemini-pro-orchestrator",
+        "claude-opus-5-5-high", "claude-sonnet-5-5-high",
+    ):
+        spec = models.get_model_spec(f"antigravity/{raw}")
+        assert spec.default_dashboard is True
+        assert spec.default_agents is False
+        assert spec.context_length == 1_000_000
+
+    css = (root / "app/static/css/design-system.css").read_text()
+    for token in ("--model-carbon:", "--model-hydrogen:", "--model-argon:"):
+        assert token in css
+
+    theme_js = (root / "app/static/js/theme.js").read_text()
+    for fam in ("carbon", "hydrogen", "argon"):
+        assert f"['{fam}'," in theme_js
+
+    app_js = (root / "app/static/js/app.js").read_text()
+    assert "['antigravity', 'Antigravity']" in app_js

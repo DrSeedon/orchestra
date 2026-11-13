@@ -19,6 +19,9 @@ const _MODEL_FAMILY_RULES = [
     ['astra', /astra/i],
     ['sol', /sol(?![a-z])|^codex$/i],
     ['grok', /grok/i],
+    ['carbon', /carbon/i],
+    ['hydrogen', /hydrogen/i],
+    ['argon', /argon/i],
 ];
 // Каждый поставщик моделей обязан иметь токен --provider-<id> (tests/test_usage_analytics_frontend.py).
 const _PROVIDER_COLORS = {

@@ -51,6 +51,9 @@
   --model-astra: #c084fc;  /* фиолетовый */
   --model-spark: #e879f9;  /* фуксия */
   --model-grok: #e2e8f0;   /* белый, как у x-ai */
+  --model-carbon: #a78bfa;   /* фиолетово-лавандовый — Gemini 4 Carbon */
+  --model-hydrogen: #34d399; /* изумрудный — быстрый Gemini 4 Hydrogen */
+  --model-argon: #60a5fa;    /* небесно-синий — Gemini 4 Argon */
 
   /* Поставщики и пулы квот = цвет их флагманской модели */
   --provider-google-antigravity: #a78bfa;
