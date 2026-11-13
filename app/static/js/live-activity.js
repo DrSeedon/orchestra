@@ -128,6 +128,11 @@ class LivePacer {
 // Bash: `timeout` in ms, default 2 min, capped at 10 min; a background call returns at once.
 function liveToolTimeoutMs(rawName, input) {
     if (!input || typeof input !== 'object') return 0;
+    if (typeof normalizeToolCall === 'function') {
+        const call = normalizeToolCall(rawName, input);
+        rawName = call.name;
+        input = call.input;
+    }
     if (rawName === 'Bash' || rawName === 'BashTool') {
         if (input.run_in_background) return 0;
         const asked = Number(input.timeout);

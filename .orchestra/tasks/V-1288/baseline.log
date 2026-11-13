@@ -1,0 +1,21 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Downloading pillow (6.3MiB)
+Downloading pygments (1.2MiB)
+Downloading aiohttp (1.7MiB)
+Downloading uvloop (4.2MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading playwright (45.3MiB)
+Downloading claude-agent-sdk (102.3MiB)
+Downloading cryptography (4.5MiB)
+ Downloaded pydantic-core
+ Downloaded aiohttp
+ Downloaded uvloop
+ Downloaded cryptography
+ Downloaded pillow
+ Downloaded pygments
+ Downloaded playwright
+ Downloaded claude-agent-sdk
+Installed 76 packages in 45ms
+.....                                                                    [100%]
+5 passed in 3.98s

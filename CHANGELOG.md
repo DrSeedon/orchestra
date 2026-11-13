@@ -6,6 +6,13 @@
 
 ## Unreleased
 
+- **Antigravity tool calls retain arguments and render native dashboard cards** (V-1288).
+  Stream events now serialize JSON arguments, canonicalize lazy/eager MCP calls and
+  correlate tools by conversation and step, including terminal-only steps and repeated
+  updates. Full and compact cards share Antigravity argument aliases; command results
+  show exit status and actual output, read summaries replace skeletons, and failed
+  edits display errors. Offline backend, rendering and mutation checks cover the contract.
+
 - **Error-watch classifies standalone harness read workspace refusals as noise** (V-1287; `app/error_watch.py`). Only `logs` / `tool_result` / `read` events whose complete raw message is `[read error] path '<path>' is outside the workspace` enter the new noise class and are excluded from post-fix recurrence counts. Mixed messages, other read errors and events without the exact provenance remain actionable, including identical normalized signatures. Path guards and stored logs are unchanged; no service restart is performed.
 - **Hourly task-store backup uses the existing GitHub CLI credential over HTTPS** (V-1278; `scripts/orchestra_backup.py`). When SSH public-key authentication intermittently rejects the scheduled push, the backup still validates the configured private SSH destination, reads and pushes the same repository over HTTPS using `gh auth git-credential` for that subprocess only, and runs the existing pre-push secret scanner before a normal non-force push. No Git credential or remote configuration is persisted or changed.
 - **Hub sync commits surviving output after a never-committed file is deleted** (V-1273; `app/hub_workspace.py`). A scanner-refused first commit can leave new output staged; a later import deleting it now removes that absent, index-free, unchanged-against-HEAD path from the commit candidates. Real tracked/staged deletions still commit, unrelated staged/unstaged work stays intact, and ignored/missing changed paths and Git inspection/commit failures remain visible. A synthetic two-turn regression uses the real scanner hook and verifies the original failure with the pre-fix function. Import, privacy, ownership and recovery guards are unchanged; no live recovery or restart.

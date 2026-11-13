@@ -1467,8 +1467,9 @@ function buildCompactToolLine(type, content, ts, payload) {
 
     if (type === 'tool') {
         const colonIdx = content.indexOf(':');
-        const rawName = canonicalToolName(colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30));
-        const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
+        const {name: rawName, body} = normalizeToolCall(
+            colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.trim(),
+            colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '');
         let icon = toolIcon(rawName);
         const short = toolShortName(rawName);
 
@@ -1635,9 +1636,10 @@ function buildCompactToolLine(type, content, ts, payload) {
             else chat.appendChild(sentinel);
             const toolPayload = line.dataset.toolUseId
                 ? {tool_use_id: line.dataset.toolUseId}
-                : undefined;
+                : {};
+            toolPayload.tool_is_error = line.dataset.resultIsError === '1';
             addChatEntry('tool', tempContent, null, sentinel, toolPayload);
-            if (tempResult) {
+            if (line.dataset.resultContent !== undefined) {
                 addChatEntry('tool_result', tempResult, null, sentinel, toolPayload);
             }
             window.compactMode = savedCompact;
@@ -2538,9 +2540,36 @@ function _renderSendChartResult(card, content, ts) {
     return true;
 }
 
+function _stripAntigravityTimestamps(text) {
+    return text.replace(/\r\n/g, '\n')
+        .replace(/^(?:(?:Created At|Completed At):[^\n]*(?:\n|$)){1,2}\n?/, '');
+}
+
+function _parseBashResult(content) {
+    const text = _stripAntigravityTimestamps(content);
+    const match = text.match(/^exit_code=(-?\d+)[ \t]*\n?/) ||
+        text.match(/^Command exited with code (-?\d+)\.\n+Command output:[ \t]*\n?/);
+    return {text: match ? text.slice(match[0].length) : text,
+        exitCode: match ? Number(match[1]) : null};
+}
+
+function _parseReadResult(content) {
+    let text = _stripAntigravityTimestamps(content);
+    const stat = /^\d+ lines?, \d+ bytes?$/.test(text.trim()) ? text.trim() : '';
+    const showing = text.match(/^Showing lines \d+[-–]\d+ of \d+\n/);
+    if (showing) text = text.slice(showing[0].length).replace(/^\s*\d+: ?/gm, '');
+    return {text, stat};
+}
+
 function _updateCompactToolResult(card, content, isBase64Image, isError = false) {
     liveStopToolClock(card);
     const resultSpan = card.querySelector('.compact-result');
+    card.dataset.resultContent = content;
+    card.dataset.resultIsError = isError ? '1' : '0';
+    if (isError || /<tool_use_error>/.test(content)) {
+        if (resultSpan) { resultSpan.textContent = '❌'; resultSpan.style.color = '#ef4444'; }
+        return;
+    }
     if (isBase64Image) {
         if (resultSpan) resultSpan.textContent = T('🖼 image');
         card.dataset.resultContent = '[image]';
@@ -2561,7 +2590,12 @@ function _updateCompactToolResult(card, content, isBase64Image, isError = false)
         return;
     }
 
-    if (isTask) {
+    if (rawName === 'Bash') {
+        const result = _parseBashResult(content);
+        resultSpan.textContent = result.exitCode === null ? '📎 ' + result.text.slice(0, 40)
+            : result.exitCode === 0 ? '✓ 0' : `✗ exit ${result.exitCode}`;
+        resultSpan.style.color = result.exitCode === null ? '#64748b' : result.exitCode === 0 ? '#4ade80' : '#f87171';
+    } else if (isTask) {
         let parsed = null;
         try { parsed = JSON.parse(content); } catch {}
         if (!parsed || parsed.error) {
@@ -2646,15 +2680,15 @@ function _updateCompactToolResult(card, content, isBase64Image, isError = false)
         try {
             const colon = card.dataset.toolContent.indexOf(':');
             const args = colon > 0 ? card.dataset.toolContent.slice(colon + 1).trim() : '';
-            const filePath = JSON.parse(args).file_path;
+            const filePath = normalizeToolCall(rawName, args).input?.file_path;
             if (filePath) readShort = filePath.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || filePath;
         } catch {}
-        resultSpan.textContent = '📖 ' + readShort;
+        resultSpan.textContent = '📖 ' + (_parseReadResult(content).stat || readShort);
     } else {
         const singleLine = clean.replace(/\n/g, ' ');
         resultSpan.textContent = '📎 ' + (singleLine.length > 40 ? singleLine.slice(0, 40) + '…' : singleLine);
     }
-    card.dataset.resultContent = (isTask || isAgentList || rawName.startsWith('mcp__orchestra__')) ? content : clean;
+    card.dataset.resultContent = content;
 }
 
 function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, insertAndFollow, isBase64Image) {
@@ -3213,8 +3247,9 @@ function _watchWorkflowCard(card, runId) {
 
 function _renderFullToolCall(content, payload, div) {
     const colonIdx = content.indexOf(':');
-    const rawName = canonicalToolName(colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30));
-    const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
+    const {name: rawName, body} = normalizeToolCall(
+        colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.trim(),
+        colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '');
     // V-636: the harness logs a file change as a pseudo-call "file: add <path>"; the Write/Edit
     // card above already shows the content, so this is one localized line, not an English card.
     if (rawName === 'file' && /^(add|update) /.test(body)) {
@@ -3947,6 +3982,8 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
     const chat = $('#chat');
     const resultToolId = payload?.tool_use_id || '';
     const lastTool = _toolForResult(chat, payload, anchor, false);
+    const toolErrorMatch = content.match(/<tool_use_error>([\s\S]*?)<\/tool_use_error>/);
+    const isToolError = Boolean(toolErrorMatch) || payload?.tool_is_error === true || payload?.tool_is_error === 1;
     if (!lastTool) {
         div.dataset.unmatchedToolResult = '1';
         if (resultToolId) {
@@ -3962,8 +3999,8 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         liveStopToolClock(lastTool);
         const liveOutput = lastTool.querySelector('.codex-live-output');
         if (liveOutput) liveOutput.remove();
-        completeCodexToolCard(lastTool);
-        if (lastTool.dataset.isFileChange) {
+        completeCodexToolCard(lastTool, !isToolError);
+        if (!isToolError && lastTool.dataset.isFileChange) {
             let data = {};
             try { data = JSON.parse(content); } catch {}
             const header = lastTool.querySelector('.flex.items-center');
@@ -3977,7 +4014,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             addTimestamp(lastTool, ts);
             return;
         }
-        if (lastTool.dataset.toolRawName === 'ImageGeneration') {
+        if (!isToolError && lastTool.dataset.toolRawName === 'ImageGeneration') {
             let data = {};
             try { data = JSON.parse(content); } catch {}
             delete lastTool.dataset.lastTool;
@@ -3989,7 +4026,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             _completeImageGenerationTool(lastTool, data);
             return;
         }
-        if (lastTool.dataset.toolRawName === 'ViewImage') {
+        if (!isToolError && lastTool.dataset.toolRawName === 'ViewImage') {
             const header = lastTool.querySelector('.flex.items-center');
             if (header) header.style.color = '#7dd3fc';
             const img = lastTool.querySelector('.codex-tool-image');
@@ -4000,7 +4037,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             addTimestamp(lastTool, ts);
             return;
         }
-        if (lastTool.dataset.toolRawName === 'Sleep') {
+        if (!isToolError && lastTool.dataset.toolRawName === 'Sleep') {
             const header = lastTool.querySelector('.flex.items-center');
             if (header) {
                 header.textContent = T('✓ Wait completed');
@@ -4011,7 +4048,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             return;
         }
     }
-    if (isBase64Image) {
+    if (isBase64Image && !isToolError) {
         const inlineSrc = _toolResultImageSrc(content);
         if (lastTool) {
             delete lastTool.dataset.lastTool;
@@ -4044,9 +4081,8 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         }
         return;
     }
-    const toolErrorMatch = content.match(/<tool_use_error>([\s\S]*?)<\/tool_use_error>/);
-    if (toolErrorMatch) {
-        const errMsg = toolErrorMatch[1].trim();
+    if (isToolError) {
+        const errMsg = toolErrorMatch ? toolErrorMatch[1].trim() : content.trim();
         const errDiv = document.createElement('div');
         errDiv.className = 'px-3 py-2 rounded-lg text-xs text-red-400 bg-red-950/30 border border-red-900/50';
         errDiv.textContent = '⚠️ ' + errMsg;
@@ -4769,12 +4805,11 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             }
         }
         if (lastTool.dataset.isBash) {
-            // harness bash (#369) prefixes the result with "exit_code=N" — surface it as a
-            // status mark in the header instead of a glued first output line.
-            let resText = clean;
-            const rcMatch = resText.match(/^exit_code=(-?\d+)[ \t]*\r?\n?/);
-            if (rcMatch) {
-                const rc = parseInt(rcMatch[1], 10);
+            const result = _parseBashResult(content);
+            const resText = result.text;
+            if (result.exitCode !== null) {
+                const rc = result.exitCode;
+                completeCodexToolCard(lastTool, rc === 0);
                 const hdrEl = lastTool.querySelector('.flex.items-center');
                 if (hdrEl) {
                     const st = document.createElement('span');
@@ -4782,7 +4817,6 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     st.style.cssText = `font-size:10px;font-weight:normal;margin-left:auto;color:${rc === 0 ? '#4ade80' : '#f87171'}`;
                     hdrEl.appendChild(st);
                 }
-                if (rc === 0) resText = resText.slice(rcMatch[0].length);
             }
             // V-637: a silent command (cp, mkdir) left an empty black output box under its card.
             if (!resText.trim()) {
@@ -4842,9 +4876,18 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             if (readContainer) {
                 const skeletonEl = readContainer.querySelector('[data-role="read-skeleton"]');
                 if (skeletonEl) skeletonEl.remove();
+                const readResult = _parseReadResult(content);
+                if (readResult.stat) {
+                    const stat = document.createElement('div');
+                    stat.className = 'diff-file read-stat';
+                    stat.textContent = readResult.stat;
+                    readContainer.appendChild(stat);
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
                 const readPath = readContainer.dataset.readPath || '';
                 if (/\.md$/i.test(readPath)) {
-                    const mdClean = clean.replace(/^\s*\d+\t/gm, '');
+                    const mdClean = readResult.text.replace(/^\s*\d+\t/gm, '');
                     readContainer.style.overflowX = 'hidden';
                     readContainer.style.maxWidth = '100%';
                     const mdEl = document.createElement('div');
@@ -4889,7 +4932,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     addTimestamp(lastTool, ts);
                     return;
                 }
-                const lines = clean.split('\n').map(l => l.length > 200 ? l.slice(0, 200) + '…' : l);
+                const lines = readResult.text.split('\n').map(l => l.length > 200 ? l.slice(0, 200) + '…' : l);
                 const PREVIEW = 5;
                 const previewL = lines.slice(0, PREVIEW);
                 const restL = lines.slice(PREVIEW);

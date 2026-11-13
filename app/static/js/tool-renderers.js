@@ -8,6 +8,7 @@ const TOOL_ICONS = {
     'Agent': '🤖', 'Task': '🤖', 'TodoWrite': '📝', 'NotebookEdit': '📓',
     'ToolSearch': '🔍', 'AskUserQuestion': '❓', 'SendMessage': '💬',
     'Review': '🧠',
+    'call_mcp_tool': '🔌', 'list_resources': '📚', 'read_resource': '📄',
 };
 const MCP_ICONS = {
     'orchestra': '🎼', 'websearch': '🌐', 'kesha': '🦜',
@@ -22,7 +23,49 @@ const MCP_ICONS = {
 const HARNESS_TOOL_ALIASES = {
     'bash': 'Bash', 'read': 'Read', 'write': 'Write', 'edit': 'Edit',
     'glob': 'Glob', 'grep': 'Grep', 'todo_write': 'TodoWrite', 'review': 'Review',
+    'run_command': 'Bash', 'read_file': 'Read', 'write_file': 'Write',
+    'edit_file': 'Edit', 'search_web': 'WebSearch', 'manage_task': 'Task',
 };
+
+// Keep provider argument differences at one boundary, shared by cards and live clocks.
+function normalizeToolInput(input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return input;
+    const data = {...input};
+    const aliases = {
+        file_path: ['Path', 'path'], offset: ['StartLine'],
+        old_string: ['Target', 'old'], new_string: ['Replacement', 'new'],
+        content: ['Content'], command: ['CommandLine'], description: ['toolSummary'],
+        timeout: ['WaitMsBeforeAsync'], run_in_background: ['IsDaemon'],
+    };
+    for (const [key, sources] of Object.entries(aliases)) {
+        if (data[key] !== undefined) continue;
+        const source = sources.find(source => data[source] !== undefined);
+        if (source) data[key] = data[source];
+    }
+    const start = data.StartLine || 1;
+    if (data.limit === undefined && Number.isInteger(start) && start >= 1 &&
+        Number.isInteger(data.EndLine) && data.EndLine >= start) {
+        data.limit = data.EndLine - start + 1;
+    }
+    return data;
+}
+
+function normalizeToolCall(name, body) {
+    let input = body;
+    if (typeof body === 'string') {
+        try { input = JSON.parse(body); } catch { return {name: canonicalToolName(name), body, input: null}; }
+    }
+    if (name === 'call_mcp_tool' && input && !Array.isArray(input) &&
+        typeof input.ServerName === 'string' && input.ServerName.trim() &&
+        typeof input.ToolName === 'string' && input.ToolName.trim() &&
+        input.Arguments && typeof input.Arguments === 'object' && !Array.isArray(input.Arguments)) {
+        name = `mcp__${input.ServerName.trim()}__${input.ToolName.trim()}`;
+        input = input.Arguments;
+    }
+    name = canonicalToolName(name);
+    if (['Read', 'Write', 'Edit', 'Bash'].includes(name)) input = normalizeToolInput(input);
+    return {name, input, body: JSON.stringify(input)};
+}
 
 function canonicalToolName(name) {
     const clean = String(name || '').trim();
@@ -49,7 +92,7 @@ function toolShortName(name) {
         const parts = name.split('__');
         return parts.length >= 3 ? parts[2] : name;
     }
-    return name;
+    return {call_mcp_tool: 'MCP', list_resources: 'MCP resources', read_resource: 'MCP resource'}[name] || name;
 }
 
 function codexWebSearchSpec(raw) {
@@ -257,10 +300,8 @@ function _buildDiffEl(lines) {
 function renderEditDiff(body) {
     let data;
     try { data = JSON.parse(body); } catch { return null; }
-    // harness edit/write (#369): path/old/new instead of file_path/old_string/new_string
-    if (data.old !== undefined && data.old_string === undefined) data.old_string = data.old;
-    if (data.new !== undefined && data.new_string === undefined) data.new_string = data.new;
-    if (!data.file_path && data.path) data.file_path = data.path;
+    data = normalizeToolInput(data);
+    if (!data || typeof data !== 'object') return null;
     const isWrite = data.content !== undefined && data.old_string === undefined;
     if (!isWrite && data.old_string === undefined && data.new_string === undefined) return null;
 
@@ -376,7 +417,8 @@ function renderCodexFileChange(body) {
 function renderReadView(body) {
     let data;
     try { data = JSON.parse(body); } catch { return null; }
-    if (!data.file_path && data.path) data.file_path = data.path;  // harness read (#369)
+    data = normalizeToolInput(data);
+    if (!data || typeof data !== 'object') return null;
     if (!data.file_path) return null;
 
     const fp = data.file_path || '';

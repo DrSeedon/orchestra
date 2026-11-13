@@ -1,0 +1,68 @@
+......................................FF.                                [100%]
+=================================== FAILURES ===================================
+_ test_frontend_mutation_controls[read-chat.js-if (readResult.stat)-if (false)] _
+
+scenario = 'read', filename = 'chat.js', before = 'if (readResult.stat)'
+after = 'if (false)'
+
+    @pytest.mark.parametrize("scenario,filename,before,after", [
+        ("aliases", "tool-renderers.js", "'run_command': 'Bash'", "'run_command': 'Other'"),
+        ("mcp", "tool-renderers.js", "name === 'call_mcp_tool'", "name === 'disabled_call_mcp_tool'"),
+        ("bash", "chat.js", "exitCode: match ? Number(match[1]) : null", "exitCode: null"),
+        ("read", "chat.js", "if (readResult.stat)", "if (false)"),
+        ("edit", "chat.js", "payload?.tool_is_error === true || payload?.tool_is_error === 1",
+         "false"),
+        ("aliases", "live-activity.js", "input = call.input;", "input = {};"),
+    ])
+    def test_frontend_mutation_controls(scenario, filename, before, after):
+        result = run_frontend(scenario, {filename: [before, after]})
+        assert result.returncode != 0, f"mutation survived: {filename}: {before}"
+>       assert "AssertionError" in result.stderr, result.stdout + result.stderr
+E       AssertionError: <hub-workspace>/tests/antigravity_tools_v1288_node.cjs:197
+E                     assert.equal(card.querySelector('.read-stat').textContent, '1 lines, 1673 bytes');
+E                                                                  ^
+E         
+E         TypeError: Cannot read properties of null (reading 'textContent')
+E             at read (<hub-workspace>/tests/antigravity_tools_v1288_node.cjs:197:58)
+E             at Object.<anonymous> (<hub-workspace>/tests/antigravity_tools_v1288_node.cjs:262:54)
+E             at Module._compile (node:internal/modules/cjs/loader:1781:14)
+E             at Object..js (node:internal/modules/cjs/loader:1913:10)
+E             at Module.load (node:internal/modules/cjs/loader:1505:32)
+E             at Function._load (node:internal/modules/cjs/loader:1309:12)
+E             at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+E             at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+E             at node:internal/main/run_main_module:36:49
+E         
+E         Node.js v22.23.4
+E         
+E       assert 'AssertionError' in '<hub-workspace>/tests/antigravity_tools_v1288_nod...runMain] (node:internal/modules/run_main:171:5)\n    at node:internal/main/run_main_module:36:49\n\nNode.js v22.23.4\n'
+E        +  where '<hub-workspace>/tests/antigravity_tools_v1288_nod...runMain] (node:internal/modules/run_main:171:5)\n    at node:internal/main/run_main_module:36:49\n\nNode.js v22.23.4\n' = CompletedProcess(args=['/usr/local/lib/claude-hub/shims/node', '<hub-workspace>/...unMain] (node:internal/modules/run_main:171:5)\n    at node:internal/main/run_main_module:36:49\n\nNode.js v22.23.4\n").stderr
+
+tests/test_antigravity_tools_v1288.py:222: AssertionError
+_ test_frontend_mutation_controls[edit-chat.js-payload?.tool_is_error === true || payload?.tool_is_error === 1-false] _
+
+scenario = 'edit', filename = 'chat.js'
+before = 'payload?.tool_is_error === true || payload?.tool_is_error === 1'
+after = 'false'
+
+    @pytest.mark.parametrize("scenario,filename,before,after", [
+        ("aliases", "tool-renderers.js", "'run_command': 'Bash'", "'run_command': 'Other'"),
+        ("mcp", "tool-renderers.js", "name === 'call_mcp_tool'", "name === 'disabled_call_mcp_tool'"),
+        ("bash", "chat.js", "exitCode: match ? Number(match[1]) : null", "exitCode: null"),
+        ("read", "chat.js", "if (readResult.stat)", "if (false)"),
+        ("edit", "chat.js", "payload?.tool_is_error === true || payload?.tool_is_error === 1",
+         "false"),
+        ("aliases", "live-activity.js", "input = call.input;", "input = {};"),
+    ])
+    def test_frontend_mutation_controls(scenario, filename, before, after):
+        result = run_frontend(scenario, {filename: [before, after]})
+>       assert result.returncode != 0, f"mutation survived: {filename}: {before}"
+E       AssertionError: mutation survived: chat.js: payload?.tool_is_error === true || payload?.tool_is_error === 1
+E       assert 0 != 0
+E        +  where 0 = CompletedProcess(args=['/usr/local/lib/claude-hub/shims/node', '<hub-workspace>/...9/hub-607a793c5b384dc9/tests/antigravity_tools_v1288_node.cjs', 'edit'], returncode=0, stdout='PASS edit\n', stderr='').returncode
+
+tests/test_antigravity_tools_v1288.py:221: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_tools_v1288.py::test_frontend_mutation_controls[read-chat.js-if (readResult.stat)-if (false)]
+FAILED tests/test_antigravity_tools_v1288.py::test_frontend_mutation_controls[edit-chat.js-payload?.tool_is_error === true || payload?.tool_is_error === 1-false]
+2 failed, 39 passed in 3.91s

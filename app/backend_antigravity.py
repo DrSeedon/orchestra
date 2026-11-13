@@ -456,6 +456,8 @@ class AntigravityBackend:
         stderr = asyncio.create_task(self._stderr(process))
         terminal = None
         tool_failed = False
+        emitted_tools = {}
+        completed_tools = set()
         try:
             async for line in process.stdout:
                 try:
@@ -473,12 +475,39 @@ class AntigravityBackend:
                         self._queue.put_nowait(AgentEvent("stream", self._redact(step["text_delta"])))
                     elif step.get("step_type") == "tool":
                         info = step.get("tool_info", {})
-                        tool_id = f"agy-step-{step.get('step_index')}"
-                        meta = {"tool_use_id": tool_id, "tool_name": step.get("tool_name", "tool")}
-                        if step.get("state") == "ACTIVE":
-                            meta["input"] = json.loads(self._redact(json.dumps(info.get("parameters", {}))))
-                            self._queue.put_nowait(AgentEvent("tool_use", meta["tool_name"], meta))
-                        elif step.get("state") in {"DONE", "ERROR"}:
+                        conv = step.get("conversation_id") or self.session_id
+                        tool_id = (f"agy-{conv}-step-{step.get('step_index')}" if conv
+                                   else f"agy-step-{step.get('step_index')}")
+                        state = step.get("state")
+                        if state not in {"ACTIVE", "DONE", "ERROR"}:
+                            continue
+                        if tool_id not in emitted_tools:
+                            name = step.get("tool_name") or info.get("name") or "tool"
+                            args = info.get("parameters", {})
+                            if not isinstance(args, dict):
+                                args = {}
+                            if (name == "call_mcp_tool"
+                                    and isinstance(args.get("ServerName"), str) and args["ServerName"].strip()
+                                    and isinstance(args.get("ToolName"), str) and args["ToolName"].strip()
+                                    and isinstance(args.get("Arguments"), dict)):
+                                name = f"mcp__{args['ServerName'].strip()}__{args['ToolName'].strip()}"
+                                args = args["Arguments"]
+                            elif name.startswith("mcp_") and not name.startswith("mcp__"):
+                                # A server name can contain underscores; prefer the longest match.
+                                for server in sorted(self.mcp_servers, key=len, reverse=True):
+                                    prefix = f"mcp_{server}_"
+                                    if name.startswith(prefix) and name[len(prefix):]:
+                                        name = f"mcp__{server}__{name[len(prefix):]}"
+                                        break
+                            args = json.loads(self._redact(json.dumps(args, ensure_ascii=False)))
+                            meta = {"tool_use_id": tool_id, "tool_name": name,
+                                    "short_name": name.split("__", 2)[-1], "input": args}
+                            emitted_tools[tool_id] = meta
+                            self._queue.put_nowait(AgentEvent(
+                                "tool_use", f"{name}: {json.dumps(args, ensure_ascii=False)}", meta))
+                        meta = emitted_tools[tool_id]
+                        if state in {"DONE", "ERROR"} and tool_id not in completed_tools:
+                            completed_tools.add(tool_id)
                             failed = step.get("state") == "ERROR" or bool(info.get("error"))
                             tool_failed |= failed
                             value = info.get("error") if failed else info.get("output", "")
