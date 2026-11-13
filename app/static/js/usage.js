@@ -18,19 +18,29 @@ function _usageNoDataLabel() {
     return Connection.ownsErrors() ? '—' : T('no data');
 }
 
+function _antigravityWindow(raw, minutes) {
+    const remaining = raw?.remaining_fraction;
+    const valid = typeof remaining === 'number' && Number.isFinite(remaining)
+        && remaining >= 0 && remaining <= 1;
+    return valid ? {
+        utilization: (1 - remaining) * 100,
+        window_minutes: minutes,
+        resets_at: raw.reset_time,
+    } : null;
+}
+
 function _antigravityUsageBuckets() {
     const quota = _usageData?.antigravity || {};
-    return [['gemini-weekly', 'Gemini'], ['3p-weekly', 'Claude/GPT']].map(([id, label]) => {
-        const raw = quota[id];
-        const remaining = raw?.remaining_fraction;
-        const valid = typeof remaining === 'number' && Number.isFinite(remaining)
-            && remaining >= 0 && remaining <= 1;
-        return {id, label, window: valid ? {
-            utilization: (1 - remaining) * 100,
-            window_minutes: 10080,
-            resets_at: raw.reset_time,
-        } : null};
-    });
+    const quota5h = _usageData?.antigravity_5h || {};
+    return [
+        ['gemini-weekly', 'gemini-5h', 'Gemini'],
+        ['3p-weekly', '3p-5h', 'Claude/GPT'],
+    ].map(([id, id5h, label]) => ({
+        id,
+        label,
+        window: _antigravityWindow(quota[id], 10080),
+        window5h: _antigravityWindow(quota5h[id5h], 300),
+    }));
 }
 let _usageFetchPromise = null;
 let _usageLastSuccessAt = 0;
@@ -458,9 +468,12 @@ function renderUsageBar() {
     }
 
     if (!_isProviderDisabled('antigravity')) {
-        const parts = _antigravityUsageBuckets().map(({id, label, window}) => {
+        const parts = _antigravityUsageBuckets().map(({id, label, window, window5h}) => {
+            const fiveH = window5h
+                ? `5h ${Math.round(window5h.utilization)}% · `
+                : '';
             const value = window
-                ? _miniBar(window.utilization, _usageColor(window.utilization, null))
+                ? fiveH + _miniBar(window.utilization, _usageColor(window.utilization, null))
                     + (window.resets_at ? ` <span data-reset-countdown="${escHtml(window.resets_at)}">${_resetCountdown(window.resets_at)}</span>` : '')
                 : T('нет данных');
             return `<span data-antigravity-bucket="${id}">${label}: ${value}</span>`;
@@ -571,10 +584,14 @@ function renderUsageBar() {
                 if (!_isProviderDisabled('antigravity')) {
                     antigravityHtml = '<section data-usage-provider="antigravity" style="min-width:0">'
                         + '<div style="font-weight:700;margin-bottom:7px">Antigravity</div>';
-                    for (const {id, label, window} of _antigravityUsageBuckets()) {
+                    for (const {id, label, window, window5h} of _antigravityUsageBuckets()) {
                         antigravityHtml += `<div data-antigravity-bucket="${id}">`;
+                        if (window5h) {
+                            antigravityHtml += _windowBlock(window5h, `${label} · 5h`, 'var(--accent)');
+                            if (window5h.resets_at) antigravityHtml += `<span data-reset-countdown-5h="${escHtml(window5h.resets_at)}" style="font-size:11px;color:var(--ink-dim);display:block;margin:-2px 0 4px">${_resetCountdown(window5h.resets_at)}</span>`;
+                        }
                         if (window) {
-                            antigravityHtml += _windowBlock(window, label, 'var(--accent)');
+                            antigravityHtml += _windowBlock(window, window5h ? `${label} · 7d` : label, 'var(--accent)');
                             if (window.resets_at) antigravityHtml += `<span data-reset-countdown="${escHtml(window.resets_at)}">${_resetCountdown(window.resets_at)}</span>`;
                         } else {
                             antigravityHtml += `<div>${label}: ${T('Данные лимита недоступны')}</div>`;

@@ -1498,8 +1498,19 @@ async def _get_usage_data(
     if not required_provider or required_provider.startswith("antigravity"):
         await _refresh_antigravity_usage(force_refresh=force_refresh)
     agy = None if is_provider_disabled("antigravity") else _antigravity_usage_cache.get("data")
+    agy_5h = (
+        None
+        if (required_provider or is_provider_disabled("antigravity"))
+        else _antigravity_usage_cache.get("five_hour")
+    )
+    extra_agy = (
+        {"antigravity_5h": {key: (agy_5h or {}).get(key) for key in ("gemini-5h", "3p-5h")}}
+        if isinstance(agy_5h, dict)
+        else {}
+    )
     return {
         "antigravity": {key: (agy or {}).get(key) for key in ("gemini-weekly", "3p-weekly")},
+        **extra_agy,
         "anthropic": anthropic_data,
         "anthropic_error": None if claude_disabled else _usage_cache.get("error"),
         "codex": codex_data,

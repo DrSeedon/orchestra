@@ -114,7 +114,8 @@ async def test_antigravity_agent_markdown_accepted_by_agy_cli(tmp_path, monkeypa
     from app.runtime_registry import BackendBuildContext, build_backend
 
     homes = tmp_path / "ag-homes"
-    monkeypatch.setenv("ORCHESTRA_ANTIGRAVITY_HOMES_DIR", str(homes))
+    from app import backend_antigravity
+    monkeypatch.setattr(backend_antigravity, "ANTIGRAVITY_HOME_ROOT", homes)
     cwd = tmp_path / "ws"
     cwd.mkdir()
     backend = build_backend(
@@ -169,3 +170,136 @@ async def test_antigravity_agent_markdown_accepted_by_agy_cli(tmp_path, monkeypa
         parsed = json.loads(res.stdout)
         agents = (parsed.get("command", {}).get("data", {}).get("agents") or parsed.get("agents") or [])
         assert "orchestra" in agents, parsed
+
+
+
+def test_antigravity_carbon_cost_turn_usage_and_5h_quota(monkeypatch):
+    import time
+    from app.backend_antigravity import (
+        _antigravity_cost,
+        normalize_antigravity_five_hour_quota,
+    )
+    from app.routes import system
+    from app.runtime_registry import BackendBuildContext, build_backend
+    from app.session_turns import _cached_quota_snapshot
+
+    # 1M fresh ($2.00) + 2M cached ($0.20) + 0.1M output incl thinking ($1.00) = $3.20
+    assert _antigravity_cost("gemini-4-carbon-medium", 1_000_000, 2_000_000, 100_000) == 3.2
+    # Hydrogen: 1M fresh ($1.50) + 1M cached ($0.075) + 0.1M output ($0.75) = $2.325
+    assert _antigravity_cost("gemini-4-hydrogen-high", 1_000_000, 1_000_000, 100_000) == 2.325
+    # Legacy unpriced model keeps None -> cost_unaccounted=True
+    assert _antigravity_cost("gemini-3.6-flash-low", 1_000, 500, 100) is None
+
+    b = build_backend(
+        "antigravity",
+        BackendBuildContext(
+            model="antigravity/gemini-4-carbon-medium",
+            provider="google-antigravity",
+            cwd="/tmp",
+            system_prompt="test",
+            resume_session_id="conv-123",
+            mcp_servers={
+                "orchestra": {
+                    "command": "python3",
+                    "args": [],
+                    "env": {"ORCHESTRA_SESSION_ID": "sess-123"},
+                }
+            },
+            is_orchestrator=True,
+            scope="/tmp",
+            pipeline="default",
+            role="orchestrator",
+            profile="default",
+            effort="medium",
+            context_limit=1_000_000,
+        ),
+    )
+    usage = {
+        "input_tokens": 100_000,
+        "output_tokens": 10_000,
+        "thinking_tokens": 6_000,
+        "cache_read_tokens": 500_000,
+        "total_tokens": 110_000,
+    }
+    terminal = {
+        "conversation_id": "conv-123",
+        "status": "SUCCESS",
+        "num_turns": 4,
+        "duration_seconds": 12.345,
+        "usage": usage,
+    }
+    ev = b._end(ok=True, reason="end_turn", usage=usage, terminal=terminal)
+    assert ev.metadata["cost_unaccounted"] is False
+    assert ev.metadata["cost_is_delta"] is True
+    # 0.1*2.0 + 0.5*0.1 + 0.01*10.0 = 0.20 + 0.05 + 0.10 = 0.35
+    assert ev.metadata["cost_usd"] == pytest.approx(0.35)
+    assert ev.metadata["cost_usd_cached"] == pytest.approx(0.35)
+    assert ev.metadata["event_id"].startswith("agy:conv-123:")
+    assert ev.metadata["num_turns"] == 4
+    assert ev.metadata["reasoning_tokens"] == 6000
+    assert ev.metadata["turn_duration_ms"] == 12345
+
+    raw_q = {
+        "status": "SUCCESS",
+        "command": {
+            "name": "usage",
+            "data": {
+                "groups": [
+                    {
+                        "buckets": [
+                            {
+                                "id": "gemini-weekly",
+                                "window": "weekly",
+                                "remaining_fraction": 0.675,
+                                "reset_time": "2026-11-19T19:00:07Z",
+                            },
+                            {
+                                "id": "gemini-5h",
+                                "window": "5h",
+                                "remaining_fraction": 0.95,
+                                "reset_time": "2026-11-13T20:00:07Z",
+                            },
+                        ]
+                    },
+                    {
+                        "buckets": [
+                            {
+                                "id": "3p-5h",
+                                "window": "5h",
+                                "remaining_fraction": 1.0,
+                                "reset_time": "2026-11-13T21:00:00Z",
+                            }
+                        ]
+                    },
+                ]
+            },
+        },
+    }
+    five_h = normalize_antigravity_five_hour_quota(raw_q)
+    assert five_h["gemini-5h"]["remaining_fraction"] == pytest.approx(0.95)
+    assert five_h["3p-5h"]["remaining_fraction"] == pytest.approx(1.0)
+
+    now = time.time()
+    monkeypatch.setattr(
+        system,
+        "_antigravity_usage_cache",
+        {
+            "data": {
+                "gemini-weekly": {
+                    "remaining_fraction": 0.675,
+                    "reset_time": "2026-11-19T19:00:07Z",
+                },
+                "3p-weekly": {
+                    "remaining_fraction": 0.35,
+                    "reset_time": "2026-11-19T18:24:00Z",
+                },
+            },
+            "five_hour": five_h,
+            "ts": now,
+        },
+    )
+    snap = _cached_quota_snapshot(
+        "antigravity", "antigravity/gemini-4-carbon-medium", now=now
+    )
+    assert snap["state"]["quota_five_hour_pct"] == pytest.approx(5.0)
+    assert snap["state"]["quota_seven_day_pct"] == pytest.approx(32.5)

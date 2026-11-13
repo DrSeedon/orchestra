@@ -215,6 +215,47 @@ def _cached_quota_snapshot(
             "quota_primary_pct": primary,
         }
         display = ((_window_label("Grok", primary, "primary"), primary),)
+    elif runtime == "antigravity":
+        cache = system._antigravity_usage_cache
+        data = cache.get("data")
+        if not isinstance(data, dict):
+            return _unknown_quota_snapshot()
+        raw_model = model.removeprefix("antigravity/")
+        is_3p = raw_model.startswith(("claude-", "gpt-"))
+        weekly_key = "3p-weekly" if is_3p else "gemini-weekly"
+        five_h_key = "3p-5h" if is_3p else "gemini-5h"
+        five_h_data = cache.get("five_hour") if isinstance(cache.get("five_hour"), dict) else {}
+
+        def _agy_win(bucket, minutes):
+            if not isinstance(bucket, dict):
+                return None
+            frac = bucket.get("remaining_fraction")
+            if (
+                isinstance(frac, bool)
+                or not isinstance(frac, (int, float))
+                or not math.isfinite(frac)
+                or not 0 <= frac <= 1
+            ):
+                return None
+            return {
+                "utilization": (1.0 - frac) * 100.0,
+                "window_minutes": minutes,
+                "resets_at": bucket.get("reset_time"),
+            }
+
+        five_hour = _agy_win(five_h_data.get(five_h_key), 300)
+        seven_day = _agy_win(data.get(weekly_key), 10080)
+        windows = {
+            "quota_five_hour_pct": five_hour,
+            "quota_seven_day_pct": seven_day,
+            "quota_primary_pct": None,
+        }
+        group_label = "Antigravity 3P" if is_3p else "Antigravity Gemini"
+        display = tuple(
+            (lbl, win)
+            for lbl, win in ((f"{group_label} 5h", five_hour), (f"{group_label} 7d", seven_day))
+            if win is not None
+        )
     else:
         return _unknown_quota_snapshot()
 

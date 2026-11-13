@@ -10,6 +10,7 @@ import os
 import re
 import signal
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -25,6 +26,51 @@ ANTIGRAVITY_BIN = os.environ.get("ANTIGRAVITY_BIN", "agy")
 ANTIGRAVITY_AUTH_HOME = ROOT / "data/antigravity-auth-home"
 ANTIGRAVITY_HOME_ROOT = ROOT / "data/antigravity-homes"
 QUOTA_KEYS = ("gemini-weekly", "3p-weekly")
+FIVE_HOUR_QUOTA_KEYS = ("gemini-5h", "3p-5h")
+
+# Official Google AI Studio / Vertex AI API-equivalent rates per 1M tokens
+# (Nov 2026 promo through Nov 30, 2026: Carbon/Argon $2/$10, cached 95% off = $0.10;
+# Hydrogen $1.50/$7.50, cached $0.075). Note: agy usage.output_tokens already includes
+# thinking_tokens, and usage.input_tokens excludes cache_read_tokens.
+ANTIGRAVITY_TOKEN_PRICES: dict[str, dict[str, float]] = {
+    "gemini-4-carbon-high": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "gemini-4-carbon-medium": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "gemini-4-carbon-low": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "gemini-pro-orchestrator": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "gemini-4-argon-high": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "gemini-4-argon-medium": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "gemini-4-argon-low": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "gemini-pro-orchestrator-argon": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "gemini-4-hydrogen-xhigh": {"input": 1.5, "cached": 0.075, "output": 7.5},
+    "gemini-4-hydrogen-high": {"input": 1.5, "cached": 0.075, "output": 7.5},
+    "gemini-4-hydrogen-medium": {"input": 1.5, "cached": 0.075, "output": 7.5},
+    "gemini-4-hydrogen-low": {"input": 1.5, "cached": 0.075, "output": 7.5},
+    "gemini-3.8-flash-high": {"input": 0.30, "cached": 0.03, "output": 2.50},
+    "gemini-3.8-flash-medium": {"input": 0.30, "cached": 0.03, "output": 2.50},
+    "gemini-3.8-flash-low": {"input": 0.30, "cached": 0.03, "output": 2.50},
+    "claude-opus-5-5-high": {"input": 4.0, "cached": 0.20, "output": 20.0},
+    "claude-opus-5-5-medium": {"input": 4.0, "cached": 0.20, "output": 20.0},
+    "claude-opus-5-5-low": {"input": 4.0, "cached": 0.20, "output": 20.0},
+    "claude-sonnet-5-5-high": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "claude-sonnet-5-5-medium": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "claude-sonnet-5-5-low": {"input": 2.0, "cached": 0.10, "output": 10.0},
+}
+
+
+def _antigravity_cost(
+    raw_model: str, input_tokens: int, cache_read_tokens: int, output_tokens: int
+) -> float | None:
+    prices = ANTIGRAVITY_TOKEN_PRICES.get(raw_model)
+    if prices is None:
+        return None
+    fresh_in = max(0, input_tokens)
+    cached_in = max(0, cache_read_tokens)
+    out = max(0, output_tokens)
+    return round(
+        (fresh_in * prices["input"] + cached_in * prices["cached"] + out * prices["output"])
+        / 1_000_000,
+        6,
+    )
 _probe_lock = asyncio.Lock()
 _probe_cache: dict = {}
 
@@ -79,6 +125,51 @@ def normalize_antigravity_quota(raw: object) -> dict:
     return result
 
 
+def normalize_antigravity_five_hour_quota(raw: object) -> dict:
+    result = dict.fromkeys(FIVE_HOUR_QUOTA_KEYS)
+    if not isinstance(raw, dict) or raw.get("status") != "SUCCESS":
+        return result
+    command = raw.get("command")
+    data = command.get("data") if isinstance(command, dict) else None
+    groups = data.get("groups") if isinstance(data, dict) else None
+    if not isinstance(groups, list):
+        return result
+    seen = set()
+    for group in groups:
+        buckets = group.get("buckets") if isinstance(group, dict) else None
+        for bucket in buckets if isinstance(buckets, list) else []:
+            if not isinstance(bucket, dict):
+                continue
+            key = bucket.get("id")
+            if not isinstance(key, str) or key not in result:
+                continue
+            if key in seen:
+                result[key] = None
+                continue
+            seen.add(key)
+            fraction = bucket.get("remaining_fraction")
+            reset = bucket.get("reset_time")
+            if (
+                isinstance(fraction, bool)
+                or not isinstance(fraction, (int, float))
+                or not math.isfinite(fraction)
+                or not 0 <= fraction <= 1
+                or bucket.get("window") != "5h"
+            ):
+                continue
+            if reset is not None:
+                try:
+                    if (
+                        not isinstance(reset, str)
+                        or datetime.fromisoformat(reset.replace("Z", "+00:00")).tzinfo is None
+                    ):
+                        continue
+                except ValueError:
+                    continue
+            result[key] = {"remaining_fraction": fraction, "reset_time": reset}
+    return result
+
+
 def supported_version(value: str) -> bool:
     match = re.search(r"\b(\d+)\.(\d+)\.(\d+)\b", value)
     return bool(match and tuple(map(int, match.groups())) >= (1, 1, 12))
@@ -125,9 +216,13 @@ def catalog_models(raw: dict) -> set[str]:
             and isinstance(row.get("id"), str)} if isinstance(rows, list) else set()
 
 
-def _publish_quota(quota: dict, observed: float, generation: str) -> None:
+def _publish_quota(
+    quota: dict, observed: float, generation: str, five_hour: dict | None = None
+) -> None:
     from app.routes import system
-    system._antigravity_usage_cache.update(data=quota, ts=observed, generation=generation)
+    system._antigravity_usage_cache.update(
+        data=quota, five_hour=five_hour, ts=observed, generation=generation
+    )
 
 
 async def fetch_antigravity_usage() -> dict:
@@ -144,7 +239,9 @@ async def fetch_antigravity_usage() -> dict:
         quota = normalize_antigravity_quota(raw)
         if not any(quota.values()):
             raise RuntimeError("Antigravity quota unavailable")
-        _publish_quota(quota, time.time(), snapshot.generation)
+        _publish_quota(
+            quota, time.time(), snapshot.generation, normalize_antigravity_five_hour_quota(raw)
+        )
         return quota
 
 
@@ -171,7 +268,7 @@ async def antigravity_readiness(context):
                 raw_catalog = await _cli("--output-format", "json", "models",
                                          home=ANTIGRAVITY_AUTH_HOME)
                 models = catalog_models(raw_catalog)
-                _publish_quota(quota, time.time(), snapshot.generation)
+                _publish_quota(quota, time.time(), snapshot.generation, normalize_antigravity_five_hour_quota(raw_quota))
                 cached = (time.monotonic(), models)
                 _probe_cache[key] = cached
             except (OSError, ValueError, RuntimeError, TimeoutError):
@@ -249,20 +346,54 @@ class AntigravityBackend:
         atomic_private_write(self.home / ".gemini/config/mcp_config.json",
                              json.dumps({"mcpServers": self.mcp_servers}).encode())
 
-    def _end(self, *, ok=False, reason="error", error=None, usage=None):
+    def _end(self, *, ok=False, reason="error", error=None, usage=None, terminal=None):
         aggregate = AggregateUsage.normalized(**{
             key: (usage or {}).get(key, 0) for key in
             ("input_tokens", "output_tokens", "cache_read_tokens")
         })
         typed = TurnUsage(aggregate, UnknownContext(
             self.context_limit, "Antigravity did not report current-context semantics"))
+        cost = (
+            _antigravity_cost(
+                self.model,
+                aggregate.input_tokens,
+                aggregate.cache_read_tokens,
+                aggregate.output_tokens,
+            )
+            if terminal is not None
+            else None
+        )
         metadata = {
-            "session_id": self.session_id, "ok": ok, "stop_reason": reason,
-            "cost_usd": 0.0, "cost_unaccounted": True,
-            "input_tokens": aggregate.input_tokens, "output_tokens": aggregate.output_tokens,
+            "session_id": self.session_id,
+            "ok": ok,
+            "stop_reason": reason,
+            "cost_usd": cost if cost is not None else 0.0,
+            "cost_unaccounted": cost is None,
+            "input_tokens": aggregate.input_tokens,
+            "output_tokens": aggregate.output_tokens,
             "cached_input_tokens": aggregate.cache_read_tokens,
-            "cache_read": aggregate.cache_read_tokens, "cache_create": 0,
+            "cache_read": aggregate.cache_read_tokens,
+            "cache_create": 0,
         }
+        if terminal is not None:
+            raw_turns = terminal.get("num_turns")
+            num_turns = int(raw_turns) if isinstance(raw_turns, (int, float)) else 0
+            if ok and num_turns <= 0:
+                num_turns = 1
+            thinking = (usage or {}).get("thinking_tokens")
+            duration_s = terminal.get("duration_seconds")
+            metadata.update(
+                event_id=f"agy:{self.session_id or self.home.name}:{uuid.uuid4().hex[:12]}",
+                num_turns=num_turns,
+                reasoning_tokens=int(thinking) if isinstance(thinking, (int, float)) else None,
+                turn_duration_ms=(
+                    round(float(duration_s) * 1000)
+                    if isinstance(duration_s, (int, float))
+                    else None
+                ),
+            )
+            if cost is not None:
+                metadata.update(cost_usd_cached=cost, cost_is_delta=True)
         if error:
             metadata.update(model_error=error, errors=[error])
         return AgentEvent("turn_end", metadata=metadata, usage=typed)
@@ -384,7 +515,7 @@ class AntigravityBackend:
                     ok, reason, error = False, "tool_error", error or "tool_error"
                 if terminal.get("response"):
                     self._queue.put_nowait(AgentEvent("text", self._redact(terminal["response"])))
-                end = self._end(ok=ok, reason=reason, error=error, usage=terminal.get("usage"))
+                end = self._end(ok=ok, reason=reason, error=error, usage=terminal.get("usage"), terminal=terminal)
                 atomic_private_write(self.home / "orchestra-conversation.json", json.dumps({
                     "generation": self._generation, "model": self.model,
                     "conversation_id": self.session_id,
