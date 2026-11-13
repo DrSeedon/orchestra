@@ -102,3 +102,70 @@ def test_antigravity_gemini4_dashboard_visibility_and_frontend_tokens():
 
     app_js = (root / "app/static/js/app.js").read_text()
     assert "['antigravity', 'Antigravity']" in app_js
+
+
+
+@pytest.mark.asyncio
+async def test_antigravity_agent_markdown_accepted_by_agy_cli(tmp_path, monkeypatch):
+    import json
+    import os
+    import shutil
+    import subprocess
+    from app.runtime_registry import BackendBuildContext, build_backend
+
+    homes = tmp_path / "ag-homes"
+    monkeypatch.setenv("ORCHESTRA_ANTIGRAVITY_HOMES_DIR", str(homes))
+    cwd = tmp_path / "ws"
+    cwd.mkdir()
+    backend = build_backend(
+        "antigravity",
+        BackendBuildContext(
+            model="antigravity/gemini-4-carbon-medium",
+            provider="google-antigravity",
+            cwd=str(cwd),
+            system_prompt="# Orchestra Prompt\n\nKeep working.",
+            resume_session_id=None,
+            mcp_servers={
+                "orchestra": {
+                    "command": "/opt/orchestra/python",
+                    "args": ["/opt/orchestra/mcp_stdio.py"],
+                    "env": {"ORCHESTRA_SESSION_ID": "test-carbon-cli"},
+                }
+            },
+            is_orchestrator=True,
+            scope=str(cwd),
+            pipeline="default",
+            role="orchestrator",
+            profile="default",
+            effort="medium",
+            context_limit=1_000_000,
+        ),
+    )
+    await backend.connect()
+
+    agent_md = (backend.home / ".gemini/config/agents/orchestra/agent.md").read_text()
+    assert "description: Orchestra session agent" in agent_md
+    assert "commandExecutionPolicy: eager" in agent_md
+    assert "  - run_command" in agent_md
+    assert "# Agent System Instructions" in agent_md
+    assert "# Orchestra Prompt" in agent_md
+
+    settings = json.loads((backend.home / ".gemini/antigravity-cli/settings.json").read_text())
+    assert settings["toolPermission"] == "always-proceed"
+    assert settings["allowNonWorkspaceAccess"] is True
+
+    agy_bin = shutil.which("agy") or "/home/kesha/.local/bin/agy"
+    if os.path.exists(agy_bin):
+        env = {**os.environ, "HOME": str(backend.home)}
+        res = subprocess.run(
+            [agy_bin, "--output-format", "json", "agents"],
+            cwd=str(cwd),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert res.returncode == 0, res.stderr
+        parsed = json.loads(res.stdout)
+        agents = (parsed.get("command", {}).get("data", {}).get("agents") or parsed.get("agents") or [])
+        assert "orchestra" in agents, parsed

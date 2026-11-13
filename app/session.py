@@ -1986,6 +1986,8 @@ class AgentSession:
             self._turns.complete_mailbox_held_after_stop(held, backend)
             self._ack_pending_facts(fact_keys)
             if pending_handoff and self.runtime_handoff == pending_handoff:
+                if capabilities.event_stream == "per_turn" and not self.session_id:
+                    self._last_consumed_handoff = pending_handoff
                 self.runtime_handoff = ""
                 self._persist()
 
@@ -3058,7 +3060,21 @@ class AgentSession:
             # Сколько обращений к модели было в ходе: расход хода — их сумма, и компакт
             # делит на это число, чтобы получить размер контекста ОДНОГО обращения.
             self._last_turn_api_calls = max(1, int(event.metadata.get("num_turns") or 1))
+            consumed_handoff = getattr(self, "_last_consumed_handoff", "")
+            self._last_consumed_handoff = ""
+            restored_handoff = False
+            if (
+                consumed_handoff
+                and not event.metadata.get("ok", True)
+                and not event.metadata.get("session_id")
+                and not self.session_id
+                and not self.runtime_handoff
+            ):
+                self.runtime_handoff = consumed_handoff
+                restored_handoff = True
             self._turns.handle_turn_end(event)
+            if restored_handoff:
+                self._persist()
             self._active_delivery_context = None
         elif event.type == "error":
             if event.metadata.get("codex_quota_exhausted"):

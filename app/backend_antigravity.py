@@ -219,11 +219,28 @@ class AntigravityBackend:
     async def connect(self):
         private_directory(self.home)
         atomic_private_write(self.home / ".gemini/config/agents/orchestra/agent.md", (
-            "---\nname: orchestra\nmainAgent: true\nsubagent: false\ninheritMcp: true\n"
-            "commandExecutionPolicy: always-proceed\n---\n" + self.system_prompt
+            "---\n"
+            "name: orchestra\n"
+            "description: Orchestra session agent\n"
+            "mainAgent: true\n"
+            "subagent: false\n"
+            "inheritMcp: true\n"
+            "commandExecutionPolicy: eager  # commandExecutionPolicy: always-proceed\n"
+            "tools:\n"
+            "  - read_file\n"
+            "  - edit_file\n"
+            "  - write_file\n"
+            "  - run_command\n"
+            "  - manage_task\n"
+            "  - search_web\n"
+            "---\n\n"
+            "# Agent System Instructions\n\n"
+            + self.system_prompt
         ).encode())
         atomic_private_write(self.home / ".gemini/antigravity-cli/settings.json", json.dumps({
             "useG1Credits": False,
+            "toolPermission": "always-proceed",
+            "allowNonWorkspaceAccess": True,
             "permission": {"allow": ["command(*)", "read_file(*)", "write_file(*)", "mcp(*)"]}
         }).encode())
         atomic_private_write(self.home / ".gemini/config/config.json", json.dumps({
@@ -348,8 +365,9 @@ class AntigravityBackend:
                 self._queue.put_nowait(AgentEvent("error", "Antigravity exited without a terminal result"))
                 end = self._end(error="protocol")
             else:
-                self.session_id = terminal.get("conversation_id") or self.session_id
                 ok = terminal.get("status") == "SUCCESS" and process.returncode == 0
+                if ok or (terminal.get("usage") or {}).get("input_tokens", 0) > 0:
+                    self.session_id = terminal.get("conversation_id") or self.session_id
                 reason, error = "end_turn", None
                 if not ok:
                     text = self._redact(terminal.get("error") or "Antigravity turn failed")
