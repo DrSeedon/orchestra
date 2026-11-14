@@ -1343,7 +1343,7 @@ async def _refresh_antigravity_usage(*, force_refresh=False, max_age=_USAGE_CACH
                 and now - _antigravity_usage_cache["ts"] < max_age):
             return
         if (not force_refresh and _antigravity_usage_cache.get("failed_at", 0)
-                and now - _antigravity_usage_cache["failed_at"] < _USAGE_FAILURE_TTL):
+                and now - _antigravity_usage_cache["failed_at"] < 900):
             return
         try:
             previous_ts = _antigravity_usage_cache["ts"]

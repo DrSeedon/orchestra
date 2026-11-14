@@ -964,7 +964,10 @@ def set_provider_disabled(provider: str, disabled: bool) -> list[str]:
     path = _disabled_providers_file()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({DISABLED_PROVIDERS_KV_KEY: updated}), encoding="utf-8")
-    kv_set(DISABLED_PROVIDERS_KV_KEY, json.dumps(updated))
+    try:
+        kv_set(DISABLED_PROVIDERS_KV_KEY, json.dumps(updated))
+    except sqlite3.OperationalError:
+        pass
     return updated
 
 

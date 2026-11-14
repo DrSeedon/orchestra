@@ -303,3 +303,122 @@ def test_antigravity_carbon_cost_turn_usage_and_5h_quota(monkeypatch):
     )
     assert snap["state"]["quota_five_hour_pct"] == pytest.approx(5.0)
     assert snap["state"]["quota_seven_day_pct"] == pytest.approx(32.5)
+
+
+
+def test_cli_environment_injects_antigravity_proxy_and_preserves_local_no_proxy(
+    tmp_path, monkeypatch
+):
+    from app.backend_antigravity import cli_environment
+
+    monkeypatch.setenv("ANTIGRAVITY_PROXY_URL", "http://127.0.0.1:18080")
+    monkeypatch.setenv("NO_PROXY", "internal.local")
+    monkeypatch.delenv("no_proxy", raising=False)
+    env = cli_environment(tmp_path / "home")
+
+    assert env["HTTPS_PROXY"] == "http://127.0.0.1:18080"
+    assert env["HTTP_PROXY"] == "http://127.0.0.1:18080"
+    assert env["https_proxy"] == "http://127.0.0.1:18080"
+    assert env["http_proxy"] == "http://127.0.0.1:18080"
+    for host in ("internal.local", "localhost", "127.0.0.1", "::1"):
+        assert host in env["NO_PROXY"].split(",")
+        assert host in env["no_proxy"].split(",")
+
+
+@pytest.mark.asyncio
+async def test_disabled_antigravity_provider_never_spawns_agy_in_readiness_or_usage(
+    monkeypatch,
+):
+    from app import backend_antigravity as ba
+    from app.models import set_provider_disabled
+    from app.runtime_registry import RuntimeReadinessContext
+
+    calls = []
+
+    async def forbidden_cli(*args, **kwargs):
+        calls.append(args)
+        raise AssertionError("_cli must not be spawned while antigravity is disabled")
+
+    monkeypatch.setattr(ba, "_cli", forbidden_cli)
+    set_provider_disabled("antigravity", True)
+
+    readiness = await ba.antigravity_readiness(
+        RuntimeReadinessContext(model="antigravity/gemini-4-carbon-medium", profile="")
+    )
+    assert readiness.credentials_ready is False
+    assert readiness.catalog_ready is False
+    assert "disabled" in readiness.reason.lower()
+
+    with pytest.raises(RuntimeError, match="disabled"):
+        await ba.fetch_antigravity_usage()
+
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_tos_403_account_disabled_trips_circuit_breaker_and_marks_credentials_error(
+    tmp_path, monkeypatch
+):
+    import stat
+    from app import backend_antigravity as ba
+    from app.models import is_provider_disabled, set_provider_disabled
+    from app.runtime_registry import BackendBuildContext, build_backend
+
+    set_provider_disabled("antigravity", False)
+    assert is_provider_disabled("antigravity") is False
+
+    fake_agy = tmp_path / "agy"
+    fake_agy.write_text(
+        """#!/usr/bin/env python3
+import json, sys
+print(json.dumps({
+    "event": "result",
+    "result": {
+        "conversation_id": "conv-tos",
+        "status": "ERROR",
+        "response": "",
+        "error": "This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to continue using this product.",
+        "num_turns": 1,
+        "usage": {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "thinking_tokens": 0, "total_tokens": 0},
+    },
+}), flush=True)
+sys.exit(1)
+""",
+        encoding="utf-8",
+    )
+    fake_agy.chmod(fake_agy.stat().st_mode | stat.S_IXUSR)
+
+    auth_home = tmp_path / "auth"
+    tok = auth_home / ".gemini/antigravity-cli/antigravity-oauth-token"
+    tok.parent.mkdir(parents=True, exist_ok=True)
+    tok.write_text("dummy-token", encoding="utf-8")
+    tok.chmod(0o600)
+
+    monkeypatch.setattr(ba, "ANTIGRAVITY_BIN", str(fake_agy))
+    monkeypatch.setattr(ba, "ANTIGRAVITY_AUTH_HOME", auth_home)
+    monkeypatch.setattr(ba, "ANTIGRAVITY_HOME_ROOT", tmp_path / "homes")
+
+    ctx = BackendBuildContext(
+        model="antigravity/gemini-4-carbon-medium",
+        provider="google-antigravity",
+        cwd=str(tmp_path),
+        system_prompt="SYS",
+        resume_session_id=None,
+        mcp_servers={"orchestra": {"command": "/bin/true", "args": [], "env": {"ORCHESTRA_SESSION_ID": "tos-worker"}}},
+        is_orchestrator=False,
+        scope=str(tmp_path),
+        pipeline="default",
+        role="worker",
+        profile="",
+        effort="medium",
+        context_limit=200_000,
+    )
+    backend = build_backend("antigravity", ctx)
+    await backend.connect()
+    await backend.send("hello")
+    events = [ev async for ev in backend.events()]
+
+    end = next(ev for ev in events if ev.type == "turn_end")
+    assert end.metadata["ok"] is False
+    assert end.metadata["model_error"] == "credentials"
+    assert is_provider_disabled("antigravity") is True

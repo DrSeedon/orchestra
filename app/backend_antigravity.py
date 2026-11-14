@@ -163,14 +163,61 @@ _probe_lock = asyncio.Lock()
 _probe_cache: dict = {}
 
 
+_LOCAL_NO_PROXY = ("localhost", "127.0.0.1", "::1")
+
+
+def _merge_no_proxy(existing: str) -> str:
+    items = [part.strip() for part in existing.split(",") if part.strip()]
+    seen = {item.lower() for item in items}
+    for host in _LOCAL_NO_PROXY:
+        if host not in seen:
+            items.append(host)
+            seen.add(host)
+    return ",".join(items)
+
+
+def _is_account_disabled_payload(value: object) -> bool:
+    try:
+        text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    except (TypeError, ValueError):
+        text = str(value)
+    lower = text.lower()
+    return (
+        "violation of terms of service" in lower
+        or "has been disabled in this account" in lower
+        or "account has been disabled" in lower
+    )
+
+
+def _trip_antigravity_circuit_breaker(reason: str) -> None:
+    from app.models import is_provider_disabled, set_provider_disabled
+
+    if not is_provider_disabled("antigravity"):
+        set_provider_disabled("antigravity", True)
+        logger.error("Antigravity circuit-breaker tripped (provider auto-disabled): %s", reason)
+
+
 def cli_environment(home: Path) -> dict:
     """Keep the OAuth route explicit even when the service has other Google routes."""
     excluded = {"GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS",
                 "GOOGLE_GENAI_USE_VERTEXAI"}
-    return {**{key: value for key, value in os.environ.items() if key not in excluded},
-            "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config"),
-            "XDG_CACHE_HOME": str(home / ".cache"),
-            "XDG_DATA_HOME": str(home / ".local/share")}
+    env = {
+        **{key: value for key, value in os.environ.items() if key not in excluded},
+        "HOME": str(home),
+        "XDG_CONFIG_HOME": str(home / ".config"),
+        "XDG_CACHE_HOME": str(home / ".cache"),
+        "XDG_DATA_HOME": str(home / ".local/share"),
+    }
+    proxy_url = (os.environ.get("ANTIGRAVITY_PROXY_URL") or "").strip()
+    if proxy_url:
+        for key in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"):
+            env[key] = proxy_url
+    if any(env.get(k) for k in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy")):
+        # agy spawns a local Go language server on 127.0.0.1:<port>; keep loopback out of proxy.
+        merged_no_proxy = _merge_no_proxy(env.get("NO_PROXY") or env.get("no_proxy") or "")
+        env["NO_PROXY"] = merged_no_proxy
+        env["no_proxy"] = merged_no_proxy
+    return env
 
 
 def normalize_antigravity_quota(raw: object) -> dict:
@@ -284,6 +331,8 @@ async def _cli(*args: str, home: Path) -> dict | str:
         except (ValueError, UnicodeError):
             raise RuntimeError("Antigravity CLI probe failed") from None
         if isinstance(raw, dict):
+            if _is_account_disabled_payload(raw):
+                _trip_antigravity_circuit_breaker("CLI probe returned account disabled / Terms of Service")
             return raw
         raise RuntimeError("Antigravity CLI probe failed")
     if args == ("--version",):
@@ -291,6 +340,8 @@ async def _cli(*args: str, home: Path) -> dict | str:
     result = json.loads(stdout)
     if not isinstance(result, dict):
         raise RuntimeError("Antigravity probe returned an invalid object")
+    if _is_account_disabled_payload(result):
+        _trip_antigravity_circuit_breaker("CLI probe returned account disabled / Terms of Service")
     return result
 
 
@@ -314,13 +365,18 @@ def _publish_quota(
 
 
 async def fetch_antigravity_usage() -> dict:
+    from app.models import is_provider_disabled
     from app.routes import system
 
+    if is_provider_disabled("antigravity"):
+        raise RuntimeError("Antigravity provider is disabled")
     async with _probe_lock:
+        if is_provider_disabled("antigravity"):
+            raise RuntimeError("Antigravity provider is disabled")
         snapshot = read_auth_snapshot(ANTIGRAVITY_AUTH_HOME)
         cached = system._antigravity_usage_cache
         if (cached.get("generation") == snapshot.generation and cached.get("data")
-                and 0 <= time.time() - cached.get("ts", 0) < 300):
+                and 0 <= time.time() - cached.get("ts", 0) < 1800):
             return cached["data"]
         raw = await _cli("--output-format", "json", "-p", "/quota",
                          home=ANTIGRAVITY_AUTH_HOME)
@@ -334,8 +390,11 @@ async def fetch_antigravity_usage() -> dict:
 
 
 async def antigravity_readiness(context):
+    from app.models import is_provider_disabled
     from app.runtime_registry import RuntimeReadinessResult
 
+    if is_provider_disabled("antigravity"):
+        return RuntimeReadinessResult(False, False, "Antigravity provider is disabled")
     try:
         snapshot = read_auth_snapshot(ANTIGRAVITY_AUTH_HOME)
     except (OSError, ValueError):
@@ -669,7 +728,12 @@ class AntigravityBackend:
                 if not ok:
                     text = self._redact(terminal.get("error") or "Antigravity turn failed")
                     lower = text.lower()
-                    if any(word in lower for word in ("auth", "oauth", "token", "credential", "eligib", "location")):
+                    if _is_account_disabled_payload(text):
+                        _trip_antigravity_circuit_breaker(text[:200])
+                    if any(word in lower for word in (
+                        "auth", "oauth", "token", "credential", "eligib", "location",
+                        "terms of service", "disabled in this account", "account has been disabled",
+                    )):
                         error = "credentials"
                     elif "quota" in lower or "rate limit" in lower:
                         error = "quota"
