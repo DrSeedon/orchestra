@@ -418,6 +418,11 @@ class GrokBackend(JsonRpcStdioTransport):
                 "(worktree removed or relocated?)"
             )
 
+        from app.provider_safety import record_provider_activity, verify_provider_egress
+
+        await verify_provider_egress("grok")
+        record_provider_activity("grok")
+
         cmd = [GROK_BIN, "agent"]
         # The ONLY delivery route for a system prompt. ACP session/new has no such field:
         # systemPrompt / _meta.systemPrompt / instructions are all accepted and SILENTLY
@@ -681,6 +686,10 @@ class GrokBackend(JsonRpcStdioTransport):
         )
 
     async def send(self, message: str) -> None:
+        from app.provider_safety import record_provider_activity, verify_provider_egress
+
+        await verify_provider_egress("grok")
+        record_provider_activity("grok")
         if not self.is_alive:
             await self.connect()
         if not self._session_id:
@@ -1350,7 +1359,14 @@ class GrokBackend(JsonRpcStdioTransport):
         see .orchestra/tasks/95/research.md F7). Unknown errors stay "error" and fail loud rather
         than being guessed into a rate_limit that silently retries.
         """
+        from app.provider_safety import classify_and_trip_if_banned
+
         code = error.get("code")
+        banned = classify_and_trip_if_banned(
+            "grok", status_code=code if isinstance(code, int) else None, payload=error
+        )
+        if banned:
+            return banned
         if code in (429,):
             return "rate_limit"
         message = str(error.get("message") or "").lower()
@@ -1443,14 +1459,11 @@ class GrokBackend(JsonRpcStdioTransport):
         self._profile_path = None
 
     def _build_env(self) -> dict:
-        env = dict(os.environ)
-        # auth.x.ai sits behind Cloudflare bot protection that 403s datacenter IPs, so
-        # Orchestra's VPS proxies break Grok auth outright. Grok must ride the host's own
-        # tun-VPN like a browser session — mirrors the proxy-free `grok()` shell wrapper.
-        for var in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy",
-                    "ALL_PROXY", "all_proxy"):
-            env.pop(var, None)
-        env.update(self._mcp_env)
+        from app.provider_safety import build_provider_env
+
+        # Subscription Grok rides the verified residential proxy (never raw datacenter egress)
+        # while sanitizing untrusted `.mcp.json` overrides before applying Grok isolation.
+        env = build_provider_env("grok", os.environ, extra_env=self._mcp_env)
         # Product analytics, trace/feedback upload, crash reporting, and external OTEL are
         # independent channels in Grok 1.x. Pin every one closed in the process environment:
         # env wins over user/managed config and protects workers from inherited host settings.
@@ -1469,10 +1482,5 @@ class GrokBackend(JsonRpcStdioTransport):
         # Claude-compat MCP servers. Set last: nothing inherited may override isolation.
         env["GROK_HOME"] = str(ensure_grok_home())
         if self._is_orchestrator:
-            # An orchestrator delegates through tracked worktree workers, not invisible
-            # native subagents in its own checkout (same rule as Codex multi_agent=false).
-            # Env var, not `--no-subagents`: that flag exists on the top-level `grok`
-            # command only, and `grok agent` rejects it outright — the process would not
-            # start at all. Never exercised before because no orchestrator ran on Grok.
             env["GROK_SUBAGENTS"] = "0"
         return env

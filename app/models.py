@@ -4,11 +4,13 @@ Hardcoded dicts are the fallback for dev mode. In enterprise (is_auth_enabled),
 fetch_models_from_proxy() replaces them with proxy-only models.
 """
 
+import contextlib
 import json
 import logging
 import os
 import re
 import sqlite3
+import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -935,40 +937,77 @@ def list_disabled_providers() -> list[str]:
 
     values = os.environ.get("ORCHESTRA_DISABLED_PROVIDERS", "").split(",")
     path = _disabled_providers_file()
-    try:
-        if path.exists():
+    stored: object = []
+    loaded_from_file = False
+    if path.exists():
+        try:
             stored = json.loads(path.read_text(encoding="utf-8"))
             if isinstance(stored, dict):
                 stored = stored.get(DISABLED_PROVIDERS_KV_KEY, [])
-        else:
-            stored = json.loads(kv_get(DISABLED_PROVIDERS_KV_KEY, "[]"))
-    except (OSError, ValueError, sqlite3.OperationalError):
-        stored = []
+            loaded_from_file = isinstance(stored, list)
+        except (OSError, ValueError):
+            stored = []
+    if not loaded_from_file:
+        try:
+            kv_stored = json.loads(kv_get(DISABLED_PROVIDERS_KV_KEY, "[]"))
+            if isinstance(kv_stored, list):
+                stored = kv_stored
+        except (OSError, ValueError, sqlite3.OperationalError):
+            stored = []
     if isinstance(stored, list):
         values.extend(stored)
     return sorted({key for value in values if (key := normalize_provider_key(value))})
 
 
+_DISABLED_PROVIDERS_LOCK = threading.RLock()
+
+
 def set_provider_disabled(provider: str, disabled: bool) -> list[str]:
+    import fcntl
+    import tempfile
+
     from app.db import kv_set
 
     key = normalize_provider_key(provider)
     if key is None:
         raise ValueError(f"unknown provider {provider!r}")
-    current = set(list_disabled_providers())
-    if disabled:
-        current.add(key)
-    else:
-        current.discard(key)
-    updated = sorted(current)
-    path = _disabled_providers_file()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({DISABLED_PROVIDERS_KV_KEY: updated}), encoding="utf-8")
-    try:
-        kv_set(DISABLED_PROVIDERS_KV_KEY, json.dumps(updated))
-    except sqlite3.OperationalError:
-        pass
-    return updated
+    with _DISABLED_PROVIDERS_LOCK:
+        path = _disabled_providers_file()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lock_path = path.with_suffix(path.suffix + ".lock")
+        lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            current = set(list_disabled_providers())
+            if disabled:
+                current.add(key)
+            else:
+                current.discard(key)
+            updated = sorted(current)
+            payload = json.dumps({DISABLED_PROVIDERS_KV_KEY: updated})
+            tmp_fd, tmp_name = tempfile.mkstemp(
+                prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
+            )
+            try:
+                with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
+                    fh.write(payload)
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                os.replace(tmp_name, path)
+            except BaseException:
+                with contextlib.suppress(OSError):
+                    os.unlink(tmp_name)
+                raise
+            try:
+                kv_set(DISABLED_PROVIDERS_KV_KEY, json.dumps(updated))
+            except sqlite3.OperationalError:
+                pass
+            return updated
+        finally:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            finally:
+                os.close(lock_fd)
 
 
 def is_provider_disabled(provider_or_runtime: str | None) -> bool:

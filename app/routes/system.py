@@ -2,6 +2,7 @@
 orchestrators, test-lock, restart, GitHub webhook."""
 
 import asyncio
+import contextlib
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import hmac
@@ -701,10 +702,11 @@ async def stats(scope: Optional[str] = None):
 # ── Usage (subscription limits) ──
 
 _USAGE_CACHE_FILE = Path(__file__).parent.parent.parent / "data" / "usage_cache.json"
-_usage_cache: dict = {"data": None, "ts": 0.0, "error": None}
-_codex_usage_cache: dict = {"data": None, "ts": 0.0}
+_usage_cache: dict = {"data": None, "ts": 0.0, "error": None, "failed_at": 0.0}
+_codex_usage_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
 _grok_usage_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
 _antigravity_usage_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
+_last_snapshot_persisted_ts: dict[str, float] = {}
 
 # #368: сверка вчерашнего дня OpenRouter с /activity. Успех живёт час, провал —
 # 10 минут (паттерн #197: без кеша провала каждая отрисовка полосы ходила бы в
@@ -714,11 +716,10 @@ _OR_RECONCILE_TTL = 3600.0
 _OR_RECONCILE_FAILURE_TTL = 600.0
 _OPENROUTER_DAILY_LIMIT = 1000
 _OPENROUTER_MINUTE_LIMIT = 20
-_USAGE_CACHE_TTL = 300
-# Провал провайдера кешируется отдельно и короче успеха (#197): держать отказ 5 минут
-# значит не заметить починку токена, а ходить за ним каждый раз — платить 0.88 с на
-# каждом `/api/usage`. Минута закрывает опрос дашборда (раз в 2 мин) с запасом.
-_USAGE_FAILURE_TTL = 60
+_USAGE_CACHE_TTL = 1800
+# Negative failure cache prevents hammering subscription OAuth endpoints or residential proxy
+# on expired tokens, 429s, or outages.
+_USAGE_FAILURE_TTL = 900
 _quota_refresh_locks = {
     "antigravity": asyncio.Lock(),
     "anthropic": asyncio.Lock(),
@@ -797,9 +798,21 @@ def _read_grok_token() -> str | None:
 
 
 async def _fetch_anthropic_usage(token: str) -> dict:
-    """Call Anthropic OAuth usage API. Raises PermissionError on 401, RuntimeError on 429."""
+    """Call Anthropic OAuth usage API through the verified residential proxy."""
     import httpx
-    async with httpx.AsyncClient(timeout=10) as client:
+    from app.provider_safety import (
+        classify_and_trip_if_banned,
+        resolve_provider_proxy,
+        verify_provider_egress,
+    )
+
+    await verify_provider_egress("claude")
+    proxy = resolve_provider_proxy("claude")
+    client_kwargs: dict = {"timeout": 10}
+    if proxy:
+        client_kwargs["proxy"] = proxy
+        client_kwargs["trust_env"] = False
+    async with httpx.AsyncClient(**client_kwargs) as client:
         resp = await client.get(
             "https://api.anthropic.com/api/oauth/usage",
             headers={
@@ -812,6 +825,8 @@ async def _fetch_anthropic_usage(token: str) -> dict:
             raise PermissionError("token_expired")
         if resp.status_code == 429:
             raise RuntimeError("rate_limited")
+        if resp.status_code >= 400:
+            classify_and_trip_if_banned("claude", status_code=resp.status_code, payload=resp.text)
         resp.raise_for_status()
         return resp.json()
 
@@ -820,14 +835,22 @@ def _normalize_codex_window(window: dict | None) -> dict | None:
     if not isinstance(window, dict):
         return None
     used = window.get("usedPercent")
+    if used is None:
+        used = window.get("used_percent")
     duration = window.get("windowDurationMins")
+    if duration is None:
+        duration = window.get("window_minutes")
     if (isinstance(used, bool) or not isinstance(used, (int, float))
             or not math.isfinite(used) or used < 0 or isinstance(duration, bool)
             or not isinstance(duration, int) or duration <= 0):
         return None
     resets_at = window.get("resetsAt")
+    if resets_at is None:
+        resets_at = window.get("resets_at")
     reset_iso = None
-    if (not isinstance(resets_at, bool) and isinstance(resets_at, (int, float))
+    if isinstance(resets_at, str) and resets_at.strip():
+        reset_iso = resets_at.strip()
+    elif (not isinstance(resets_at, bool) and isinstance(resets_at, (int, float))
             and math.isfinite(resets_at) and resets_at > 0):
         try:
             reset_iso = datetime.fromtimestamp(resets_at, timezone.utc).isoformat().replace("+00:00", "Z")
@@ -842,31 +865,48 @@ def _normalize_codex_window(window: dict | None) -> dict | None:
 
 
 def _normalize_codex_usage(result: dict) -> dict:
-    by_limit = result.get("rateLimitsByLimitId") or {}
-    limits = by_limit.get("codex") or result.get("rateLimits") or {}
+    by_limit = result.get("rateLimitsByLimitId") or result.get("rate_limits_by_limit_id") or {}
+    limits = by_limit.get("codex") or result.get("rateLimits") or result.get("rate_limits")
+    if not isinstance(limits, dict):
+        limits = result if ("primary" in result or "secondary" in result) else {}
     credits = limits.get("credits") or {}
-    reset_credits = result.get("rateLimitResetCredits") or {}
+    reset_credits = result.get("rateLimitResetCredits") or result.get("rate_limit_reset_credits") or {}
+    has_credits = credits.get("hasCredits")
+    if has_credits is None:
+        has_credits = credits.get("has_credits")
     usage = {
-        "plan_type": limits.get("planType"),
+        "plan_type": limits.get("planType") or limits.get("plan_type"),
         "primary": _normalize_codex_window(limits.get("primary")),
         "secondary": _normalize_codex_window(limits.get("secondary")),
         "credits": {
-            "has_credits": bool(credits.get("hasCredits")),
+            "has_credits": bool(has_credits),
             "unlimited": bool(credits.get("unlimited")),
             "balance": credits.get("balance"),
         },
-        "reset_credits": reset_credits.get("availableCount", 0),
+        "reset_credits": reset_credits.get("availableCount", reset_credits.get("available_count", 0)),
         "raw_payload": result,
     }
     spark_limits = by_limit.get("codex_bengalfox")
     if isinstance(spark_limits, dict):
         usage["spark"] = {
             "limit_id": "codex_bengalfox",
-            "plan_type": spark_limits.get("planType"),
+            "plan_type": spark_limits.get("planType") or spark_limits.get("plan_type"),
             "primary": _normalize_codex_window(spark_limits.get("primary")),
             "secondary": _normalize_codex_window(spark_limits.get("secondary")),
         }
     return usage
+
+
+def record_codex_rate_limits(rate_limits: dict) -> None:
+    """Piggyback Codex subscription quota windows from local rollout JSONL (0 spawns, 0 HTTP)."""
+    if not isinstance(rate_limits, dict):
+        return
+    normalized = _normalize_codex_usage(rate_limits)
+    if normalized.get("primary") is None and normalized.get("secondary") is None:
+        return
+    _codex_usage_cache["data"] = normalized
+    _codex_usage_cache["ts"] = time.time()
+    _codex_usage_cache["failed_at"] = 0.0
 
 
 def _normalize_grok_usage(result: dict) -> dict | None:
@@ -908,8 +948,19 @@ def _normalize_grok_usage(result: dict) -> dict | None:
 async def _fetch_grok_usage(token: str) -> dict | None:
     """Read the weekly credits view exposed by the Grok CLI billing backend."""
     import httpx
+    from app.provider_safety import (
+        classify_and_trip_if_banned,
+        resolve_provider_proxy,
+        verify_provider_egress,
+    )
 
-    async with httpx.AsyncClient(timeout=10) as client:
+    await verify_provider_egress("grok")
+    proxy = resolve_provider_proxy("grok")
+    client_kwargs: dict = {"timeout": 10}
+    if proxy:
+        client_kwargs["proxy"] = proxy
+        client_kwargs["trust_env"] = False
+    async with httpx.AsyncClient(**client_kwargs) as client:
         resp = await client.get(
             "https://cli-chat-proxy.grok.com/v1/billing",
             params={"format": "credits"},
@@ -920,6 +971,8 @@ async def _fetch_grok_usage(token: str) -> dict | None:
         )
         if resp.status_code == 401:
             raise PermissionError("token_expired")
+        if resp.status_code >= 400:
+            classify_and_trip_if_banned("grok", status_code=resp.status_code, payload=resp.text)
         resp.raise_for_status()
         return _normalize_grok_usage(resp.json())
 
@@ -1150,13 +1203,23 @@ def _latest_claude_data(data: dict | None, now: float | None = None) -> dict | N
 
 async def _fetch_codex_usage() -> dict:
     """Read ChatGPT subscription limits through Codex's local app-server protocol."""
+    import signal
     from app.backend_codex import CODEX_BIN
+    from app.provider_safety import (
+        build_provider_env,
+        classify_and_trip_if_banned,
+        verify_provider_egress,
+    )
 
+    await verify_provider_egress("codex")
+    env = build_provider_env("codex")
     proc = await asyncio.create_subprocess_exec(
         CODEX_BIN, "app-server",
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
+        env=env,
+        start_new_session=True,
     )
 
     async def send(message: dict) -> None:
@@ -1169,13 +1232,14 @@ async def _fetch_codex_usage() -> dict:
             "id": 1,
             "method": "initialize",
             "params": {
-                "clientInfo": {"name": "orchestra-dashboard", "title": "Orchestra dashboard", "version": "1"},
+                "clientInfo": {"name": "orchestra", "title": "Orchestra", "version": "1"},
                 "capabilities": None,
             },
         })
         assert proc.stdout is not None
         init = json.loads((await asyncio.wait_for(proc.stdout.readline(), timeout=5)).decode())
         if init.get("id") != 1 or init.get("error"):
+            classify_and_trip_if_banned("codex", payload=init.get("error"))
             raise RuntimeError(f"Codex app-server initialization failed: {init.get('error', 'invalid response')}")
 
         await send({"method": "initialized"})
@@ -1186,13 +1250,18 @@ async def _fetch_codex_usage() -> dict:
                 if response.get("id") != 2:
                     continue
                 if response.get("error"):
+                    classify_and_trip_if_banned("codex", payload=response.get("error"))
                     raise RuntimeError(f"Codex rate limit fetch failed: {response['error']}")
                 return _normalize_codex_usage(response.get("result") or {})
         raise RuntimeError("Codex app-server closed without a rate limit response")
     finally:
         if proc.stdin:
             proc.stdin.close()
+        pid = getattr(proc, "pid", None)
         if proc.returncode is None:
+            if isinstance(pid, int) and pid > 0:
+                with contextlib.suppress(ProcessLookupError, PermissionError):
+                    os.killpg(pid, signal.SIGTERM)
             try:
                 proc.terminate()
             except ProcessLookupError:
@@ -1200,6 +1269,9 @@ async def _fetch_codex_usage() -> dict:
         try:
             await asyncio.wait_for(proc.wait(), timeout=1)
         except asyncio.TimeoutError:
+            if isinstance(pid, int) and pid > 0:
+                with contextlib.suppress(ProcessLookupError, PermissionError):
+                    os.killpg(pid, signal.SIGKILL)
             try:
                 proc.kill()
             except ProcessLookupError:
@@ -1382,6 +1454,11 @@ async def _get_usage_data(
         and (now - _usage_cache["ts"]) < _USAGE_CACHE_TTL
     ):
         anthropic_data = _usage_cache["data"]
+    elif (
+        not force_refresh
+        and (now - _usage_cache.get("failed_at", 0.0)) < _USAGE_FAILURE_TTL
+    ):
+        anthropic_data = _usage_cache["data"]
     else:
         token, _tier = _read_oauth_credentials()
         if token:
@@ -1389,13 +1466,17 @@ async def _get_usage_data(
                 anthropic_data = await _fetch_anthropic_usage(token)
                 anthropic_fetched = True
                 _usage_cache["error"] = None
+                _usage_cache["failed_at"] = 0.0
                 _stale_logged.discard("anthropic_token")
             except PermissionError:
                 _usage_cache["error"] = ANTHROPIC_TOKEN_STALE_REASON
+                _usage_cache["failed_at"] = now
                 _warn_once("anthropic_token", ANTHROPIC_TOKEN_STALE_REASON)
             except Exception as error:
+                _usage_cache["failed_at"] = now
                 logger.warning(f"Anthropic usage fetch failed: {error}")
         else:
+            _usage_cache["failed_at"] = now
             logger.warning("Anthropic usage unavailable: no OAuth credentials")
 
         if anthropic_data is None:
@@ -1424,6 +1505,11 @@ async def _get_usage_data(
         and (now - _codex_usage_cache["ts"]) < _USAGE_CACHE_TTL
     ):
         codex_data = _codex_usage_cache["data"]
+    elif (
+        not force_refresh
+        and (now - _codex_usage_cache.get("failed_at", 0.0)) < _USAGE_FAILURE_TTL
+    ):
+        codex_data = _codex_usage_cache["data"]
     else:
         try:
             codex_data = await _fetch_codex_usage()
@@ -1431,9 +1517,12 @@ async def _get_usage_data(
             if codex_fetched:
                 _codex_usage_cache["data"] = codex_data
                 _codex_usage_cache["ts"] = now
+                _codex_usage_cache["failed_at"] = 0.0
             else:
+                _codex_usage_cache["failed_at"] = now
                 codex_data = _codex_usage_cache["data"]
         except Exception as e:
+            _codex_usage_cache["failed_at"] = now
             logger.warning("Codex usage fetch failed: %r", e)
             codex_data = _codex_usage_cache["data"]
     if not codex_disabled and required_provider in {"codex", "codex_spark"} and not codex_fetched:
@@ -1692,7 +1781,11 @@ async def current_quota_observation(
                 logger.warning("Antigravity quota observation timed out")
         return _quota_observation_from_cache()
 
-    cache = _usage_cache if family == "anthropic" else _codex_usage_cache
+    cache = {
+        "anthropic": _usage_cache,
+        "codex": _codex_usage_cache,
+        "grok": _grok_usage_cache,
+    }[family]
 
     def fresh() -> bool:
         timestamp = cache.get("ts")
@@ -1728,58 +1821,181 @@ async def current_quota_observation(
 SNAPSHOT_INTERVAL = 300
 
 
-async def _collect_usage_snapshot() -> None:
+async def _collect_usage_snapshot(*, respect_idle: bool = False) -> None:
     import shutil
 
     from app.backend_codex import CODEX_BIN
     from app.db import usage_save_snapshot
+    from app.provider_safety import has_recent_provider_activity
+
+    now = time.time()
     claude_disabled = is_provider_disabled("claude")
     codex_disabled = is_provider_disabled("codex")
     grok_disabled = is_provider_disabled("grok")
+
     anthropic_data = None
     anthropic_error = ""
-    token, _tier = (None, None) if claude_disabled else _read_oauth_credentials()
-    if token:
-        try:
-            anthropic_data = await _fetch_anthropic_usage(token)
-            _usage_cache["error"] = None
-            _stale_logged.discard("anthropic_token")
-        except PermissionError as e:
-            anthropic_error = f"{type(e).__name__}: {ANTHROPIC_TOKEN_STALE_REASON}"
-            _usage_cache["error"] = ANTHROPIC_TOKEN_STALE_REASON
-        except Exception as e:
-            anthropic_data = None
-            anthropic_error = f"{type(e).__name__}: {e}"
-    if anthropic_data:
-        _usage_cache["data"] = anthropic_data
-        _usage_cache["ts"] = time.time()
-        _save_usage_cache()
-        _stale_logged.discard("anthropic_token_snapshot")
+    claude_asked = False
     if not claude_disabled:
-        anthropic_data = _latest_claude_data(anthropic_data)
+        if respect_idle:
+            # Zero idle OAuth HTTP polling: persist fresh piggybacked RateLimitEvent if new,
+            # and only poll if active AND cache expired AND not in failure cooldown.
+            cache_ts = float(_usage_cache.get("ts") or 0.0)
+            if (
+                _usage_cache.get("data")
+                and cache_ts > _last_snapshot_persisted_ts.get("anthropic", 0.0)
+            ):
+                anthropic_data = _latest_claude_data(_usage_cache.get("data"), now=now)
+                _last_snapshot_persisted_ts["anthropic"] = cache_ts
+            elif (
+                has_recent_provider_activity("claude", now=now)
+                and (now - cache_ts) >= _USAGE_CACHE_TTL
+                and (now - float(_usage_cache.get("failed_at") or 0.0)) >= _USAGE_FAILURE_TTL
+            ):
+                token, _tier = _read_oauth_credentials()
+                if token:
+                    claude_asked = True
+                    try:
+                        anthropic_data = await _fetch_anthropic_usage(token)
+                        _usage_cache["error"] = None
+                        _usage_cache["failed_at"] = 0.0
+                        _stale_logged.discard("anthropic_token")
+                    except PermissionError as e:
+                        _usage_cache["failed_at"] = now
+                        anthropic_error = f"{type(e).__name__}: {ANTHROPIC_TOKEN_STALE_REASON}"
+                        _usage_cache["error"] = ANTHROPIC_TOKEN_STALE_REASON
+                    except Exception as e:
+                        _usage_cache["failed_at"] = now
+                        anthropic_data = None
+                        anthropic_error = f"{type(e).__name__}: {e}"
+                if anthropic_data:
+                    ts_now = time.time()
+                    _usage_cache["data"] = anthropic_data
+                    _usage_cache["ts"] = ts_now
+                    _last_snapshot_persisted_ts["anthropic"] = ts_now
+                    _save_usage_cache()
+                    _stale_logged.discard("anthropic_token_snapshot")
+                    anthropic_data = _latest_claude_data(anthropic_data, now=ts_now)
+        else:
+            token, _tier = _read_oauth_credentials()
+            if token:
+                claude_asked = True
+                try:
+                    anthropic_data = await _fetch_anthropic_usage(token)
+                    _usage_cache["error"] = None
+                    _usage_cache["failed_at"] = 0.0
+                    _stale_logged.discard("anthropic_token")
+                except PermissionError as e:
+                    _usage_cache["failed_at"] = now
+                    anthropic_error = f"{type(e).__name__}: {ANTHROPIC_TOKEN_STALE_REASON}"
+                    _usage_cache["error"] = ANTHROPIC_TOKEN_STALE_REASON
+                except Exception as e:
+                    _usage_cache["failed_at"] = now
+                    anthropic_data = None
+                    anthropic_error = f"{type(e).__name__}: {e}"
+            if anthropic_data:
+                ts_now = time.time()
+                _usage_cache["data"] = anthropic_data
+                _usage_cache["ts"] = ts_now
+                _last_snapshot_persisted_ts["anthropic"] = ts_now
+                _save_usage_cache()
+                _stale_logged.discard("anthropic_token_snapshot")
+            anthropic_data = _latest_claude_data(anthropic_data)
 
+    codex_data = None
     codex_error = ""
-    try:
-        codex_data = None if codex_disabled else await _fetch_codex_usage()
-    except Exception as e:
-        codex_data = None
-        codex_error = f"{type(e).__name__}: {e}"
-    if codex_data:
-        _codex_usage_cache["data"] = codex_data
-        _codex_usage_cache["ts"] = time.time()
+    codex_asked = False
+    if not codex_disabled:
+        if respect_idle:
+            cache_ts = float(_codex_usage_cache.get("ts") or 0.0)
+            if (
+                _codex_usage_cache.get("data")
+                and cache_ts > _last_snapshot_persisted_ts.get("codex", 0.0)
+            ):
+                codex_data = _codex_usage_cache.get("data")
+                _last_snapshot_persisted_ts["codex"] = cache_ts
+            elif (
+                has_recent_provider_activity("codex", now=now)
+                and (now - cache_ts) >= _USAGE_CACHE_TTL
+                and (now - float(_codex_usage_cache.get("failed_at") or 0.0)) >= _USAGE_FAILURE_TTL
+                and bool(shutil.which(CODEX_BIN))
+            ):
+                codex_asked = True
+                try:
+                    codex_data = await _fetch_codex_usage()
+                except Exception as e:
+                    _codex_usage_cache["failed_at"] = now
+                    codex_data = None
+                    codex_error = f"{type(e).__name__}: {e}"
+                if codex_data:
+                    ts_now = time.time()
+                    _codex_usage_cache["data"] = codex_data
+                    _codex_usage_cache["ts"] = ts_now
+                    _codex_usage_cache["failed_at"] = 0.0
+                    _last_snapshot_persisted_ts["codex"] = ts_now
+        else:
+            codex_asked = bool(shutil.which(CODEX_BIN))
+            try:
+                codex_data = await _fetch_codex_usage()
+            except Exception as e:
+                _codex_usage_cache["failed_at"] = now
+                codex_data = None
+                codex_error = f"{type(e).__name__}: {e}"
+            if codex_data:
+                ts_now = time.time()
+                _codex_usage_cache["data"] = codex_data
+                _codex_usage_cache["ts"] = ts_now
+                _codex_usage_cache["failed_at"] = 0.0
+                _last_snapshot_persisted_ts["codex"] = ts_now
 
     grok_data = None
     grok_error = ""
-    grok_token = None if grok_disabled else _read_grok_token()
-    if grok_token:
-        try:
-            grok_data = await _fetch_grok_usage(grok_token)
-        except Exception as e:
-            grok_data = None
-            grok_error = f"{type(e).__name__}: {e}"
-    if grok_data:
-        _grok_usage_cache["data"] = grok_data
-        _grok_usage_cache["ts"] = time.time()
+    grok_asked = False
+    if not grok_disabled:
+        if respect_idle:
+            cache_ts = float(_grok_usage_cache.get("ts") or 0.0)
+            if (
+                _grok_usage_cache.get("data")
+                and cache_ts > _last_snapshot_persisted_ts.get("grok", 0.0)
+            ):
+                grok_data = _grok_usage_cache.get("data")
+                _last_snapshot_persisted_ts["grok"] = cache_ts
+            elif (
+                has_recent_provider_activity("grok", now=now)
+                and (now - cache_ts) >= _USAGE_CACHE_TTL
+                and (now - float(_grok_usage_cache.get("failed_at") or 0.0)) >= _USAGE_FAILURE_TTL
+            ):
+                grok_token = _read_grok_token()
+                if grok_token:
+                    grok_asked = True
+                    try:
+                        grok_data = await _fetch_grok_usage(grok_token)
+                    except Exception as e:
+                        _grok_usage_cache["failed_at"] = now
+                        grok_data = None
+                        grok_error = f"{type(e).__name__}: {e}"
+                if grok_data:
+                    ts_now = time.time()
+                    _grok_usage_cache["data"] = grok_data
+                    _grok_usage_cache["ts"] = ts_now
+                    _grok_usage_cache["failed_at"] = 0.0
+                    _last_snapshot_persisted_ts["grok"] = ts_now
+        else:
+            grok_token = _read_grok_token()
+            if grok_token:
+                grok_asked = True
+                try:
+                    grok_data = await _fetch_grok_usage(grok_token)
+                except Exception as e:
+                    _grok_usage_cache["failed_at"] = now
+                    grok_data = None
+                    grok_error = f"{type(e).__name__}: {e}"
+            if grok_data:
+                ts_now = time.time()
+                _grok_usage_cache["data"] = grok_data
+                _grok_usage_cache["ts"] = ts_now
+                _grok_usage_cache["failed_at"] = 0.0
+                _last_snapshot_persisted_ts["grok"] = ts_now
 
     # В историю идут ТОЛЬКО свежие ответы. Подстановка кеша (как было раньше)
     # штампует последнее известное значение новым временем — рисует ровную
@@ -1787,7 +2003,8 @@ async def _collect_usage_snapshot() -> None:
     # Share the readiness/dashboard observation instead of spawning a second agy probe.
     # History must not stamp a reused observation with a new measurement time.
     observation_started = time.time()
-    await _refresh_antigravity_usage()
+    if not respect_idle or has_recent_provider_activity("antigravity", now=now):
+        await _refresh_antigravity_usage()
     agy_cache = _antigravity_usage_cache
     agy_data = (
         agy_cache.get("data") if not is_provider_disabled("antigravity")
@@ -1797,9 +2014,9 @@ async def _collect_usage_snapshot() -> None:
     # Спросили, но не ответил → явная метка. Без неё «молчит» неотличимо от
     # «не настроен»: в обоих случаях ключа провайдера просто нет.
     for provider_id, label, asked, answered, error in (
-        ("anthropic", "Claude", bool(token), anthropic_data, anthropic_error),
-        ("codex", "Codex", not codex_disabled and bool(shutil.which(CODEX_BIN)), codex_data, codex_error),
-        ("grok", "Grok", bool(grok_token), grok_data, grok_error),
+        ("anthropic", "Claude", claude_asked, anthropic_data, anthropic_error),
+        ("codex", "Codex", codex_asked, codex_data, codex_error),
+        ("grok", "Grok", grok_asked, grok_data, grok_error),
     ):
         if asked and not answered:
             providers[provider_id] = {
@@ -1838,7 +2055,7 @@ async def _usage_snapshot_loop():
     await asyncio.sleep(10)
     while True:
         try:
-            await _collect_usage_snapshot()
+            await _collect_usage_snapshot(respect_idle=True)
         except asyncio.CancelledError:
             return
         except Exception as e:

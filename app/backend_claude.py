@@ -1135,28 +1135,11 @@ class ClaudeBackend:
         self._history_import = history_import
 
     def _make_client(self) -> ClaudeSDKClient:
+        from app.provider_safety import build_claude_sdk_env_overlay
+
         cli = shutil.which("claude") or os.environ.get("CLAUDE_CLI_PATH", "claude")
         resume_id = self._session_id or self._resume_id
-        env = {}
-        for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
-            if os.environ.get(_k):
-                env[_k] = os.environ[_k]
-                env[_k.lower()] = os.environ[_k]
-        # #56: kill non-essential background haiku calls (tips/banter/flavor) + telemetry
-        env["DISABLE_NON_ESSENTIAL_MODEL_CALLS"] = "1"
-        env["DISABLE_TELEMETRY"] = "1"
-        # The CLI enables fine-grained tool streaming from a remote feature flag that the
-        # flags above leave at its default (off): tool arguments then arrive per JSON value,
-        # e.g. 3 451 chars after 12.7 s of silence instead of ~14 chars every 50 ms
-        # (V-831 stream-timing, CLI 2.1.293).
-        env["CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING"] = "1"
-        env["ORCHESTRA_CLAUDE_CREDIT_API_KEY"] = ""
-        env["ANTHROPIC_API_KEY"] = ""
-        # Профиль: переопределяем CLAUDE_CONFIG_DIR подпроцесса (SDK строит
-        # env как {**os.environ, **options.env}). Пусто → наследуем env процесса
-        # orchestra (back-compat). expanduser — на случай "~" в config_dir.
-        if self._config_dir:
-            env["CLAUDE_CONFIG_DIR"] = os.path.expanduser(self._config_dir)
+        env = build_claude_sdk_env_overlay(config_dir=self._config_dir)
         cli_path = cli
         if not self._is_orchestrator:
             cli_path = str(Path(__file__).with_name("agent_cli_exec.py"))
@@ -1292,14 +1275,23 @@ class ClaudeBackend:
             self._client = None
 
     async def connect(self) -> None:
+        from app.provider_safety import (
+            classify_and_trip_if_banned,
+            record_provider_activity,
+            verify_provider_egress,
+        )
+
         self.resume_failed = False
         self._stderr_tail = ""
+        await verify_provider_egress("claude")
+        record_provider_activity("claude")
         await self._verify_history_versions()
         self._client = self._make_client()
         try:
             await asyncio.wait_for(self._client.connect(), timeout=60)
         except BaseException as e:
             await self._cleanup_failed_client()
+            classify_and_trip_if_banned("claude", payload=f"{err_text(e)}\n{self._stderr_tail}")
             history_rejection = self._history_rejection(e)
             if history_rejection:
                 raise history_rejection from e
@@ -1364,8 +1356,12 @@ class ClaudeBackend:
             return False
 
     async def send(self, message: str) -> None:
+        from app.provider_safety import record_provider_activity, verify_provider_egress
+
         if not self._client:
             raise RuntimeError("ClaudeBackend not connected")
+        await verify_provider_egress("claude")
+        record_provider_activity("claude")
         self._assistant_usage_by_message_id.clear()
         self._assistant_usage_incomplete = False
         await self._client.query(message)
@@ -1446,6 +1442,10 @@ class ClaudeBackend:
             return None
 
     async def reconnect(self) -> None:
+        from app.provider_safety import record_provider_activity, verify_provider_egress
+
+        await verify_provider_egress("claude")
+        record_provider_activity("claude")
         try:
             await self._verify_history_versions()
         finally:
@@ -1723,6 +1723,13 @@ class ClaudeBackend:
             err_list = list(getattr(msg, "errors", None) or [])
             if model_error and model_error not in err_list:
                 err_list.append(model_error)
+            if is_err and err_list:
+                from app.provider_safety import classify_and_trip_if_banned
+
+                if classify_and_trip_if_banned("claude", payload=err_list) == "credentials":
+                    model_error = "credentials"
+                    if "credentials" not in err_list:
+                        err_list.append("credentials")
             denials = getattr(msg, "permission_denials", None) or []
 
             cost = getattr(msg, "total_cost_usd", 0) or 0

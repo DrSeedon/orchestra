@@ -167,56 +167,34 @@ _LOCAL_NO_PROXY = ("localhost", "127.0.0.1", "::1")
 
 
 def _merge_no_proxy(existing: str) -> str:
-    items = [part.strip() for part in existing.split(",") if part.strip()]
-    seen = {item.lower() for item in items}
-    for host in _LOCAL_NO_PROXY:
-        if host not in seen:
-            items.append(host)
-            seen.add(host)
-    return ",".join(items)
+    from app.provider_safety import sanitize_no_proxy
+
+    return sanitize_no_proxy(existing)
 
 
 def _is_account_disabled_payload(value: object) -> bool:
-    try:
-        text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
-    except (TypeError, ValueError):
-        text = str(value)
-    lower = text.lower()
-    return (
-        "violation of terms of service" in lower
-        or "has been disabled in this account" in lower
-        or "account has been disabled" in lower
-    )
+    from app.provider_safety import is_account_ban_payload
+
+    return is_account_ban_payload(value) is not None
 
 
 def _trip_antigravity_circuit_breaker(reason: str) -> None:
-    from app.models import is_provider_disabled, set_provider_disabled
+    from app.provider_safety import trip_provider_circuit_breaker
 
-    if not is_provider_disabled("antigravity"):
-        set_provider_disabled("antigravity", True)
-        logger.error("Antigravity circuit-breaker tripped (provider auto-disabled): %s", reason)
+    trip_provider_circuit_breaker("antigravity", reason)
 
 
 def cli_environment(home: Path) -> dict:
     """Keep the OAuth route explicit even when the service has other Google routes."""
-    excluded = {"GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS",
-                "GOOGLE_GENAI_USE_VERTEXAI"}
-    env = {
-        **{key: value for key, value in os.environ.items() if key not in excluded},
+    from app.provider_safety import build_provider_env
+
+    env = build_provider_env("antigravity")
+    env.update({
         "HOME": str(home),
         "XDG_CONFIG_HOME": str(home / ".config"),
         "XDG_CACHE_HOME": str(home / ".cache"),
         "XDG_DATA_HOME": str(home / ".local/share"),
-    }
-    proxy_url = (os.environ.get("ANTIGRAVITY_PROXY_URL") or "").strip()
-    if proxy_url:
-        for key in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"):
-            env[key] = proxy_url
-    if any(env.get(k) for k in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy")):
-        # agy spawns a local Go language server on 127.0.0.1:<port>; keep loopback out of proxy.
-        merged_no_proxy = _merge_no_proxy(env.get("NO_PROXY") or env.get("no_proxy") or "")
-        env["NO_PROXY"] = merged_no_proxy
-        env["no_proxy"] = merged_no_proxy
+    })
     return env
 
 
@@ -366,10 +344,12 @@ def _publish_quota(
 
 async def fetch_antigravity_usage() -> dict:
     from app.models import is_provider_disabled
+    from app.provider_safety import verify_provider_egress
     from app.routes import system
 
     if is_provider_disabled("antigravity"):
         raise RuntimeError("Antigravity provider is disabled")
+    await verify_provider_egress("antigravity")
     async with _probe_lock:
         if is_provider_disabled("antigravity"):
             raise RuntimeError("Antigravity provider is disabled")
@@ -389,20 +369,30 @@ async def fetch_antigravity_usage() -> dict:
         return quota
 
 
+_READINESS_CACHE_TTL_SECONDS = 1800.0
+
+
 async def antigravity_readiness(context):
     from app.models import is_provider_disabled
+    from app.provider_safety import EgressSafetyError, ProviderDisabledError, verify_provider_egress
     from app.runtime_registry import RuntimeReadinessResult
 
     if is_provider_disabled("antigravity"):
         return RuntimeReadinessResult(False, False, "Antigravity provider is disabled")
+    try:
+        await verify_provider_egress("antigravity")
+    except (ProviderDisabledError, EgressSafetyError) as exc:
+        return RuntimeReadinessResult(False, False, str(exc))
     try:
         snapshot = read_auth_snapshot(ANTIGRAVITY_AUTH_HOME)
     except (OSError, ValueError):
         return RuntimeReadinessResult(False, False, "Antigravity OAuth credential missing")
     key = (str(ANTIGRAVITY_BIN), str(ANTIGRAVITY_AUTH_HOME), snapshot.generation)
     async with _probe_lock:
+        if is_provider_disabled("antigravity"):
+            return RuntimeReadinessResult(False, False, "Antigravity provider is disabled")
         cached = _probe_cache.get(key)
-        if cached is None or time.monotonic() - cached[0] >= 30:
+        if cached is None or time.monotonic() - cached[0] >= _READINESS_CACHE_TTL_SECONDS:
             try:
                 version = await _cli("--version", home=ANTIGRAVITY_AUTH_HOME)
                 if not isinstance(version, str) or not supported_version(version):
@@ -584,6 +574,15 @@ class AntigravityBackend:
         self._queue = asyncio.Queue()
         self._interrupted = False
         try:
+            from app.provider_safety import (
+                EgressSafetyError,
+                ProviderDisabledError,
+                record_provider_activity,
+                verify_provider_egress,
+            )
+
+            await verify_provider_egress("antigravity")
+            record_provider_activity("antigravity")
             snapshot = read_auth_snapshot(ANTIGRAVITY_AUTH_HOME)
             state_file = self.home / "orchestra-conversation.json"
             if self._generation is None and state_file.is_file():
@@ -618,7 +617,7 @@ class AntigravityBackend:
                 stderr=asyncio.subprocess.PIPE, start_new_session=True,
                 limit=1024 * 1024,
             )
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, ProviderDisabledError, EgressSafetyError) as exc:
             (self.home / TOKEN_RELATIVE_PATH).unlink(missing_ok=True)
             self._queue.put_nowait(AgentEvent("error", "Antigravity credential/startup failure: " + self._redact(exc)))
             self._queue.put_nowait(self._end(reason="credentials", error="credentials"))
@@ -728,7 +727,8 @@ class AntigravityBackend:
                 if not ok:
                     text = self._redact(terminal.get("error") or "Antigravity turn failed")
                     lower = text.lower()
-                    if _is_account_disabled_payload(text):
+                    is_permanent_ban = _is_account_disabled_payload(text)
+                    if is_permanent_ban:
                         _trip_antigravity_circuit_breaker(text[:200])
                     if any(word in lower for word in (
                         "auth", "oauth", "token", "credential", "eligib", "location",
@@ -741,8 +741,12 @@ class AntigravityBackend:
                         error = "model"
                     # Retry errors may remain in this and later terminal results.
                     # Only output observed in THIS process can recover a failure;
-                    # incomplete auth/quota refusals retain their failure category.
-                    if assistant_response and (error == "model" or response_complete):
+                    # permanent account/ToS bans NEVER recover into ok=True.
+                    if (
+                        assistant_response
+                        and not is_permanent_ban
+                        and (error == "model" or response_complete)
+                    ):
                         ok, error = True, None
                     else:
                         reason = error

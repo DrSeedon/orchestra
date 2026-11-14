@@ -358,6 +358,23 @@ def _read_rollout_totals(path: Path) -> dict[str, int] | None:
     return _latest_rollout_token_count(path, _rollout_totals_from)
 
 
+def _read_rollout_rate_limits(path: Path) -> dict | None:
+    """Extract the newest `rate_limits` payload emitted inside Codex rollout token_count rows."""
+    try:
+        for row in _iter_token_count_rows_reversed(path):
+            payload = row.get("payload")
+            if row.get("type") != "event_msg" or not isinstance(payload, dict):
+                continue
+            if payload.get("type") != "token_count":
+                continue
+            rate_limits = payload.get("rate_limits")
+            if isinstance(rate_limits, dict) and rate_limits:
+                return rate_limits
+    except OSError:
+        return None
+    return None
+
+
 def _usage_delta(current: dict[str, int], baseline: dict[str, int] | None) -> dict[str, int]:
     baseline = baseline or {}
     result = {}
@@ -897,6 +914,11 @@ class CodexBackend(JsonRpcStdioTransport):
         self._retired_compact_turns.clear()
         self._seen_compact_items.clear()
         self._terminal_reader_failure = False
+        from app.provider_safety import record_provider_activity, verify_provider_egress
+
+        await verify_provider_egress("codex")
+        record_provider_activity("codex")
+
         codex_cmd = self._codex_command()
 
         env = self._build_env()
@@ -1028,8 +1050,12 @@ class CodexBackend(JsonRpcStdioTransport):
             raise
 
     async def send(self, message: str) -> None:
+        from app.provider_safety import record_provider_activity, verify_provider_egress
+
         if self._evaluation_actor_id and self._evaluation_stopped:
             raise RuntimeError("evaluation backend stopped; generation is forbidden")
+        await verify_provider_egress("codex")
+        record_provider_activity("codex")
         if self._teardown_error or not self.is_alive or self._stdout_closed:
             await self.connect()
         if not self._thread_id:
@@ -2426,6 +2452,13 @@ class CodexBackend(JsonRpcStdioTransport):
             }.get(status, status)
 
         totals = self._thread_usage_total or self._runtime_totals() or {}
+        self._publish_rollout_rate_limits()
+        try:
+            from app.provider_safety import record_provider_activity
+
+            record_provider_activity("codex")
+        except Exception:
+            pass
         delta = _usage_delta(totals, self._usage_baseline)
         turn_input = delta["input_tokens"]
         turn_cached = delta["cached_input_tokens"]
@@ -2643,6 +2676,10 @@ class CodexBackend(JsonRpcStdioTransport):
 
     @staticmethod
     def _classify_error(error: dict) -> str:
+        from app.provider_safety import classify_and_trip_if_banned
+
+        if classify_and_trip_if_banned("codex", payload=error) == "credentials":
+            return "credentials"
         info = error.get("codexErrorInfo")
         if isinstance(info, dict) and any(key in info for key in (
             "httpConnectionFailed",
@@ -2743,6 +2780,21 @@ class CodexBackend(JsonRpcStdioTransport):
         path = self._locate_rollout()
         return _read_rollout_totals(path) if path is not None else None
 
+    def _publish_rollout_rate_limits(self) -> None:
+        """Piggyback Codex subscription quota windows directly from local rollout JSONL."""
+        path = self._locate_rollout()
+        if path is None:
+            return
+        rate_limits = _read_rollout_rate_limits(path)
+        if not rate_limits:
+            return
+        try:
+            from app.routes.system import record_codex_rate_limits
+
+            record_codex_rate_limits(rate_limits)
+        except Exception:
+            pass
+
     @staticmethod
     def _toml_str(s: str) -> str:
         """TOML basic string. Управляющие символы экранируем ЯВНО: значения и имена
@@ -2774,6 +2826,9 @@ class CodexBackend(JsonRpcStdioTransport):
         проверить тестом целиком (#224). argv публичен: `/proc/<pid>/cmdline` читает
         процесс любого uid, поэтому «в нём нет значений» должно быть утверждением о
         ВСЕЙ строке, а не о той её части, которую мы помним."""
+        from app.provider_safety import SHELL_TOOL_EXCLUDED_PROXY_VARS
+
+        exclude_toml = "[" + ",".join(self._toml_str(v) for v in SHELL_TOOL_EXCLUDED_PROXY_VARS) + "]"
         cmd = [CODEX_BIN]
         cmd += ["-c", f"model_reasoning_effort={self._toml_str(self.reasoning_effort)}"]
         # Every CodexBackend here is Orchestra-managed. Delegation must use the tracked
@@ -2782,6 +2837,12 @@ class CodexBackend(JsonRpcStdioTransport):
         # Managed workers are research/implementation agents, so expose current web
         # results explicitly instead of inheriting a user's cached/disabled setting.
         cmd += ["-c", 'web_search="live"']
+        # Prevent non-essential telemetry/update traffic and prevent worker Bash tools
+        # (`git`, `uv`, `npm`, `pip`, `curl`) from burning residential proxy bandwidth.
+        cmd += ["-c", "analytics.enabled=false"]
+        cmd += ["-c", "feedback.enabled=false"]
+        cmd += ["-c", "check_for_update_on_startup=false"]
+        cmd += ["-c", f"shell_environment_policy.exclude={exclude_toml}"]
         for arg in self._mcp_config_args():
             cmd += ["-c", arg]
         # Native clock.sleep runs inside Codex before Orchestra can inspect an item.
@@ -2916,15 +2977,22 @@ class CodexBackend(JsonRpcStdioTransport):
             auth.unlink(missing_ok=True)
             auth.symlink_to(base_auth)
 
+        from app.provider_safety import SHELL_TOOL_EXCLUDED_PROXY_VARS, build_provider_env
+
+        exclude_toml = "[" + ", ".join(self._toml_str(v) for v in SHELL_TOOL_EXCLUDED_PROXY_VARS) + "]"
         parts = []
         carried = _carried_base_scalars()
         if carried:
             parts.append(carried)
+        parts.append("check_for_update_on_startup = false")
         parts.append(self._trusted_project_toml())
         if self._evaluation_actor_id:
             # Built-in apps register MCP servers even without caller-supplied MCP.
             parts.append("[features]\napps = false")
         parts.append("[features.sleep_tool]\nenabled = false")
+        parts.append("[analytics]\nenabled = false")
+        parts.append("[feedback]\nenabled = false")
+        parts.append(f"[shell_environment_policy]\nexclude = {exclude_toml}")
         servers = self._mcp_servers_toml()
         if servers:
             parts.append(servers)
@@ -2969,14 +3037,12 @@ class CodexBackend(JsonRpcStdioTransport):
             )
 
     def _build_env(self) -> dict:
-        env = dict(os.environ)
-        env.update(self._mcp_env)
+        from app.provider_safety import build_provider_env
+
+        env = build_provider_env("codex", os.environ, extra_env=self._mcp_env)
         # #224: процесс обязан стартовать в ТОМ ЖЕ home, для которого собран config.toml.
         # Иначе argv чист, конфиг верен, а воркер работает на общем каталоге — тихий отказ.
         env["CODEX_HOME"] = str(self._codex_home or self._prepare_codex_home())
         policy_bin = Path(env["CODEX_HOME"]) / "policy-bin"
         env["PATH"] = f"{policy_bin}{os.pathsep}{env.get('PATH', '')}"
-        # Codex, Claude, Cursor, and Orchestra intentionally share the proxy selected in
-        # Orchestra's .env. The launcher wrapper also reloads that file, but preserving the
-        # inherited values keeps direct CODEX_BIN deployments consistent and testable.
         return env

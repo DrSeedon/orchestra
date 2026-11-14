@@ -566,7 +566,11 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
         headers["Idempotency-Key"] = idempotency_key
     started = time.monotonic()
     try:
-        async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=t, headers=headers) as client:
+        # Local loopback callback to Orchestra (`127.0.0.1:8888`) carrying INTERNAL_TOKEN
+        # must NEVER traverse an inherited HTTP/HTTPS proxy (`trust_env=False`).
+        async with httpx.AsyncClient(
+            base_url=ORCHESTRA_URL, timeout=t, headers=headers, trust_env=False
+        ) as client:
             if method == "GET":
                 response = await client.get(path, params=kwargs.get("params"))
             elif method == "POST":
@@ -4596,6 +4600,42 @@ async def codex_review(
         )
         raise refusal
 
+    from urllib.parse import urlparse
+    from app.provider_safety import (
+        EgressSafetyError,
+        ProviderDisabledError,
+        SHELL_TOOL_EXCLUDED_PROXY_VARS,
+        build_provider_env,
+        record_provider_activity,
+        verify_provider_egress,
+    )
+
+    try:
+        await verify_provider_egress("codex")
+    except ProviderDisabledError as exc:
+        review_receipt_finish(
+            receipt_id,
+            {
+                "status": "failed",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "return_code": None,
+                "failure_code": "provider_disabled",
+            },
+        )
+        raise ApiToolError(code="provider_disabled", message=str(exc)) from exc
+    except EgressSafetyError as exc:
+        review_receipt_finish(
+            receipt_id,
+            {
+                "status": "failed",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "return_code": None,
+                "failure_code": "egress_unsafe",
+            },
+        )
+        raise ApiToolError(code="egress_unsafe", message=str(exc)) from exc
+    record_provider_activity("codex")
+
     prev_uuid = _read_codex_uuid(sessions_path, slug) if resume else ""
     is_resume = bool(prev_uuid)
     if resume and not prev_uuid:
@@ -4621,7 +4661,47 @@ async def codex_review(
             },
         )
         return mcp_tool_result(result=None, text=_CODEX_MISSING_HINT)
-    codex_cli = f"{q(codex_bin)} -m {q(review_model)}"
+
+    codex_env = build_provider_env("codex")
+    proxy_url_for_review = codex_env.get("HTTPS_PROXY") or ""
+    if proxy_url_for_review and urlparse(proxy_url_for_review).password:
+        review_receipt_finish(
+            receipt_id,
+            {
+                "status": "failed",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "return_code": None,
+                "failure_code": "egress_unsafe",
+            },
+        )
+        raise ApiToolError(
+            code="egress_unsafe",
+            message="Refusing to embed proxy credentials in bg command line; use a local loopback forwarder",
+        )
+    codex_env_pairs = [
+        f"{k}={q(codex_env[k])}"
+        for k in (
+            "HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "GRPC_PROXY",
+            "https_proxy", "http_proxy", "all_proxy", "grpc_proxy",
+            "NO_PROXY", "no_proxy", "NO_GRPC_PROXY", "no_grpc_proxy",
+        )
+        if codex_env.get(k)
+    ]
+    codex_env_prefix = (" ".join(codex_env_pairs) + " ") if codex_env_pairs else ""
+    exclude_toml = "[" + ",".join(f'"{v}"' for v in SHELL_TOOL_EXCLUDED_PROXY_VARS) + "]"
+    codex_safety_flags = (
+        " -c analytics.enabled=false"
+        " -c feedback.enabled=false"
+        " -c check_for_update_on_startup=false"
+        f" -c {q('shell_environment_policy.exclude=' + exclude_toml)}"
+    )
+    codex_cli = f"{codex_env_prefix}{q(codex_bin)} -m {q(review_model)}{codex_safety_flags}"
+    resume_err_file = f"{jsonl_file}.resume.err"
+    ban_or_auth_regex = (
+        "violation of terms of service|has been disabled in this account|"
+        "account has been disabled|account_deactivated|organization has been disabled|"
+        "usageLimitExceeded|usage_limit_reached|401 Unauthorized|403 Forbidden"
+    )
 
     if mode == "review":
         review_prompt = (
@@ -4647,14 +4727,16 @@ async def codex_review(
                 "For each prior finding: FIXED / STILL BROKEN / NEW BUG. "
                 "Output a concise re-review (Re-review status, new findings, verdict)."
             )
-            # Stale/invalid UUID → resume fails → fall back to a fresh review (recovery).
+            # Stale/invalid UUID → resume fails → fall back to a fresh review ONLY when not banned/rate-limited.
             codex = (
                 f"printf '%s' {q(resume_prompt)} > {q(prompt_file)}; "
                 f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
                 f" -s danger-full-access -a never exec resume {q(prev_uuid)}"
                 f" --skip-git-repo-check --json"
-                f" -o {q(codex_out)} - < {q(prompt_file)}"
-                f" || {{ echo '[resume failed — stale session, starting fresh review]'; {fresh_review}; }}"
+                f" -o {q(codex_out)} - < {q(prompt_file)} 2>{q(resume_err_file)}"
+                f" || {{ if grep -Eiq {q(ban_or_auth_regex)} {q(resume_err_file)} {q(jsonl_file)} 2>/dev/null; then"
+                f" cat {q(resume_err_file)}; cat {q(resume_err_file)} >&2; rm -f {q(resume_err_file)}; false;"
+                f" else rm -f {q(resume_err_file)}; echo '[resume failed — stale session, starting fresh review]'; {fresh_review}; fi; }}"
             )
         else:
             codex = f"printf '%s' {q(review_prompt)} > {q(prompt_file)}; {fresh_review}"
@@ -4679,12 +4761,13 @@ async def codex_review(
             )
         implementation_prompt = "\n".join(prompt_parts)
         subcmd = f"exec resume {q(prev_uuid)}" if is_resume else "exec"
+        resume_stderr = f" 2>{q(resume_err_file)}" if is_resume else ""
         codex = (
             f"printf '%s' {q(implementation_prompt)} > {q(prompt_file)}; "
             f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
             f" -s danger-full-access -a never {subcmd}"
             f" --skip-git-repo-check --json"
-            f" -o {q(codex_out)} - < {q(prompt_file)}"
+            f" -o {q(codex_out)} - < {q(prompt_file)}{resume_stderr}"
         )
         if is_resume:
             fresh_exec = (
@@ -4693,7 +4776,11 @@ async def codex_review(
                 f" --skip-git-repo-check --json"
                 f" -o {q(codex_out)} - < {q(prompt_file)}"
             )
-            codex += f" || {{ echo '[resume failed — stale session, starting fresh]'; {fresh_exec}; }}"
+            codex += (
+                f" || {{ if grep -Eiq {q(ban_or_auth_regex)} {q(resume_err_file)} {q(jsonl_file)} 2>/dev/null; then"
+                f" cat {q(resume_err_file)}; cat {q(resume_err_file)} >&2; rm -f {q(resume_err_file)}; false;"
+                f" else rm -f {q(resume_err_file)}; echo '[resume failed — stale session, starting fresh]'; {fresh_exec}; fi; }}"
+            )
     elif mode == "exec":
         if not target and not is_resume:
             raise ApiToolError(
@@ -4716,24 +4803,27 @@ async def codex_review(
         exec_prompt = "\n".join(prompt_parts_exec)
 
         subcmd = f"exec resume {q(prev_uuid)}" if is_resume else "exec"
+        resume_stderr = f" 2>{q(resume_err_file)}" if (is_resume and target) else ""
         codex = (
             f"printf '%s' {q(exec_prompt)} > {q(prompt_file)}; "
             f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
             f" -s danger-full-access -a never {subcmd}"
             f" --skip-git-repo-check --json"
-            f" -o {q(codex_out)} - < {q(prompt_file)}"
+            f" -o {q(codex_out)} - < {q(prompt_file)}{resume_stderr}"
         )
         if is_resume and target:
-            # Stale/invalid UUID → resume fails → fresh exec. Only when a target exists —
-            # without one the prompt has nothing concrete to review, so let resume fail loud.
-            # Writes to codex_out (=round_tmp) so the recovery is appended, not overwriting history.
+            # Stale/invalid UUID → resume fails → fresh exec unless ban/auth/quota tripped.
             fresh_exec = (
                 f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
                 f" -s danger-full-access -a never exec"
                 f" --skip-git-repo-check --json"
                 f" -o {q(codex_out)} - < {q(prompt_file)}"
             )
-            codex += f" || {{ echo '[resume failed — stale session, starting fresh]'; {fresh_exec}; }}"
+            codex += (
+                f" || {{ if grep -Eiq {q(ban_or_auth_regex)} {q(resume_err_file)} {q(jsonl_file)} 2>/dev/null; then"
+                f" cat {q(resume_err_file)}; cat {q(resume_err_file)} >&2; rm -f {q(resume_err_file)}; false;"
+                f" else rm -f {q(resume_err_file)}; echo '[resume failed — stale session, starting fresh]'; {fresh_exec}; fi; }}"
+            )
     else:
         raise ApiToolError(
             code="invalid_argument",
@@ -4804,9 +4894,9 @@ async def codex_review(
         f"trap {q(interrupt_recorder + '; exit 143')} TERM INT; "
         f"{exclude_setup}"
         f"mkdir -p {q(os.path.dirname(output_abs))}; "
-        f"rm -f {q(rc_file)} {q(jsonl_file)} {q(round_tmp)} {q(prompt_file)}; "
+        f"rm -f {q(rc_file)} {q(jsonl_file)} {q(resume_err_file)} {q(round_tmp)} {q(prompt_file)}; "
         f"{{ {codex} ; echo $? > {q(rc_file)} ; }} | tee {q(jsonl_file)}; "
-        f"RC=$(cat {q(rc_file)} 2>/dev/null || echo 1); "
+        f"RC=$(cat {q(rc_file)} 2>/dev/null || echo 1); rm -f {q(resume_err_file)}; "
         f"if [ \"$RC\" -ne 0 ]; then "
         f"{terminal_recorder} --receipt-status failed --receipt-return-code \"$RC\" "
         f"--receipt-failure-code process_exit; fi; "

@@ -26,8 +26,33 @@ MCP_STDIO_CMD = [sys.executable, _MCP_SCRIPT]
 # select the same state for its children.
 MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
 for _k in (
-    "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "INTERNAL_TOKEN",
-    "ORCHESTRA_DB_PATH", "ORCHESTRA_TASK_REPOSITORY", "ORCHESTRA_TASK_PREFIX",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "NO_PROXY",
+    "INTERNAL_TOKEN",
+    "ORCHESTRA_DB_PATH",
+    "ORCHESTRA_TASK_REPOSITORY",
+    "ORCHESTRA_TASK_PREFIX",
+    "ORCHESTRA_RESIDENTIAL_PROXY_URL",
+    "CLAUDE_PROXY_URL",
+    "CODEX_PROXY_URL",
+    "GROK_PROXY_URL",
+    "ANTIGRAVITY_PROXY_URL",
+    "ORCHESTRA_DISABLED_PROVIDERS",
+    "ORCHESTRA_DISABLED_PROVIDERS_FILE",
+    "ALLOW_DATACENTER_OAUTH_EGRESS",
+    "ORCHESTRA_ENFORCE_PROVIDER_EGRESS",
+    "ORCHESTRA_EGRESS_VERIFY_TTL_SECONDS",
 ):
     if os.environ.get(_k):
         MCP_BASE_ENV[_k] = os.environ[_k]
+
+# Ensure local Orchestra callbacks (`127.0.0.1:8888`) never ride an inherited HTTP proxy.
+_existing_no_proxy = MCP_BASE_ENV.get("NO_PROXY") or os.environ.get("no_proxy") or ""
+_loopback = ["localhost", "127.0.0.1", "::1", "[::1]"]
+_parts = [p.strip() for p in _existing_no_proxy.split(",") if p.strip() and p.strip() != "*"]
+for _host in _loopback:
+    if _host.lower() not in {p.lower() for p in _parts}:
+        _parts.append(_host)
+MCP_BASE_ENV["NO_PROXY"] = ",".join(_parts)
+MCP_BASE_ENV["no_proxy"] = MCP_BASE_ENV["NO_PROXY"]

@@ -156,6 +156,15 @@ def _record_terminal_receipt(
             sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from app.db import review_receipt_finish, review_receipt_get
 
+        if status == "failed" and jsonl_file.is_file():
+            try:
+                from app.provider_safety import classify_and_trip_if_banned
+
+                raw_tail = jsonl_file.read_bytes()[-65536:].decode("utf-8", errors="replace")
+                classify_and_trip_if_banned("codex", payload=raw_tail)
+            except Exception:
+                pass
+
         receipt = review_receipt_get(receipt_id) or {}
         # The shell fallback covers crashes of this process, but must not replace
         # the more precise result already recorded by normal finalization.

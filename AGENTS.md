@@ -22,6 +22,9 @@ below 16 KiB; put task evidence and history in their directories, not here.
 - `app/pipeline.py`: pipeline validation, role resolution, prompt layers and effort.
 - `app/models.py`: model registry, aliases and provider/worker admission;
   `app/quota_gate.py` owns quota admission. Catalog presence alone is not permission.
+- `app/provider_safety.py`: subscription OAuth residential-proxy egress gate, env
+  sanitization, worker shell proxy exclusion and permanent ban circuit-breaker
+  (`docs/provider-safety-checklist.md`).
 - `app/prompting.py`: safe template substitution, instruction and memory delivery.
 - `app/kb_index.py`: the knowledge index injected into agent prompts.
 - `app/`: API, provider backends and dashboard code; `tests/`: behavior and integration
