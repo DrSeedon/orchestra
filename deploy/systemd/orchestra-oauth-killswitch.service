@@ -1,0 +1,16 @@
+[Unit]
+Description=Orchestra OAuth Direct-Datacenter Egress Kill-Switch (nftables)
+DefaultDependencies=no
+After=network-pre.target systemd-sysctl.service
+Before=network-online.target orchestra.service kesha-bot-vps.service
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/orchestra-refresh-oauth-killswitch
+ExecReload=/usr/local/sbin/orchestra-refresh-oauth-killswitch
+ExecStop=/usr/sbin/nft delete table inet orchestra_oauth_killswitch
+
+[Install]
+WantedBy=multi-user.target

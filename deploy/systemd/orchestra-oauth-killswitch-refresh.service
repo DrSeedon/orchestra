@@ -1,0 +1,7 @@
+[Unit]
+Description=Refresh Orchestra OAuth Kill-Switch DNS VIPs
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/orchestra-refresh-oauth-killswitch
