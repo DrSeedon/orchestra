@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Зависший браузерный тест уже дважды держал шард 27+ минут: `--timeout=30` дампит
     # стек, но не убивает процесс, пока живой `chrome-headless-shell` держит IPC. Потолок
     # джоба — единственная гарантия, что зависание становится ПАДЕНИЕМ, а не бесконечным
@@ -121,7 +121,7 @@ jobs:
     # СИГНАЛОМ, видимым в списке проверок, но не решает судьбу прогона. Гоняются те же
     # 167 узлов, что снимает с себя merge-гейт: состав закреплён
     # `tests/test_merge_test_gate.py::test_browser_inventory_is_explicit`.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: true
     timeout-minutes: 20
     steps:
