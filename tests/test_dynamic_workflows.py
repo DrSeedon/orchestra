@@ -38,7 +38,7 @@ async def test_removed_tool_is_absent_and_cannot_dispatch():
 
 @pytest.mark.parametrize('role', ['orchestrator', 'sub-orchestrator', 'full-cycle'])
 def test_workflow_module_reaches_launching_roles(role):
-    name = 'dynamic-workflows'
+    name = 'worker-lifecycle'
     spec = pipeline.get_role('default', role)
     assert spec.can_spawn
     assert name in spec.modules

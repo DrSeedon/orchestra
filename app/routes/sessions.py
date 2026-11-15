@@ -749,17 +749,16 @@ async def get_session_prompt(name: str, scope: str):
 
 
 _SOURCE_BLOCKS = [
-    ("file",   "base",   "Platform Base",       "prompts/base.md",              "<platform>",       "</communication-style>", 1),
-    ("file",   "role",   "Role",                "prompts/roles/*.md",           "<role>",           "</role>",           1),
-    ("module", "module", "Git Workflow",         "prompts/modules/git-workflow.md",  "<git-workflow>",   "</git-workflow>",   1),
-    ("module", "module", "Orchestration",        "prompts/modules/orchestration.md", "<orchestration>",  "</orchestration>",  1),
-    ("module", "module", "Background Jobs",      "prompts/modules/background-jobs.md","<background-jobs>","</background-jobs>",2),
-    ("module", "module", "Task Management",      "prompts/modules/task-management.md","<task-management>","</task-management>",1),
-    ("module", "module", "Report Format",        "prompts/modules/report-format.md", "<report-format>",  "</report-format>",  1),
-    ("module", "module", "Codex Review",         "prompts/modules/codex-review.md",  "<codex-review>",   "</codex-review>",   1),
-    ("module", "module", "Before Work",          "prompts/modules/before-work.md",   "<before-work>",    "</before-work>",    1),
-    ("module", "module", "Before Done",          "prompts/modules/before-done.md",   "<before-done>",    "</before-done>",    1),
-    ("dynamic","dynamic","Identity",             "manager.py",                   "<identity>",       "</identity>",       1),
+    ("file",   "base",   "Platform Base",       "prompts/base.md",                     "<platform>",         "</background-jobs>", 1),
+    ("file",   "role",   "Role",                "prompts/roles/*.md",                  "<role>",             "</role>",            1),
+    ("module", "module", "Safety & Conduct",    "prompts/modules/safety.md",           "<safety>",           "</safety>",          1),
+    ("module", "module", "Engineering & Git",   "prompts/modules/code-quality.md",     "<code-quality>",     "</code-quality>",    1),
+    ("module", "module", "Model Routing",       "prompts/modules/model-routing.md",    "<model-routing>",    "</model-routing>",   1),
+    ("module", "module", "Orchestration",       "prompts/modules/orchestration.md",    "<orchestration>",    "</orchestration>",   1),
+    ("module", "module", "Worker Lifecycle",    "prompts/modules/worker-lifecycle.md", "<worker-lifecycle>", "</worker-lifecycle>",1),
+    ("module", "module", "Report Format",       "prompts/modules/report-format.md",    "<report-format>",    "</report-format>",   1),
+    ("module", "module", "Knowledge Base",      "prompts/modules/knowledge.md",        "<knowledge>",        "</knowledge>",       1),
+    ("dynamic","dynamic","Identity",            "manager.py",                          "<identity>",         "</identity>",        1),
 ]
 
 

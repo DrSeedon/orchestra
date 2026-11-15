@@ -155,13 +155,13 @@ class TestDefaultRolesResolve:
 
     def test_shared_conduct_modules_reach_every_role(self):
         """#490: блоки из base.md стали модулями — роль без них теряет действующие правила."""
-        shared = {"safety", "knowledge", "communication-style", "user-values"}
+        shared = {"safety", "knowledge"}
         for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
             assert shared <= set(P.get_role(PIPELINE, role).modules), role
 
     @pytest.mark.parametrize("module_name,readers", [
         ("safety", {"orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"}),
-        ("project-maintenance", {"orchestrator", "sub-orchestrator", "worker", "full-cycle"}),
+        ("code-quality", {"orchestrator", "sub-orchestrator", "worker", "full-cycle"}),
     ])
     def test_shared_project_rules_are_delivered_once_to_their_readers(self, module_name, readers):
         """Missing routing leaves a role without filesystem or maintenance rules."""
@@ -172,7 +172,8 @@ class TestDefaultRolesResolve:
             assert out.count(module) == int(role in readers), (module_name, role)
 
     def test_git_workflow_module_reaches_agents_that_edit_repositories(self):
-        module = P.prompt_path(PIPELINE, "modules/git-workflow.md").read_text().strip()
+        module = P.prompt_path(PIPELINE, "modules/code-quality.md").read_text().strip()
+        assert "### Worktree & Git mechanics" in module
         for role in ("worker", "full-cycle", "orchestrator", "sub-orchestrator"):
             assert P.build_system_prompt(PIPELINE, role).count(module) == 1, role
 
@@ -562,7 +563,7 @@ class TestWorkerAutonomy:
 
 @pytest.mark.parametrize("role", ["orchestrator", "sub-orchestrator"])
 @pytest.mark.parametrize("module_name", [
-    "orchestration", "worker-lifecycle", "communication-style",
+    "orchestration", "worker-lifecycle", "safety",
 ])
 def test_research_closure_modules_reach_orchestrator_prompts(role, module_name, tmp_path):
     """V-1256: required delivery policies survive manifest and runtime assembly.

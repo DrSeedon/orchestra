@@ -71,7 +71,7 @@ roles:
     # агентские вызовы блокируются централизованным model gate.
     effort: &effort_policy {gpt-6.1-terra: high, "claude-opus-5-5[1m]": xhigh, "claude-sonnet-5-5[1m]": high, claude-haiku-5-5: low, hub-gpt-6.1-sol: xhigh, hub-gemini-4-carbon: medium, hub-gemini-4-hydrogen: high, hub-gemini-4-argon: medium, hub-gpt-6-astra: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: xhigh, hub-claude-sonnet-5-5: high, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
     skills: [grill-me, orchestra-agents, laptop-access, edo-1c, vps-deploy]
-    modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
+    modules: [safety, code-quality, model-routing, orchestration, worker-lifecycle, knowledge]
     can_spawn: [worker, full-cycle, reducer, specialist]
     allow_unrouted_workers: true
     tg: {emoji: "👑"}
@@ -87,7 +87,7 @@ roles:
     model: gpt-6.1-terra
     effort: *effort_policy
     skills: [orchestra-agents, laptop-access, edo-1c, vps-deploy]
-    modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
+    modules: [safety, code-quality, model-routing, orchestration, worker-lifecycle, knowledge]
     # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
     # заспавнить ни одной роли.
     can_spawn: [worker, full-cycle, reducer, specialist]
@@ -105,7 +105,7 @@ roles:
     model: hub-gpt-6.1-sol
     effort: &worker_effort_policy {"claude-opus-5-5[1m]": xhigh, "claude-sonnet-5-5[1m]": high, claude-haiku-5-5: low, hub-gpt-6.1-sol: xhigh, hub-gemini-4-carbon: medium, hub-gemini-4-hydrogen: high, hub-gemini-4-argon: medium, hub-gpt-6-astra: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: xhigh, hub-claude-sonnet-5-5: high, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
     skills: [laptop-access, edo-1c]
-    modules: [safety, project-maintenance, code-quality, git-workflow, report-format, knowledge, communication-style, user-values]
+    modules: [safety, code-quality, report-format, knowledge]
     can_spawn: []
     allow_unrouted_workers: false
     tg: {emoji: "⚙️"}
@@ -125,7 +125,7 @@ roles:
     # свои (#214, #373).
     effort: *worker_effort_policy
     skills: [laptop-access, edo-1c]
-    modules: [safety, project-maintenance, dynamic-workflows, model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, knowledge, communication-style, user-values]
+    modules: [safety, code-quality, model-routing, worker-lifecycle, report-format, knowledge]
     can_spawn: [worker, full-cycle, reducer, specialist]
     allow_unrouted_workers: false
     tg: {emoji: "🔄"}
@@ -143,7 +143,7 @@ roles:
     order: 4
     model: hub-gpt-6.1-sol
     effort: *effort_policy
-    modules: [safety, knowledge, communication-style, user-values]
+    modules: [safety, knowledge]
     can_spawn: []
     tg: {emoji: "🧾"}
     when: Collecting fan-out child reports into one lossless handoff for the parent
@@ -158,7 +158,7 @@ roles:
     model: hub-gemini-4-argon
     effort: {hub-gemini-4-hydrogen: high, default: medium}
     skills: []
-    modules: [safety, project-maintenance, code-quality, model-routing, git-workflow, report-format, knowledge, communication-style, user-values]
+    modules: [safety, code-quality, model-routing, report-format, knowledge]
     disabled_tools: [hub_generate_image]
     can_spawn: []
     allow_unrouted_workers: false

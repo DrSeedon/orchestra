@@ -353,8 +353,7 @@ def test_default_workflow_module_interface_is_frozen():
     from scripts.wf_run import DEFAULT_WORKFLOW_MODULES
 
     assert DEFAULT_WORKFLOW_MODULES == (
-        "communication-style",
-        "user-values",
+        "safety",
         "knowledge",
         "code-quality",
     )

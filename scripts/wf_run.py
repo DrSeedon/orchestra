@@ -41,8 +41,7 @@ _SCHEMA_META = {"$schema", "$id", "title", "description", "default", "examples"}
 _SCHEMA_RESPONSE_MAX_BYTES = 64 * 1024
 _SCHEMA_RESPONSE_TRUNCATION = b"\n[response truncated]\n"
 DEFAULT_WORKFLOW_MODULES: tuple[str, ...] = (
-    "communication-style",
-    "user-values",
+    "safety",
     "knowledge",
     "code-quality",
 )
