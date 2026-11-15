@@ -147,6 +147,9 @@ _UNTRUSTED_EXTRA_ENV_LOWER_DENYLIST: frozenset[str] = frozenset({
     "node_options",
     "ld_preload",
     "ld_library_path",
+    "bash_env",
+    "shell",
+    "agy_cli_disable_auto_update",
 })
 
 _PERMANENT_BAN_MARKERS: tuple[str, ...] = (

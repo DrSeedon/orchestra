@@ -17,7 +17,12 @@ from datetime import datetime
 from pathlib import Path
 
 from app.antigravity_auth import (
-    TOKEN_RELATIVE_PATH, atomic_private_write, private_directory, read_auth_snapshot,
+    TOKEN_RELATIVE_PATH,
+    atomic_private_write,
+    harvest_refreshed_session_token,
+    private_directory,
+    read_auth_snapshot,
+    sync_antigravity_home,
 )
 from app.events import AgentEvent
 from app.usage_contract import (
@@ -29,6 +34,16 @@ ROOT = Path(__file__).resolve().parents[1]
 ANTIGRAVITY_BIN = os.environ.get("ANTIGRAVITY_BIN", "agy")
 ANTIGRAVITY_AUTH_HOME = ROOT / "data/antigravity-auth-home"
 ANTIGRAVITY_HOME_ROOT = ROOT / "data/antigravity-homes"
+ANTIGRAVITY_CLEAN_SHELL = os.environ.get(
+    "ANTIGRAVITY_CLEAN_SHELL", "/home/kesha/.local/bin/agy-clean-shell"
+)
+ANTIGRAVITY_BASH_ENV = os.environ.get(
+    "ANTIGRAVITY_BASH_ENV", "/home/kesha/.local/share/orchestra/agy-bash-clean-env.sh"
+)
+_CLEAN_SHELL_SNIPPET = (
+    "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY GRPC_PROXY "
+    "http_proxy https_proxy all_proxy grpc_proxy NO_GRPC_PROXY no_grpc_proxy BASH_ENV\n"
+)
 QUOTA_KEYS = ("gemini-weekly", "3p-weekly")
 FIVE_HOUR_QUOTA_KEYS = ("gemini-5h", "3p-5h")
 
@@ -161,6 +176,25 @@ def _cumulative_value(value: object, *, integer=True) -> int | float | None:
 
 _probe_lock = asyncio.Lock()
 _probe_cache: dict = {}
+_turn_semaphores: dict[tuple[int, int], asyncio.Semaphore] = {}
+
+
+def _max_concurrent_turns() -> int:
+    raw = os.environ.get("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "1").strip()
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 1
+
+
+def _get_turn_semaphore() -> asyncio.Semaphore:
+    limit = _max_concurrent_turns()
+    key = (id(asyncio.get_running_loop()), limit)
+    sem = _turn_semaphores.get(key)
+    if sem is None:
+        sem = asyncio.Semaphore(limit)
+        _turn_semaphores[key] = sem
+    return sem
 
 
 _LOCAL_NO_PROXY = ("localhost", "127.0.0.1", "::1")
@@ -185,16 +219,26 @@ def _trip_antigravity_circuit_breaker(reason: str) -> None:
 
 
 def cli_environment(home: Path) -> dict:
-    """Keep the OAuth route explicit even when the service has other Google routes."""
+    """Keep the OAuth route explicit and strip proxy vars from child bash tools."""
     from app.provider_safety import build_provider_env
 
+    home = Path(home)
     env = build_provider_env("antigravity")
+    bash_env_path = (
+        ANTIGRAVITY_BASH_ENV
+        if Path(ANTIGRAVITY_BASH_ENV).is_file()
+        else str(home / ".gemini/orchestra-clean-bash-env.sh")
+    )
     env.update({
         "HOME": str(home),
         "XDG_CONFIG_HOME": str(home / ".config"),
         "XDG_CACHE_HOME": str(home / ".cache"),
         "XDG_DATA_HOME": str(home / ".local/share"),
+        "AGY_CLI_DISABLE_AUTO_UPDATE": "true",
+        "BASH_ENV": bash_env_path,
     })
+    if Path(ANTIGRAVITY_CLEAN_SHELL).is_file() and os.access(ANTIGRAVITY_CLEAN_SHELL, os.X_OK):
+        env["SHELL"] = ANTIGRAVITY_CLEAN_SHELL
     return env
 
 
@@ -475,13 +519,24 @@ class AntigravityBackend:
         ).encode())
         atomic_private_write(self.home / ".gemini/antigravity-cli/settings.json", json.dumps({
             "useG1Credits": False,
+            "telemetryEnabled": False,
             "toolPermission": "always-proceed",
             "allowNonWorkspaceAccess": True,
             "permission": {"allow": ["command(*)", "read_file(*)", "write_file(*)", "mcp(*)"]}
         }).encode())
         atomic_private_write(self.home / ".gemini/config/config.json", json.dumps({
-            "userSettings": {"useAiCredits": False}
+            "userSettings": {
+                "useAiCredits": False,
+                "telemetryEnabled": False,
+                "userDataCollectionForceDisabled": True,
+                "marketingEmailsEnabled": False,
+            }
         }).encode())
+        clean_bytes = _CLEAN_SHELL_SNIPPET.encode("utf-8")
+        atomic_private_write(self.home / ".gemini/orchestra-clean-bash-env.sh", clean_bytes)
+        atomic_private_write(self.home / ".bashrc", clean_bytes)
+        atomic_private_write(self.home / ".profile", clean_bytes)
+        sync_antigravity_home(ANTIGRAVITY_AUTH_HOME, self.home)
         atomic_private_write(self.home / ".gemini/config/mcp_config.json",
                              json.dumps({"mcpServers": self.mcp_servers}).encode())
 
@@ -573,6 +628,9 @@ class AntigravityBackend:
             raise RuntimeError("Antigravity turn is already active")
         self._queue = asyncio.Queue()
         self._interrupted = False
+        sem = _get_turn_semaphore()
+        await sem.acquire()
+        handoff_to_consume = False
         try:
             from app.provider_safety import (
                 EgressSafetyError,
@@ -583,6 +641,7 @@ class AntigravityBackend:
 
             await verify_provider_egress("antigravity")
             record_provider_activity("antigravity")
+            sync_antigravity_home(ANTIGRAVITY_AUTH_HOME, self.home)
             snapshot = read_auth_snapshot(ANTIGRAVITY_AUTH_HOME)
             state_file = self.home / "orchestra-conversation.json"
             if self._generation is None and state_file.is_file():
@@ -617,13 +676,17 @@ class AntigravityBackend:
                 stderr=asyncio.subprocess.PIPE, start_new_session=True,
                 limit=1024 * 1024,
             )
+            handoff_to_consume = True
+            self._task = asyncio.create_task(self._consume(sem))
         except (OSError, ValueError, ProviderDisabledError, EgressSafetyError) as exc:
             (self.home / TOKEN_RELATIVE_PATH).unlink(missing_ok=True)
             self._queue.put_nowait(AgentEvent("error", "Antigravity credential/startup failure: " + self._redact(exc)))
             self._queue.put_nowait(self._end(reason="credentials", error="credentials"))
             self._queue.put_nowait(None)
             return
-        self._task = asyncio.create_task(self._consume())
+        finally:
+            if not handoff_to_consume:
+                sem.release()
 
     async def _stderr(self, process):
         # Drain all output even without newlines. Never log a partial unredacted value.
@@ -634,7 +697,7 @@ class AntigravityBackend:
         if retained:
             logger.debug("Antigravity stderr: %s", self._redact(retained.decode(errors="replace"), all_env=True))
 
-    async def _consume(self):
+    async def _consume(self, sem: asyncio.Semaphore | None = None):
         process = self._process
         stderr = asyncio.create_task(self._stderr(process))
         terminal = None
@@ -766,7 +829,13 @@ class AntigravityBackend:
             if not stderr.done():
                 stderr.cancel()
             await asyncio.gather(stderr, return_exceptions=True)
+            try:
+                harvest_refreshed_session_token(ANTIGRAVITY_AUTH_HOME, self.home)
+            except Exception:
+                pass
             (self.home / TOKEN_RELATIVE_PATH).unlink(missing_ok=True)
+            if sem is not None:
+                sem.release()
             self._queue.put_nowait(None)
 
     async def events(self):

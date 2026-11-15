@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+IS_OFFLINE_META=0
+case "${1:-}" in
+  --version|-v|-V|--help|-h|agents)
+    IS_OFFLINE_META=1
+    ;;
+  --output-format)
+    if [[ "${3:-}" == "agents" || "${3:-}" == "--version" || "${3:-}" == "--help" ]]; then
+      IS_OFFLINE_META=1
+    fi
+    ;;
+esac
+
 DISABLED_FILE="${ORCHESTRA_DISABLED_PROVIDERS_FILE:-/home/kesha/orchestra/data/disabled_providers.json}"
-if [[ "${AGY_ALLOW_WHEN_DISABLED:-0}" != "1" ]] && [[ -f "$DISABLED_FILE" ]]; then
+if [[ "$IS_OFFLINE_META" != "1" ]] && [[ "${AGY_ALLOW_WHEN_DISABLED:-0}" != "1" ]] && [[ -f "$DISABLED_FILE" ]]; then
   if python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); items=d.get("disabled_providers",[]) if isinstance(d,dict) else d; sys.exit(0 if "antigravity" in items else 1)' "$DISABLED_FILE" 2>/dev/null; then
     echo "agy-wrapper: refusing execution because 'antigravity' is disabled in $DISABLED_FILE" >&2
     exit 77
@@ -30,6 +42,23 @@ PY
 fi
 export NO_PROXY="localhost,127.0.0.1,::1,[::1]${NO_PROXY:+,${NO_PROXY}}"
 export no_proxy="$NO_PROXY" NO_GRPC_PROXY="$NO_PROXY" no_grpc_proxy="$NO_PROXY"
+export AGY_CLI_DISABLE_AUTO_UPDATE=true
+export SHELL="/home/kesha/.local/bin/agy-clean-shell"
+export BASH_ENV="/home/kesha/.local/share/orchestra/agy-bash-clean-env.sh"
 unset GEMINI_API_KEY GOOGLE_API_KEY GOOGLE_GENAI_USE_VERTEXAI
+
+if [[ "${1:-}" == "acp" ]]; then
+  HAS_NO_TELEM=0
+  for arg in "$@"; do
+    if [[ "$arg" == "--disable-telemetry" ]]; then
+      HAS_NO_TELEM=1
+      break
+    fi
+  done
+  if [[ "$HAS_NO_TELEM" -eq 0 ]]; then
+    shift
+    exec /home/kesha/.local/bin/agy.real acp --disable-telemetry "$@"
+  fi
+fi
 
 exec /home/kesha/.local/bin/agy.real "$@"

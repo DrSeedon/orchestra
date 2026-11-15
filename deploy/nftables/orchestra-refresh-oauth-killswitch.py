@@ -2,6 +2,7 @@
 """Atomically build and load table inet orchestra_oauth_killswitch without touching UFW."""
 from __future__ import annotations
 
+import grp
 import ipaddress
 import os
 import socket
@@ -97,6 +98,17 @@ def main() -> int:
     v4_elems = ", ".join(["160.79.104.0/23", *sorted(v4_ips)])
     v6_elems = ", ".join(["2607:6bc0::/48", *sorted(v6_ips)])
 
+    try:
+        agy_gid = grp.getgrnam("agy_oauth").gr_gid
+        agy_block = (
+            f"\n        meta skgid {agy_gid} meta l4proto {{ tcp, udp }} th dport {{ 80, 443, 53, 853 }} "
+            f"limit rate 6/minute burst 10 packets log prefix \"[AGY-DIRECT-BLOCK] \""
+            f"\n        meta skgid {agy_gid} meta l4proto {{ tcp, udp }} th dport {{ 80, 443, 53, 853 }} "
+            f"counter reject with icmpx type admin-prohibited"
+        )
+    except KeyError:
+        agy_block = ""
+
     rules = f"""# Managed by /usr/local/sbin/orchestra-refresh-oauth-killswitch
 # Blocks direct Contabo datacenter egress from uid=kesha to OAuth provider VIPs;
 # xray (uid=nobody), tinyproxy (uid=tinyproxy), and orchestra-proxy (uid=root) pass freely.
@@ -118,7 +130,7 @@ table inet orchestra_oauth_killswitch {{
 
     chain output {{
         type filter hook output priority filter - 10; policy accept;
-        oifname "lo" accept
+        oifname "lo" accept{agy_block}
         meta skuid != "kesha" accept
         ip daddr @oauth_provider_v4 meta l4proto {{ tcp, udp }} th dport {{ 80, 443 }} limit rate 6/minute burst 10 packets log prefix "[OAUTH-DIRECT-BLOCK] "
         ip daddr @oauth_provider_v4 meta l4proto {{ tcp, udp }} th dport {{ 80, 443 }} counter reject with icmpx type admin-prohibited

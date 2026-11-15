@@ -521,3 +521,235 @@ exit 1
     # Must have executed ONLY `exec resume`, NEVER the second `fresh` call!
     assert len(calls) == 1
     assert models.is_provider_disabled("codex")
+
+
+def test_antigravity_hourly_refresh_keeps_generation_and_harvests_fresher_ya29(tmp_path):
+    from app import antigravity_auth as auth
+
+    auth_home = tmp_path / "auth-home"
+    sess_home = tmp_path / "sess-home"
+    old_doc = {
+        "token": {
+            "access_token": "ya29.old_access_token_111",
+            "token_type": "Bearer",
+            "refresh_token": "1//same_refresh_token_aaa",
+            "expiry": "2026-11-15T09:00:00.123456789+01:00",
+            "expires_in": 3599,
+        },
+        "auth_method": "oauth",
+        "id_token_email": "user@example.com",
+    }
+    fresh_doc = {
+        "token": {
+            "access_token": "ya29.fresh_access_token_222",
+            "token_type": "Bearer",
+            "refresh_token": "1//same_refresh_token_aaa",
+            "expiry": "2026-11-15T10:00:00.987654321+01:00",
+            "expires_in": 3599,
+        },
+        "auth_method": "oauth",
+        "id_token_email": "user@example.com",
+    }
+    foreign_doc = {
+        "token": {
+            "access_token": "ya29.foreign_access_token_333",
+            "token_type": "Bearer",
+            "refresh_token": "1//different_account_bbb",
+            "expiry": "2026-11-15T12:00:00Z",
+            "expires_in": 3599,
+        },
+        "auth_method": "oauth",
+        "id_token_email": "other@example.com",
+    }
+
+    auth.atomic_private_write(
+        auth_home / auth.TOKEN_RELATIVE_PATH, json.dumps(old_doc).encode("utf-8")
+    )
+    snap_old = auth.read_auth_snapshot(auth_home)
+
+    # Routine hourly ya29 refresh in session_home harvests back to auth_home with STABLE generation.
+    auth.atomic_private_write(
+        sess_home / auth.TOKEN_RELATIVE_PATH, json.dumps(fresh_doc).encode("utf-8")
+    )
+    assert auth.harvest_refreshed_session_token(auth_home, sess_home) is True
+    snap_fresh = auth.read_auth_snapshot(auth_home)
+    assert snap_fresh.generation == snap_old.generation
+    assert b"ya29.fresh_access_token_222" in snap_fresh.token
+
+    # Stale session token with older expiry NEVER clobbers fresher canonical token.
+    auth.atomic_private_write(
+        sess_home / auth.TOKEN_RELATIVE_PATH, json.dumps(old_doc).encode("utf-8")
+    )
+    assert auth.harvest_refreshed_session_token(auth_home, sess_home) is False
+    assert b"ya29.fresh_access_token_222" in auth.read_auth_snapshot(auth_home).token
+
+    # Foreign refresh_token NEVER overwrites canonical auth_home via session harvest,
+    # and promoting it explicitly changes generation.
+    auth.atomic_private_write(
+        sess_home / auth.TOKEN_RELATIVE_PATH, json.dumps(foreign_doc).encode("utf-8")
+    )
+    assert auth.harvest_refreshed_session_token(auth_home, sess_home) is False
+    staged = tmp_path / "staged-foreign"
+    staged.write_bytes(json.dumps(foreign_doc).encode("utf-8"))
+    new_gen = auth.promote_staged_token(auth_home, staged)
+    assert new_gen != snap_old.generation
+
+
+def test_antigravity_sessions_share_single_installation_id_and_jetski_uuid(tmp_path):
+    from app import antigravity_auth as auth
+
+    auth_home = tmp_path / "auth-home"
+    sess_a = tmp_path / "sess-a"
+    sess_b = tmp_path / "sess-b"
+
+    auth.atomic_private_write(
+        auth_home / auth.INSTALLATION_ID_RELATIVE_PATH,
+        b"c6931ef4-5747-4109-bb12-eb6e75123bc7",
+    )
+    auth.atomic_private_write(
+        auth_home / auth.JETSKI_STATE_RELATIVE_PATH,
+        b'installation_uuid: "71129bc5-165c-4067-84a7-fa12319a540e"\n',
+    )
+    # Seed divergent stale IDs in sess_b to verify overwrite.
+    auth.atomic_private_write(
+        sess_b / auth.INSTALLATION_ID_RELATIVE_PATH,
+        b"00000000-0000-4000-8000-000000000000",
+    )
+    auth.atomic_private_write(
+        sess_b / auth.JETSKI_STATE_RELATIVE_PATH,
+        b'installation_uuid: "11111111-1111-4111-8111-111111111111"\n',
+    )
+
+    auth.sync_antigravity_home(auth_home, sess_a)
+    auth.sync_antigravity_home(auth_home, sess_b)
+
+    for s in (sess_a, sess_b):
+        assert (s / auth.INSTALLATION_ID_RELATIVE_PATH).read_text().strip() == (
+            "c6931ef4-5747-4109-bb12-eb6e75123bc7"
+        )
+        assert '71129bc5-165c-4067-84a7-fa12319a540e' in (
+            s / auth.JETSKI_STATE_RELATIVE_PATH
+        ).read_text()
+
+
+@pytest.mark.asyncio
+async def test_antigravity_cli_env_strips_proxy_in_bash_and_disables_telemetry(tmp_path, monkeypatch):
+    monkeypatch.setenv("ORCHESTRA_RESIDENTIAL_PROXY_URL", "http://127.0.0.1:18080")
+    monkeypatch.setattr(backend_antigravity, "ANTIGRAVITY_AUTH_HOME", tmp_path / "auth")
+    monkeypatch.setattr(backend_antigravity, "ANTIGRAVITY_HOME_ROOT", tmp_path / "homes")
+    monkeypatch.setattr(backend_antigravity, "ANTIGRAVITY_BASH_ENV", str(tmp_path / "missing-benv"))
+    monkeypatch.setattr(backend_antigravity, "ANTIGRAVITY_CLEAN_SHELL", str(tmp_path / "missing-shell"))
+
+    class _Ctx:
+        model = "antigravity/gemini-4-carbon-high"
+        cwd = str(tmp_path)
+        system_prompt = "SYS"
+        context_limit = 200000
+        resume_session_id = None
+        mcp_servers = {"orchestra": {"env": {"ORCHESTRA_SESSION_ID": "sess-clean-1"}}}
+
+    b = backend_antigravity.AntigravityBackend(_Ctx())
+    await b.connect()
+    env = backend_antigravity.cli_environment(b.home)
+    assert env["AGY_CLI_DISABLE_AUTO_UPDATE"] == "true"
+    assert env["HTTPS_PROXY"] == "http://127.0.0.1:18080"
+    assert Path(env["BASH_ENV"]).is_file()
+
+    # Running /bin/bash -c under cli_environment strips all proxy vars in child commands!
+    out = subprocess.check_output(
+        ["/bin/bash", "-c", "env | grep -iE '^(http|https|all|grpc)_proxy=' || true"],
+        env=env,
+        text=True,
+    )
+    assert out.strip() == ""
+
+    settings = json.loads((b.home / ".gemini/antigravity-cli/settings.json").read_text())
+    cfg = json.loads((b.home / ".gemini/config/config.json").read_text())
+    assert settings["useG1Credits"] is False
+    assert settings["telemetryEnabled"] is False
+    assert cfg["userSettings"]["useAiCredits"] is False
+    assert cfg["userSettings"]["telemetryEnabled"] is False
+    assert cfg["userSettings"]["userDataCollectionForceDisabled"] is True
+
+    # Untrusted .mcp.json cannot override BASH_ENV or SHELL.
+    sanitized = ps.sanitize_extra_env({"BASH_ENV": "/tmp/evil.sh", "SHELL": "/tmp/evil", "SAFE_VAR": "1"})
+    assert "BASH_ENV" not in sanitized
+    assert "SHELL" not in sanitized
+    assert sanitized == {"SAFE_VAR": "1"}
+
+
+@pytest.mark.asyncio
+async def test_antigravity_global_concurrency_semaphore_serializes_turns(tmp_path, monkeypatch):
+    monkeypatch.setenv("ALLOW_DATACENTER_OAUTH_EGRESS", "1")
+    monkeypatch.setenv("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "1")
+    auth_home = tmp_path / "auth"
+    (auth_home / backend_antigravity.TOKEN_RELATIVE_PATH).parent.mkdir(parents=True)
+    (auth_home / backend_antigravity.TOKEN_RELATIVE_PATH).write_bytes(b"token-blob")
+    monkeypatch.setattr(backend_antigravity, "ANTIGRAVITY_AUTH_HOME", auth_home)
+    monkeypatch.setattr(backend_antigravity, "ANTIGRAVITY_HOME_ROOT", tmp_path / "homes")
+    backend_antigravity._turn_semaphores.clear()
+
+    active = 0
+    max_active = 0
+
+    async def fake_exec(*_args, **_kwargs):
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+
+        class _Stream:
+            def __init__(self, lines):
+                self._it = iter(lines)
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                await asyncio.sleep(0.03)
+                try:
+                    return next(self._it)
+                except StopIteration:
+                    raise StopAsyncIteration
+
+            async def read(self, _n):
+                return b""
+
+        class _Proc:
+            pid = 888888
+            returncode = 0
+            stdout = _Stream([
+                json.dumps({"event": "init", "conversation_id": "c1"}).encode() + b"\n",
+                json.dumps({"event": "result", "result": {"status": "SUCCESS", "response": "ok"}}).encode() + b"\n",
+            ])
+            stderr = _Stream([])
+
+            async def wait(self):
+                nonlocal active
+                active -= 1
+                return 0
+
+        return _Proc()
+
+    monkeypatch.setattr(backend_antigravity.asyncio, "create_subprocess_exec", fake_exec)
+
+    def _mk(sid: str):
+        class _Ctx:
+            model = "antigravity/gemini-4-carbon-high"
+            cwd = str(tmp_path)
+            system_prompt = ""
+            context_limit = 200000
+            resume_session_id = None
+            mcp_servers = {"orchestra": {"env": {"ORCHESTRA_SESSION_ID": sid}}}
+
+        return backend_antigravity.AntigravityBackend(_Ctx())
+
+    b1, b2 = _mk("s1"), _mk("s2")
+    await b1.connect()
+    await b2.connect()
+
+    async def _run_one(b):
+        await b.send("hi")
+        return [ev async for ev in b.events()]
+
+    await asyncio.gather(_run_one(b1), _run_one(b2))
+    assert max_active == 1
