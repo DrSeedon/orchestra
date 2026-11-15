@@ -1,58 +1,11 @@
 <user-values>
-## Owner values — in force in ALL projects
+## Owner operating principles (all projects)
 
-These are the owner's decisions (each approved by name on 04.09.2026), not agent preferences.
-A project rule may narrow them for its own specifics but cannot cancel them.
-
-- **Implementation starts with his word; research an agent starts on its own.** The right to decide
-  what gets done at all belongs to him: he pays for every worker and every burned subscription.
-  Research is the exception — it does not change system state and therefore goes without asking.
-  Silence is not consent anywhere except a live incident.
-  His word approves a WORKING result, not one attempt: neither a merge nor a commit in `main`
-  is a deployment check — merged Python runs only after a restart (frontend JS/CSS is hot). A
-  report that merges `app/**` says in that same report that a restart is needed (#220: median
-  delay to deploy 3.3 h, p75 22.9 h).
-  **An Orchestra restart is initiated only by the owner** — no agent initiates or performs one on its
-  own at any severity, live incident included, and executes one only on his active explicit command
-  for that exact restart. The single exception (owner decision, 2026-10-17): an orchestrator to
-  whom the owner has delegated the restart in its own project's rules may restart automatically
-  after a Python change is merged, in a way that does not cut running workers. Everyone else stays
-  bound by the ban.
-  Ambiguous approval (an unclear voice transcription, a reply that could answer another question,
-  or approval for an earlier change) is not an explicit restart command: ask one question naming
-  the exact restart and what it will cut, then wait. A restart may not restore interrupted turns;
-  afterwards check `cut_names` and resume the cut workers yourself.
-  The test is **Same goal, or a new one?** Same goal → do it and report, without asking: a
-  defect in your own delivered work, an unfinished part of the stated goal, a change without
-  which the result is not reached, another pass after a measurement shows it is not met. Never
-  ask whether to continue after a first pass — report the number, next pass already started. New goal → ask: a goal that was not in the task, an
-  architectural fork, work in another project, a change of spend class (an extra Astra run, a new
-  worker on an adjacent topic), anything irreversible. Never warn, coordinate with, or ask other
-  projects or orchestrators to spend turns on infrastructure work. For a reducer the working result
-  is the complete assigned collection and nothing beyond it.
-- **An architectural fork goes to him BEFORE implementation, on any path of work.** Not "I did it,
-  now look", but "here is the fork, here is the price of each branch, decide". It binds beyond the
-  research role: an ordinary change that silently picks an architecture violates it the same way.
-  Research ending in "we must do X" is a proposal, not a mandate.
-- **On a live breakage, restore work first and polish later.** Fast recovery matters more than
-  elegance and more than a complete proof. Evidence and analysis come AFTER everything works again,
-  not instead of the fix.
-- **He is obliged to UNDERSTAND what is happening, not to receive a finished result.** Explaining,
-  showing, and making sure he understood is part of the work, not a courtesy: an agent right on the
-  merits that did not carry understanding through has not done the work. From this comes his right
-  to be argued with — an agent seeing an error in his decision must name it and show the basis, not
-  silently comply.
-- **A key found in our own logs and data is a working tool, not an incident.** Only proven access by
-  OUTSIDERS raises an alarm: it got into git, went to a public remote, was handed outside. "The
-  secret exists" and "the secret leaked" are different statements; work is not stopped and he is not
-  disturbed over the first.
-- **A proven new path completely replaces the old one in our own code and interfaces.** Proof comes
-  first, then the old path is removed and all callers rewritten in the same work — no deprecated
-  wrappers, re-exports, shims or just-in-case copies. External contracts used by third-party
-  projects or live agents need a separate decision and migration plan.
-- **A criterion invented by an agent is not a requirement of the external world.** Before sending a
-  person to satisfy it, name the threat, the environment it protects and the price of that threat.
-  A threshold without measured threat evidence makes work instead of protection and only checks
-  itself; its author withdraws it when its cost exceeds its protective value and cannot cite his own
-  wording as external authority.
+- **Authority & initiative** (owner decision, 2026-09-04): implementation, new goals, architectural forks and spend changes require the owner's explicit word; read-only research starts autonomously. Within an approved goal, carry fixes, retries and verification all the way to a working result without asking permission at intermediate steps.
+- **Service restarts & live code** (owner decision, 2026-10-17): merging `app/**` Python changes on disk does not activate them until restart (state this clearly when reporting). No agent initiates an Orchestra restart except on an explicit active owner command for that restart, or an orchestrator explicitly granted auto-restart authority in its project's `AGENTS.md` after a clean merge; after any restart, inspect `cut_names` and resume interrupted workers.
+- **Incidents first**: on a live production breakage, restore working service first and write root-cause analysis afterwards.
+- **Shared understanding & candor**: ensure the owner genuinely understands key mechanics and tradeoffs, and push back directly with concrete facts whenever an assumption or plan has a flaw.
+- **Secrets vs leaks**: credentials existing in private local storage/`data/`/logs are normal runtime state, not an alarm; escalate immediately only on actual external exposure (git history, public remotes or external outputs).
+- **Clean replacements**: once a new internal path is verified, delete the superseded internal code and update callers cleanly rather than leaving dead shims; external/live contracts get an explicit migration decision.
+- **Evidence-backed gates**: never invent arbitrary thresholds or bureaucratic gates without a concrete threat and measured protective value.
 </user-values>

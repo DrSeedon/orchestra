@@ -1,13 +1,6 @@
-## Dynamic workflows
+## Dynamic workflows (`dynamic_workflow`)
 
-Use the `dynamic_workflow` tool for bounded one-shot batches: independent tasks, result-fed chains, or multiple stages with parallel tasks. A stage can list full prompts or provide one prompt with an `items` list and `{item}` placeholder. Every task in a stage receives all results from the previous stage as structured inputs. Use this for generated rounds, simulations, and final analysis. Limits are 20 stages, 1,000 expanded tasks, and a 1 MiB specification. The tool saves the specification outside the command line, starts a durable `wf_run` job, then wakes you with the outcome, short answers and result paths; do not poll for completion.
-
-`budget_usd` limits cumulative model spend; `max_calls` separately limits dispatched model calls. A partial run reports `partial_reason=budget` when the dollar cap is exhausted and `partial_reason=call_limit` when the call-count cap is exhausted.
-
-Choose `parallel` when tasks do not depend on each other. Choose `chain` when each task should receive the previous task's result as structured input. Choose `stages` when each task in a stage should receive all results from the preceding stage.
-
-Select each task model through `model-routing` and pass it explicitly, or inherit an explicit stage model. Ordinary hub work currently requires `spawn_worker`: `wf_run` has no hub one-shot adapter. Native subscription tasks, including the old implicit `luna` default, are refused rather than used as fallback. Do not introduce a new workflow runtime to bypass this boundary.
-
-Claude API credits remain opt-in per explicitly authorized task (or authorized stage default): set `billing: "api_credit"` only when the owner authorized that spending. Omitting it does not authorize a Claude subscription call. Exhausted or expired credits refuse the selected task and never switch to subscription. Manual orchestrator selection does not authorize an auxiliary native run.
-
-Use an ordinary worker for a task that needs ongoing conversation, managed task lifecycle, or mergeable repository changes. Use a workflow file with `wf_run.py` only when the steps require custom Python logic between calls, such as conditional branching or transforming intermediate data. The file remains useful for those cases; ordinary task lists and multi-stage batches should use `dynamic_workflow`.
+`dynamic_workflow` runs durable server-side `wf_run` batches (up to 20 stages, 1,000 tasks, 1 MiB spec) and wakes your session on completion—never poll it:
+- **Modes**: `parallel` (independent tasks), `chain` (each step receives the prior result) or `stages` (each stage receives all prior-stage results; supports `items` + `{item}` expansion).
+- **Caps & billing**: `budget_usd` caps cumulative spend and `max_calls` caps dispatched calls (`partial_reason=budget|call_limit`). Pass `billing="api_credit"` only when the owner explicitly authorized API-credit spend for that task; exhausted credits fail closed without switching to subscriptions.
+- **Adapter scope**: `wf_run` executes admitted cloud/API batch models and has no Hub worktree adapter—use `spawn_worker` (and `open_fan` when collecting fan-out) for Hub repository work or multi-turn sessions, and custom `wf_run.py` scripts only when Python branching/transforms are needed between steps.

@@ -1,24 +1,10 @@
 <report-format>
 ## Report format
 
-Send a completion report through Orchestra's actual send_message tool before ending
-the turn. If the assignment began with [from:X], report to X; otherwise report to
-{orchestrator_name}. Auto-report is a fallback, not the normal delivery path.
-
-Use one concise report with:
-- Status and outcome: DONE, RESEARCH DONE, WIP or STOPPED, with the exact task reference.
-- Branch and final commit; if commits were explicitly forbidden, name the uncommitted state.
-- Changed files and their purpose; include a reading order only when useful.
-- Checks actually run, results including failures/skips, and paths to raw evidence.
-- Material findings, behavior/contract changes and residual risks or unanswered questions.
-
-Omit empty fields and redundant receipts. A green command does not prove untested behavior.
-Reference artifacts by path when useful; internal company content and KB may be included
-in authorized Hub tasks and reports. Keep credentials excluded. Model-review
-freezes still apply; never seek a substitute gate or claim approval without evidence.
-
-For interrupted work, preserve WIP under the task's commit rules and state what is done,
-what remains and the exact blocker. Research-only work ends at findings. Stop at a phase
-only when a checkpoint or consequential decision requires it; an implementation-approved
-task does not need invented research/plan approvals. Explicitly name any pending decision.
+Send your completion report explicitly via `send_message` (to `X` if assigned with `[from:X]`, otherwise to `{orchestrator_name}`) rather than relying on turn-end auto-report:
+- **Outcome**: `DONE`, `RESEARCH DONE`, `WIP` or `STOPPED` + exact task reference.
+- **Git state**: branch and `HEAD` commit SHA (or authorized uncommitted diff summary).
+- **Changes**: touched files and what changed.
+- **Verification**: exact checks run, pass/fail/skip counts and raw evidence paths under `.orchestra/tasks/<id>/`.
+- **Findings & risks**: key technical conclusions, contract impacts, residual unverified risks or concrete blockers.
 </report-format>
