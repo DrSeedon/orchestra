@@ -157,7 +157,15 @@ async def test_antigravity_agent_markdown_accepted_by_agy_cli(tmp_path, monkeypa
 
     agy_bin = shutil.which("agy") or "/home/kesha/.local/bin/agy"
     if os.path.exists(agy_bin):
-        env = {**os.environ, "HOME": str(backend.home)}
+        isolated_disabled = tmp_path / "isolated_disabled_providers.json"
+        isolated_disabled.write_text('{"disabled_providers": []}', encoding="utf-8")
+        env = {
+            **os.environ,
+            "HOME": str(backend.home),
+            "ORCHESTRA_DISABLED_PROVIDERS_FILE": str(isolated_disabled),
+            "ORCHESTRA_DISABLED_PROVIDERS": "",
+            "ORCHESTRA_RESIDENTIAL_PROXY_URL": os.environ.get("ORCHESTRA_RESIDENTIAL_PROXY_URL", "http://127.0.0.1:18080"),
+        }
         res = subprocess.run(
             [agy_bin, "--output-format", "json", "agents"],
             cwd=str(cwd),

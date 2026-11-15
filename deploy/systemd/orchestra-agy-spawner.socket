@@ -1,0 +1,15 @@
+[Unit]
+Description=Orchestra Antigravity Isolated GID Spawner Socket
+Requires=orchestra-oauth-killswitch.service
+After=orchestra-oauth-killswitch.service
+
+[Socket]
+ListenStream=/run/orchestra-agy/spawner.sock
+DirectoryMode=0755
+SocketUser=kesha
+SocketGroup=kesha
+SocketMode=0600
+RemoveOnStop=true
+
+[Install]
+WantedBy=sockets.target

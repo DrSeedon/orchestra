@@ -9,6 +9,7 @@ and must immediately trip a durable circuit-breaker on unambiguous account/ToS b
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
 import os
@@ -118,10 +119,47 @@ _VENDOR_DOMAIN_SUFFIXES: tuple[str, ...] = (
 
 # Untrusted `.mcp.json` / `extra_env` keys that must NEVER override provider transport,
 # TLS roots, dynamic linker state, or subscription billing mode.
+_SAFE_LOCAL_NO_PROXY_SUFFIXES: tuple[str, ...] = (
+    ".local",
+    ".localhost",
+    ".internal",
+    ".lan",
+    ".home.arpa",
+    ".test",
+    ".invalid",
+    ".corp",
+    ".intranet",
+)
+
+_UNTRUSTED_EXTRA_ENV_LOWER_PREFIXES: tuple[str, ...] = (
+    "ld_",
+    "python",
+    "node_",
+    "ssl_",
+    "antigravity_",
+    "codex_",
+    "claude_",
+    "grok_",
+)
+
 _UNTRUSTED_EXTRA_ENV_LOWER_DENYLIST: frozenset[str] = frozenset({
     *(k.lower() for k in PROXY_ENV_VARS),
     *(k.lower() for k in NO_PROXY_ENV_VARS),
+    "path",
+    "home",
+    "user",
+    "logname",
+    "env",
+    "bash_env",
+    "shell",
+    "xdg_config_home",
+    "xdg_cache_home",
+    "xdg_data_home",
+    "git_ssh_command",
     "orchestra_residential_proxy_url",
+    "orchestra_upstream_proxy_port",
+    "orchestra_disabled_providers",
+    "orchestra_disabled_providers_file",
     "claude_proxy_url",
     "codex_proxy_url",
     "grok_proxy_url",
@@ -139,16 +177,8 @@ _UNTRUSTED_EXTRA_ENV_LOWER_DENYLIST: frozenset[str] = frozenset({
     "google_api_key",
     "google_application_credentials",
     "google_genai_use_vertexai",
-    "ssl_cert_file",
-    "ssl_cert_dir",
-    "node_extra_ca_certs",
     "requests_ca_bundle",
     "curl_ca_bundle",
-    "node_options",
-    "ld_preload",
-    "ld_library_path",
-    "bash_env",
-    "shell",
     "agy_cli_disable_auto_update",
 })
 
@@ -171,7 +201,7 @@ _ALLOWED_PROXY_SCHEMES: frozenset[str] = frozenset({
     "socks5h",
 })
 
-DEFAULT_EGRESS_VERIFY_TTL_SECONDS = 3600.0
+DEFAULT_EGRESS_VERIFY_TTL_SECONDS = 600.0
 EGRESS_BLOCKED_CACHE_SECONDS = 300.0
 EGRESS_TRANSIENT_FAILURE_BACKOFF_SECONDS = 60.0
 DEFAULT_PROVIDER_ACTIVITY_WINDOW_SECONDS = 1800.0
@@ -262,23 +292,44 @@ def has_recent_provider_activity(
 
 def _is_dangerous_no_proxy_entry(item: str) -> bool:
     token = item.strip().lower()
-    if not token:
+    if not token or "*" in token or "/" in token:
         return True
-    if token in {"*", "0.0.0.0/0", "::/0", "[::]/0"}:
-        return True
-    if "*" in token:
-        return True
-    host = token.split(":", 1)[0] if not token.startswith("[") else token.split("]", 1)[0] + "]"
+    if token.startswith("["):
+        if "]" not in token:
+            return True
+        ip_part = token[1 : token.index("]")]
+        try:
+            addr = ipaddress.ip_address(ip_part)
+        except ValueError:
+            return True
+        return not (addr.is_loopback or (addr.is_private and not addr.is_global))
+    if token.count(":") > 1:
+        try:
+            addr = ipaddress.ip_address(token)
+        except ValueError:
+            return True
+        return not (addr.is_loopback or (addr.is_private and not addr.is_global))
+    host = token.split(":", 1)[0]
     stripped = host.lstrip(".")
     if not stripped:
         return True
-    # Reject bare TLD wildcards such as `.com`, `.ai`, `.io`.
-    if host.startswith(".") and "." not in stripped:
+    try:
+        addr = ipaddress.ip_address(stripped)
+        return not (addr.is_loopback or (addr.is_private and not addr.is_global))
+    except ValueError:
+        pass
+    if stripped == "localhost":
+        return host.startswith(".")
+    # Reject bare single-label TLDs/tokens such as `com`, `.com`, `ai`, `.local`.
+    if "." not in stripped:
         return True
     for vendor in _VENDOR_DOMAIN_SUFFIXES:
         if stripped == vendor or stripped.endswith("." + vendor):
             return True
-    return False
+    if any(stripped.endswith(suf) for suf in _SAFE_LOCAL_NO_PROXY_SUFFIXES):
+        return False
+    # Fail closed on arbitrary public domains (`chatgpt.com`, `1e100.net`, `cloudflare.com`).
+    return True
 
 
 def sanitize_no_proxy(existing: str = "") -> str:
@@ -308,7 +359,8 @@ def sanitize_extra_env(extra_env: Mapping[str, str] | None) -> dict[str, str]:
     cleaned: dict[str, str] = {}
     for k, v in extra_env.items():
         key_str = str(k)
-        if key_str.lower() in _UNTRUSTED_EXTRA_ENV_LOWER_DENYLIST:
+        low = key_str.lower()
+        if low in _UNTRUSTED_EXTRA_ENV_LOWER_DENYLIST or low.startswith(_UNTRUSTED_EXTRA_ENV_LOWER_PREFIXES):
             logger.warning("Stripped untrusted extra_env override key %r", key_str)
             continue
         cleaned[key_str] = str(v)
@@ -495,34 +547,76 @@ def assert_safe_provider_env(
         for var in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "https_proxy", "http_proxy", "all_proxy"):
             if env.get(var) != expected_proxy:
                 raise EgressSafetyError(f"{provider}: {var} mismatch after env sanitization")
-        for var in ("NO_PROXY", "no_proxy"):
+        for var in NO_PROXY_ENV_VARS:
             val = env.get(var, "")
-            parts = {p.strip().lower() for p in val.split(",") if p.strip()}
-            if "*" in parts or not {"localhost", "127.0.0.1", "::1"}.issubset(parts):
+            parts = [p.strip() for p in val.split(",") if p.strip()]
+            low_parts = {p.lower() for p in parts}
+            if (
+                not {"localhost", "127.0.0.1", "::1"}.issubset(low_parts)
+                or any(_is_dangerous_no_proxy_entry(p) for p in parts)
+            ):
                 raise EgressSafetyError(f"{provider}: unsafe {var}={val!r}")
 
 
-async def _check_local_proxy_listener(proxy_url: str, timeout: float = 2.0) -> None:
-    """Verify local proxy TCP listener is accepting connections (0 bytes sent upstream)."""
+async def _probe_tcp_port(host: str, port: int, timeout: float) -> None:
+    _reader, writer = await asyncio.wait_for(
+        asyncio.open_connection(host, port),
+        timeout=timeout,
+    )
+    writer.close()
+    try:
+        await asyncio.wait_for(writer.wait_closed(), timeout=0.5)
+    except Exception:
+        pass
+
+
+async def _check_local_proxy_listener(
+    proxy_url: str,
+    timeout: float = 2.0,
+    *,
+    env: Mapping[str, str] | None = None,
+) -> None:
+    """Verify local proxy TCP listener (+ upstream xray leg when chained) is accepting connections."""
     parsed = urlparse(proxy_url)
     host = parsed.hostname or ""
     port = parsed.port
     if not host or not port:
         raise EgressSafetyError(f"Invalid proxy endpoint in {proxy_url!r}")
     try:
-        _reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port),
-            timeout=timeout,
-        )
-        writer.close()
-        try:
-            await asyncio.wait_for(writer.wait_closed(), timeout=0.5)
-        except Exception:
-            pass
+        await _probe_tcp_port(host, port, timeout)
     except Exception as exc:
         raise EgressSafetyError(
             f"Residential proxy listener {host}:{port} is unreachable ({type(exc).__name__}: {exc})"
         ) from exc
+
+    eff_env = os.environ if env is None else env
+    raw_up = (eff_env.get("ORCHESTRA_UPSTREAM_PROXY_PORT") or "").strip()
+    check_upstream = False
+    upstream_port = 10809
+    if raw_up:
+        try:
+            upstream_port = int(raw_up)
+            check_upstream = upstream_port > 0
+        except ValueError as exc:
+            raise EgressSafetyError(f"Invalid ORCHESTRA_UPSTREAM_PROXY_PORT={raw_up!r}") from exc
+    elif host in ("127.0.0.1", "localhost", "::1") and port == 18080:
+        check_upstream = True
+
+    if check_upstream and host in ("127.0.0.1", "localhost", "::1"):
+        try:
+            await _probe_tcp_port("127.0.0.1", upstream_port, timeout)
+        except Exception as exc:
+            raise EgressSafetyError(
+                f"Upstream residential tunnel 127.0.0.1:{upstream_port} is unreachable ({type(exc).__name__}: {exc})"
+            ) from exc
+
+
+def invalidate_provider_egress_cache(proxy_url: str | None = None) -> None:
+    """Drop cached egress verification on upstream tunnel/proxy failure."""
+    if proxy_url:
+        _egress_cache.pop(proxy_url, None)
+    else:
+        _egress_cache.clear()
 
 
 def _parse_asn_number(raw_asn: object) -> int | None:
@@ -547,6 +641,16 @@ def _evaluate_egress_identity(identity: dict) -> None:
 
     if not ip:
         raise EgressSafetyError("Residential proxy egress check returned empty IP")
+    try:
+        parsed_ip = ipaddress.ip_address(ip)
+    except ValueError as exc:
+        raise EgressSafetyError(f"Residential proxy egress check returned invalid IP {ip!r}") from exc
+    if not parsed_ip.is_global:
+        raise EgressSafetyError(f"Residential proxy egress check returned non-global IP {ip}")
+    if len(country) != 2 or not country.isalpha():
+        raise EgressSafetyError(f"Residential proxy egress check missing valid ISO country for IP {ip}")
+    if asn is None and not org:
+        raise EgressSafetyError(f"Residential proxy egress check missing ASN/org metadata for IP {ip}")
     if country in BLOCKED_COUNTRIES:
         raise EgressSafetyError(
             f"Blocked egress country {country!r} on exit IP {ip} (RU/BY forbidden for OAuth)"
@@ -678,7 +782,7 @@ async def verify_provider_egress(
         )
 
     # Local TCP socket check: catches a dead tinyproxy/xray in <2ms with 0 residential bytes.
-    await _check_local_proxy_listener(proxy_url)
+    await _check_local_proxy_listener(proxy_url, env=effective_env)
 
     try:
         ttl = float(effective_env.get("ORCHESTRA_EGRESS_VERIFY_TTL_SECONDS") or DEFAULT_EGRESS_VERIFY_TTL_SECONDS)
@@ -780,7 +884,7 @@ def _extract_error_text(value: object) -> str:
 
 def is_account_ban_payload(value: object, *, status_code: int | None = None) -> str | None:
     """Return short sanitized ban reason if payload unambiguously indicates an account/ToS ban."""
-    if status_code in (401, 429):
+    if status_code == 429:
         return None
     text = _extract_error_text(value).strip()
     if not text:

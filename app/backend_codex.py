@@ -1352,7 +1352,11 @@ class CodexBackend(JsonRpcStdioTransport):
         # A session installs its publication hook before starting the coroutine.
         # Capture it per operation, including across cancellation. A later failed
         # attempt cannot replace the unresolved operation's observer.
+        from app.provider_safety import record_provider_activity, verify_provider_egress
+
         observer, self._compact_reconciler = self._compact_reconciler, None
+        await verify_provider_egress("codex")
+        record_provider_activity("codex")
         if not self.is_alive or self._reader_failure is not None or self._stdout_closed:
             raise RuntimeError("Codex app-server is not running or its transport is closed")
         if not self._thread_id:
@@ -1599,8 +1603,11 @@ class CodexBackend(JsonRpcStdioTransport):
                     future = self._pending_requests.get(request_id)
                     if future and not future.done():
                         if "error" in message:
+                            err_obj = message.get("error") or {}
+                            from app.provider_safety import classify_and_trip_if_banned
+                            classify_and_trip_if_banned("codex", payload=err_obj)
                             future.set_exception(
-                                CodexProtocolError("request", message.get("error") or {})
+                                CodexProtocolError("request", err_obj)
                             )
                         else:
                             future.set_result(message.get("result") or {})
@@ -1805,9 +1812,12 @@ class CodexBackend(JsonRpcStdioTransport):
             if item_id:
                 self._seen_compact_items.add(item_id)
         elif method == "error":
-            op.error = {**(params.get("error") or {}), "willRetry": params.get("willRetry")}
+            err_payload = params.get("error") or {}
+            from app.provider_safety import classify_and_trip_if_banned
+            banned_cls = classify_and_trip_if_banned("codex", payload=err_payload)
+            op.error = {**err_payload, "willRetry": params.get("willRetry")}
             op.times.setdefault("error", round(time.monotonic() - op.started_at, 3))
-            if params.get("willRetry") is not True:
+            if banned_cls is not None or params.get("willRetry") is not True:
                 self._fail_compact_operation(op, "error")
         elif method == "turn/completed":
             turn = params.get("turn") or {}
@@ -1911,11 +1921,15 @@ class CodexBackend(JsonRpcStdioTransport):
             error = params.get("error") or {}
             self._last_turn_error = error
             content = error.get("message") or "Codex error"
+            from app.provider_safety import is_account_ban_payload
+            is_permanent_ban = is_account_ban_payload(error) is not None
             model_error = self._classify_error(error)
+            if is_permanent_ban and self.is_alive:
+                asyncio.create_task(self.disconnect())
             quota_exhausted = error.get("codexErrorInfo") in (
                 "usageLimitExceeded", "sessionBudgetExceeded",
             )
-            if params.get("willRetry") and not quota_exhausted:
+            if params.get("willRetry") and not quota_exhausted and not is_permanent_ban:
                 return [AgentEvent("status", f"codex reconnecting: {content}")]
             self._turn_compaction = None
             metadata = {"model_error": model_error}

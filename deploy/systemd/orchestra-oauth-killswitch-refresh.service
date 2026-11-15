@@ -1,7 +1,13 @@
 [Unit]
-Description=Refresh Orchestra OAuth Kill-Switch DNS VIPs
-After=network-online.target
+Description=Refresh Orchestra OAuth Kill-Switch DNS VIPs (bounded deadline)
+Requires=orchestra-oauth-killswitch.service
+After=orchestra-oauth-killswitch.service network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/sbin/orchestra-refresh-oauth-killswitch
+TimeoutStartSec=20s
+ExecStart=/usr/local/sbin/orchestra-refresh-oauth-killswitch --refresh-dns
+
+[Install]
+WantedBy=multi-user.target

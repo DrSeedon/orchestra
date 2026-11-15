@@ -1,0 +1,19 @@
+[Unit]
+Description=Orchestra Antigravity Isolated GID Spawner (skgid=agy_oauth, NoNewPrivileges=yes)
+Requires=orchestra-oauth-killswitch.service orchestra-agy-spawner.socket
+After=orchestra-oauth-killswitch.service orchestra-agy-spawner.socket
+
+[Service]
+Type=simple
+User=kesha
+Group=agy_oauth
+SupplementaryGroups=
+NoNewPrivileges=yes
+PrivateTmp=false
+ReadOnlyPaths=/opt/orchestra/runtimes
+ExecStart=/usr/bin/python3 /usr/local/libexec/orchestra-agy-ipc.py --mode spawner-daemon
+Restart=always
+RestartSec=1s
+
+[Install]
+WantedBy=multi-user.target

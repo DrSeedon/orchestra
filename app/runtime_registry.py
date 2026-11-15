@@ -273,7 +273,7 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
         servers.setdefault(name, cfg)
     mcp_env = {
         key: str(value)
-        for config in servers.values()
+        for config in context.mcp_servers.values()
         for key, value in config.get("env", {}).items()
     }
     return CodexBackend(

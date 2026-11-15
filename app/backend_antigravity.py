@@ -18,10 +18,12 @@ from pathlib import Path
 
 from app.antigravity_auth import (
     TOKEN_RELATIVE_PATH,
+    acquire_turn_slot_fd,
     atomic_private_write,
     harvest_refreshed_session_token,
     private_directory,
     read_auth_snapshot,
+    release_turn_slot_fd,
     sync_antigravity_home,
 )
 from app.events import AgentEvent
@@ -333,38 +335,74 @@ def supported_version(value: str) -> bool:
 
 
 async def _cli(*args: str, home: Path) -> dict | str:
-    """Bounded, noninteractive official CLI probe; never expose raw vendor stderr."""
-    process = await asyncio.create_subprocess_exec(
-        ANTIGRAVITY_BIN, *args, env=cli_environment(home),
-        stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.DEVNULL, start_new_session=True,
-    )
+    """Bounded, noninteractive official CLI probe; never mutate ANTIGRAVITY_AUTH_HOME directly."""
+    is_offline = args in (("--version",), ("--help",), ("-h",))
+    sem = None
+    slot_fd = None
+    exec_home = Path(home)
+    using_probe_home = False
+    if not is_offline:
+        sem = _get_turn_semaphore()
+        await sem.acquire()
     try:
-        stdout, _ = await asyncio.wait_for(process.communicate(), 10)
-    except BaseException:
-        if process.returncode is None:
-            os.killpg(process.pid, signal.SIGKILL)
-        await process.wait()
-        raise
-    if process.returncode:
-        # JSON failures are handled by the readiness adapter without echoing credentials.
+        if not is_offline:
+            slot_fd = await asyncio.to_thread(
+                acquire_turn_slot_fd, ANTIGRAVITY_AUTH_HOME, _max_concurrent_turns()
+            )
+            if exec_home.resolve() == Path(ANTIGRAVITY_AUTH_HOME).resolve():
+                exec_home = Path(ANTIGRAVITY_HOME_ROOT) / "_probe"
+                using_probe_home = True
+
+            def _prep_probe() -> None:
+                private_directory(exec_home)
+                sync_antigravity_home(ANTIGRAVITY_AUTH_HOME, exec_home)
+                snap = read_auth_snapshot(ANTIGRAVITY_AUTH_HOME)
+                atomic_private_write(exec_home / TOKEN_RELATIVE_PATH, snap.token)
+
+            if using_probe_home:
+                await asyncio.to_thread(_prep_probe)
+
+        process = await asyncio.create_subprocess_exec(
+            ANTIGRAVITY_BIN, *args, env=cli_environment(exec_home),
+            stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL, start_new_session=True,
+        )
         try:
-            raw = json.loads(stdout)
-        except (ValueError, UnicodeError):
-            raise RuntimeError("Antigravity CLI probe failed") from None
-        if isinstance(raw, dict):
-            if _is_account_disabled_payload(raw):
-                _trip_antigravity_circuit_breaker("CLI probe returned account disabled / Terms of Service")
-            return raw
-        raise RuntimeError("Antigravity CLI probe failed")
-    if args == ("--version",):
-        return stdout.decode(errors="replace").strip()
-    result = json.loads(stdout)
-    if not isinstance(result, dict):
-        raise RuntimeError("Antigravity probe returned an invalid object")
-    if _is_account_disabled_payload(result):
-        _trip_antigravity_circuit_breaker("CLI probe returned account disabled / Terms of Service")
-    return result
+            stdout, _ = await asyncio.wait_for(process.communicate(), 15)
+        except BaseException:
+            if process.returncode is None:
+                os.killpg(process.pid, signal.SIGKILL)
+            await process.wait()
+            raise
+        if process.returncode:
+            try:
+                raw = json.loads(stdout)
+            except (ValueError, UnicodeError):
+                raise RuntimeError("Antigravity CLI probe failed") from None
+            if isinstance(raw, dict):
+                if _is_account_disabled_payload(raw):
+                    _trip_antigravity_circuit_breaker("CLI probe returned account disabled / Terms of Service")
+                return raw
+            raise RuntimeError("Antigravity CLI probe failed")
+        if args == ("--version",):
+            return stdout.decode(errors="replace").strip()
+        result = json.loads(stdout)
+        if not isinstance(result, dict):
+            raise RuntimeError("Antigravity probe returned an invalid object")
+        if _is_account_disabled_payload(result):
+            _trip_antigravity_circuit_breaker("CLI probe returned account disabled / Terms of Service")
+        return result
+    finally:
+        if using_probe_home:
+            try:
+                await asyncio.to_thread(harvest_refreshed_session_token, ANTIGRAVITY_AUTH_HOME, exec_home)
+            except Exception as exc:
+                logger.warning("Failed to harvest refreshed Antigravity probe token: %s", exc)
+            (exec_home / TOKEN_RELATIVE_PATH).unlink(missing_ok=True)
+        if slot_fd is not None:
+            await asyncio.to_thread(release_turn_slot_fd, slot_fd)
+        if sem is not None:
+            sem.release()
 
 
 def catalog_models(raw: dict) -> set[str]:
@@ -536,7 +574,7 @@ class AntigravityBackend:
         atomic_private_write(self.home / ".gemini/orchestra-clean-bash-env.sh", clean_bytes)
         atomic_private_write(self.home / ".bashrc", clean_bytes)
         atomic_private_write(self.home / ".profile", clean_bytes)
-        sync_antigravity_home(ANTIGRAVITY_AUTH_HOME, self.home)
+        await asyncio.to_thread(sync_antigravity_home, ANTIGRAVITY_AUTH_HOME, self.home)
         atomic_private_write(self.home / ".gemini/config/mcp_config.json",
                              json.dumps({"mcpServers": self.mcp_servers}).encode())
 
@@ -630,6 +668,7 @@ class AntigravityBackend:
         self._interrupted = False
         sem = _get_turn_semaphore()
         await sem.acquire()
+        slot_fd: int | None = None
         handoff_to_consume = False
         try:
             from app.provider_safety import (
@@ -639,10 +678,13 @@ class AntigravityBackend:
                 verify_provider_egress,
             )
 
+            slot_fd = await asyncio.to_thread(
+                acquire_turn_slot_fd, ANTIGRAVITY_AUTH_HOME, _max_concurrent_turns()
+            )
             await verify_provider_egress("antigravity")
             record_provider_activity("antigravity")
-            sync_antigravity_home(ANTIGRAVITY_AUTH_HOME, self.home)
-            snapshot = read_auth_snapshot(ANTIGRAVITY_AUTH_HOME)
+            await asyncio.to_thread(sync_antigravity_home, ANTIGRAVITY_AUTH_HOME, self.home)
+            snapshot = await asyncio.to_thread(read_auth_snapshot, ANTIGRAVITY_AUTH_HOME)
             state_file = self.home / "orchestra-conversation.json"
             if self._generation is None and state_file.is_file():
                 try:
@@ -676,8 +718,8 @@ class AntigravityBackend:
                 stderr=asyncio.subprocess.PIPE, start_new_session=True,
                 limit=1024 * 1024,
             )
+            self._task = asyncio.create_task(self._consume(sem, slot_fd))
             handoff_to_consume = True
-            self._task = asyncio.create_task(self._consume(sem))
         except (OSError, ValueError, ProviderDisabledError, EgressSafetyError) as exc:
             (self.home / TOKEN_RELATIVE_PATH).unlink(missing_ok=True)
             self._queue.put_nowait(AgentEvent("error", "Antigravity credential/startup failure: " + self._redact(exc)))
@@ -686,6 +728,8 @@ class AntigravityBackend:
             return
         finally:
             if not handoff_to_consume:
+                if slot_fd is not None:
+                    await asyncio.to_thread(release_turn_slot_fd, slot_fd)
                 sem.release()
 
     async def _stderr(self, process):
@@ -697,7 +741,7 @@ class AntigravityBackend:
         if retained:
             logger.debug("Antigravity stderr: %s", self._redact(retained.decode(errors="replace"), all_env=True))
 
-    async def _consume(self, sem: asyncio.Semaphore | None = None):
+    async def _consume(self, sem: asyncio.Semaphore | None = None, slot_fd: int | None = None):
         process = self._process
         stderr = asyncio.create_task(self._stderr(process))
         terminal = None
@@ -830,10 +874,12 @@ class AntigravityBackend:
                 stderr.cancel()
             await asyncio.gather(stderr, return_exceptions=True)
             try:
-                harvest_refreshed_session_token(ANTIGRAVITY_AUTH_HOME, self.home)
-            except Exception:
-                pass
+                await asyncio.to_thread(harvest_refreshed_session_token, ANTIGRAVITY_AUTH_HOME, self.home)
+            except Exception as exc:
+                logger.warning("Failed to harvest refreshed Antigravity session token: %s", exc)
             (self.home / TOKEN_RELATIVE_PATH).unlink(missing_ok=True)
+            if slot_fd is not None:
+                await asyncio.to_thread(release_turn_slot_fd, slot_fd)
             if sem is not None:
                 sem.release()
             self._queue.put_nowait(None)

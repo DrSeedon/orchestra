@@ -2,8 +2,9 @@
 Description=Periodic DNS refresh for Orchestra OAuth Kill-Switch
 
 [Timer]
+OnBootSec=45s
 OnCalendar=*-*-* 00/6:17:00
-RandomizedDelaySec=120
+RandomizedDelaySec=60
 Persistent=true
 
 [Install]

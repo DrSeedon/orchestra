@@ -8,6 +8,7 @@ import json
 import os
 import re
 import tempfile
+import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -15,9 +16,11 @@ from datetime import datetime
 from pathlib import Path
 
 TOKEN_RELATIVE_PATH = Path(".gemini/antigravity-cli/antigravity-oauth-token")
+HARVEST_PENDING_RELATIVE_PATH = Path(".gemini/antigravity-cli/antigravity-oauth-token.harvest-pending")
 INSTALLATION_ID_RELATIVE_PATH = Path(".gemini/antigravity-cli/installation_id")
 JETSKI_STATE_RELATIVE_PATH = Path(".gemini/antigravity-cli/jetski_state.pbtxt")
 SYNC_LOCK_FILENAME = ".oauth-sync.lock"
+DEFAULT_SYNC_LOCK_TIMEOUT_SECONDS = 5.0
 
 
 @dataclass(frozen=True, repr=False)
@@ -107,28 +110,78 @@ def atomic_private_write(path: Path, content: bytes) -> None:
 
 
 @contextmanager
-def _auth_sync_lock(auth_home: Path):
+def _auth_sync_lock(auth_home: Path, *, timeout: float = DEFAULT_SYNC_LOCK_TIMEOUT_SECONDS):
     auth_home = Path(auth_home)
     private_directory(auth_home)
     lock_path = auth_home / SYNC_LOCK_FILENAME
     fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    locked = False
+    deadline = time.monotonic() + max(0.05, float(timeout))
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = True
+                break
+            except BlockingIOError as exc:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(
+                        f"Timed out after {timeout:.1f}s waiting for Antigravity OAuth sync lock"
+                    ) from exc
+                time.sleep(0.01)
         yield
     finally:
         try:
-            fcntl.flock(fd, fcntl.LOCK_UN)
+            if locked:
+                fcntl.flock(fd, fcntl.LOCK_UN)
         finally:
             os.close(fd)
 
 
+def acquire_turn_slot_fd(auth_home: Path, max_slots: int = 1, *, timeout: float = 600.0) -> int:
+    """Acquire a cross-process non-blocking flock slot enforcing ANTIGRAVITY_MAX_CONCURRENT_TURNS."""
+    auth_home = Path(auth_home)
+    private_directory(auth_home)
+    slots = max(1, int(max_slots))
+    deadline = time.monotonic() + max(0.1, float(timeout))
+    while True:
+        for idx in range(slots):
+            slot_path = auth_home / f".agy-turn-slot-{idx}.lock"
+            fd = os.open(slot_path, os.O_CREAT | os.O_RDWR, 0o600)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return fd
+            except BlockingIOError:
+                os.close(fd)
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                f"Timed out after {timeout:.1f}s waiting for Antigravity execution slot (max={slots})"
+            )
+        time.sleep(0.02)
+
+
+def release_turn_slot_fd(fd: int | None) -> None:
+    if fd is None:
+        return
+    try:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    except OSError:
+        pass
+    finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+
 def _sync_machine_identity_unlocked(auth_home: Path, session_home: Path) -> None:
-    """Ensure every Antigravity session HOME shares one canonical installation_id & installation_uuid."""
+    """Ensure canonical auth_home and every session_home share one installation_id & installation_uuid."""
     auth_inst = auth_home / INSTALLATION_ID_RELATIVE_PATH
     inst_bytes = auth_inst.read_bytes().strip() if auth_inst.is_file() else b""
     if not inst_bytes:
         inst_bytes = str(uuid.uuid4()).encode("ascii")
         atomic_private_write(auth_inst, inst_bytes)
+    inst_str = inst_bytes.decode("ascii", errors="replace").strip() or str(uuid.uuid4())
 
     sess_inst = session_home / INSTALLATION_ID_RELATIVE_PATH
     if not sess_inst.is_file() or sess_inst.read_bytes().strip() != inst_bytes:
@@ -137,49 +190,87 @@ def _sync_machine_identity_unlocked(auth_home: Path, session_home: Path) -> None
     auth_jetski = auth_home / JETSKI_STATE_RELATIVE_PATH
     if auth_jetski.is_file():
         auth_state_text = auth_jetski.read_text(encoding="utf-8", errors="replace")
-        m = re.search(r'installation_uuid:\s*"([^"]+)"', auth_state_text)
-        sess_jetski = session_home / JETSKI_STATE_RELATIVE_PATH
-        if not sess_jetski.is_file():
-            atomic_private_write(sess_jetski, auth_state_text.encode("utf-8"))
-        elif m:
-            canon_uuid = m.group(1)
-            sess_text = sess_jetski.read_text(encoding="utf-8", errors="replace")
-            if re.search(r'installation_uuid:\s*"([^"]+)"', sess_text):
-                updated = re.sub(
-                    r'installation_uuid:\s*"[^"]+"',
-                    f'installation_uuid: "{canon_uuid}"',
-                    sess_text,
-                )
-            else:
-                updated = sess_text.rstrip() + f'\ninstallation_uuid: "{canon_uuid}"\n'
-            if updated != sess_text:
-                atomic_private_write(sess_jetski, updated.encode("utf-8"))
+    else:
+        auth_state_text = ""
+
+    m = re.search(r'installation_uuid:\s*"([^"]+)"', auth_state_text)
+    if m:
+        canon_uuid = m.group(1)
+    else:
+        canon_uuid = inst_str
+        prefix = auth_state_text.rstrip()
+        auth_state_text = (f"{prefix}\n" if prefix else "") + f'installation_uuid: "{canon_uuid}"\n'
+        atomic_private_write(auth_jetski, auth_state_text.encode("utf-8"))
+
+    sess_jetski = session_home / JETSKI_STATE_RELATIVE_PATH
+    if not sess_jetski.is_file():
+        atomic_private_write(sess_jetski, auth_state_text.encode("utf-8"))
+    else:
+        sess_text = sess_jetski.read_text(encoding="utf-8", errors="replace")
+        if re.search(r'installation_uuid:\s*"([^"]+)"', sess_text):
+            updated = re.sub(
+                r'installation_uuid:\s*"[^"]+"',
+                f'installation_uuid: "{canon_uuid}"',
+                sess_text,
+            )
+        else:
+            updated = sess_text.rstrip() + f'\ninstallation_uuid: "{canon_uuid}"\n'
+        if updated != sess_text:
+            atomic_private_write(sess_jetski, updated.encode("utf-8"))
 
 
 def _promote_fresher_session_token_unlocked(auth_home: Path, session_home: Path) -> bool:
-    """If session_home holds a fresher ya29 for the SAME refresh_token, write it back to auth_home."""
+    """If session_home (or its .harvest-pending backup) holds a fresher ya29, write back to auth_home."""
     auth_token_path = auth_home / TOKEN_RELATIVE_PATH
+    if not auth_token_path.is_file():
+        return False
     sess_token_path = session_home / TOKEN_RELATIVE_PATH
-    if not auth_token_path.is_file() or not sess_token_path.is_file():
+    pending_path = session_home / HARVEST_PENDING_RELATIVE_PATH
+
+    candidates: list[Path] = []
+    if sess_token_path.is_file():
+        candidates.append(sess_token_path)
+    if pending_path.is_file():
+        candidates.append(pending_path)
+    if not candidates:
         return False
-    try:
-        auth_bytes = auth_token_path.read_bytes()
-        sess_bytes = sess_token_path.read_bytes()
-    except OSError:
-        return False
-    if not sess_bytes.strip() or sess_bytes == auth_bytes:
-        return False
+
+    auth_bytes = auth_token_path.read_bytes()
     auth_id, auth_exp = _parse_token_identity_and_expiry(auth_bytes)
-    sess_id, sess_exp = _parse_token_identity_and_expiry(sess_bytes)
-    if (
-        auth_id is not None
-        and sess_id == auth_id
-        and sess_exp is not None
-        and (auth_exp is None or sess_exp > auth_exp)
-    ):
-        atomic_private_write(auth_token_path, sess_bytes)
-        return True
-    return False
+    if auth_id is None:
+        return False
+
+    best_bytes: bytes | None = None
+    best_exp = auth_exp
+    for cand in candidates:
+        try:
+            raw = cand.read_bytes()
+        except OSError:
+            continue
+        if not raw.strip() or raw == auth_bytes:
+            continue
+        cid, cexp = _parse_token_identity_and_expiry(raw)
+        if cid == auth_id and cexp is not None and (best_exp is None or cexp > best_exp):
+            best_bytes = raw
+            best_exp = cexp
+
+    if best_bytes is None:
+        if pending_path.is_file():
+            pending_path.unlink(missing_ok=True)
+        return False
+
+    try:
+        atomic_private_write(auth_token_path, best_bytes)
+    except BaseException:
+        # Preserve refreshed token privately so session token cleanup never loses it!
+        try:
+            atomic_private_write(pending_path, best_bytes)
+        except OSError:
+            pass
+        raise
+
+    pending_path.unlink(missing_ok=True)
+    return True
 
 
 def sync_antigravity_home(auth_home: Path, session_home: Path) -> None:
@@ -198,7 +289,11 @@ def harvest_refreshed_session_token(auth_home: Path, session_home: Path) -> bool
     """Harvest a CLI-refreshed ya29 token from session_home back into canonical auth_home."""
     auth_home = Path(auth_home)
     session_home = Path(session_home)
-    if not (auth_home / TOKEN_RELATIVE_PATH).is_file() or not (session_home / TOKEN_RELATIVE_PATH).is_file():
+    if not (auth_home / TOKEN_RELATIVE_PATH).is_file():
+        return False
+    if not (session_home / TOKEN_RELATIVE_PATH).is_file() and not (
+        session_home / HARVEST_PENDING_RELATIVE_PATH
+    ).is_file():
         return False
     with _auth_sync_lock(auth_home):
         return _promote_fresher_session_token_unlocked(auth_home, session_home)
@@ -274,6 +369,7 @@ def main() -> int:
     parser.add_argument("--model", default="gemini-3.6-flash-low")
     args = parser.parse_args()
     backend.ANTIGRAVITY_BIN = args.agy_bin
+    backend.ANTIGRAVITY_AUTH_HOME = args.auth_home
     args.auth_home.parent.mkdir(parents=True, exist_ok=True)
 
     async def validate(home):
@@ -293,7 +389,6 @@ def main() -> int:
         with tempfile.TemporaryDirectory(prefix=".antigravity-login.", dir=args.auth_home.parent) as temporary:
             home = Path(temporary)
             ensure_credits_disabled(home)
-            # The official interactive OAuth command inherits the operator's TTY.
             subprocess.run([args.agy_bin], env=backend.cli_environment(home), check=True)
             ensure_credits_disabled(home)
             asyncio.run(validate(home))
@@ -302,7 +397,6 @@ def main() -> int:
         print(f"Antigravity account validated: gemini-weekly, 3p-weekly; generation {generation}")
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, TimeoutError):
-        # Vendor output may contain credentials; print only our own failure message.
         print("Antigravity login failed; previous canonical credential preserved", file=sys.stderr)
         return 1
 

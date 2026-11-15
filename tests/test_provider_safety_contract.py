@@ -530,7 +530,7 @@ def test_antigravity_hourly_refresh_keeps_generation_and_harvests_fresher_ya29(t
     sess_home = tmp_path / "sess-home"
     old_doc = {
         "token": {
-            "access_token": "ya29.old_access_token_111",
+            "access_token": "fake-access-old_access_token_111",
             "token_type": "Bearer",
             "refresh_token": "1//same_refresh_token_aaa",
             "expiry": "2026-11-15T09:00:00.123456789+01:00",
@@ -753,3 +753,188 @@ async def test_antigravity_global_concurrency_semaphore_serializes_turns(tmp_pat
 
     await asyncio.gather(_run_one(b1), _run_one(b2))
     assert max_active == 1
+
+
+
+def test_redteam_no_proxy_and_extra_env_hardening(tmp_path, monkeypatch):
+    monkeypatch.setenv("ORCHESTRA_RESIDENTIAL_PROXY_URL", "http://127.0.0.1:18080")
+    sanitized = ps.sanitize_no_proxy(
+        "com,ai,.com,chatgpt.com,1e100.net,142.250.0.0/15,142.250.1.1,internal.local,svc.internal,10.0.0.5"
+    )
+    parts = [x.strip() for x in sanitized.split(",") if x.strip()]
+    assert "com" not in parts
+    assert "ai" not in parts
+    assert "chatgpt.com" not in parts
+    assert "1e100.net" not in parts
+    assert "142.250.0.0/15" not in parts
+    assert "142.250.1.1" not in parts
+    assert "internal.local" in parts
+    assert "svc.internal" in parts
+    assert "10.0.0.5" in parts
+
+    with pytest.raises(ps.EgressSafetyError, match="unsafe NO_PROXY"):
+        ps.assert_safe_provider_env(
+            "codex",
+            {
+                **{k: "http://127.0.0.1:18080" for k in ps.PROXY_ENV_VARS},
+                **{k: "localhost,127.0.0.1,::1,com" for k in ps.NO_PROXY_ENV_VARS},
+            },
+            expected_proxy="http://127.0.0.1:18080",
+        )
+
+    cleaned = ps.sanitize_extra_env({
+        "PATH": "/tmp/evil",
+        "HOME": "/tmp/evil-home",
+        "PYTHONPATH": "/tmp/evil-py",
+        "LD_AUDIT": "/tmp/evil.so",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+        "CODEX_HOME": "/tmp/evil-codex",
+        "CLAUDE_CONFIG_DIR": "/tmp/evil-claude",
+        "GIT_SSH_COMMAND": "evil",
+        "SAFE_PROJECT_VAR": "ok-val",
+    })
+    assert cleaned == {"SAFE_PROJECT_VAR": "ok-val"}
+
+    # Verify scope .mcp.json env is NOT merged into CodexBackend parent _mcp_env.
+    from app.runtime_registry import BackendBuildContext, _codex_factory
+
+    scope_dir = tmp_path / "repo"
+    scope_dir.mkdir()
+    (scope_dir / ".mcp.json").write_text(
+        json.dumps({
+            "mcpServers": {
+                "evil_srv": {
+                    "command": "echo",
+                    "env": {"UNTRUSTED_SCOPE_SECRET": "should_not_enter_parent_env", "PATH": "/tmp/evil"},
+                }
+            }
+        }),
+        encoding="utf-8",
+    )
+    ctx = BackendBuildContext(
+        model="gpt-6.1-sol",
+        provider="openai",
+        cwd=str(scope_dir),
+        system_prompt="sys",
+        resume_session_id=None,
+        mcp_servers={"orchestra": {"command": "python3", "env": {"ORCHESTRA_SESSION_ID": "s-reg"}}},
+        is_orchestrator=False,
+        scope=str(scope_dir),
+        pipeline="default",
+        role="worker",
+        profile="",
+        effort="high",
+        context_limit=200000,
+    )
+    cb = _codex_factory(ctx)
+    assert "UNTRUSTED_SCOPE_SECRET" not in cb._mcp_env
+    assert cb._mcp_env.get("ORCHESTRA_SESSION_ID") == "s-reg"
+
+
+@pytest.mark.asyncio
+async def test_redteam_egress_identity_strictness_and_upstream_port_check(monkeypatch):
+    monkeypatch.setenv("ORCHESTRA_ENFORCE_PROVIDER_EGRESS", "1")
+
+    for bad_identity in (
+        {"ip": "127.0.0.1", "country": "NL", "asn": 215294, "org": "Lumina"},
+        {"ip": "178.93.29.64", "country": "", "asn": 215294, "org": "Lumina"},
+        {"ip": "178.93.29.64", "country": "NL", "asn": None, "org": ""},
+    ):
+        with pytest.raises(ps.EgressSafetyError):
+            ps._evaluate_egress_identity(bad_identity)
+
+    # Closed upstream tunnel port fails closed even when local tinyproxy listener is open.
+    dead_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    dead_sock.bind(("127.0.0.1", 0))
+    closed_upstream = dead_sock.getsockname()[1]
+    dead_sock.close()
+
+    with _local_dummy_listener() as proxy_url:
+        monkeypatch.setenv("ORCHESTRA_RESIDENTIAL_PROXY_URL", proxy_url)
+        monkeypatch.setenv("ORCHESTRA_UPSTREAM_PROXY_PORT", str(closed_upstream))
+        with pytest.raises(ps.EgressSafetyError, match="Upstream residential tunnel"):
+            await ps.verify_provider_egress("antigravity")
+
+
+def test_redteam_401_ban_marker_trips_while_token_expired_and_429_stay_safe():
+    assert ps.is_account_ban_payload({"error": "token_expired"}, status_code=401) is None
+    assert ps.is_account_ban_payload({"error": "violation of terms of service"}, status_code=429) is None
+    assert ps.is_account_ban_payload({"error": "account_deactivated"}, status_code=401) is not None
+
+
+@pytest.mark.asyncio
+async def test_redteam_antigravity_cli_uses_isolated_probe_home_and_harvests_token(tmp_path, monkeypatch):
+    from app.antigravity_auth import ensure_credits_disabled
+
+    auth_home = tmp_path / "auth-home"
+    homes_root = tmp_path / "homes"
+    token_rel = Path(".gemini/antigravity-cli/antigravity-oauth-token")
+    initial_tok = {"auth_method": "oauth", "id_token_email": "u@example.com", "token": {"access_token": "fake-access-old", "refresh_token": "1//same-rt", "expiry": "2026-11-15T10:00:00Z"}}
+    refreshed_tok = {"auth_method": "oauth", "id_token_email": "u@example.com", "token": {"access_token": "fake-access-refreshed", "refresh_token": "1//same-rt", "expiry": "2026-11-15T14:00:00Z"}}
+
+    (auth_home / token_rel).parent.mkdir(parents=True, exist_ok=True)
+    (auth_home / token_rel).write_text(json.dumps(initial_tok), encoding="utf-8")
+    (auth_home / token_rel).chmod(0o600)
+    ensure_credits_disabled(auth_home)
+
+    monkeypatch.setattr(backend_antigravity, "ANTIGRAVITY_AUTH_HOME", auth_home)
+    monkeypatch.setattr(backend_antigravity, "ANTIGRAVITY_HOME_ROOT", homes_root)
+
+    seen_homes: list[str] = []
+
+    async def fake_probe_exec(*args, **kwargs):
+        env_home = Path(kwargs["env"]["HOME"])
+        seen_homes.append(str(env_home))
+        # Simulate CLI refreshing ya29 token inside its execution HOME
+        (env_home / token_rel).write_text(json.dumps(refreshed_tok), encoding="utf-8")
+
+        class _Proc:
+            pid = 999991
+            returncode = 0
+
+            async def communicate(self):
+                return json.dumps({"status": "SUCCESS", "command": {"data": {"groups": []}}}).encode(), b""
+
+            async def wait(self):
+                return 0
+
+        return _Proc()
+
+    monkeypatch.setattr(backend_antigravity.asyncio, "create_subprocess_exec", fake_probe_exec)
+    res = await backend_antigravity._cli("--output-format", "json", "-p", "/quota", home=auth_home)
+    assert res["status"] == "SUCCESS"
+    assert seen_homes == [str(homes_root / "_probe")]
+    assert not (homes_root / "_probe" / token_rel).exists()
+    saved = json.loads((auth_home / token_rel).read_text(encoding="utf-8"))
+    assert saved["token"]["access_token"] == "fake-access-refreshed"
+
+
+@pytest.mark.asyncio
+async def test_redteam_codex_permanent_ban_cancels_will_retry_and_disconnects(tmp_path):
+    cb = backend_codex.CodexBackend(
+        model="gpt-6.1-sol",
+        cwd=str(tmp_path),
+        system_prompt="sys",
+        mcp_servers={"orchestra": {"command": "python3", "env": {"ORCHESTRA_SESSION_ID": "s-ban"}}},
+    )
+    disconnected = False
+
+    async def fake_disconnect():
+        nonlocal disconnected
+        disconnected = True
+
+    cb._proc = type("_FakeProc", (), {"returncode": None})()
+    cb.disconnect = fake_disconnect  # type: ignore[method-assign]
+
+    events = cb._convert_notification({
+        "method": "error",
+        "params": {
+            "willRetry": True,
+            "error": {"message": "Your account has been disabled due to violation of terms of service"},
+        },
+    })
+    await asyncio.sleep(0)
+    assert models.is_provider_disabled("codex") is True
+    assert disconnected is True
+    assert len(events) == 1
+    assert events[0].type == "error"

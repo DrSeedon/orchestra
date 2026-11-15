@@ -1,0 +1,19 @@
+[Unit]
+Description=Orchestra Antigravity Clean Worker Tool Executor (skgid=kesha, NoNewPrivileges=yes)
+Requires=orchestra-oauth-killswitch.service orchestra-agy-tool-exec.socket
+After=orchestra-oauth-killswitch.service orchestra-agy-tool-exec.socket
+
+[Service]
+Type=simple
+User=kesha
+Group=kesha
+SupplementaryGroups=
+NoNewPrivileges=yes
+PrivateTmp=false
+ReadOnlyPaths=/opt/orchestra/runtimes
+ExecStart=/usr/bin/python3 /usr/local/libexec/orchestra-agy-ipc.py --mode tool-daemon
+Restart=always
+RestartSec=1s
+
+[Install]
+WantedBy=multi-user.target

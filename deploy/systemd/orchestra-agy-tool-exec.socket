@@ -1,0 +1,15 @@
+[Unit]
+Description=Orchestra Antigravity Clean Worker Tool Executor Socket
+Requires=orchestra-oauth-killswitch.service
+After=orchestra-oauth-killswitch.service
+
+[Socket]
+ListenStream=/run/orchestra-agy/tool-exec.sock
+DirectoryMode=0755
+SocketUser=kesha
+SocketGroup=agy_oauth
+SocketMode=0660
+RemoveOnStop=true
+
+[Install]
+WantedBy=sockets.target

@@ -1,16 +1,18 @@
 [Unit]
-Description=Orchestra OAuth Direct-Datacenter Egress Kill-Switch (nftables)
+Description=Orchestra OAuth Direct-Datacenter Egress Kill-Switch (nftables, static fast-boot)
 DefaultDependencies=no
 After=network-pre.target systemd-sysctl.service
-Before=network-online.target orchestra.service kesha-bot-vps.service
+Before=network-online.target sockets.target orchestra.socket orchestra.service orchestra-agy-spawner.socket orchestra-agy-spawner.service orchestra-agy-tool-exec.socket orchestra-agy-tool-exec.service kesha-bot-vps.service
 Wants=network-pre.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/local/sbin/orchestra-refresh-oauth-killswitch
-ExecReload=/usr/local/sbin/orchestra-refresh-oauth-killswitch
-ExecStop=/usr/sbin/nft delete table inet orchestra_oauth_killswitch
+TimeoutStartSec=15s
+ExecStart=/usr/local/sbin/orchestra-refresh-oauth-killswitch --static-only
+ExecReload=/usr/local/sbin/orchestra-refresh-oauth-killswitch --refresh-dns
+# Intentionally NO ExecStop table deletion: restarting the unit or stopping Orchestra
+# must never open an unguarded packet window.
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=sysinit.target multi-user.target
