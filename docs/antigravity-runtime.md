@@ -132,3 +132,14 @@ before merge readiness.
   automatic fallback. No API route, key, subscription or billing change was added.
 
 Latest bounded correction/checks and unresolved timeout: `.orchestra/tasks/agy-acp-safe-20261116/r2/report.md`. Overall acceptance remains RED.
+
+## Receipt submission boundary (focused R3 correction)
+
+For ACP receipt sends, profile/model preflight precedes the canonical DISPATCHING
+hook. That hook runs directly before session/prompt bytes enter stdin. SUBMITTED
+requires local write+drain completion, not merely scheduling _run; it does not mean
+model acceptance or turn success. Failed preflight stays FAILED_BEFORE_SUBMIT;
+missing write proof after dispatch stays DELIVERY_UNKNOWN with no replay. The real
+per-turn reader runs while submission waits outside the session lifecycle lock,
+so queued/backpressured input stays interruptible. Direct/initial receipt state
+machines are unchanged. Evidence: task submission/report.md; overall gate remains RED.

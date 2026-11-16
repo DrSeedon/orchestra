@@ -403,6 +403,8 @@ class AntigravityBackend:
         self._cost_total = None
         self._cost_baseline = None
         self._instructions_sent = False
+        self._submission = None
+        self._before_submit = None
         self._stream_finished = True
         self._text_chunks = []
         self._thinking_chunks = []
@@ -515,7 +517,7 @@ class AntigravityBackend:
             metadata.update(model_error=error, errors=[error])
         return AgentEvent("turn_end", metadata=metadata, usage=typed)
 
-    async def send(self, message):
+    async def send(self, message, *, before_submit=None):
         from app.antigravity_acp import ensure_interactive_input
         ensure_interactive_input("antigravity/" + self.model,
             message.provenance if isinstance(message, InjectedMessage) else None)
@@ -533,12 +535,32 @@ class AntigravityBackend:
         self._thinking_chunks = []
         self._tool_names = {}
         self._tool_status = {}
+        self._before_submit = before_submit
+        self._submission = asyncio.get_running_loop().create_future()
+        self._submission.add_done_callback(lambda f: None if f.cancelled() else f.exception())
         self._task = asyncio.create_task(self._run(message.text))
         self._task.add_done_callback(self._cancelled_before_run)
+
+    def _settle_submission(self, error=None):
+        if self._submission is not None and not self._submission.done():
+            if error is None:
+                self._submission.set_result(None)
+            else:
+                self._submission.set_exception(error)
+
+    async def wait_for_submission(self):
+        """Wait only for prompt write+drain, never for inference or terminal output."""
+        try:
+            await asyncio.shield(self._submission)
+        except asyncio.CancelledError:
+            # A cancelled waiter cannot leave a known-not-submitted prompt running.
+            await self.interrupt()
+            raise
 
     def _cancelled_before_run(self, task):
         if task is self._task and task.cancelled() and not self._stream_finished:
             self._stream_finished = True
+            self._settle_submission(RuntimeError("ACP submission cancelled before task start"))
             self._queue.put_nowait(self._end(reason="interrupt", error="interrupted"))
             self._queue.put_nowait(None)
 
@@ -649,15 +671,19 @@ class AntigravityBackend:
                 self._owner.listeners[self.session_id] = self._update
                 try:
                     prompt_task = asyncio.create_task(self._owner.request("session/prompt", {
-                        "sessionId": self.session_id, "prompt": blocks}, timeout=self._owner.prompt_timeout))
+                        "sessionId": self.session_id, "prompt": blocks}, timeout=self._owner.prompt_timeout,
+                        before_write=self._before_submit, on_written=self._settle_submission))
                     self._instructions_sent = True
                     try:
                         result = await asyncio.shield(prompt_task)
                     except asyncio.CancelledError:
                         self._interrupted = True
-                        await self._owner.notify("session/cancel", {"sessionId": self.session_id})
                         try:
-                            await asyncio.wait_for(asyncio.shield(prompt_task), 2)
+                            # Cancellation must also bound a write-lock/backpressure
+                            # wait; a queued cancel notification cannot hang forever.
+                            async with asyncio.timeout(2):
+                                await self._owner.notify("session/cancel", {"sessionId": self.session_id})
+                                await asyncio.shield(prompt_task)
                         except (Exception, asyncio.CancelledError):
                             await self._owner.close("ACP cancellation was not acknowledged; operator recovery required")
                         raise
@@ -667,8 +693,10 @@ class AntigravityBackend:
                 self._queue.put_nowait(self._end(ok=reason == "end_turn", reason=reason,
                     error=None if reason == "end_turn" else reason, context=self._context))
         except asyncio.CancelledError:
+            self._settle_submission(AcpError("ACP submission cancelled"))
             self._queue.put_nowait(self._end(reason="interrupt", error="interrupted", context=self._context))
         except Exception as exc:
+            self._settle_submission(exc if isinstance(exc, AcpError) else AcpError("ACP submission failed"))
             # Raw server error bodies and stderr can contain OAuth material.
             # Only bounded, locally authored errors reach the event stream.
             if isinstance(exc, AcpError) and not isinstance(exc, AcpSessionError):

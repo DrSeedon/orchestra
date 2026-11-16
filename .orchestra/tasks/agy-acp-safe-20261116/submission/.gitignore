@@ -1,0 +1,11 @@
+*
+!.gitignore
+!report.md
+!verification.json
+!cleanup.json
+!commands.json
+!before.log
+!targeted-final.log
+!acceptance.log
+!instructions.log
+!unknown-post-write.json

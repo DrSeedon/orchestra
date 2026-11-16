@@ -1,0 +1,33 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+........................................................................ [ 31%]
+........................................................................ [ 63%]
+........................................................................ [ 95%]
+.........F                                                               [100%]
+=================================== FAILURES ===================================
+___ test_t381_provider_accept_then_transport_loss_stays_unknown_quarantined ____
+tests/test_initial_deliveries.py:1260: in test_t381_provider_accept_then_transport_loss_stays_unknown_quarantined
+    await run(DELIVERY_ID, manager=_T381SessionManager(session))
+app/initial_deliveries.py:736: in run_initial_delivery
+    await manager.send_initial_delivery(
+tests/test_initial_deliveries.py:1061: in send_initial_delivery
+    await self.session.send(
+app/session.py:1442: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1158: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+app/models.py:1140: in ensure_project_model_allowed
+    raise ValueError(
+E   ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+=============================== warnings summary ===============================
+tests/test_antigravity_acp.py::test_loopback_http_and_real_orchestra_sse_smoke
+  /home/kesha/orchestra/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_antigravity_acp.py::test_loopback_http_and_real_orchestra_sse_smoke
+  /home/kesha/orchestra/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_initial_deliveries.py::test_t381_provider_accept_then_transport_loss_stays_unknown_quarantined
+1 failed, 225 passed, 2 warnings in 31.79s

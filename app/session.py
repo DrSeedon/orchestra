@@ -1960,18 +1960,37 @@ class AgentSession:
                     "</current-user-message>"
                 )
             dispatch_started = False
+            acp_receipt = delivery is not None and self.backend_type == "antigravity"
+            receipt_listener_started = False
+            receipt_turn_gen = self._turn_gen
             try:
                 provider_send = getattr(backend, "send", None)
                 if not callable(provider_send):
                     raise RuntimeError("backend is unavailable before provider submission")
                 self._active_delivery_context = None
                 if delivery is not None:
-                    await delivery.before_submit()
-                    dispatch_started = True
+                    if not acp_receipt:
+                        await delivery.before_submit()
+                        dispatch_started = True
                     self._active_delivery_context = delivery
                 if self.backend_type == "antigravity":
                     outbound_message = InjectedMessage(outbound_message, provenance, message_event_id)
-                await provider_send(outbound_message)
+                if acp_receipt:
+                    await provider_send(outbound_message, before_submit=delivery.before_submit)
+                    # The reader must exist while submission is pending, including
+                    # profile-lock queuing/cancellation. Never hold the lifecycle lock
+                    # while waiting: HTTP interrupt must still be able to stop this turn.
+                    self._listen_task = asyncio.create_task(self._turn_event_loop())
+                    self._listen_task.add_done_callback(self._on_task_done)
+                    receipt_listener_started = True
+                    self._lifecycle_lock.release()
+                    try:
+                        await backend.wait_for_submission()
+                    finally:
+                        await self._lifecycle_lock.acquire()
+                    dispatch_started = delivery.dispatched
+                else:
+                    await provider_send(outbound_message)
                 provider_accepted = True
                 if delivery is not None:
                     provider_ref = getattr(backend, "active_turn_id", None)
@@ -1986,14 +2005,14 @@ class AgentSession:
                         self._spawn_bg(watch_turn_start(self, delivery.delivery_id))
             except asyncio.CancelledError as error:
                 self._settle_held_mailbox(held, backend, provider_accepted)
-                if delivery is not None and dispatch_started:
+                if delivery is not None and (dispatch_started or (acp_receipt and delivery.dispatched)):
                     await delivery.mark_unknown(error)
                 raise
             except Exception as error:
                 self._settle_held_mailbox(held, backend, provider_accepted)
-                if delivery is not None and dispatch_started:
+                if delivery is not None and (dispatch_started or (acp_receipt and delivery.dispatched)):
                     await delivery.mark_unknown(error)
-                if self.status == AgentStatus.RUNNING:
+                if self.status == AgentStatus.RUNNING and (not acp_receipt or self._turn_gen == receipt_turn_gen):
                     self.status = AgentStatus.IDLE
                     self._persist()
                     self._turns.publish_turn_finished()
@@ -2014,7 +2033,7 @@ class AgentSession:
                 self._prompt_injected = True
                 self.system_prompt = self._current_prompt
 
-            if capabilities.event_stream == "per_turn":
+            if capabilities.event_stream == "per_turn" and not receipt_listener_started:
                 self._listen_task = asyncio.create_task(
                     self._turn_event_loop()
                 )

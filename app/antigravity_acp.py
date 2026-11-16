@@ -149,27 +149,32 @@ class AcpProfile:
                 await self.close(reason)
                 raise AcpError(reason) from None
 
-    async def _write(self, message):
+    async def _write(self, message, *, before_write=None, on_written=None):
         if self.failure or self.process is None or self.process.returncode is not None:
             raise AcpError(self.failure or "ACP daemon unavailable")
         payload = (json.dumps(message, ensure_ascii=False) + "\n").encode()
         if len(payload) > 1024 * 1024:
             raise AcpError("ACP message exceeds 1 MiB limit")
         async with self._write_lock:
+            if before_write is not None:
+                await before_write()
             self.process.stdin.write(payload)
             await self.process.stdin.drain()
+            if on_written is not None:
+                on_written()
 
     async def notify(self, method, params):
         await self._write({"jsonrpc": "2.0", "method": method, "params": params})
 
-    async def request(self, method, params, *, timeout=None):
+    async def request(self, method, params, *, timeout=None, before_write=None, on_written=None):
         self._next_id += 1
         request_id = self._next_id
         future = self.loop.create_future()
         self._pending[request_id] = future
         try:
             async with asyncio.timeout(self.request_timeout if timeout is None else timeout):
-                await self._write({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params})
+                await self._write({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params},
+                                  before_write=before_write, on_written=on_written)
                 return await asyncio.shield(future)
         except AcpSessionError:
             raise

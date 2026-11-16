@@ -1,20 +1,18 @@
-# Orchestra — isolated ACP candidate after bounded Astra R2 correction
-- Updated 2026-11-16; worktree /home/kesha/orchestra-worktrees/agy-acp-safe, branch agy-acp-safe.
-- Base 120cb528faaefcf0fddd688e4ab300469aeb3fc8; corrected commit in final handoff.
-- One writer; no push/merge/deploy/restart/live activation or real agy/Google calls.
-- No credential reads/copies or provider/proxy/billing/T3 changes; production untouched.
-- R2 nested ban corrected through canonical structured error fields; safe durable incident.
-- R2 real compact starts per-turn ACK listener; actual _ensure_backend/event loop tested.
-- ACK known context adopted; unknown receipt fields null; failed ACK restores old ID/context.
-- R2 selected config model requires returned confirmation; mismatch/unknown denies prompt.
-- Correct confirmation/config updates and healthy siblings preserved, no replay/fallback.
-- Actual HTTP receipts/idempotence/interrupt/compact via SessionManager and event loop PASS.
-- Final scoped suite: 210 passed, 0 skipped, 2 dependency warnings, 21.63s.
-- Instruction/syntax/diff/secrets checked; stand stopped, no owned fake/runner PIDs.
-- Original compact/mailbox diagnostic: 29 collected, first node stalled, timeout60s/124.
-- Node test_compact_pending_ack_467.py::test_pending_user_input_waits_until_compact_ack_succeeds.
-- Exact argv and captureoff/no-faulthandler log retained; cause unknown, no bundle retry.
-- Frozen last measurement: 15 failed, 18 passed, 79 setup errors; not rerun this wave.
-- Account-generation migration not implemented; original frozen files untouched.
-- Overall gate RED; parent independent review required. No consumer-support/ban-immunity claim.
-- Evidence .orchestra/tasks/agy-acp-safe-20261116/r2/report.md and verification.json.
+# Orchestra — focused delivery-receipt P1 correction after Astra R3
+- Updated2026-11-16; worktree /home/kesha/orchestra-worktrees/agy-acp-safe; branch agy-acp-safe.
+- Base1a247b24a434ee68c462ba899040516329c1d831; focused corrected commit in final reply.
+- No concurrent writer/helpers; production/accounts/providers unchanged, no real agy/Google.
+- Before fix:2 HTTP tests fail (SUBMITTED with prompt0 for missing model/config mismatch).
+- Existing canonical receipt states/hooks retained; before_submit now immediately precedes ACP prompt write.
+- Receipt waits for write+drain only, never full turn. Lifecycle lock released while waiting.
+- Preflight failure/cancel -> FAILED_BEFORE_SUBMIT; ambiguous write -> DELIVERY_UNKNOWN/no replay.
+- SUBMITTED is local transport handoff, NOT model success/remote inference acceptance.
+- Actual reader/HTTP interrupt remain active for profile queue and bounded backpressure cancellation.
+- Targeted10passed,0skipped,2warnings (11.29s), with real direct+initial receipts.
+- One combined run225passed/1failed (31.79s): old initial Claude fixture hits existing multicast gate before transport.
+- No policy/test weakening or broad reruns; instruction/syntax/diff/secrets checked.
+- Historical frozen15failed/18passed/79errors not rerun. Overall gate RED; no activation.
+- Old compact timeout statically localized on earlier snapshot: Claude+/test policy refusal ->30/60s retries before ACK.
+- Fixed-account only: account-generation/sameHOME account switch remains unsupported.
+- Stand stopped/ownedPID0; no main/provider/proxy/billing/T3/deploy/restart changes.
+- Evidence .orchestra/tasks/agy-acp-safe-20261116/submission/report.md; commands.json; verification.json.

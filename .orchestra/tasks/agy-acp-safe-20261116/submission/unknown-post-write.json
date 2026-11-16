@@ -1,0 +1,21 @@
+{
+  "receipt_state": "DELIVERY_UNKNOWN",
+  "error": {
+    "code": "DELIVERY_OUTCOME_UNKNOWN",
+    "details": {
+      "exception_type": "AcpError",
+      "phase": "PROVIDER_CALL_STARTED"
+    },
+    "message": "Provider acceptance may have occurred: AcpError: ACP request failed/timed out; operator recovery required",
+    "outcome_unknown": true,
+    "retryable": false
+  },
+  "methods": {
+    "spawn": 1,
+    "initialize": 1,
+    "authenticate": 1,
+    "session/new": 1,
+    "session/prompt": 1,
+    "prompt_start": 1
+  }
+}

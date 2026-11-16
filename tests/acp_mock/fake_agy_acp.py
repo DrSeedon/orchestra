@@ -40,6 +40,9 @@ def update(sid, kind, **extra):
 
 
 def models(sid):
+    if MODE == "only-argon":
+        return {"sessionId":sid,"models":{"currentModelId":"gemini-4-argon-medium",
+            "availableModels":[{"modelId":"gemini-4-argon-medium","name":"Argon"}]}}
     if MODE.startswith("config-"):
         return {"sessionId": sid, "configOptions": [{"id": "choose-model", "category": "model",
             "name": "Model", "type": "select", "currentValue": current_models.get(sid, "gemini-4-argon-medium" if MODE != "config-options" else "gemini-4-carbon-medium"),
@@ -81,6 +84,9 @@ async def prompt(request):
         result(request, {"stopReason":"end_turn"})
         active.clear(); trace("prompt_end", session=sid)
         return
+    if text.endswith("HTTP_RPC_MODEL"):
+        emit({"id":request["id"],"error":{"code":-32602,"message":"Synthetic model refused after prompt write"}})
+        active.clear(); trace("prompt_end",session=sid); return
     if text.startswith("RPC_") or text.startswith("BAN_"):
         ban = "This service has been disabled in this account for violation of Terms of Service. synthetic-secret-never-persist"
         payloads = {
