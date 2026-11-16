@@ -1407,26 +1407,9 @@ async def _fetch_antigravity_usage() -> dict:
 
 
 async def _refresh_antigravity_usage(*, force_refresh=False, max_age=_USAGE_CACHE_TTL) -> None:
-    if is_provider_disabled("antigravity"):
-        return
-    async with _quota_refresh_locks["antigravity"]:
-        now = time.time()
-        if (_antigravity_usage_cache.get("data") is not None
-                and now - _antigravity_usage_cache["ts"] < max_age):
-            return
-        if (not force_refresh and _antigravity_usage_cache.get("failed_at", 0)
-                and now - _antigravity_usage_cache["failed_at"] < 900):
-            return
-        try:
-            previous_ts = _antigravity_usage_cache["ts"]
-            quota = await _fetch_antigravity_usage()
-            # A concurrent readiness probe may already have published this observation.
-            if _antigravity_usage_cache["ts"] == previous_ts:
-                _antigravity_usage_cache.update(data=quota, ts=time.time())
-            _antigravity_usage_cache["failed_at"] = 0.0
-        except Exception:
-            _antigravity_usage_cache["failed_at"] = now
-            logger.warning("Antigravity quota refresh unavailable; keeping previous observation")
+    # Passive even on force_refresh/background loops. Preserve observation age;
+    # reading a cache is not a new quota measurement.
+    return
 
 
 async def _get_usage_data(
@@ -1771,14 +1754,6 @@ async def current_quota_observation(
         return _quota_observation_from_cache()
 
     if family == "antigravity":
-        checked_at = time.time() if now is None else float(now)
-        if (_antigravity_usage_cache.get("data") is None
-                or checked_at - _antigravity_usage_cache["ts"] >= max_age):
-            try:
-                async with asyncio.timeout(timeout):
-                    await _refresh_antigravity_usage(force_refresh=True, max_age=max_age)
-            except TimeoutError:
-                logger.warning("Antigravity quota observation timed out")
         return _quota_observation_from_cache()
 
     cache = {

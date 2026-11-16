@@ -72,6 +72,9 @@ async def wake_recipient(recipient, scope, *, manager=None, coalesce_delay_s=0.0
             session = manager.get_by_name(recipient, scope)
             if session is None:
                 return False
+            from app.antigravity_acp import is_consumer_model
+            if is_consumer_model(getattr(session, "model", "")):
+                return False  # Retain durable events; consumer profiles never auto-wake.
             session = await manager.ensure_loaded_by_id(session.id)
             if (session is None or session.status not in (AgentStatus.IDLE, AgentStatus.WAITING)
                     or getattr(session, "_compacting", False)):

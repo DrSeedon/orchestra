@@ -1,4 +1,4 @@
-"""Official agy CLI: isolated HOME, one NDJSON process per Orchestra turn."""
+"""Passive Antigravity observations and session adapter for app-owned ACP."""
 
 from __future__ import annotations
 
@@ -18,15 +18,10 @@ from pathlib import Path
 
 from app.antigravity_auth import (
     TOKEN_RELATIVE_PATH,
-    acquire_turn_slot_fd,
     atomic_private_write,
-    harvest_refreshed_session_token,
     private_directory,
-    read_auth_snapshot,
-    release_turn_slot_fd,
-    sync_antigravity_home,
 )
-from app.events import AgentEvent
+from app.events import AgentEvent, InjectedMessage
 from app.usage_contract import (
     AggregateUsage, KnownContext, TurnUsage, UnknownContext, current_context,
 )
@@ -176,29 +171,6 @@ def _cumulative_value(value: object, *, integer=True) -> int | float | None:
     return int(value) if integer else value
 
 
-_probe_lock = asyncio.Lock()
-_probe_cache: dict = {}
-_turn_semaphores: dict[tuple[int, int], asyncio.Semaphore] = {}
-
-
-def _max_concurrent_turns() -> int:
-    raw = os.environ.get("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "1").strip()
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return 1
-
-
-def _get_turn_semaphore() -> asyncio.Semaphore:
-    limit = _max_concurrent_turns()
-    key = (id(asyncio.get_running_loop()), limit)
-    sem = _turn_semaphores.get(key)
-    if sem is None:
-        sem = asyncio.Semaphore(limit)
-        _turn_semaphores[key] = sem
-    return sem
-
-
 _LOCAL_NO_PROXY = ("localhost", "127.0.0.1", "::1")
 
 
@@ -237,6 +209,11 @@ def cli_environment(home: Path) -> dict:
         "XDG_CACHE_HOME": str(home / ".cache"),
         "XDG_DATA_HOME": str(home / ".local/share"),
         "AGY_CLI_DISABLE_AUTO_UPDATE": "true",
+        # A stale cached login must never open a browser or inherit another helper.
+        # No auth URL is printed; rejected/expired login remains a terminal RPC.
+        "BROWSER": "/usr/bin/true",
+        "GEMINI_HOME": str(home / ".gemini"),
+        "AGY_ACP_FORCE_FILE_STORAGE": "1",
         "BASH_ENV": bash_env_path,
     })
     if Path(ANTIGRAVITY_CLEAN_SHELL).is_file() and os.access(ANTIGRAVITY_CLEAN_SHELL, os.X_OK):
@@ -334,75 +311,9 @@ def supported_version(value: str) -> bool:
     return bool(match and tuple(map(int, match.groups())) >= (1, 1, 12))
 
 
-async def _cli(*args: str, home: Path) -> dict | str:
-    """Bounded, noninteractive official CLI probe; never mutate ANTIGRAVITY_AUTH_HOME directly."""
-    is_offline = args in (("--version",), ("--help",), ("-h",))
-    sem = None
-    slot_fd = None
-    exec_home = Path(home)
-    using_probe_home = False
-    if not is_offline:
-        sem = _get_turn_semaphore()
-        await sem.acquire()
-    try:
-        if not is_offline:
-            slot_fd = await asyncio.to_thread(
-                acquire_turn_slot_fd, ANTIGRAVITY_AUTH_HOME, _max_concurrent_turns()
-            )
-            if exec_home.resolve() == Path(ANTIGRAVITY_AUTH_HOME).resolve():
-                exec_home = Path(ANTIGRAVITY_HOME_ROOT) / "_probe"
-                using_probe_home = True
-
-            def _prep_probe() -> None:
-                private_directory(exec_home)
-                sync_antigravity_home(ANTIGRAVITY_AUTH_HOME, exec_home)
-                snap = read_auth_snapshot(ANTIGRAVITY_AUTH_HOME)
-                atomic_private_write(exec_home / TOKEN_RELATIVE_PATH, snap.token)
-
-            if using_probe_home:
-                await asyncio.to_thread(_prep_probe)
-
-        process = await asyncio.create_subprocess_exec(
-            ANTIGRAVITY_BIN, *args, env=cli_environment(exec_home),
-            stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL, start_new_session=True,
-        )
-        try:
-            stdout, _ = await asyncio.wait_for(process.communicate(), 15)
-        except BaseException:
-            if process.returncode is None:
-                os.killpg(process.pid, signal.SIGKILL)
-            await process.wait()
-            raise
-        if process.returncode:
-            try:
-                raw = json.loads(stdout)
-            except (ValueError, UnicodeError):
-                raise RuntimeError("Antigravity CLI probe failed") from None
-            if isinstance(raw, dict):
-                if _is_account_disabled_payload(raw):
-                    _trip_antigravity_circuit_breaker("CLI probe returned account disabled / Terms of Service")
-                return raw
-            raise RuntimeError("Antigravity CLI probe failed")
-        if args == ("--version",):
-            return stdout.decode(errors="replace").strip()
-        result = json.loads(stdout)
-        if not isinstance(result, dict):
-            raise RuntimeError("Antigravity probe returned an invalid object")
-        if _is_account_disabled_payload(result):
-            _trip_antigravity_circuit_breaker("CLI probe returned account disabled / Terms of Service")
-        return result
-    finally:
-        if using_probe_home:
-            try:
-                await asyncio.to_thread(harvest_refreshed_session_token, ANTIGRAVITY_AUTH_HOME, exec_home)
-            except Exception as exc:
-                logger.warning("Failed to harvest refreshed Antigravity probe token: %s", exc)
-            (exec_home / TOKEN_RELATIVE_PATH).unlink(missing_ok=True)
-        if slot_fd is not None:
-            await asyncio.to_thread(release_turn_slot_fd, slot_fd)
-        if sem is not None:
-            sem.release()
+async def _cli(*args: str, home: Path):
+    """Legacy probe entry point intentionally cannot launch account traffic."""
+    raise RuntimeError("Antigravity probes are passive; use an explicit ACP turn")
 
 
 def catalog_models(raw: dict) -> set[str]:
@@ -425,76 +336,46 @@ def _publish_quota(
 
 
 async def fetch_antigravity_usage() -> dict:
-    from app.models import is_provider_disabled
-    from app.provider_safety import verify_provider_egress
+    """Return the last observation without refreshing it or its timestamp."""
     from app.routes import system
-
-    if is_provider_disabled("antigravity"):
-        raise RuntimeError("Antigravity provider is disabled")
-    await verify_provider_egress("antigravity")
-    async with _probe_lock:
-        if is_provider_disabled("antigravity"):
-            raise RuntimeError("Antigravity provider is disabled")
-        snapshot = read_auth_snapshot(ANTIGRAVITY_AUTH_HOME)
-        cached = system._antigravity_usage_cache
-        if (cached.get("generation") == snapshot.generation and cached.get("data")
-                and 0 <= time.time() - cached.get("ts", 0) < 1800):
-            return cached["data"]
-        raw = await _cli("--output-format", "json", "-p", "/quota",
-                         home=ANTIGRAVITY_AUTH_HOME)
-        quota = normalize_antigravity_quota(raw)
-        if not any(quota.values()):
-            raise RuntimeError("Antigravity quota unavailable")
-        _publish_quota(
-            quota, time.time(), snapshot.generation, normalize_antigravity_five_hour_quota(raw)
-        )
-        return quota
+    return dict(system._antigravity_usage_cache.get("data") or dict.fromkeys(QUOTA_KEYS))
 
 
-_READINESS_CACHE_TTL_SECONDS = 1800.0
+def canonical_profile(profile: str = "") -> Path:
+    # A configured profile owns its HOME; session identity must never own auth.
+    if profile:
+        from app.db import get_profile
+        row = get_profile(profile)
+        if row is None or not row.get("config_dir"):
+            raise ValueError("Antigravity profile has no canonical config_dir")
+        return Path(row["config_dir"]).expanduser().resolve()
+    return Path(ANTIGRAVITY_AUTH_HOME).resolve()
+
+
+def _has_cached_credentials(home: Path) -> bool:
+    # Presence only: status must not read, copy, refresh or authenticate tokens.
+    return (home / ".gemini/antigravity-acp/antigravity-oauth-token").is_file()
 
 
 async def antigravity_readiness(context):
     from app.models import is_provider_disabled
-    from app.provider_safety import EgressSafetyError, ProviderDisabledError, verify_provider_egress
     from app.runtime_registry import RuntimeReadinessResult
+    from app.antigravity_acp import cached_profile
 
     if is_provider_disabled("antigravity"):
         return RuntimeReadinessResult(False, False, "Antigravity provider is disabled")
     try:
-        await verify_provider_egress("antigravity")
-    except (ProviderDisabledError, EgressSafetyError) as exc:
+        home = canonical_profile(context.profile)
+    except ValueError as exc:
         return RuntimeReadinessResult(False, False, str(exc))
-    try:
-        snapshot = read_auth_snapshot(ANTIGRAVITY_AUTH_HOME)
-    except (OSError, ValueError):
-        return RuntimeReadinessResult(False, False, "Antigravity OAuth credential missing")
-    key = (str(ANTIGRAVITY_BIN), str(ANTIGRAVITY_AUTH_HOME), snapshot.generation)
-    async with _probe_lock:
-        if is_provider_disabled("antigravity"):
-            return RuntimeReadinessResult(False, False, "Antigravity provider is disabled")
-        cached = _probe_cache.get(key)
-        if cached is None or time.monotonic() - cached[0] >= _READINESS_CACHE_TTL_SECONDS:
-            try:
-                version = await _cli("--version", home=ANTIGRAVITY_AUTH_HOME)
-                if not isinstance(version, str) or not supported_version(version):
-                    return RuntimeReadinessResult(False, False, "Antigravity requires CLI >= 1.1.12")
-                raw_quota = await _cli("--output-format", "json", "-p", "/quota",
-                                       home=ANTIGRAVITY_AUTH_HOME)
-                quota = normalize_antigravity_quota(raw_quota)
-                if not all(quota.values()):
-                    return RuntimeReadinessResult(False, False, "Antigravity authentication or quota probe failed")
-                raw_catalog = await _cli("--output-format", "json", "models",
-                                         home=ANTIGRAVITY_AUTH_HOME)
-                models = catalog_models(raw_catalog)
-                _publish_quota(quota, time.time(), snapshot.generation, normalize_antigravity_five_hour_quota(raw_quota))
-                cached = (time.monotonic(), models)
-                _probe_cache[key] = cached
-            except (OSError, ValueError, RuntimeError, TimeoutError):
-                return RuntimeReadinessResult(False, False, "Antigravity CLI credential/catalog probe failed")
-        available = context.model.removeprefix("antigravity/") in cached[1]
-        return RuntimeReadinessResult(True, available,
-                                      "" if available else "Requested Antigravity model is absent from live catalog")
+    owner = cached_profile(home)
+    if owner and owner.failure:
+        return RuntimeReadinessResult(False, False, owner.failure)
+    credentials = _has_cached_credentials(home)
+    available = bool(owner and context.model.removeprefix("antigravity/") in owner.models)
+    return RuntimeReadinessResult(credentials, available,
+        owner.failure if owner and owner.failure else
+        ("" if available and credentials else "Antigravity cached credentials/catalog unknown; no probe performed"))
 
 
 class AntigravityBackend:
@@ -505,87 +386,47 @@ class AntigravityBackend:
         self.mcp_servers = context.mcp_servers
         self.context_limit = context.context_limit
         self.session_id = context.resume_session_id
-        session = self.mcp_servers.get("orchestra", {}).get("env", {}).get("ORCHESTRA_SESSION_ID")
-        if not isinstance(session, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", session):
-            raise ValueError("Antigravity requires a trusted ORCHESTRA_SESSION_ID")
-        self.home = Path(ANTIGRAVITY_HOME_ROOT) / session
-        self._generation = None
-        self._cumulative = {}
-        self._baseline_key = None
-        self._process = None
+        self.home = canonical_profile(context.profile)
+        self._owner = None
         self._task = None
         self._queue = asyncio.Queue()
         self._interrupted = False
-        self._stderr_values = sorted({str(value) for cfg in self.mcp_servers.values()
-                                      for value in cfg.get("env", {}).values() if value},
-                                     key=len, reverse=True)
         self._secrets = sorted({str(value) for cfg in self.mcp_servers.values()
                                 for key, value in cfg.get("env", {}).items()
                                 if value and re.search(r"TOKEN|SECRET|PASSWORD|KEY|COOKIE|AUTH|DSN", key, re.I)},
                                key=len, reverse=True)
+        self._stderr_values = self._secrets
+        self._generation = None
+        self._cumulative = {}
+        self._baseline_key = None
+        self._context = None
+        self._cost_total = None
+        self._cost_baseline = None
+        self._instructions_sent = False
+        self._stream_finished = True
+        self._text_chunks = []
+        self._thinking_chunks = []
+        self._tool_names = {}
+        self._tool_status = {}
 
     @property
     def is_alive(self):
-        return self._process is not None and self._process.returncode is None
+        # Registration is deliberately lazy: connect() never starts a CLI.
+        return bool(self._owner and not self._owner.failure and self._owner.process
+                    and self._owner.process.returncode is None)
 
     def _redact(self, text: object, *, all_env=False) -> str:
         result = str(text)
-        for value in self._stderr_values if all_env else self._secrets:
+        for value in self._secrets:
             result = result.replace(value, "[redacted]")
         return re.sub(r"ya29\.[A-Za-z0-9_-]+", "[redacted]", result)
 
     async def connect(self):
-        private_directory(self.home)
-        atomic_private_write(self.home / ".gemini/config/agents/orchestra/agent.md", (
-            "---\n"
-            "name: orchestra\n"
-            "description: Orchestra session agent\n"
-            "mainAgent: true\n"
-            "subagent: false\n"
-            "inheritMcp: true\n"
-            "commandExecutionPolicy: eager  # commandExecutionPolicy: always-proceed\n"
-            "tools:\n"
-            "  - read_file\n"
-            "  - edit_file\n"
-            "  - write_file\n"
-            "  - run_command\n"
-            "  - manage_task\n"
-            "  - search_web\n"
-            "---\n\n"
-            "# Agent System Instructions\n\n"
-            + self.system_prompt
-        ).encode())
-        atomic_private_write(self.home / ".gemini/antigravity-cli/settings.json", json.dumps({
-            "useG1Credits": False,
-            "telemetryEnabled": False,
-            "toolPermission": "always-proceed",
-            "allowNonWorkspaceAccess": True,
-            "permission": {"allow": ["command(*)", "read_file(*)", "write_file(*)", "mcp(*)"]}
-        }).encode())
-        atomic_private_write(self.home / ".gemini/config/config.json", json.dumps({
-            "userSettings": {
-                "useAiCredits": False,
-                "telemetryEnabled": False,
-                "userDataCollectionForceDisabled": True,
-                "marketingEmailsEnabled": False,
-            }
-        }).encode())
-        clean_bytes = _CLEAN_SHELL_SNIPPET.encode("utf-8")
-        atomic_private_write(self.home / ".gemini/orchestra-clean-bash-env.sh", clean_bytes)
-        atomic_private_write(self.home / ".bashrc", clean_bytes)
-        atomic_private_write(self.home / ".profile", clean_bytes)
-        await asyncio.to_thread(sync_antigravity_home, ANTIGRAVITY_AUTH_HOME, self.home)
-        atomic_private_write(self.home / ".gemini/config/mcp_config.json",
-                             json.dumps({"mcpServers": self.mcp_servers}).encode())
+        from app.antigravity_acp import get_profile
+        self._owner = get_profile(self.home)
 
     def _conversation_key(self):
         return self.session_id, self.model, self._generation
-
-    def _save_conversation(self):
-        atomic_private_write(self.home / "orchestra-conversation.json", json.dumps({
-            "generation": self._generation, "model": self.model,
-            "conversation_id": self.session_id, "cumulative": self._cumulative,
-        }).encode())
 
     def _turn_deltas(self, terminal):
         """agy --conversation reports totals, including on unsuccessful terminals."""
@@ -611,7 +452,11 @@ class AntigravityBackend:
 
     def _end(self, *, ok=False, reason="error", error=None, usage=None, terminal=None,
              context=None):
-        aggregate = AggregateUsage.normalized(**{
+        for kind, chunks in (("thinking", self._thinking_chunks), ("text", self._text_chunks)):
+            if chunks:
+                self._queue.put_nowait(AgentEvent(kind, self._redact("".join(chunks))))
+                chunks.clear()
+        aggregate = AggregateUsage.normalized(accuracy="unknown", **{
             key: (usage or {}).get(key, 0) for key in
             ("input_tokens", "output_tokens", "cache_read_tokens")
         })
@@ -657,255 +502,198 @@ class AntigravityBackend:
             )
             if cost is not None:
                 metadata.update(cost_usd_cached=cost, cost_is_delta=True)
+        if self._cost_total is not None:
+            # ACP cost is cumulative. Advance the shared baseline on success,
+            # error and cancellation alike, so later turns never count it twice.
+            self._owner.cost_totals[self.session_id] = self._cost_total
+            if self._cost_baseline is not None:
+                baseline = self._cost_baseline if self._cost_total >= self._cost_baseline else 0
+                metadata.update(cost_usd=round(self._cost_total - baseline, 8),
+                                cost_usd_cached=round(self._cost_total - baseline, 8),
+                                cost_unaccounted=False, cost_is_delta=True)
         if error:
             metadata.update(model_error=error, errors=[error])
         return AgentEvent("turn_end", metadata=metadata, usage=typed)
 
     async def send(self, message):
+        from app.antigravity_acp import ensure_interactive_input
+        ensure_interactive_input("antigravity/" + self.model,
+            message.provenance if isinstance(message, InjectedMessage) else None)
         if self._task is not None and not self._task.done():
             raise RuntimeError("Antigravity turn is already active")
+        if self._owner is None:
+            await self.connect()
         self._queue = asyncio.Queue()
         self._interrupted = False
-        sem = _get_turn_semaphore()
-        await sem.acquire()
-        slot_fd: int | None = None
-        handoff_to_consume = False
-        try:
-            from app.provider_safety import (
-                EgressSafetyError,
-                ProviderDisabledError,
-                record_provider_activity,
-                verify_provider_egress,
-            )
+        self._context = None
+        self._cost_total = None
+        self._cost_baseline = None
+        self._stream_finished = False
+        self._text_chunks = []
+        self._thinking_chunks = []
+        self._tool_names = {}
+        self._tool_status = {}
+        self._task = asyncio.create_task(self._run(message.text))
+        self._task.add_done_callback(self._cancelled_before_run)
 
-            slot_fd = await asyncio.to_thread(
-                acquire_turn_slot_fd, ANTIGRAVITY_AUTH_HOME, _max_concurrent_turns()
-            )
-            await verify_provider_egress("antigravity")
-            record_provider_activity("antigravity")
-            await asyncio.to_thread(sync_antigravity_home, ANTIGRAVITY_AUTH_HOME, self.home)
-            snapshot = await asyncio.to_thread(read_auth_snapshot, ANTIGRAVITY_AUTH_HOME)
-            state_file = self.home / "orchestra-conversation.json"
-            if self._generation is None and state_file.is_file():
-                try:
-                    state = json.loads(state_file.read_text())
-                except (OSError, ValueError):
-                    state = {}
-                if not isinstance(state, dict):
-                    state = {}
-                if state.get("model") != self.model or state.get("generation") != snapshot.generation:
-                    self.session_id = None
-                elif (state.get("conversation_id") == self.session_id
-                      and isinstance(state.get("cumulative"), dict)):
-                    self._cumulative = state["cumulative"]
-                    self._baseline_key = self.session_id, self.model, snapshot.generation
-            if self._generation is not None and snapshot.generation != self._generation:
-                self.session_id = None
-            self._generation = snapshot.generation
-            if self._baseline_key != self._conversation_key():
-                self._cumulative = {}
-                self._baseline_key = self._conversation_key()
-            self._save_conversation()
-            atomic_private_write(self.home / TOKEN_RELATIVE_PATH, snapshot.token)
-            args = [ANTIGRAVITY_BIN, "--output-format", "stream-json", "--model", self.model,
-                    "--agent", "orchestra", "--add-dir", self.cwd]
-            if self.session_id:
-                args.extend(["--conversation", self.session_id])
-            args.extend(["-p", str(message)])
-            self._process = await asyncio.create_subprocess_exec(
-                *args, cwd=self.cwd, env=cli_environment(self.home),
-                stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE, start_new_session=True,
-                limit=1024 * 1024,
-            )
-            self._task = asyncio.create_task(self._consume(sem, slot_fd))
-            handoff_to_consume = True
-        except (OSError, ValueError, ProviderDisabledError, EgressSafetyError) as exc:
-            (self.home / TOKEN_RELATIVE_PATH).unlink(missing_ok=True)
-            self._queue.put_nowait(AgentEvent("error", "Antigravity credential/startup failure: " + self._redact(exc)))
-            self._queue.put_nowait(self._end(reason="credentials", error="credentials"))
+    def _cancelled_before_run(self, task):
+        if task is self._task and task.cancelled() and not self._stream_finished:
+            self._stream_finished = True
+            self._queue.put_nowait(self._end(reason="interrupt", error="interrupted"))
             self._queue.put_nowait(None)
-            return
-        finally:
-            if not handoff_to_consume:
-                if slot_fd is not None:
-                    await asyncio.to_thread(release_turn_slot_fd, slot_fd)
-                sem.release()
 
-    async def _stderr(self, process):
-        # Drain all output even without newlines. Never log a partial unredacted value.
-        retained = bytearray()
-        while chunk := await process.stderr.read(4096):
-            if len(retained) < 65536:
-                retained.extend(chunk[:65536 - len(retained)])
-        if retained:
-            logger.debug("Antigravity stderr: %s", self._redact(retained.decode(errors="replace"), all_env=True))
-
-    async def _consume(self, sem: asyncio.Semaphore | None = None, slot_fd: int | None = None):
-        process = self._process
-        stderr = asyncio.create_task(self._stderr(process))
-        terminal = None
-        assistant_response = False
-        response_complete = False
-        emitted_tools = {}
-        completed_tools = set()
-        try:
-            async for line in process.stdout:
-                try:
-                    raw = json.loads(line)
-                except (ValueError, UnicodeError):
-                    continue
-                if not isinstance(raw, dict):
-                    continue
-                kind = raw.get("event")
-                if kind == "init":
-                    self.session_id = raw.get("conversation_id") or self.session_id
-                elif kind == "step_update":
-                    step = raw.get("step_update", {})
-                    if step.get("step_type") == "agent_response":
-                        delta = step.get("text_delta")
-                        if isinstance(delta, str) and delta:
-                            assistant_response |= bool(delta.strip())
-                            self._queue.put_nowait(AgentEvent("stream", self._redact(delta)))
-                        response_complete = assistant_response and step.get("state") == "DONE"
-                    elif step.get("step_type") == "tool":
-                        response_complete = False
-                        info = step.get("tool_info", {})
-                        conv = step.get("conversation_id") or self.session_id
-                        tool_id = (f"agy-{conv}-step-{step.get('step_index')}" if conv
-                                   else f"agy-step-{step.get('step_index')}")
-                        state = step.get("state")
-                        if state not in {"ACTIVE", "DONE", "ERROR"}:
-                            continue
-                        if tool_id not in emitted_tools:
-                            name = step.get("tool_name") or info.get("name") or "tool"
-                            args = info.get("parameters", {})
-                            if not isinstance(args, dict):
-                                args = {}
-                            if (name == "call_mcp_tool"
-                                    and isinstance(args.get("ServerName"), str) and args["ServerName"].strip()
-                                    and isinstance(args.get("ToolName"), str) and args["ToolName"].strip()
-                                    and isinstance(args.get("Arguments"), dict)):
-                                name = f"mcp__{args['ServerName'].strip()}__{args['ToolName'].strip()}"
-                                args = args["Arguments"]
-                            elif name.startswith("mcp_") and not name.startswith("mcp__"):
-                                # A server name can contain underscores; prefer the longest match.
-                                for server in sorted(self.mcp_servers, key=len, reverse=True):
-                                    prefix = f"mcp_{server}_"
-                                    if name.startswith(prefix) and name[len(prefix):]:
-                                        name = f"mcp__{server}__{name[len(prefix):]}"
-                                        break
-                            args = json.loads(self._redact(json.dumps(args, ensure_ascii=False)))
-                            meta = {"tool_use_id": tool_id, "tool_name": name,
-                                    "short_name": name.split("__", 2)[-1], "input": args}
-                            emitted_tools[tool_id] = meta
-                            self._queue.put_nowait(AgentEvent(
-                                "tool_use", f"{name}: {json.dumps(args, ensure_ascii=False)}", meta))
-                        meta = emitted_tools[tool_id]
-                        if state in {"DONE", "ERROR"} and tool_id not in completed_tools:
-                            completed_tools.add(tool_id)
-                            failed = step.get("state") == "ERROR" or bool(info.get("error"))
-                            value = (info.get("error") or info.get("output", "")) if failed else info.get("output", "")
-                            text = self._redact(value if isinstance(value, str) else json.dumps(value))
-                            self._queue.put_nowait(AgentEvent("tool_result", text, {**meta, "is_error": failed}))
-                elif kind == "result":
-                    result = raw.get("result")
-                    terminal = result if isinstance(result, dict) else None
-            await process.wait()
-            await stderr
-            deltas = context = None
-            if terminal is not None:
-                self.session_id = terminal.get("conversation_id") or self.session_id
-                deltas = self._turn_deltas(terminal)
-                context = _conversation_context(self.home, self.session_id, self.context_limit)
-                self._save_conversation()
-            if self._interrupted:
-                end = self._end(reason="interrupt", error="interrupted", usage=deltas,
-                                terminal=deltas, context=context)
-            elif terminal is None:
-                self._queue.put_nowait(AgentEvent("error", "Antigravity exited without a terminal result"))
-                end = self._end(error="protocol")
+    def _update(self, update):
+        kind = update.get("sessionUpdate")
+        content = update.get("content") or {}
+        if kind in {"agent_message_chunk", "agent_thought_chunk"} and content.get("type") == "text":
+            text = content.get("text", "")
+            if not isinstance(text, str):
+                return
+            chunks = self._text_chunks if kind == "agent_message_chunk" else self._thinking_chunks
+            chunks.append(text)
+            event = "stream" if kind == "agent_message_chunk" else "thinking_stream"
+            self._queue.put_nowait(AgentEvent(event, self._redact(text)))
+        elif kind == "usage_update":
+            self._context = current_context(update.get("used"), update.get("size"))
+            cost = update.get("cost") or {}
+            if isinstance(cost, dict) and cost.get("currency") == "USD":
+                amount = _cumulative_value(cost.get("amount"), integer=False)
+                if amount is not None:
+                    self._cost_total = amount
+        elif kind in {"tool_call", "tool_call_update"}:
+            tool_id, status = update.get("toolCallId"), update.get("status")
+            if kind == "tool_call":
+                self._tool_names[tool_id] = update.get("title") or update.get("kind") or "tool"
+                event = "tool_use"
+            elif status in {"completed", "failed"}:
+                if self._tool_status.get(tool_id) == status:
+                    return
+                event = "tool_result"
             else:
-                ok = terminal.get("status") == "SUCCESS" and process.returncode == 0
-                response = terminal.get("response")
-                if isinstance(response, str) and response.strip():
-                    assistant_response = response_complete = True
-                reason, error = "end_turn", None
-                if not ok:
-                    text = self._redact(terminal.get("error") or "Antigravity turn failed")
-                    lower = text.lower()
-                    is_permanent_ban = _is_account_disabled_payload(text)
-                    if is_permanent_ban:
-                        _trip_antigravity_circuit_breaker(text[:200])
-                    if any(word in lower for word in (
-                        "auth", "oauth", "token", "credential", "eligib", "location",
-                        "terms of service", "disabled in this account", "account has been disabled",
-                    )):
-                        error = "credentials"
-                    elif "quota" in lower or "rate limit" in lower:
-                        error = "quota"
+                event = "tool_stream"
+            self._tool_status[tool_id] = status
+            pieces = [update.get("title", "")]
+            for block in update.get("content") or []:
+                if isinstance(block, dict) and block.get("type") == "content":
+                    value = block.get("content") or {}
+                    if isinstance(value, dict) and value.get("type") == "text":
+                        pieces.append(value.get("text", ""))
+            raw = update.get("rawInput" if kind == "tool_call" else "rawOutput")
+            if raw is not None:
+                pieces.append(raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False))
+            self._queue.put_nowait(AgentEvent(event, self._redact("\n".join(p for p in pieces if isinstance(p, str) and p)),
+                metadata={"tool_use_id": tool_id, "tool_name": self._tool_names.get(tool_id, "tool"), "status": status,
+                          "is_error": update.get("status") == "failed"}))
+
+    async def _run(self, message):
+        from app.provider_safety import verify_provider_egress, record_provider_activity
+        from app.antigravity_acp import AcpError, AcpSessionError
+        prompt_task = None
+        try:
+            async with self._owner.turn_lock:
+                await verify_provider_egress("antigravity")
+                await self._owner.start()
+                record_provider_activity("antigravity")
+                if self.session_id not in self._owner.sessions:
+                    params = {"cwd": str(Path(self.cwd).resolve()),
+                              "mcpServers": self._acp_mcp_servers()}
+                    method = "session/new"
+                    if self.session_id:
+                        caps = self._owner.capabilities.get("sessionCapabilities", {})
+                        if caps.get("resume") is None:
+                            raise AcpSessionError("ACP resume unsupported; explicit new session required")
+                        params["sessionId"] = self.session_id
+                        method = "session/resume"
+                    result = await self._owner.request(method, params)
+                    session_id = result.get("sessionId", self.session_id)
+                    if not isinstance(session_id, str) or not session_id:
+                        raise AcpError("ACP session response missing sessionId")
+                    if method == "session/new" and session_id in self._owner.sessions:
+                        raise AcpError("ACP new session ID collision; refusing shared conversation")
+                    self.session_id = session_id
+                    self._owner.sessions.add(session_id)
+                    self._owner.model_states[session_id] = self._owner.model_state(result)
+                    if method == "session/new":
+                        self._owner.cost_totals[session_id] = 0.0
+                state = self._owner.model_states[self.session_id]
+                self._owner.models.update(state["available"])
+                if state["current"] != self.model:
+                    if self.model not in state["available"]:
+                        raise AcpSessionError("Requested model absent from ACP catalog")
+                    if state["config_id"]:
+                        await self._owner.request("session/set_config_option", {
+                            "sessionId": self.session_id, "configId": state["config_id"], "value": self.model})
                     else:
-                        error = "model"
-                    # Retry errors may remain in this and later terminal results.
-                    # Only output observed in THIS process can recover a failure;
-                    # permanent account/ToS bans NEVER recover into ok=True.
-                    if (
-                        assistant_response
-                        and not is_permanent_ban
-                        and (error == "model" or response_complete)
-                    ):
-                        ok, error = True, None
-                    else:
-                        reason = error
-                        self._queue.put_nowait(AgentEvent("error", text))
-                if isinstance(response, str) and response:
-                    self._queue.put_nowait(AgentEvent("text", self._redact(response)))
-                end = self._end(ok=ok, reason=reason, error=error, usage=deltas,
-                                terminal=deltas, context=context)
-            self._queue.put_nowait(end)
+                        await self._owner.request("session/set_model", {"sessionId": self.session_id, "modelId": self.model})
+                    state["current"] = self.model
+                self._cost_baseline = self._owner.cost_totals.get(self.session_id)
+                blocks = [{"type": "text", "text": message}]
+                if self.system_prompt and not self._instructions_sent:
+                    # ACP v1 has no stable system-prompt method; deliver role instructions
+                    # as explicit first-turn context, never a shared agent file in HOME.
+                    blocks.insert(0, {"type": "text", "text": "[Orchestra role instructions]\n" + self.system_prompt})
+                self._owner.listeners[self.session_id] = self._update
+                try:
+                    prompt_task = asyncio.create_task(self._owner.request("session/prompt", {
+                        "sessionId": self.session_id, "prompt": blocks}, timeout=self._owner.prompt_timeout))
+                    self._instructions_sent = True
+                    try:
+                        result = await asyncio.shield(prompt_task)
+                    except asyncio.CancelledError:
+                        self._interrupted = True
+                        await self._owner.notify("session/cancel", {"sessionId": self.session_id})
+                        try:
+                            await asyncio.wait_for(asyncio.shield(prompt_task), 2)
+                        except (Exception, asyncio.CancelledError):
+                            await self._owner.close("ACP cancellation was not acknowledged; operator recovery required")
+                        raise
+                finally:
+                    self._owner.listeners.pop(self.session_id, None)
+                reason = result.get("stopReason", "error")
+                self._queue.put_nowait(self._end(ok=reason == "end_turn", reason=reason,
+                    error=None if reason == "end_turn" else reason, context=self._context))
+        except asyncio.CancelledError:
+            self._queue.put_nowait(self._end(reason="interrupt", error="interrupted", context=self._context))
         except Exception as exc:
-            self._queue.put_nowait(AgentEvent("error", "Antigravity stream failure: " + self._redact(exc)))
-            self._queue.put_nowait(self._end(error="protocol"))
+            # Raw server error bodies and stderr can contain OAuth material.
+            # Only bounded, locally authored errors reach the event stream.
+            if isinstance(exc, AcpError) and not isinstance(exc, AcpSessionError):
+                await self._owner.close(str(exc))
+            reason = str(exc) if isinstance(exc, AcpError) else type(exc).__name__
+            self._queue.put_nowait(AgentEvent("error", "Antigravity ACP failure: " + reason[:200]))
+            self._queue.put_nowait(self._end(error="protocol", context=self._context))
         finally:
-            if process.returncode is None:
-                os.killpg(process.pid, signal.SIGKILL)
-                await process.wait()
-            if not stderr.done():
-                stderr.cancel()
-            await asyncio.gather(stderr, return_exceptions=True)
-            try:
-                await asyncio.to_thread(harvest_refreshed_session_token, ANTIGRAVITY_AUTH_HOME, self.home)
-            except Exception as exc:
-                logger.warning("Failed to harvest refreshed Antigravity session token: %s", exc)
-            (self.home / TOKEN_RELATIVE_PATH).unlink(missing_ok=True)
-            if slot_fd is not None:
-                await asyncio.to_thread(release_turn_slot_fd, slot_fd)
-            if sem is not None:
-                sem.release()
+            if prompt_task is not None:
+                if not prompt_task.done():
+                    prompt_task.cancel()
+                await asyncio.gather(prompt_task, return_exceptions=True)
+            self._stream_finished = True
             self._queue.put_nowait(None)
+
+    def _acp_mcp_servers(self):
+        servers = []
+        for name, config in self.mcp_servers.items():
+            if "command" not in config:
+                raise ValueError("Antigravity ACP currently requires stdio MCP servers")
+            servers.append({"name": name, "command": config["command"],
+                "args": config.get("args", []), "env": [
+                    {"name": key, "value": str(value)} for key, value in config.get("env", {}).items()]})
+        return servers
 
     async def events(self):
         while (event := await self._queue.get()) is not None:
             yield event
 
     async def interrupt(self):
-        if not self.is_alive:
+        if self._task is None or self._task.done():
             return False
-        self._interrupted = True
+        self._task.cancel()
         try:
-            os.killpg(self._process.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-        try:
-            await asyncio.wait_for(self._process.wait(), 2)
-        except TimeoutError:
-            os.killpg(self._process.pid, signal.SIGKILL)
-            await self._process.wait()
-        if self._task:
             await self._task
+        except asyncio.CancelledError:
+            self._cancelled_before_run(self._task)
         return True
 
     async def disconnect(self):
+        # The application, not an individual session, owns the shared daemon.
         await self.interrupt()
-        if self._task:
-            await self._task

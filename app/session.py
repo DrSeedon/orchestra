@@ -1265,6 +1265,8 @@ class AgentSession:
         auto_continuation: bool = False,
     ) -> None:
         """Publish the single in-memory/DB transition into a running turn."""
+        if self.backend_type == "antigravity" and not owner_initiated:
+            raise ValueError("antigravity_interactive_only: no automated consumer ACP turns")
         self._manually_interrupted = False
         if not auto_continuation:
             self._auto_continue_count = 0
@@ -1405,6 +1407,8 @@ class AgentSession:
         """
         if isinstance(message, InjectedMessage) and message.provenance != provenance:
             raise ValueError("injected message provenance mismatch")
+        from app.antigravity_acp import ensure_interactive_input
+        ensure_interactive_input(self.model, provenance)
         owner_initiated = _is_owner_direct_message(provenance)
         message_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
         message = message.text if isinstance(message, InjectedMessage) else message
@@ -1965,6 +1969,8 @@ class AgentSession:
                     await delivery.before_submit()
                     dispatch_started = True
                     self._active_delivery_context = delivery
+                if self.backend_type == "antigravity":
+                    outbound_message = InjectedMessage(outbound_message, provenance, message_event_id)
                 await provider_send(outbound_message)
                 provider_accepted = True
                 if delivery is not None:
@@ -3378,6 +3384,8 @@ class AgentSession:
                             held, combined, message_is_owner=owner_initiated,
                         )
                     combined, fact_keys = self._attach_pending_facts(combined)
+                    if self.backend_type == "antigravity":
+                        combined = InjectedMessage(combined, MessageProvenance("user", ("owner",)), "")
                     await backend.send(combined)
                 except BaseException:
                     self._turns.release_mailbox_held_after_stop(held)
@@ -3845,7 +3853,13 @@ class AgentSession:
             if directory is not None:
                 shutil.rmtree(directory, ignore_errors=True)
 
-    async def compact(self) -> dict:
+    async def compact(self, *, provenance: MessageProvenance | None = None) -> dict:
+        if self.backend_type == "antigravity":
+            from app.antigravity_acp import ensure_interactive_input
+            try:
+                ensure_interactive_input(self.model, provenance)
+            except ValueError as error:
+                return {"ok": False, "error": str(error)}
         if self.backend_type == "codex":
             return await self._compact_codex_context()
 
@@ -3857,7 +3871,7 @@ class AgentSession:
             "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n"
             "[END OF SUMMARY]\n{tail}[CONTINUE NATURALLY]\n\n"
         )
-        COMPACT_MAX_RETRIES = 3
+        COMPACT_MAX_RETRIES = 1 if self.backend_type == "antigravity" else 3
         COMPACT_RETRY_DELAY = 30
 
         if self._compacting:
@@ -3950,7 +3964,10 @@ class AgentSession:
                     if need_connect:
                         await backend.connect()
                         self._backend = backend
-                    await backend.send(COMPACT_PROMPT)
+                    summary_message = COMPACT_PROMPT
+                    if self.backend_type == "antigravity":
+                        summary_message = InjectedMessage(summary_message, provenance, "")
+                    await backend.send(summary_message)
 
                 await self._run_compaction_start(permit, start_summary_turn)
                 async for event in backend.events():
@@ -4124,7 +4141,9 @@ class AgentSession:
         try:
             async def start_ack_turn():
                 _refuse_if_draining(self)  # no await between here and RUNNING below
-                self._start_turn_state(compact_ack=True)
+                self._start_turn_state(compact_ack=True, owner_initiated=(
+                    self.backend_type == "antigravity" and provenance is not None
+                    and provenance.origin == "user"))
                 backend = await self._ensure_backend(force_fresh=True)
                 self._log(
                     "user_message", preamble + "Acknowledge briefly.",
@@ -4133,7 +4152,10 @@ class AgentSession:
                         subtype="compact",
                     ),
                 )
-                await backend.send(preamble + "Acknowledge briefly.")
+                acknowledgement = preamble + "Acknowledge briefly."
+                if self.backend_type == "antigravity":
+                    acknowledgement = InjectedMessage(acknowledgement, provenance, "")
+                await backend.send(acknowledgement)
 
             await self._run_compaction_start(permit, start_ack_turn)
 

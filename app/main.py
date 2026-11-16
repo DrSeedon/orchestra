@@ -435,7 +435,11 @@ async def _shutdown_runtime(
     await bg_manager.shutdown()
 
     restart_guard.note_shutdown_phase("session_handoff", "SessionManager.shutdown_all")
-    await manager.shutdown_all()
+    try:
+        await manager.shutdown_all()
+    finally:
+        from app.antigravity_acp import shutdown_profiles
+        await shutdown_profiles()
     restart_guard.note_shutdown_phase(
         "application_teardown_complete",
         "post_lifespan_runtime",

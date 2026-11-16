@@ -1422,6 +1422,11 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
             similar = [n for n in all_names if name.lower() in n.lower() or n.lower() in name.lower()]
             hint = f" Similar: {', '.join(similar[:5])}" if similar else f" Available: {', '.join(all_names[:10])}"
             return JSONResponse({"error": f"agent '{name}' not found.{hint}"}, status_code=404)
+        from app.antigravity_acp import ensure_interactive_input
+        try:
+            ensure_interactive_input(getattr(session, "model", ""), provenance)
+        except ValueError as error:
+            return JSONResponse({"error": str(error)}, status_code=403)
         task_state = None
         task_match = re.match(r"^\s*#(\d+)\s*:\s*", req.message)
         durable = await asyncio.to_thread(__import__("app.db", fromlist=["get_session"]).get_session, session.id)
@@ -1840,14 +1845,21 @@ async def list_pending_deliveries(target: str = "", request: Request = None):
 
 
 @router.post("/api/sessions/{name}/compact")
-async def compact_session(name: str, req: ScopeRequest):
+async def compact_session(name: str, req: ScopeRequest, request: Request = None):
     session = await manager.ensure_loaded(name, req.scope)
     if not session:
         return _worker_not_found(name, req.scope)
     if session.status.value == "running":
         return JSONResponse({"error": "agent is running, wait for idle"}, status_code=400)
     try:
-        result = await session.compact()
+        if session.backend_type == "antigravity":
+            caller = _delivery_caller(request)
+            if caller is None or not caller[0]:
+                return JSONResponse({"error": "antigravity_interactive_only: operator compact required"}, status_code=403)
+            result = await session.compact(provenance=MessageProvenance(
+                "user", ("operator",), "manual_compact"))
+        else:
+            result = await session.compact()
     except QuotaGateError as error:
         return JSONResponse(error.envelope(), status_code=error.status_code)
     return result

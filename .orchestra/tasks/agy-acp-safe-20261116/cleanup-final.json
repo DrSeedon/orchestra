@@ -1,0 +1,24 @@
+{
+  "imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app",
+  "source_base": "4e4e58dcba8eca8f4e961a2095be7efda1322d0e",
+  "production_head": "4e4e58dcba8eca8f4e961a2095be7efda1322d0e",
+  "production_dirty": [
+    ".orchestra/workers/Orchestra-orchestrator.md",
+    "scripts/video_artifact/README.md",
+    "scripts/video_artifact/elevenlabs_tts.py"
+  ],
+  "disabled_providers": {
+    "disabled_providers": [
+      "antigravity",
+      "claude",
+      "grok"
+    ]
+  },
+  "owned_mock_processes": [],
+  "source_hashes": {
+    "app/antigravity_acp.py": "5a987ea014993bfc8dbde4f510f85ff6230d3c6da512a02c4c38250fa3bd55e9",
+    "app/backend_antigravity.py": "1aeeea534aae2b8d19ec91fdbbefe8439c7c49d280fd93ce324657641f1b62f5",
+    "app/session.py": "ac726822321946137e8ebfe45f558514996efc45c35d70fb5d6bedf3c9c2f5e7",
+    "scripts/run_antigravity_offline.py": "7c09e6f59d63155b1fa67a48778b029091a6e9cdb5b4b578cf09283f1f404c9e"
+  }
+}

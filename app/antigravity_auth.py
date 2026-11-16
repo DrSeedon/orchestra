@@ -356,10 +356,8 @@ def ensure_credits_disabled(home: Path) -> None:
 
 
 def main() -> int:
-    """Operator-only login, staging validation and atomic account promotion."""
+    """Retired login flow: refuse before launching a CLI or touching credentials."""
     import argparse
-    import asyncio
-    import subprocess
     import sys
     from app import backend_antigravity as backend
 
@@ -368,37 +366,8 @@ def main() -> int:
     parser.add_argument("--auth-home", type=Path, default=backend.ANTIGRAVITY_AUTH_HOME)
     parser.add_argument("--model", default="gemini-3.6-flash-low")
     args = parser.parse_args()
-    backend.ANTIGRAVITY_BIN = args.agy_bin
-    backend.ANTIGRAVITY_AUTH_HOME = args.auth_home
-    args.auth_home.parent.mkdir(parents=True, exist_ok=True)
-
-    async def validate(home):
-        version = await backend._cli("--version", home=home)
-        if not isinstance(version, str) or not backend.supported_version(version):
-            raise RuntimeError("Antigravity requires CLI >= 1.1.12")
-        models = await backend._cli("--output-format", "json", "models", home=home)
-        if args.model.removeprefix("antigravity/") not in backend.catalog_models(models):
-            raise RuntimeError("Requested model missing from Antigravity live catalog")
-        quota = backend.normalize_antigravity_quota(await backend._cli(
-            "--output-format", "json", "-p", "/quota", home=home))
-        if not all(quota.values()):
-            raise RuntimeError("Antigravity account/quota validation failed")
-        read_auth_snapshot(home)
-
-    try:
-        with tempfile.TemporaryDirectory(prefix=".antigravity-login.", dir=args.auth_home.parent) as temporary:
-            home = Path(temporary)
-            ensure_credits_disabled(home)
-            subprocess.run([args.agy_bin], env=backend.cli_environment(home), check=True)
-            ensure_credits_disabled(home)
-            asyncio.run(validate(home))
-            generation = promote_staged_token(args.auth_home, home / TOKEN_RELATIVE_PATH)
-            ensure_credits_disabled(args.auth_home)
-        print(f"Antigravity account validated: gemini-weekly, 3p-weekly; generation {generation}")
-        return 0
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, TimeoutError):
-        print("Antigravity login failed; previous canonical credential preserved", file=sys.stderr)
-        return 1
+    print("Legacy Antigravity login is disabled for the ACP prototype; no executable started", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":
