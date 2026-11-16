@@ -18,6 +18,7 @@ active = set()
 cancel = {}
 costs = {}
 client_requests = {}
+current_models = {}
 
 
 def trace(method, **extra):
@@ -39,9 +40,9 @@ def update(sid, kind, **extra):
 
 
 def models(sid):
-    if MODE == "config-options":
+    if MODE.startswith("config-"):
         return {"sessionId": sid, "configOptions": [{"id": "choose-model", "category": "model",
-            "name": "Model", "type": "select", "currentValue": "gemini-4-carbon-medium",
+            "name": "Model", "type": "select", "currentValue": current_models.get(sid, "gemini-4-argon-medium" if MODE != "config-options" else "gemini-4-carbon-medium"),
             "options": [{"group": "Gemini", "options": [
                 {"value": m, "name": m} for m in ("gemini-4-carbon-medium", "gemini-4-argon-medium")]}]}]}
     return {"sessionId": sid, "models": {"currentModelId": "gemini-4-carbon-medium",
@@ -80,6 +81,23 @@ async def prompt(request):
         result(request, {"stopReason":"end_turn"})
         active.clear(); trace("prompt_end", session=sid)
         return
+    if text.startswith("RPC_") or text.startswith("BAN_"):
+        ban = "This service has been disabled in this account for violation of Terms of Service. synthetic-secret-never-persist"
+        payloads = {
+            "BAN_ROOT": {"code":403, "message":ban},
+            "BAN_NESTED": {"code":-32603, "message":"Internal error", "data":{"error":{"message":ban}}},
+            "BAN_LIST": {"code":-32603, "data":{"errors":[{"message":ban}]}},
+            "BAN_CAUSE": {"code":-32603, "data":{"cause":{"innerError":{"detail":ban}}}},
+            "RPC_AUTH": {"code":-32000, "message":"Authentication required"},
+            "RPC_QUOTA": {"code":429, "data":{"error":{"message":"Quota exhausted"}}},
+            "RPC_MODEL": {"code":-32602, "message":"Invalid model"},
+            "RPC_INTERNAL": {"code":-32603, "message":"Internal error", "data":{"response":ban}},
+        }
+        emit({"id":request["id"], "error":payloads[text]})
+        active.clear(); trace("prompt_end", session=sid); return
+    if MODE == "ack-error" and text.endswith("Acknowledge briefly."):
+        emit({"id":request["id"], "error":{"code":-32603, "message":"Synthetic ACK refusal"}})
+        active.clear(); trace("prompt_end", session=sid); return
     if text == "BAN":
         update(sid, "agent_message_chunk", content={"type":"text", "text":"partial before ban"})
         emit({"id": request["id"], "error":{"code":403,
@@ -92,6 +110,12 @@ async def prompt(request):
         return
     if text in {"PARTIAL_ERROR", "PARTIAL_CANCEL", "RECOVERED", "COST", "COST_ERROR", "COST_CREDITS", "INVALID_CONTEXT"}:
         update(sid, "agent_message_chunk", content={"type": "text", "text": "partial-output"})
+    if text == "COST_RESET":
+        costs[sid] = 0.005
+        update(sid, "usage_update", used=200, size=1000, cost={"amount":0.005,"currency":"USD"})
+    if text.startswith("COST_INVALID_"):
+        invalid = {"NULL":None,"BOOL":True,"NEGATIVE":-1,"TEXT":"not-a-cost"}[text.removeprefix("COST_INVALID_")]
+        update(sid, "usage_update", used=200, size=1000, cost={"amount":invalid,"currency":"USD"})
     if text in {"COST", "COST_ERROR", "COST_CREDITS", "COST_BLOCK"}:
         costs[sid] = round(costs.get(sid, 0.0) + 0.01, 8)
         update(sid, "usage_update", used=200, size=1000,
@@ -110,7 +134,7 @@ async def prompt(request):
             "message": "synthetic-secret-must-not-leak"}})
         active.clear()
         return
-    if text in {"BLOCK", "IGNORE_CANCEL", "COST_BLOCK"}:
+    if text in {"BLOCK", "IGNORE_CANCEL", "COST_BLOCK"} or text.endswith("HTTP_BLOCK"):
         if text == "IGNORE_CANCEL":
             await asyncio.Event().wait()
         else:
@@ -124,7 +148,8 @@ async def prompt(request):
         await asyncio.sleep(0.03)
         update(sid, "tool_call_update", toolCallId="tool-1", status="in_progress", content=[{"type":"content", "content":{"type":"text", "text":"tool progress"}}])
         update(sid, "tool_call_update", toolCallId="tool-1", title="mock-result", status="completed")
-        update(sid, "usage_update", used=True if text == "INVALID_CONTEXT" else 200, size=1000)
+        if not (MODE == "ack-unknown" and text.endswith("Acknowledge briefly.")):
+            update(sid, "usage_update", used=True if text == "INVALID_CONTEXT" else (700 if "INITIAL_CONTEXT" in text and not text.endswith("Acknowledge briefly.") else 200), size=1000)
         update(sid, "agent_message_chunk", content={"type": "text", "text": sid + ":" + text})
         result(request, {"stopReason": "end_turn"})
     active.remove(sid)
@@ -159,7 +184,17 @@ async def main():
             sid = request["params"].get("sessionId", "mock-session-" + str(1 if MODE == "collision" else number))
             result(request, models(sid))
         elif method in {"session/set_model", "session/set_config_option"}:
-            result(request, {})
+            sid = request["params"]["sessionId"]
+            wanted = request["params"].get("value", request["params"].get("modelId"))
+            if method == "session/set_config_option":
+                if MODE == "config-unknown":
+                    result(request, {})
+                else:
+                    current_models[sid] = "gemini-4-argon-medium" if MODE == "config-mismatch" else wanted
+                    result(request, models(sid))
+            else:
+                current_models[sid] = wanted
+                result(request, {})
         elif method == "session/prompt":
             tasks.append(asyncio.create_task(prompt(request)))
         elif method == "session/cancel":

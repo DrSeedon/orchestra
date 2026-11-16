@@ -1,0 +1,26 @@
+{
+  "imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app",
+  "base": "120cb528faaefcf0fddd688e4ab300469aeb3fc8",
+  "source_hashes": {
+    "app/provider_safety.py": "f22603f40f5954e069e27bd15ae9d5c34735ac05ab6fed723ceccdccc830a8c8",
+    "app/backend_antigravity.py": "f88820054eec0aa5edb74b67301d3a8147778d2d272a288e0e4d9ea872593d7a",
+    "app/session.py": "2415be76d6958acce0508f9d49735ac880916f9662cd7b3cecdb4e8d72d25c5e",
+    "tests/test_antigravity_acp_r2.py": "e8e2618eb7b1a2a429ef65e2dbb082e198a036057f15cdbfdd6f2f9631c2891b",
+    "tests/test_antigravity_acp_review.py": "8fbba2a81b4b64127466b71e5442892e9175060dd5fe07521ecb0d3c67f7ae86",
+    "tests/acp_mock/fake_agy_acp.py": "62296e54a6f7db52ecccd4c8bd340f89d9418f0f7b4071cd4ae2b64393cb2117"
+  },
+  "owned_mock_processes": [],
+  "production_head": "4e4e58dcba8eca8f4e961a2095be7efda1322d0e",
+  "production_dirty": [
+    ".orchestra/workers/Orchestra-orchestrator.md",
+    "scripts/video_artifact/README.md",
+    "scripts/video_artifact/elevenlabs_tts.py"
+  ],
+  "disabled_providers": {
+    "disabled_providers": [
+      "antigravity",
+      "claude",
+      "grok"
+    ]
+  }
+}

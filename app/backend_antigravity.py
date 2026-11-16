@@ -621,11 +621,25 @@ class AntigravityBackend:
                     if self.model not in state["available"]:
                         raise AcpSessionError("Requested model absent from ACP catalog")
                     if state["config_id"]:
-                        await self._owner.request("session/set_config_option", {
+                        selected = await self._owner.request("session/set_config_option", {
                             "sessionId": self.session_id, "configId": state["config_id"], "value": self.model})
+                        confirmed = self._owner.model_state(selected)
+                        # The config-option contract returns updated options. Empty or
+                        # mismatched metadata is not evidence that selection succeeded.
+                        self._owner.model_states[self.session_id] = confirmed
+                        if confirmed["current"] != self.model:
+                            raise AcpSessionError("ACP model selection was not confirmed; prompt refused")
+                        state = confirmed
                     else:
-                        await self._owner.request("session/set_model", {"sessionId": self.session_id, "modelId": self.model})
-                    state["current"] = self.model
+                        selected = await self._owner.request("session/set_model", {"sessionId": self.session_id, "modelId": self.model})
+                        # Legacy set_model has an empty success response by contract.
+                        # Honor explicit metadata if the peer does provide it.
+                        confirmed = self._owner.model_state(selected)
+                        if confirmed["current"] is not None and confirmed["current"] != self.model:
+                            self._owner.model_states[self.session_id] = confirmed
+                            raise AcpSessionError("ACP model selection mismatch; prompt refused")
+                        state["current"] = self.model
+                    self._owner.models = set().union(*(v["available"] for v in self._owner.model_states.values()))
                 self._cost_baseline = self._owner.cost_totals.get(self.session_id)
                 blocks = [{"type": "text", "text": message}]
                 if self.system_prompt and not self._instructions_sent:

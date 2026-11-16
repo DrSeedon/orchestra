@@ -1,0 +1,29 @@
+{
+  "result": {
+    "ok": false,
+    "error": "Antigravity compact acknowledgement failed",
+    "before_pct": 70
+  },
+  "context": {
+    "percentage": 70,
+    "total_tokens": 700,
+    "max_tokens": 1000,
+    "known": true,
+    "cache_hit": 0,
+    "cache_read": 0,
+    "cache_create": 0
+  },
+  "last_turn_ok": false,
+  "methods": {
+    "spawn": 1,
+    "initialize": 1,
+    "authenticate": 1,
+    "session/new": 2,
+    "session/prompt": 3,
+    "prompt_start": 3,
+    "prompt_end": 3
+  },
+  "listener_done": true,
+  "real_ensure_backend": true,
+  "real_event_loop": true
+}

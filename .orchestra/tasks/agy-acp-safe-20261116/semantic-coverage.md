@@ -1,3 +1,13 @@
+## Bounded R2 update
+- Current scoped check: 210 passed; real compact/ACK (no fake listener), returned-model
+  confirmation and nested durable bans are covered in test_antigravity_acp_r2.py.
+- Actual HTTP receipt/retry/interrupt/compact use normal SessionManager and handler.
+- Malformed/reset cumulative USD costs covered; unknown billed token totals unchanged.
+- Account-generation/rotation isolation remains OPEN; no token inspection or new workflow.
+- Legacy last result15failed/18passed/79errors is not replaced by new green checks.
+- Original timeout reproduced once with progress: first pending-ACK node, exit124/60s;
+  root cause unknown. See r2/report.md and timeout-command.json; overall gate RED.
+
 # Frozen acceptance migration map (original tests unchanged)
 
 Final CTO suite: 189 passed. Overall acceptance remains RED: the unchanged legacy

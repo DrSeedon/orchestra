@@ -1,6 +1,6 @@
 {
   "url": "http://127.0.0.1:18889",
-  "database": "/tmp/pytest-of-kesha/pytest-170/test_loopback_http_and_real_or0/orchestra.db",
+  "database": "/tmp/pytest-of-kesha/pytest-175/test_loopback_http_and_real_or0/orchestra.db",
   "imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app",
   "passive_http_polls": 15,
   "spawn_before_prompt": 0,
@@ -36,7 +36,7 @@
     },
     {
       "type": "stream",
-      "content": "mock-session-1:[21:44] http-sse",
+      "content": "mock-session-1:[22:16] http-sse",
       "agent_status": "idle",
       "compaction": null
     }

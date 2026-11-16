@@ -22,7 +22,9 @@ owned process groups.
 initializes ACP v1 as **Orchestra**, optionally authenticates once with the advertised
 personal OAuth method, creates/resumes an independent session, selects the requested
 advertised model, then submits one prompt. ACP configOptions are preferred; the
-legacy models/session-set-model surface remains supported. No unadvertised model,
+legacy models/session-set-model surface remains supported. Config-option selection
+must return matching current-model metadata before prompt; mismatch or unknown is a
+session-local refusal, with no substitution or fabricated confirmation. No unadvertised model,
 paid API, auth method or provider fallback is selected. Unsupported resume fails
 without creating a new conversation. This shared multi-session process is our design;
 T3's installed source demonstrates a persistent process per session runtime, not a
@@ -71,7 +73,9 @@ closed. Already submitted prompts are never replayed and the daemon is never
 implicitly restarted. Session-local absent-model/unsupported-resume refusals leave
 healthy siblings alive. Definite account/ToS bans persist through the existing provider
 circuit-breaker with a fixed safe reason. Operator-only manual compact carries
-authenticated user provenance through its summary/ack and uses one attempt.
+authenticated user provenance through its summary/ack and uses one attempt. Its
+per-turn ACK reader is started after send and consumes the actual typed context.
+Unknown ACK receipt measurements stay null; refusal restores the prior ID/context.
 Cancellation sends session/cancel, holds the profile lock until
 the prompt settles, and closes the profile if acknowledgement does not arrive within
 two seconds. Cancelling a queued turn never cancels another session. Raw RPC error
@@ -87,7 +91,7 @@ counts do not supply billed input/output/cache totals; these stay explicitly unk
 On the isolated remote worktree, using the existing repository virtual environment:
 
 ```sh
-scripts/run_antigravity_offline.sh tests/test_antigravity_acp.py tests/test_antigravity_acp_review.py tests/test_always_on_agents.py tests/test_runtime_registry.py tests/test_usage_contract.py -q
+scripts/run_antigravity_offline.sh tests/test_antigravity_acp.py tests/test_antigravity_acp_review.py tests/test_antigravity_acp_r2.py tests/test_always_on_agents.py tests/test_runtime_registry.py tests/test_usage_contract.py -q
 scripts/run_antigravity_offline.sh --instructions
 ```
 
@@ -126,3 +130,5 @@ before merge readiness.
 - [Google GenAI SDK](https://ai.google.dev/gemini-api/docs/libraries) targets programmatic
   Gemini/Vertex APIs with separate auth, quotas and billing. It is not an authorized
   automatic fallback. No API route, key, subscription or billing change was added.
+
+Latest bounded correction/checks and unresolved timeout: `.orchestra/tasks/agy-acp-safe-20261116/r2/report.md`. Overall acceptance remains RED.

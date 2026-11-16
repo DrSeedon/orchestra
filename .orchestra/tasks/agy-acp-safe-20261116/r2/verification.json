@@ -1,0 +1,373 @@
+{
+  "tests": {
+    "passed": 210,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 2,
+    "seconds": 21.63
+  },
+  "last_measured_frozen_legacy": {
+    "failed": 15,
+    "passed": 18,
+    "setup_errors": 79,
+    "rerun_this_wave": false
+  },
+  "timeout": {
+    "exit": 124,
+    "limit_seconds": 60,
+    "collected": 29,
+    "completed": 0,
+    "node": "tests/test_compact_pending_ack_467.py::test_pending_user_input_waits_until_compact_ack_succeeds",
+    "root_cause": "UNKNOWN; no further bundle retries"
+  },
+  "methods_by_test": {
+    "test_real_compact_ack_lifecycle_context_receipt_and_rollback[normal-True-True]": {
+      "test": "test_real_compact_ack_lifecycle_context_receipt_and_rollback[normal-True-True]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/prompt": 3,
+        "prompt_start": 3,
+        "prompt_end": 3
+      },
+      "pids": [
+        1558396
+      ],
+      "token_files": 0
+    },
+    "test_real_compact_ack_lifecycle_context_receipt_and_rollback[ack-unknown-True-False]": {
+      "test": "test_real_compact_ack_lifecycle_context_receipt_and_rollback[ack-unknown-True-False]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/prompt": 3,
+        "prompt_start": 3,
+        "prompt_end": 3
+      },
+      "pids": [
+        1558398
+      ],
+      "token_files": 0
+    },
+    "test_real_compact_ack_lifecycle_context_receipt_and_rollback[ack-error-False-True]": {
+      "test": "test_real_compact_ack_lifecycle_context_receipt_and_rollback[ack-error-False-True]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/prompt": 3,
+        "prompt_start": 3,
+        "prompt_end": 3
+      },
+      "pids": [
+        1558400
+      ],
+      "token_files": 0
+    },
+    "test_structured_ban_wrappers_and_ordinary_errors[BAN_ROOT-True]": {
+      "test": "test_structured_ban_wrappers_and_ordinary_errors[BAN_ROOT-True]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558404
+      ],
+      "token_files": 0
+    },
+    "test_structured_ban_wrappers_and_ordinary_errors[BAN_NESTED-True]": {
+      "test": "test_structured_ban_wrappers_and_ordinary_errors[BAN_NESTED-True]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558406
+      ],
+      "token_files": 0
+    },
+    "test_structured_ban_wrappers_and_ordinary_errors[BAN_LIST-True]": {
+      "test": "test_structured_ban_wrappers_and_ordinary_errors[BAN_LIST-True]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558408
+      ],
+      "token_files": 0
+    },
+    "test_structured_ban_wrappers_and_ordinary_errors[BAN_CAUSE-True]": {
+      "test": "test_structured_ban_wrappers_and_ordinary_errors[BAN_CAUSE-True]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558410
+      ],
+      "token_files": 0
+    },
+    "test_structured_ban_wrappers_and_ordinary_errors[RPC_AUTH-False]": {
+      "test": "test_structured_ban_wrappers_and_ordinary_errors[RPC_AUTH-False]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558413
+      ],
+      "token_files": 0
+    },
+    "test_structured_ban_wrappers_and_ordinary_errors[RPC_QUOTA-False]": {
+      "test": "test_structured_ban_wrappers_and_ordinary_errors[RPC_QUOTA-False]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558415
+      ],
+      "token_files": 0
+    },
+    "test_structured_ban_wrappers_and_ordinary_errors[RPC_MODEL-False]": {
+      "test": "test_structured_ban_wrappers_and_ordinary_errors[RPC_MODEL-False]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558417
+      ],
+      "token_files": 0
+    },
+    "test_structured_ban_wrappers_and_ordinary_errors[RPC_INTERNAL-False]": {
+      "test": "test_structured_ban_wrappers_and_ordinary_errors[RPC_INTERNAL-False]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558419
+      ],
+      "token_files": 0
+    },
+    "test_selected_model_requires_actual_config_confirmation[config-confirm-True]": {
+      "test": "test_selected_model_requires_actual_config_confirmation[config-confirm-True]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/set_config_option": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558421
+      ],
+      "token_files": 0
+    },
+    "test_selected_model_requires_actual_config_confirmation[config-mismatch-False]": {
+      "test": "test_selected_model_requires_actual_config_confirmation[config-mismatch-False]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/set_config_option": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558423
+      ],
+      "token_files": 0
+    },
+    "test_selected_model_requires_actual_config_confirmation[config-unknown-False]": {
+      "test": "test_selected_model_requires_actual_config_confirmation[config-unknown-False]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/set_config_option": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1558425
+      ],
+      "token_files": 0
+    },
+    "test_real_http_receipts_interrupt_and_compact": {
+      "test": "test_real_http_receipts_interrupt_and_compact",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/prompt": 4,
+        "prompt_start": 4,
+        "prompt_end": 4,
+        "session/cancel": 1
+      },
+      "pids": [
+        1558428
+      ],
+      "token_files": 0
+    },
+    "test_malformed_cost_does_not_erase_last_valid_baseline[NULL]": {
+      "test": "test_malformed_cost_does_not_erase_last_valid_baseline[NULL]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 3,
+        "prompt_start": 3,
+        "prompt_end": 3
+      },
+      "pids": [
+        1558432
+      ],
+      "token_files": 0
+    },
+    "test_malformed_cost_does_not_erase_last_valid_baseline[BOOL]": {
+      "test": "test_malformed_cost_does_not_erase_last_valid_baseline[BOOL]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 3,
+        "prompt_start": 3,
+        "prompt_end": 3
+      },
+      "pids": [
+        1558436
+      ],
+      "token_files": 0
+    },
+    "test_malformed_cost_does_not_erase_last_valid_baseline[NEGATIVE]": {
+      "test": "test_malformed_cost_does_not_erase_last_valid_baseline[NEGATIVE]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 3,
+        "prompt_start": 3,
+        "prompt_end": 3
+      },
+      "pids": [
+        1558438
+      ],
+      "token_files": 0
+    },
+    "test_malformed_cost_does_not_erase_last_valid_baseline[TEXT]": {
+      "test": "test_malformed_cost_does_not_erase_last_valid_baseline[TEXT]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 3,
+        "prompt_start": 3,
+        "prompt_end": 3
+      },
+      "pids": [
+        1558440
+      ],
+      "token_files": 0
+    },
+    "test_cumulative_cost_reset_uses_the_new_reported_epoch": {
+      "test": "test_cumulative_cost_reset_uses_the_new_reported_epoch",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 3,
+        "prompt_start": 3,
+        "prompt_end": 3
+      },
+      "pids": [
+        1558442
+      ],
+      "token_files": 0
+    }
+  },
+  "isolation": {
+    "isolation": "kernel network namespace + Python audit",
+    "interfaces": [
+      [
+        1,
+        "lo"
+      ]
+    ],
+    "external_routes": 0,
+    "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py",
+    "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe",
+    "credentials_in_environment": 0
+  },
+  "instruction_check": "PASS",
+  "syntax_files": [
+    "app/provider_safety.py",
+    "app/backend_antigravity.py",
+    "app/session.py",
+    "tests/test_antigravity_acp_r2.py",
+    "tests/test_antigravity_acp_review.py",
+    "tests/acp_mock/fake_agy_acp.py"
+  ],
+  "diff_check": "PASS",
+  "overall_gate": "RED; unresolved timeout/frozen migration; parent independent review required"
+}

@@ -1,3 +1,5 @@
+> HISTORICAL candidate 120cb528f. Superseded by r2/report.md and corrected source commit.
+
 # Persistent Antigravity ACP — final offline candidate
 
 VERDICT: offline candidate implemented and tested; overall merge/production gate RED.

@@ -866,11 +866,18 @@ def _extract_error_text(value: object) -> str:
         return value
     if isinstance(value, dict):
         # Avoid false positives on assistant prose when a terminal dict carries `response`.
-        focused = {
-            k: v
-            for k, v in value.items()
-            if k in {"error", "errors", "message", "detail", "code", "type", "status", "codexErrorInfo"}
-        }
+        error_keys = {"error", "errors", "message", "detail", "details", "code", "type", "status",
+                      "codexErrorInfo", "data", "cause", "innerError", "errorInfo"}
+        def structured_error(node, depth=0):
+            if depth > 12:
+                return None
+            if isinstance(node, dict):
+                return {k: structured_error(v, depth + 1) for k, v in node.items()
+                        if k in error_keys}
+            if isinstance(node, list):
+                return [structured_error(v, depth + 1) for v in node[:64]]
+            return node if isinstance(node, (str, int, float, bool)) or node is None else None
+        focused = {k: structured_error(v) for k, v in value.items() if k in error_keys}
         target = focused if focused else {k: v for k, v in value.items() if k != "response"}
         try:
             return json.dumps(target, ensure_ascii=False)

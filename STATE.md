@@ -1,23 +1,20 @@
-# Orchestra — isolated persistent ACP candidate
-- Updated: 2026-11-16; permanent CTO owns this worktree, original helper finished.
-- Worktree /home/kesha/orchestra-worktrees/agy-acp-safe; branch agy-acp-safe.
-- Base 4e4e58dcba8eca8f4e961a2095be7efda1322d0e; branch commit in final report.
-- Production HEAD unchanged, dirty files retained, antigravity/claude/grok disabled.
-- No push/merge/deploy/restart, real agy/Google/account request, credentials read/copy.
-- Persistent ACP profile owner, serialized interactive prompts, passive poll endpoints.
-- Operator-only manual compact; cron/timer/agent/automatic sends denied at dispatch.
-- Astra R1 findings fixed: immediate cancel, durable ban, assembled text, complete tools,
-  local refusal isolation, genuine HTTP send/SSE and native SQLite audit boundary.
-- No login workflow: retired login refuses pre-launch; no-credit settings required.
-- Final isolated suite 189 passed (0 skipped, 2 warnings); instructions/syntax/diff PASS.
-- HTTP/SSE mock stand PASS: one spawn/init/auth, one session, two operator prompts.
-- Legacy gate RED: 15 failed, 18 passed, 79 setup errors; originals untouched.
-- Extra compact/mailbox bundle timed out at 60s; not counted as passed, no rerun loop.
-- Full suite not run. Fresh independent review of immutable commit remains required.
-- Kernel netns: lo only, external routes=0; fake-only process; no credential environment.
-- Audit covers SQLite URI/path/PathLike; controlled fake does not inherit Python hook.
-- Stand stopped; no owned fake/runner PIDs remain. No production bootstrap exercised.
-- Billed token totals unknown; context/cumulative USD deltas tested, no invented costs.
-- Real CLI/version/account eligibility and consumer-wrapper support remain unverified.
-- No activation/canary until later explicit Maxim permission after reviewed mock result.
-- Evidence: .orchestra/tasks/agy-acp-safe-20261116/{report.md,semantic-coverage.md}.
+# Orchestra — isolated ACP candidate after bounded Astra R2 correction
+- Updated 2026-11-16; worktree /home/kesha/orchestra-worktrees/agy-acp-safe, branch agy-acp-safe.
+- Base 120cb528faaefcf0fddd688e4ab300469aeb3fc8; corrected commit in final handoff.
+- One writer; no push/merge/deploy/restart/live activation or real agy/Google calls.
+- No credential reads/copies or provider/proxy/billing/T3 changes; production untouched.
+- R2 nested ban corrected through canonical structured error fields; safe durable incident.
+- R2 real compact starts per-turn ACK listener; actual _ensure_backend/event loop tested.
+- ACK known context adopted; unknown receipt fields null; failed ACK restores old ID/context.
+- R2 selected config model requires returned confirmation; mismatch/unknown denies prompt.
+- Correct confirmation/config updates and healthy siblings preserved, no replay/fallback.
+- Actual HTTP receipts/idempotence/interrupt/compact via SessionManager and event loop PASS.
+- Final scoped suite: 210 passed, 0 skipped, 2 dependency warnings, 21.63s.
+- Instruction/syntax/diff/secrets checked; stand stopped, no owned fake/runner PIDs.
+- Original compact/mailbox diagnostic: 29 collected, first node stalled, timeout60s/124.
+- Node test_compact_pending_ack_467.py::test_pending_user_input_waits_until_compact_ack_succeeds.
+- Exact argv and captureoff/no-faulthandler log retained; cause unknown, no bundle retry.
+- Frozen last measurement: 15 failed, 18 passed, 79 setup errors; not rerun this wave.
+- Account-generation migration not implemented; original frozen files untouched.
+- Overall gate RED; parent independent review required. No consumer-support/ban-immunity claim.
+- Evidence .orchestra/tasks/agy-acp-safe-20261116/r2/report.md and verification.json.

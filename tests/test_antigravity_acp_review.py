@@ -13,56 +13,6 @@ REAL_CLI_ENVIRONMENT = agy.cli_environment
 
 
 @pytest.mark.asyncio
-async def test_manual_compact_requires_user_and_never_auto_retries(stand, monkeypatch):
-    from app.session import AgentSession, AgentStatus
-    from app import bg_jobs
-    monkeypatch.setattr(bg_jobs, "bg_manager", None)
-    s = AgentSession(id="offline-compact", name="offline-compact", scope=str(stand.home),
-        cwd=str(stand.home), model="antigravity/gemini-4-carbon-medium",
-        backend_type="antigravity", is_orchestrator=True)
-    s.status = AgentStatus.IDLE
-    s._log = MagicMock()
-    s._persist = MagicMock()
-    s._drain_persist = AsyncMock()
-    s._wake_durable_message_deliveries = MagicMock()
-    s._start_checklist_reminder = MagicMock()
-    summary_backend = stand.backend()
-    assert end(await turn(summary_backend, "initial user task")).metadata["ok"]
-    s.session_id = original_id = summary_backend.session_id
-    s._backend = summary_backend
-    s._make_backend = lambda: summary_backend
-    # Automatic compaction is refused before reserving state or starting any RPC.
-    before = len(stand.trace())
-    denied = await s.compact()
-    assert not denied["ok"] and "interactive_only" in denied["error"]
-    assert len(stand.trace()) == before and not s._compacting
-    # Summary and acknowledgement use the same explicit operator authorization.
-    fresh = stand.backend()
-    seen = []
-    async def ensure_backend(force_fresh=False):
-        assert force_fresh is True
-        s._backend = fresh
-        async def finish_ack():
-            async for event in fresh.events():
-                seen.append(event)
-                if event.type == "turn_end":
-                    s.session_id = event.metadata["session_id"]
-                    s.status = AgentStatus.IDLE
-                    s._compact_ack_event.set()
-        s._listen_task = asyncio.create_task(finish_ack())
-        return fresh
-    s._ensure_backend = ensure_backend
-    result = await s.compact(provenance=MessageProvenance("user", ("operator",), "manual_compact"))
-    assert result["ok"] and s.session_id != original_id
-    assert end(seen).metadata["ok"]
-    assert s.session_id_history[-1]["session_id"] == original_id
-    methods = [r["method"] for r in stand.trace()]
-    assert methods.count("spawn") == 1 and methods.count("session/new") == 2
-    assert methods.count("session/prompt") == 3
-    await s._listen_task
-
-
-@pytest.mark.asyncio
 async def test_operator_compact_failure_has_one_prompt_and_no_retry(stand, monkeypatch):
     from app.session import AgentSession, AgentStatus
     from app import bg_jobs
