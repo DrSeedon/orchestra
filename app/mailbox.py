@@ -7,25 +7,109 @@ from app.events import MessageProvenance
 
 
 def enqueue(
-    recipient: str,
-    scope: str,
-    sender: str,
-    body: str,
-    *,
-    provenance: MessageProvenance,
+    recipient: str, scope: str, sender: str, body: str, *,
+    provenance: MessageProvenance, idempotency_key: str | None = None,
 ) -> int:
-    """Store a message and return its durable identifier."""
+    """Store a message; repeated non-empty keys return the original durable id."""
+    return enqueue_event(recipient, scope, sender, body, provenance=provenance,
+                         idempotency_key=idempotency_key)["id"]
+
+
+def enqueue_event(
+    recipient: str, scope: str, sender: str, body: str, *,
+    provenance: MessageProvenance, idempotency_key: str | None = None,
+    _connection=None,
+) -> dict:
+    from contextlib import nullcontext
     origin, origin_detail = provenance.to_storage()
-    with db._conn() as connection:
+    with (nullcontext(_connection) if _connection is not None else db._conn()) as connection:
+        # Serializes lookup and insert, including concurrent retries.
+        if _connection is None:
+            connection.execute("BEGIN IMMEDIATE")
+        key = idempotency_key or None
+        if key:
+            row = connection.execute(
+                "SELECT id FROM mailbox WHERE recipient=? AND scope=? AND idempotency_key=?",
+                (recipient, scope, key),
+            ).fetchone()
+            if row:
+                return {"id": row["id"], "deduplicated": True}
         cursor = connection.execute(
-            """
-            INSERT INTO mailbox (
-                recipient, scope, sender, body, origin, origin_detail, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (recipient, scope, sender, body, origin, origin_detail, time.time()),
+            """INSERT INTO mailbox
+               (recipient, scope, sender, body, origin, origin_detail, created_at, idempotency_key)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (recipient, scope, sender, body, origin, origin_detail, time.time(), key),
         )
-        return int(cursor.lastrowid)
+        return {"id": int(cursor.lastrowid), "deduplicated": False}
+
+
+def format_event_batch(items: list[dict], *, structured: bool = True) -> str:
+    def render(item):
+        return f"[from:{item['sender'] or ', '.join(item['provenance'].senders)}] {item['body']}"
+    if len(items) < 2 or not structured:
+        return "\n\n".join(render(item) for item in items)
+    count = len(items)
+    return (f'<event-inbox count="{count}">\n'
+            + "\n\n".join(f"[event {i}/{count}] {render(item)}"
+                              for i, item in enumerate(items, 1))
+            + "\n</event-inbox>")
+
+
+_wake_tasks = {}
+
+
+async def wake_recipient(recipient, scope, *, manager=None, coalesce_delay_s=0.05):
+    """One in-flight wake per address; the mailbox remains durable if busy/offline."""
+    import asyncio
+    from app.session_state import AgentStatus
+    if manager is None:
+        from app.deps import manager
+    key = (recipient, scope)
+    task = _wake_tasks.get(key)
+    if task is None or task.done():
+        async def deliver():
+            await asyncio.sleep(coalesce_delay_s)
+            session = manager.get_by_name(recipient, scope)
+            if session is None:
+                return False
+            session = await manager.ensure_loaded_by_id(session.id)
+            if (session is None or session.status not in (AgentStatus.IDLE, AgentStatus.WAITING)
+                    or getattr(session, "_compacting", False)):
+                return False  # Running turns drain their mailbox at turn end.
+            session._mailbox_held_after_stop = False  # An explicit event requests a turn.
+            queued = claim(recipient, scope)
+            if not queued:
+                return False
+            await session._turns._deliver_mailbox(queued)
+            return True
+        task = asyncio.create_task(deliver(), name=f"inbox-wake:{recipient}")
+        _wake_tasks[key] = task
+        def finished(done):
+            if _wake_tasks.get(key) is done:
+                _wake_tasks.pop(key, None)
+        task.add_done_callback(finished)
+    return await asyncio.shield(task)
+
+
+async def recover_event_wakes(manager):
+    """Retry durable timer/approval/external events after restart or a failed wake."""
+    with db._conn() as connection:
+        rows = connection.execute(
+            """SELECT DISTINCT recipient, scope FROM mailbox WHERE delivered_at IS NULL
+               AND json_extract(origin_detail, '$.subtype') IN ('timer', 'approval', 'inbox_event')"""
+        ).fetchall()
+    import asyncio
+    await asyncio.gather(*(wake_recipient(row["recipient"], row["scope"], manager=manager)
+                           for row in rows))
+
+
+async def stop_wakes():
+    import asyncio
+    tasks = list(_wake_tasks.values())
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+    _wake_tasks.clear()
 
 
 def _resource(row) -> dict:
@@ -131,6 +215,7 @@ def claim(recipient: str, scope: str, lease_seconds: float = CLAIM_LEASE_SECONDS
     now = time.time()
     stale = now - lease_seconds
     with db._conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         rows = conn.execute(
             """SELECT id, sender, body, origin, origin_detail FROM mailbox
                WHERE recipient = ? AND scope = ? AND delivered_at IS NULL

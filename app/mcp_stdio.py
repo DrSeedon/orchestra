@@ -103,6 +103,9 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "task_list",
     "task_get",
     "bg_list",
+    "list_timers",
+    "outbox_list",
+    "list_approvals",
 })
 
 REDUCER_MCP_TOOLS = frozenset({
@@ -2507,7 +2510,9 @@ async def change_worker_model(name: str, model: str, model_reason: str = "", cle
     except ValueError as exc:
         raise ApiToolError(code=HUB_SOL_ONLY_RULE, message=str(exc),
                            details={"field": "model"}) from exc
-    body = {"scope": SCOPE, "model": model, "via": "mcp", "clean_handoff": clean_handoff}
+    body = {"scope": SCOPE, "model": model, "via": "mcp"}
+    if clean_handoff:
+        body["clean_handoff"] = True
     if model_reason:
         body["model_reason"] = model_reason
     result = await _api("POST", f"/api/sessions/{name}/change-model", json=body)
@@ -5007,6 +5012,77 @@ async def codex_review(
         },
         text=f"Review receipt: {receipt_id}.\n{text}",
     )
+
+
+@mcp.tool()
+async def set_timer(body: str, kind: str = "follow_up", delay_seconds: float | None = None,
+                    due_at: str | float | None = None, interval_seconds: float | None = None,
+                    cron_expr: str = "", timezone_name: str = "UTC", max_fires: int | None = None,
+                    cancel_on_sender: str = "", cancel_on_scope: str = "",
+                    idempotency_key: str = "") -> dict:
+    """Schedule a durable alarm or recurring wake. End your turn; no live process is needed."""
+    return await _api("POST","/api/timers",json={
+        "recipient":WORKER_NAME,"scope":SCOPE,"body":body,"kind":kind,
+        "delay_seconds":delay_seconds,"due_at":due_at,"interval_seconds":interval_seconds,
+        "cron_expr":cron_expr,"timezone_name":timezone_name,"max_fires":max_fires,
+        "cancel_on_sender":cancel_on_sender,"cancel_on_scope":cancel_on_scope,
+        "idempotency_key":idempotency_key})
+
+
+@mcp.tool()
+async def list_timers() -> list:
+    """Inspect this agent's durable timers and their fire/cancellation state."""
+    return await _api("GET","/api/timers",params={"recipient":WORKER_NAME,"scope":SCOPE})
+
+
+@mcp.tool()
+async def cancel_timer(timer_id: str) -> dict:
+    """Cancel one of this agent's active timers."""
+    return await _api("POST",f"/api/timers/{quote(timer_id,safe='')}/cancel")
+
+
+@mcp.tool()
+async def request_approval(action: str, summary: str, payload: dict | None = None,
+                           risk_level: str = "medium", context_note: str = "",
+                           expires_in_seconds: float = 86400, idempotency_key: str = "") -> dict:
+    """Create a deferred owner approval card. End your turn; its decision wakes you durably."""
+    return await _api("POST","/api/approvals",json={
+        "recipient":WORKER_NAME,"scope":SCOPE,"action":action,"summary":summary,
+        "payload":payload or {},"risk_level":risk_level,"context_note":context_note,
+        "expires_in_seconds":expires_in_seconds,"idempotency_key":idempotency_key})
+
+
+@mcp.tool()
+async def list_approvals() -> list:
+    """Inspect this agent's deferred approval cards."""
+    return await _api("GET","/api/approvals",params={"recipient":WORKER_NAME,"scope":SCOPE})
+
+
+@mcp.tool()
+async def cancel_approval(approval_id: str) -> dict:
+    """Cancel a pending card owned by this agent."""
+    return await _api("POST",f"/api/approvals/{quote(approval_id,safe='')}/cancel")
+
+
+@mcp.tool()
+async def outbox_enqueue(channel: str, target: str, body: str, urgent: bool = False,
+                         min_interval_seconds: float | None = None,
+                         quiet_start_hour: int | None = None, quiet_end_hour: int | None = None,
+                         timezone_name: str = "UTC", dedupe_key: str = "",
+                         dedupe_window_seconds: float = 86400, max_attempts: int = 5) -> dict:
+    """Queue Telegram, HTTPS webhook or dashboard output with pacing, retries and deduplication."""
+    return await _api("POST","/api/outbox",json={
+        "recipient":WORKER_NAME,"scope":SCOPE,"channel":channel,"target":target,"body":body,
+        "urgent":urgent,"min_interval_seconds":min_interval_seconds,
+        "quiet_start_hour":quiet_start_hour,"quiet_end_hour":quiet_end_hour,
+        "timezone_name":timezone_name,"dedupe_key":dedupe_key,
+        "dedupe_window_seconds":dedupe_window_seconds,"max_attempts":max_attempts})
+
+
+@mcp.tool()
+async def outbox_list(limit: int = 100) -> list:
+    """Inspect this agent's durable outbound queue and dispatch results."""
+    return await _api("GET","/api/outbox",params={"recipient":WORKER_NAME,"scope":SCOPE,"limit":limit})
 
 
 if __name__ == "__main__":

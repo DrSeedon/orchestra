@@ -1419,6 +1419,69 @@ async def recover_message_delivery_failure_notices(manager=None) -> int:
     return sent
 
 
+def _has_queued_behind_waiting_head(target_session_id: str) -> bool:
+    with db._conn() as connection:
+        head = _next_target_delivery(target_session_id)
+        if head is None or head["state"] != "WAITING_NEXT_TURN":
+            return False
+        return connection.execute(
+            """SELECT 1 FROM message_deliveries WHERE target_session_id=?
+               AND state IN ('QUEUED','PREPARING') AND accept_seq>? LIMIT 1""",
+            (target_session_id, head["accept_seq"]),
+        ).fetchone() is not None
+
+
+def ensure_waiting_next_turn_mailbox_copies(target_session_id: str) -> int:
+    """Rebuild crash-orphaned copies in the same transaction as the receipt check."""
+    from app import mailbox
+    repaired = 0
+    with db._conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        rows = connection.execute(
+            "SELECT * FROM message_deliveries WHERE target_session_id=? AND state='WAITING_NEXT_TURN' ORDER BY accept_seq",
+            (target_session_id,),
+        ).fetchall()
+        for row in rows:
+            exists = connection.execute(
+                """SELECT 1 FROM mailbox WHERE recipient=? AND scope=? AND delivered_at IS NULL
+                   AND json_extract(origin_detail,'$.subtype')='direct_message_recovery'
+                   AND json_extract(origin_detail,'$.ref')=?""",
+                (row["target_name"],row["target_scope"],row["delivery_id"]),
+            ).fetchone()
+            if exists:
+                continue
+            provenance = MessageProvenance.from_storage(row["origin"],row["origin_detail"])
+            mailbox.enqueue_event(row["target_name"],row["target_scope"],row["source_name"],
+                row["message"], provenance=MessageProvenance(
+                    provenance.origin, provenance.senders, "direct_message_recovery",row["delivery_id"]),
+                _connection=connection)
+            repaired += 1
+    return repaired
+
+
+async def _unblock_waiting_head(target_session_id, manager=None):
+    from app import mailbox
+    from app.session_state import AgentStatus
+    if not _has_queued_behind_waiting_head(target_session_id):
+        return False
+    if manager is None:
+        from app.deps import manager
+    session = manager.sessions.get(target_session_id)
+    if session is None:
+        session = await manager.ensure_loaded_by_id(target_session_id)
+    if (session is None or session.status not in (AgentStatus.IDLE, AgentStatus.WAITING)
+            or getattr(session, "_compacting", False)):
+        return False
+    ensure_waiting_next_turn_mailbox_copies(target_session_id)
+    session._mailbox_held_after_stop = False
+    queued = mailbox.claim(session.name, session.scope)
+    if not queued:
+        return False
+    await session._turns._deliver_mailbox(queued)
+    head = _next_target_delivery(target_session_id)
+    return head is None or head["state"] != "WAITING_NEXT_TURN"
+
+
 async def run_target_message_deliveries(target_session_id: str, manager=None) -> bool:
     lock = _target_delivery_locks.setdefault(target_session_id, asyncio.Lock())
     async with lock:
@@ -1426,6 +1489,10 @@ async def run_target_message_deliveries(target_session_id: str, manager=None) ->
             head = _next_target_delivery(target_session_id)
             if head is None:
                 return True
+            if head["state"] == "WAITING_NEXT_TURN":
+                if await _unblock_waiting_head(target_session_id, manager):
+                    continue
+                return False
             if head["state"] not in {"QUEUED", "PREPARING"}:
                 return False
             try:
@@ -1444,14 +1511,15 @@ async def run_target_message_deliveries(target_session_id: str, manager=None) ->
                 return False
 
 
-def ensure_target_runner(target_session_id: str) -> None:
+def ensure_target_runner(target_session_id: str, manager=None) -> None:
     current = _target_runner_tasks.get(target_session_id)
     if current is not None and not current.done():
         return
     head = _next_target_delivery(target_session_id)
-    if head is None or head["state"] not in {"QUEUED", "PREPARING"}:
+    if head is None or (head["state"] not in {"QUEUED", "PREPARING"}
+                        and not _has_queued_behind_waiting_head(target_session_id)):
         return
-    task = asyncio.create_task(run_target_message_deliveries(target_session_id))
+    task = asyncio.create_task(run_target_message_deliveries(target_session_id, manager=manager))
     _target_runner_tasks[target_session_id] = task
     task.add_done_callback(_observe_target_runner)
 
@@ -1630,7 +1698,8 @@ async def _wake_idle_waiting_targets(manager) -> int:
         ).fetchall()
     sessions = []
     for row in rows:
-        if _age_seconds(row["since"]) < STUCK_WAKE_AFTER_SECONDS:
+        if (_age_seconds(row["since"]) < STUCK_WAKE_AFTER_SECONDS
+                and not _has_queued_behind_waiting_head(row["target_session_id"])):
             continue
         session = manager.sessions.get(row["target_session_id"])
         if session is None:
@@ -1663,13 +1732,23 @@ async def _wake_idle_waiting_targets(manager) -> int:
         # After the owner's Stop of a Codex turn the rows wait for the next turn that a
         # new message or wake starts; the sweep must not start one by itself (02.11).
         held_by_stop = getattr(getattr(session, "_turns", None), "mailbox_held_by_stop", None)
-        if callable(held_by_stop) and held_by_stop() is True:
+        explicit_turn = _has_queued_behind_waiting_head(session.id)
+        if callable(held_by_stop) and held_by_stop() is True and not explicit_turn:
             continue
+        ensure_waiting_next_turn_mailbox_copies(session.id)
+        if explicit_turn:
+            session._mailbox_held_after_stop = False
         queued = mailbox.claim(session.name, session.scope)
         if not queued:
             continue
         session._log("status", f"mailbox: {len(queued)} — зависшая доставка выдаётся простаивающей сессии")
-        session._spawn_bg(session._turns._deliver_mailbox(queued))
+        if explicit_turn:
+            await session._turns._deliver_mailbox(queued)
+            # The receipt is submitted; resume the tail immediately in its runner.
+            # A sweep must not wait on an unrelated recipient's provider transport.
+            ensure_target_runner(session.id, manager=manager)
+        else:
+            session._spawn_bg(session._turns._deliver_mailbox(queued))
         woken += 1
     return woken
 

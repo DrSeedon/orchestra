@@ -141,13 +141,32 @@ _SESSION_SELECT = """SELECT sessions.*, COALESCE((
 ), '') AS model_reason FROM sessions"""
 
 
+def _ensure_always_on_schema(connection: sqlite3.Connection) -> None:
+    """Online, additive migration; never changes the offline schema version."""
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(mailbox)")}
+    if "idempotency_key" not in columns:
+        connection.execute("ALTER TABLE mailbox ADD COLUMN idempotency_key TEXT")
+    # The fresh schema owns the definitions. Execute complete statements separately
+    # so this helper never commits the caller's transaction via executescript().
+    schema = Path(__file__).with_name("schema.sql").read_text()
+    additive = schema.split("-- Always-on additive schema", 1)[1]
+    statement = ""
+    for line in ("-- Always-on additive schema" + additive).splitlines(True):
+        statement += line
+        if sqlite3.complete_statement(statement):
+            connection.execute(statement)
+            statement = ""
+
+
 def init_db(path: Path | None = None) -> None:
     with _conn(path) as connection:
         version = connection.execute('PRAGMA user_version').fetchone()[0]
         if version == SCHEMA_VERSION:
+            connection.execute("BEGIN IMMEDIATE")
             _ensure_usage_analytics_schema(connection)
             _ensure_session_model_reasons_schema(connection)
             _ensure_restart_cut_turns_schema(connection)
+            _ensure_always_on_schema(connection)
             return
         if version or connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").fetchone():
             raise RuntimeError('database schema needs offline migration before starting Orchestra')
@@ -160,6 +179,7 @@ def init_db(path: Path | None = None) -> None:
         _ensure_usage_analytics_schema(connection)
         _ensure_session_model_reasons_schema(connection)
         _ensure_restart_cut_turns_schema(connection)
+        _ensure_always_on_schema(connection)
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
 
 

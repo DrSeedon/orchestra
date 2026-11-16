@@ -569,9 +569,22 @@ async def lifespan(app: FastAPI):
         ensure_runaway_guard(app)
         from app.merge_operations import restore_merge_operations
         await restore_merge_operations()
+        from app.timers import start_scheduler
+        from app.outbox import start_outbox_dispatcher
+        from app.dreaming import start_dreaming_loop
+        always_on_tasks = [
+            start_scheduler(manager), start_outbox_dispatcher(manager), start_dreaming_loop(manager),
+        ]
         if _fdstore.notify_ready():
             logger.info("systemd readiness published after application startup gates")
-        yield
+        try:
+            yield
+        finally:
+            for task in always_on_tasks:
+                task.cancel()
+            await asyncio.gather(*always_on_tasks, return_exceptions=True)
+            from app.mailbox import stop_wakes
+            await stop_wakes()
     quota_release_task.cancel()
     await asyncio.gather(quota_release_task, return_exceptions=True)
     await _shutdown_runtime(
@@ -627,6 +640,16 @@ app.include_router(artifacts_router)
 app.include_router(attention_router)
 app.include_router(temp_rules_router)
 app.include_router(owner_activity_router)
+from app.routes.timers import router as timers_router
+from app.routes.inbox import router as inbox_router
+from app.routes.outbox import router as outbox_router
+from app.routes.approvals import router as approvals_router
+from app.routes.dreaming import router as dreaming_router
+app.include_router(timers_router)
+app.include_router(inbox_router)
+app.include_router(outbox_router)
+app.include_router(approvals_router)
+app.include_router(dreaming_router)
 
 
 @app.exception_handler(Exception)

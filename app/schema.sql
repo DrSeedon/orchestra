@@ -127,7 +127,8 @@ CREATE TABLE mailbox (
                 origin_detail TEXT NOT NULL,
                 created_at REAL NOT NULL,
                 delivered_at REAL,
-                claimed_at REAL
+                claimed_at REAL,
+                idempotency_key TEXT
             );
 
 CREATE TABLE merge_operations (
@@ -771,3 +772,75 @@ CREATE TRIGGER sessions_id_required_update
         BEFORE UPDATE OF id ON sessions
         WHEN NEW.id IS NULL OR TRIM(NEW.id) = ''
         BEGIN SELECT RAISE(ABORT, 'sessions.id must be non-empty'); END;
+
+-- Always-on additive schema (also applied to existing version-3 databases).
+CREATE TABLE IF NOT EXISTS timers (
+ id TEXT PRIMARY KEY, recipient TEXT NOT NULL, scope TEXT NOT NULL, kind TEXT NOT NULL,
+ body TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'active', next_due_at REAL NOT NULL,
+ interval_seconds REAL, cron_expr TEXT NOT NULL DEFAULT '', timezone_name TEXT NOT NULL DEFAULT 'UTC',
+ max_fires INTEGER, fire_count INTEGER NOT NULL DEFAULT 0,
+ cancel_on_sender TEXT NOT NULL DEFAULT '', cancel_on_scope TEXT NOT NULL DEFAULT '',
+ cancelled_reason TEXT NOT NULL DEFAULT '', idempotency_key TEXT,
+ created_at REAL NOT NULL, updated_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_timers_due ON timers(state, next_due_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_timers_idempotency ON timers(recipient, scope, idempotency_key)
+ WHERE idempotency_key IS NOT NULL AND idempotency_key != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mailbox_idempotency ON mailbox(recipient, scope, idempotency_key)
+ WHERE idempotency_key IS NOT NULL AND idempotency_key != '';
+CREATE TABLE IF NOT EXISTS outbox_messages (
+ id TEXT PRIMARY KEY, recipient TEXT NOT NULL, scope TEXT NOT NULL,
+ channel TEXT NOT NULL, target TEXT NOT NULL, body TEXT NOT NULL,
+ state TEXT NOT NULL DEFAULT 'pending', urgent INTEGER NOT NULL DEFAULT 0,
+ min_interval_seconds REAL NOT NULL DEFAULT 2, quiet_start_hour INTEGER, quiet_end_hour INTEGER,
+ timezone_name TEXT NOT NULL DEFAULT 'UTC', dedupe_key TEXT NOT NULL DEFAULT '',
+ content_fingerprint TEXT NOT NULL, dedupe_window_seconds REAL NOT NULL DEFAULT 86400,
+ attempts INTEGER NOT NULL DEFAULT 0, max_attempts INTEGER NOT NULL DEFAULT 5,
+ next_attempt_at REAL NOT NULL, lease_until REAL, last_error TEXT NOT NULL DEFAULT '',
+ created_at REAL NOT NULL, sent_at REAL
+);
+CREATE INDEX IF NOT EXISTS idx_outbox_due ON outbox_messages(state, next_attempt_at);
+CREATE TABLE IF NOT EXISTS outbox_said_ledger (
+ id TEXT PRIMARY KEY, channel TEXT NOT NULL, target TEXT NOT NULL, dedupe_key TEXT NOT NULL,
+ content_fingerprint TEXT NOT NULL, said_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_outbox_said ON outbox_said_ledger(channel, target, said_at);
+CREATE TABLE IF NOT EXISTS deferred_approvals (
+ id TEXT PRIMARY KEY, recipient TEXT NOT NULL, scope TEXT NOT NULL, action TEXT NOT NULL,
+ summary TEXT NOT NULL, payload TEXT NOT NULL, risk_level TEXT NOT NULL, context_note TEXT NOT NULL,
+ state TEXT NOT NULL DEFAULT 'pending', expires_at REAL NOT NULL, created_at REAL NOT NULL,
+ decided_at REAL, decision_note TEXT NOT NULL DEFAULT '', decided_by TEXT NOT NULL DEFAULT '',
+ idempotency_key TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_approvals_pending ON deferred_approvals(state, expires_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_approvals_idempotency ON deferred_approvals(recipient, scope, idempotency_key)
+ WHERE idempotency_key IS NOT NULL AND idempotency_key != '';
+CREATE TABLE IF NOT EXISTS dreaming_runs (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, target_kind TEXT NOT NULL, target_ref TEXT NOT NULL,
+ source_hash TEXT NOT NULL, output_ref TEXT NOT NULL, created_at REAL NOT NULL,
+ UNIQUE(target_kind, target_ref, source_hash)
+);
+
+CREATE TRIGGER IF NOT EXISTS always_on_cancel_mailbox AFTER INSERT ON mailbox
+ WHEN COALESCE(json_extract(NEW.origin_detail, '$.subtype'), '') != 'timer'
+ BEGIN
+ UPDATE timers SET state='cancelled', cancelled_reason='auto_cancelled_by_inbound:' || NEW.sender,
+ updated_at=CAST(strftime('%s','now') AS REAL)
+ WHERE state='active' AND kind='follow_up' AND recipient=NEW.recipient AND scope=NEW.scope
+ AND (cancel_on_sender != '' OR cancel_on_scope != '')
+ AND (cancel_on_sender IN ('', '*', 'any') OR
+      instr(',' || replace(cancel_on_sender, ' ', '') || ',', ',' || NEW.sender || ',') > 0)
+ AND (cancel_on_scope IN ('', '*', 'any') OR cancel_on_scope=NEW.scope);
+ END;
+
+CREATE TRIGGER IF NOT EXISTS always_on_cancel_message_deliveries AFTER INSERT ON message_deliveries
+ WHEN COALESCE(json_extract(NEW.origin_detail, '$.subtype'), '') != 'timer'
+ BEGIN
+ UPDATE timers SET state='cancelled', cancelled_reason='auto_cancelled_by_inbound:' || NEW.source_name,
+ updated_at=CAST(strftime('%s','now') AS REAL)
+ WHERE state='active' AND kind='follow_up' AND recipient=NEW.target_name AND scope=NEW.target_scope
+ AND (cancel_on_sender != '' OR cancel_on_scope != '')
+ AND (cancel_on_sender IN ('', '*', 'any') OR
+      instr(',' || replace(cancel_on_sender, ' ', '') || ',', ',' || NEW.source_name || ',') > 0)
+ AND (cancel_on_scope IN ('', '*', 'any') OR cancel_on_scope=NEW.target_scope);
+ END;

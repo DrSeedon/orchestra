@@ -99,10 +99,15 @@ def _codex_pre_limit_threshold(s: "AgentSession") -> tuple[int, int, int] | None
 
 
 def _render_mailbox(items: list[dict]) -> str:
-    return "\n\n".join(
-        f"[from:{m['sender'] or ', '.join(m['provenance'].senders)}] {m['body']}"
-        for m in items
-    )
+    from app.mailbox import format_event_batch
+    # Native steer replays and turn-end holds have a frozen wire transcript.
+    # A new inbox event always opts the complete batch into structured delivery.
+    subtypes = {item["provenance"].subtype for item in items}
+    legacy_replay = bool(subtypes & {
+        "codex_steer_backup", "codex_steer_backup_pending",
+        "direct_message_recovery", "codex_turn_end_hold",
+    }) and not bool(subtypes & {"timer", "approval", "inbox_event"})
+    return format_event_batch(items, structured=not legacy_replay)
 
 
 def _is_owner_row(item: dict) -> bool:
