@@ -1,23 +1,22 @@
 # STATE.md — Orchestra (Живая память проекта)
 
-**Обновлено:** 2026-11-17 (**Шаг 2 ВЫКАЧЕН В БОЙ `:8888` + ПРОВЕРЕН КАТАЛОГ `hydrogen-sandbox-orchestrator` БЕЗ `--process-per-session` ПОСЛЕ `UseAICodeMendel=true`**)
+**Обновлено:** 2026-11-17 (**`hub-gemini-4-hydrogen` 24/7 ОРКЕСТРАТОР ВЫКАЧЕН В БОЙ `:8888` И ПОДТВЕРЖДЁН ЖИВЫМ E2E В `hydrogen-sandbox-orchestrator`**)
 
 ## 1. Боевой контур (`orchestra-vps:/home/kesha/orchestra`, `:8888`)
-- **Статус деплоя:** `orchestra.service` — `active` (`7cfc494db` + отчёты `main`), `telegram-bot-api.service` не тронут, `restart_cut_turns` дельта `0`, все 3 локально изменённых файла в `/home/kesha/orchestra` сохранены побайтово, боевые оркестраторы Максима нетронуты.
-- **Конфигурация провайдера и защита сети:**
-  - `data/disabled_providers.json` → `["claude", "grok"]` (`antigravity` разблокирован).
-  - Профиль в `data/antigravity-auth-home` (`0700` папки / `0600` файлы, gitignored, `useG1Credits: false`, `useAiCredits: false`, `telemetryEnabled: false`, `auth.type: "oauth-personal"`).
-  - В `.env`: `ANTIGRAVITY_AUTH_HOME=/home/kesha/orchestra/data/antigravity-auth-home`, `ORCHESTRA_ENFORCE_PROVIDER_EGRESS=1`.
-  - Сеть: резидентский прокси `127.0.0.1:18080` → `178.93.29.64` (`Amsterdam, NL`, `AS215294`) + ядерный killswitch `nftables` `skgid 977 reject` (`0 packets / 0 bytes`).
+- **Статус деплоя:** `orchestra.service` — `active` (код `178ec13b1` + конфиг скоупа `d4c63cade`), `telegram-bot-api.service` не тронут, `restart_cut_turns` дельта `0`, все 3 локально изменённых файла в `/home/kesha/orchestra` сохранены побайтово, остальные боевые оркестраторы Максима нетронуты.
+- **Сессия Максима `hydrogen-sandbox-orchestrator` (`626ea34f-d213-4ebc-81e1-b209468d31cd`, TG `#300743`, `/home/kesha/projects/hydrogen-sandbox`):**
+  - Переведена на **`hub-gemini-4-hydrogen` (`effort: high`, `status: idle`)** — работает 24/7 через Ultra-пул хаба без пиковых блокировок consumer `g1-pro`.
+  - Скоуп `/home/kesha/projects/hydrogen-sandbox` прописан в `data/hub-projects.json` (`persistent: true`) и `.orchestra/projects.yaml` (`git:vps-hydrogen-sandbox`).
 
-## 2. Что работает в бою (Шаг 2)
-1. **Полный auto-approve инструментов (`ANTIGRAVITY_AUTO_APPROVE=1` по умолчанию):** `--dangerously-skip-permissions` + страховочный выбор `allow_once`/`allow_always` на `permission` в `AcpProfile._permission` (вопросы `interaction_*` остаются интерактивными).
-2. **Мульти-сессии и мульти-проекты:** `--process-per-session` + `asyncio.Semaphore(3)` (`ANTIGRAVITY_MAX_CONCURRENT_TURNS=3`) + `_setup_lock` + `session_lock(sid)` + резолв `profile='personal'` (`config_dir=''`) в `ANTIGRAVITY_AUTH_HOME`.
-3. **Верификация:** офлайн `224 passed, 0 failed` (11 ACP-сьютов) + `62 passed` (`test_default_pipeline.py`) + живой 2-сессионный параллельный smoke на `:8888` (`PASS`, `15.641s`, `0` карточек ручного апрува, `nft_delta = 0/0`).
+## 2. Полноценный оркестраторский контур для `HubBackend` (`role == "orchestrator"`)
+1. **Контракт рядовых воркеров (`role != "orchestrator"`) сохранён 100% без изменений:** доступны только `send_message`, `update_checklist`, `update_progress` + защита в `parse_outbox` и `execute()`.
+2. **Оркестраторские команды `.orchestra-outbox.jsonl` (`app/hub_outbox.py`, `app/backend_hub.py`, `app/session.py`):**
+   - `spawn_worker` (2-шаговый `POST /api/sessions` + `initial-deliveries` с `use_worktree=True`, `parent_name=who.name`, проверками `resolve_model` / `ensure_project_model_allowed`), `send_to_worker`, `merge_worker` (с авто-подстановкой 40-символьного `expected_head` из worktree воркера и ожиданием `SUCCEEDED`), `close_worker`, `update_checklist`, `update_progress`.
+   - Жёсткая изоляция владения: команды действуют строго на прямых дочерних воркеров своего `who.scope` (`parent_name == who.name` / `parent_id == who.session_id`).
+   - Живой срез `<orchestra-workers>` (`status`, `model`, `role`, `branch`, 40-символьный `head`) подаётся на 1-м и всех последующих ходах; барьер `_finalizing_turn` гарантирует постановку входящих авто-отчётов/уведомлений в очередь без потери пробуждения следующего хода.
+3. **Верификация:**
+   - Офлайн: `223 passed` (`test_hub_orchestrator_outbox.py` + `test_hub_workspace.py` + `test_default_pipeline.py`), `87 passed` (`test_backend_hub.py` + `test_hub_completion_directive_v1244.py`), `69 passed` (`test_hub_outbox_validation_v1222.py` + `test_v1028_hub_outbox_report.py` + `test_hub_report_order_v1213.py`), `check_instruction_contract.py` (`PASS`).
+   - **Живой E2E на `:8888` (`PASS`, `85.6s`):** Ход 1 (`hub-gemini-4-hydrogen`, `24.15s`) заспавнил `hello-worker` (`hub-gpt-6-luna`, `task-V-1/hello-worker`) → `hello-worker` создал `hello_hydrogen.py` + `test_hello_hydrogen.py`, прогнал `unittest` (`2 ok`), отправил отчёт → Ход 2 (`hub-gemini-4-hydrogen`, `25.33s`) выполнил `merge_worker` (`5531fe0a`, `SUCCEEDED` → `a28af45`) + `close_worker` (`archived`) → Ход 3 (`8.47s`) подтвердил чистое слияние и закрытие воркера.
 
-## 3. Проверка `hydrogen-sandbox-orchestrator` и серверного каталога Google (`15:52Z`)
-- **Сессия:** `hydrogen-sandbox-orchestrator` (`id: 626ea34f-d213-4ebc-81e1-b209468d31cd`, `model: antigravity/gemini-4-hydrogen-high`, `/home/kesha/projects/hydrogen-sandbox`, TG-топик `#300743`).
-- **Чистый контрольный эксперимент без `--process-per-session` и без `--cloud_code_endpoint` (`step2-deploy/mendel-no-pps-probe/acp-server-20261117_165224-2335316.log`):**
-  - Запущен одиночный `agy acp --disable-telemetry` (`worker=false`), выполнен `authenticate`, выждано **`2.5 с` после `16:52:25.639 UseAICodeMendel routing switch changed: false -> true`** (`CCPA routed this account to AICode; serving AICode FetchConfig flags`), после чего отправлен `session/new` (`16:52:28.143`, `cwd=/home/kesha/projects/hydrogen-sandbox`).
-  - Итог в `16:52:28.160`: **`Advertising available models to client: current=gemini-3.8-flash-high, count=6`** (`gemini-3.8-flash-{high,medium,low}`, `claude-sonnet-4-6`, `claude-opus-4-6-thinking`, `gpt-oss-120b-medium`).
-  - Разбор дизассемблера `agy 1.5.9` подтвердил: флаг `UseAICodeMendel` читается только в `ListExperiments` и `ccpaRoutesToAICode` (не в `fetchAvailableModels`), а `GetModelInfos()` применяет `ModelExperiments` динамически на каждый `session/new`. То есть сейчас сам сервер Google `/v1internal:fetchAvailableModels` отдаёт на consumer-аккаунте ровно эти `6` вариантов (без `gemini-4-*` и `claude-*-5-5`), а наш `--process-per-session` в бою не виноват и сохранён.
+## 3. Ранее выкаченный Шаг 2 (`Antigravity ACP` на VPS)
+- В бою активны auto-approve (`--dangerously-skip-permissions`), `--process-per-session`, `asyncio.Semaphore(3)`, `canonical_profile("personal")`, прокси `127.0.0.1:18080` (`NL`) + `nftables skgid 977 reject` (`0/0`).
