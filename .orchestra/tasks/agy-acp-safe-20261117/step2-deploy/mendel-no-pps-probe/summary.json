@@ -1,0 +1,34 @@
+{
+  "started_at": "2026-11-17T15:52:24.128357+00:00",
+  "ended_at": "2026-11-17T15:52:28.197880+00:00",
+  "command": [
+    "/home/kesha/.local/bin/agy",
+    "acp",
+    "--disable-telemetry",
+    "--gemini-dir",
+    "/tmp/agy-mendel-canonical-probe/.gemini",
+    "--app-data-dir",
+    "antigravity-acp"
+  ],
+  "process_per_session": false,
+  "cloud_code_endpoint_flag_passed": false,
+  "post_authenticate_wait_seconds": 2.5,
+  "cwd_tested": "/home/kesha/projects/hydrogen-sandbox",
+  "session_new_model_families": [
+    "gemini-3.8-flash",
+    "claude-sonnet-4-6",
+    "claude-opus-4-6-thinking",
+    "gpt-oss-120b-medium"
+  ],
+  "session_new_available_model_ids": [
+    "gemini-3.8-flash-high",
+    "gemini-3.8-flash-medium",
+    "gemini-3.8-flash-low",
+    "claude-sonnet-4-6",
+    "claude-opus-4-6-thinking",
+    "gpt-oss-120b-medium"
+  ],
+  "session_new_count": 6,
+  "notifications_received": 0,
+  "log_file": ".orchestra/tasks/agy-acp-safe-20261117/step2-deploy/mendel-no-pps-probe/acp-server-20261117_165224-2335316.log"
+}
