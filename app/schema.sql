@@ -111,6 +111,7 @@ CREATE TABLE logs (
                 tool_use_id TEXT,
                 tool_name TEXT,
                 tool_is_error INTEGER,
+                tool_raw_input_json TEXT,
                 origin TEXT NOT NULL DEFAULT 'unknown'
                     CHECK(origin IN ('user','agent','background_task','platform','system','unknown')),
                 origin_detail TEXT NOT NULL DEFAULT '{"senders":["unknown"]}'

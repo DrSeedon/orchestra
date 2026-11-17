@@ -609,6 +609,7 @@ class AntigravityBackend:
                 meta["native_tool_call_id"]=meta["tool_use_id"]
                 meta["tool_use_id"]="acp:"+str(self.session_id)+":"+self._turn_id+":"+meta["tool_use_id"]
                 meta["item_id"]="acp:"+str(self.session_id)+":"+self._turn_id+":tool:"+str(meta["tool_use_id"])+":"+str(meta["acp_revision"])+":"+event
+                meta["raw_input"] = json.loads(self._redact(json.dumps(meta["raw_input"],ensure_ascii=False)))
                 self._queue.put_nowait(AgentEvent(event,self._redact(body),metadata=meta))
 
     async def _run(self, message):

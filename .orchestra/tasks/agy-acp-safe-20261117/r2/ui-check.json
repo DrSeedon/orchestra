@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "renderer": "actual chat/tool-renderers/live-activity JS in headless Chromium",
+  "requests": [
+    "http://127.0.0.1/fixture",
+    "http://127.0.0.1/api/native-requests?owner_id=synthetic-owner",
+    "http://127.0.0.1/api/native-requests/csrf",
+    "http://127.0.0.1/api/native-requests/synthetic-card/respond"
+  ],
+  "native_answers": [
+    {
+      "owner_id": "synthetic-owner",
+      "binding": "synthetic-binding",
+      "option_id": "yes",
+      "cancel": false
+    }
+  ],
+  "page_errors": [],
+  "regressions": {
+    "compact_input_update": true,
+    "late_final_keeps_live_segment": true,
+    "thinking_segments": true,
+    "legacy_fallback": true,
+    "input_updates_one_card": true,
+    "late_input_preserves_result": true,
+    "tool_snapshots_and_replay": true,
+    "real_stdio_journal_replay": true
+  },
+  "contrast": {
+    "ratio": 12.999112778940548,
+    "foreground": "rgb(203, 213, 225)",
+    "background": "rgb(10, 14, 23)",
+    "bodyBackground": "rgb(10, 14, 23)",
+    "disabledButtons": true
+  },
+  "network_namespace": "lo only",
+  "note": "UI endpoint responses synthetic; actual native HTTP/RPC covered by Python integration tests"
+}

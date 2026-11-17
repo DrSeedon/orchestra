@@ -1,0 +1,197 @@
+{
+  "cwd": "/home/kesha/orchestra-worktrees/agy-acp-safe",
+  "sequence": [
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_offline.sh",
+        "tests/test_antigravity_r4.py",
+        "-q",
+        "--tb=short",
+        "-p",
+        "no:faulthandler"
+      ],
+      "timeout_s": 100,
+      "exit": 0,
+      "log": "r4-focused.log",
+      "result": "9 passed,2 warnings,10.05s"
+    },
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_ui_offline.sh"
+      ],
+      "timeout_s": 75,
+      "exit": 1,
+      "log": "ui-run.log",
+      "result": "fixture omitted real app.js stamping helper"
+    },
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_ui_offline.sh"
+      ],
+      "timeout_s": 75,
+      "exit": 1,
+      "log": "ui-run-2.log",
+      "result": "fixture exact text comparison included Markdown trailing newline; DOM preserved B"
+    },
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_ui_offline.sh"
+      ],
+      "timeout_s": 75,
+      "exit": 0,
+      "log": "ui-run-3.log"
+    },
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_offline.sh",
+        "tests/test_antigravity_r4.py",
+        "tests/test_antigravity_acp.py",
+        "tests/test_antigravity_acp_review.py",
+        "tests/test_antigravity_acp_r2.py",
+        "tests/test_antigravity_acp_submission.py",
+        "tests/test_antigravity_foreground.py",
+        "tests/test_antigravity_foreground_delivery.py",
+        "tests/test_antigravity_foreground_sse.py",
+        "tests/test_always_on_agents.py",
+        "tests/test_runtime_registry.py",
+        "tests/test_usage_contract.py",
+        "tests/test_live_broker.py",
+        "tests/test_log_write_loss.py",
+        "tests/test_logs_sync.py",
+        "tests/test_session_logs_conditional.py",
+        "-q",
+        "--tb=short",
+        "-p",
+        "no:faulthandler"
+      ],
+      "timeout_s": 150,
+      "exit": 1,
+      "log": "compatibility.log",
+      "result": "298 passed,3 failed,2 warnings,74.10s; all3 failures deny git/full lifespan at audit"
+    },
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_ui_offline.sh"
+      ],
+      "timeout_s": 75,
+      "exit": 0,
+      "log": "ui-final.log",
+      "result": "compact input + screenshot framing"
+    },
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_offline.sh",
+        "tests/test_antigravity_r4.py",
+        "-q",
+        "--tb=short",
+        "-p",
+        "no:faulthandler"
+      ],
+      "timeout_s": 80,
+      "exit": 0,
+      "log": "r4-final.log",
+      "result": "10 passed,2 warnings,9.00s; adds nullable metadata schema upgrade"
+    },
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_offline.sh",
+        "--instructions"
+      ],
+      "timeout_s": 20,
+      "exit": 0,
+      "log": "instructions.log"
+    },
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_ui_offline.sh"
+      ],
+      "timeout_s": 75,
+      "exit": 0,
+      "log": "ui-final-journal.log",
+      "result": "actual mock stdio journal replay"
+    },
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_offline.sh",
+        "tests/test_antigravity_acp.py::test_harness_enforces_external_network_and_real_executable_denial",
+        "tests/test_antigravity_foreground.py::test_explicit_google_telegram_and_real_provider_negative_controls",
+        "-v",
+        "--tb=short",
+        "-p",
+        "no:faulthandler"
+      ],
+      "timeout_s": 20,
+      "exit": 0,
+      "log": "negative-controls.log",
+      "result": "2 passed,3.83s"
+    },
+    {
+      "argv": [
+        "bash",
+        "scripts/run_antigravity_ui_offline.sh"
+      ],
+      "timeout_s": 75,
+      "exit": 0,
+      "log": "ui-final-identity.log",
+      "result": "final renderer check, stable identity after bounded cache eviction"
+    }
+  ],
+  "logs": {
+    "compatibility.log": {
+      "raw_sha256": "99cf446d1276f91702ad9aaed0d36f667ca5587b98d16300d2928fd3b663ec44",
+      "normalized_sha256": "99cf446d1276f91702ad9aaed0d36f667ca5587b98d16300d2928fd3b663ec44"
+    },
+    "instructions.log": {
+      "raw_sha256": "360712bcb4fa9db1641ed2ef707e24f4f659344a87c0b18796b53f79400ce3eb",
+      "normalized_sha256": "360712bcb4fa9db1641ed2ef707e24f4f659344a87c0b18796b53f79400ce3eb"
+    },
+    "negative-controls.log": {
+      "raw_sha256": "3294cea30c965a136384b00d40cca8491063e7daa2aeb466b5eb85fcedaa9b00",
+      "normalized_sha256": "3294cea30c965a136384b00d40cca8491063e7daa2aeb466b5eb85fcedaa9b00"
+    },
+    "r4-final.log": {
+      "raw_sha256": "949c10bef730383614f3648d72c4c4f1473fe7afe2e889ffe455dd335f240965",
+      "normalized_sha256": "949c10bef730383614f3648d72c4c4f1473fe7afe2e889ffe455dd335f240965"
+    },
+    "r4-focused.log": {
+      "raw_sha256": "cfbb397ff479b99d415ff0d8951810dc9b5ccf21204488395a7f784ba420b54b",
+      "normalized_sha256": "cfbb397ff479b99d415ff0d8951810dc9b5ccf21204488395a7f784ba420b54b"
+    },
+    "ui-final-identity.log": {
+      "raw_sha256": "ae6214bc695c6b77f599b06de01f56ce2aa521b8e97aa9204cb858efefa6ce7e",
+      "normalized_sha256": "ae6214bc695c6b77f599b06de01f56ce2aa521b8e97aa9204cb858efefa6ce7e"
+    },
+    "ui-final-journal.log": {
+      "raw_sha256": "ae6214bc695c6b77f599b06de01f56ce2aa521b8e97aa9204cb858efefa6ce7e",
+      "normalized_sha256": "ae6214bc695c6b77f599b06de01f56ce2aa521b8e97aa9204cb858efefa6ce7e"
+    },
+    "ui-final.log": {
+      "raw_sha256": "ae6214bc695c6b77f599b06de01f56ce2aa521b8e97aa9204cb858efefa6ce7e",
+      "normalized_sha256": "ae6214bc695c6b77f599b06de01f56ce2aa521b8e97aa9204cb858efefa6ce7e"
+    },
+    "ui-run-2.log": {
+      "raw_sha256": "a4c745375c5d71a5bbf161ea7aa5c90925fff66ef7fa58fecd000d9983f91f42",
+      "normalized_sha256": "a4c745375c5d71a5bbf161ea7aa5c90925fff66ef7fa58fecd000d9983f91f42"
+    },
+    "ui-run-3.log": {
+      "raw_sha256": "ae6214bc695c6b77f599b06de01f56ce2aa521b8e97aa9204cb858efefa6ce7e",
+      "normalized_sha256": "ae6214bc695c6b77f599b06de01f56ce2aa521b8e97aa9204cb858efefa6ce7e"
+    },
+    "ui-run.log": {
+      "raw_sha256": "eb4cc5ed8b9c0000e91352756c53e65780ce8ca01f6127ce596a0dc7a8b5504a",
+      "normalized_sha256": "eb4cc5ed8b9c0000e91352756c53e65780ce8ca01f6127ce596a0dc7a8b5504a"
+    },
+    "normalization": "Trailing line whitespace / blank EOF only. Raw .log.raw files retained on VPS."
+  },
+  "transport": "SSH exec sessions, awaited in same active turn; no live commands left"
+}

@@ -1,0 +1,49 @@
+{
+  "base": "faabd24e5236833a8af238fad2e09aeb907d091c",
+  "branch": "agy-acp-safe",
+  "actual_imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app/__init__.py",
+  "targeted_final": {
+    "passed": 10,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 2,
+    "seconds": 9.0,
+    "log": "r4-final.log"
+  },
+  "compatibility": {
+    "passed": 298,
+    "failed": 3,
+    "skipped": 0,
+    "warnings": 2,
+    "seconds": 74.1,
+    "log": "compatibility.log",
+    "failed_nodes": [
+      "tests/test_logs_sync.py::TestLiveSessions::test_lists_every_session_including_archived",
+      "tests/test_logs_sync.py::TestRoute::test_endpoint_clamps_arguments",
+      "tests/test_logs_sync.py::TestRoute::test_chat_snapshot_is_never_served_from_http_cache"
+    ],
+    "failure_boundary": "All3 stop at unchanged audit denying git subprocess required by legacy task-runtime/full app lifespan fixtures. Not weakened, not called passed. No baseline rerun claimed."
+  },
+  "ui": {
+    "passed": true,
+    "log": "ui-final-identity.log",
+    "screenshot": "/home/kesha/orchestra-worktrees/agy-acp-safe/.orchestra/tasks/agy-acp-safe-20261117/r2/ui-renderer.png",
+    "details": "ui-check.json",
+    "initial_fixture_failures": [
+      "missing app.js pure stamping helper",
+      "Markdown text newline comparison"
+    ],
+    "ceo_visual_signoff": "pending"
+  },
+  "negative_controls": {
+    "passed": 2,
+    "failed": 0,
+    "seconds": 3.83,
+    "log": "negative-controls.log"
+  },
+  "warnings": "websockets legacy and WebSocketServerProtocol deprecations",
+  "instruction_contract": "PASS",
+  "source_syntax_diff_secret_checks": "PASS",
+  "owned_processes": [],
+  "overall_release_gate": "RED: mock-only/native+live authorization and historical legacy acceptance open; no production activation"
+}

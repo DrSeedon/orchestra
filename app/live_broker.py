@@ -81,7 +81,7 @@ class LiveBroker:
         current = self._accum.get(session_id, "")
         if current:
             try:
-                q.put_nowait({"type": "stream", "content": current, **({"item_id":self._accum_ids[session_id]} if session_id in self._accum_ids else {})})
+                q.put_nowait({"type": "stream", "content": current, **({"item_id":self._accum_ids[session_id], "replace":True} if session_id in self._accum_ids else {})})
             except asyncio.QueueFull:
                 pass
         for item in tuple(self._live.get(session_id, {}).values()):
@@ -110,8 +110,11 @@ class LiveBroker:
         # поэтому маскирование в db.add_log его не закрывает. Маскируем ДО _accum — иначе
         # реплей отдаст новому подписчику сырое значение.
         if payload.get("type") == "stream":
-            if payload.get("item_id"):self._accum_ids[session_id]=payload["item_id"]
-            self._accum[session_id] = self._accum.get(session_id, "") + payload.get("content", "")
+            item_id = payload.get("item_id")
+            if item_id and item_id != self._accum_ids.get(session_id):
+                self._accum[session_id] = ""
+            if item_id:self._accum_ids[session_id]=item_id
+            self._accum[session_id] = ("" if payload.get("replace") else self._accum.get(session_id, "")) + payload.get("content", "")
         key = live_key(payload)
         if key is not None:
             payload = self._remember_live(session_id, key, payload)
@@ -134,8 +137,8 @@ class LiveBroker:
             item = {"content": "", "chars": 0, "_started": time.monotonic()}
             blocks[key] = item
         item.update({k: v for k, v in payload.items() if k != "content"})
-        item["content"] = (item["content"] + content)[-_LIVE_KEYS[key[0]][1]:]
-        item["chars"] += len(content)
+        item["content"] = (("" if payload.get("replace") else item["content"]) + content)[-_LIVE_KEYS[key[0]][1]:]
+        item["chars"] = len(content) if payload.get("replace") else item["chars"] + len(content)
         if key[0] != "tool_input_stream":
             return payload
         # The writer's speed is computed server-side: browser and server clocks differ.

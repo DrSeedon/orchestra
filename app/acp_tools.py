@@ -47,7 +47,7 @@ def display_content(state):
 
 
 class ToolReducer:
-    def __init__(self):self.states={};self.started=set();self.emitted={};self.revisions={}
+    def __init__(self):self.states={};self.started=set();self.emitted={};self.revisions={};self.inputs={}
 
     def apply(self,patch):
         tid=patch.get("toolCallId")
@@ -65,12 +65,16 @@ class ToolReducer:
         output,unsupported=display_content(state)
         meta={"tool_use_id":tid,"tool_name":name,"status":state.get("status"),
               "title":state.get("title",""),"kind":state.get("kind"),"is_error":state.get("status")=="failed",
-              "unsupported":unsupported,"acp_revision":self.revisions[tid]}
+              "unsupported":unsupported,"acp_revision":self.revisions[tid],"raw_input":deepcopy(raw)}
         result=[]
+        input_key = (name, body)
         if tid not in self.started:
             self.started.add(tid);result.append(("tool_use",name+": "+body,dict(meta)))
+        elif self.inputs.get(tid) != input_key:
+            result.append(("tool_update",name+": "+body,dict(meta)))
+        self.inputs[tid] = input_key
         if state.get("status") in {"completed","failed"}:
             result.append(("tool_result",output or str(state.get("title",name)),dict(meta)))
         elif tid in self.started:
-            result.append(("tool_stream",output or str(state.get("title",name)),dict(meta)))
+            result.append(("tool_stream",output or str(state.get("title",name)),{**meta,"replace":True}))
         return result

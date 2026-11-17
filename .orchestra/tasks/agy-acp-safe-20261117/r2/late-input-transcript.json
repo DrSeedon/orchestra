@@ -1,0 +1,88 @@
+{
+  "logs": [
+    {
+      "id": 2,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T07:04:38.889441+00:00",
+      "type": "tool",
+      "content": "run_command: {}",
+      "event_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:tool:acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args:1:tool_use",
+      "tool_use_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "raw_input": {}
+    },
+    {
+      "id": 3,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T07:04:38.889567+00:00",
+      "type": "tool_update",
+      "content": "run_command: {\"CommandLine\": \"echo late synthetic\"}",
+      "event_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:tool:acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args:2:tool_update",
+      "tool_use_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args",
+      "tool_name": "run_command",
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "raw_input": {
+        "CommandLine": "echo late synthetic"
+      }
+    },
+    {
+      "id": 4,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T07:04:38.889686+00:00",
+      "type": "tool_result",
+      "content": "AB",
+      "event_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:tool:acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args:4:tool_result",
+      "tool_use_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "raw_input": {
+        "CommandLine": "echo late synthetic"
+      }
+    }
+  ],
+  "live": [
+    {
+      "type": "tool_stream",
+      "content": "run_command",
+      "item_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:tool:acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args:1:tool_stream",
+      "tool_use_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args",
+      "tool_name": "run_command",
+      "replace": true
+    },
+    {
+      "type": "tool_stream",
+      "content": "A",
+      "item_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:tool:acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args:2:tool_stream",
+      "tool_use_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args",
+      "tool_name": "run_command",
+      "replace": true
+    },
+    {
+      "type": "tool_stream",
+      "content": "AB",
+      "item_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:tool:acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args:3:tool_stream",
+      "tool_use_id": "acp:mock-session-1:683f6859a5d64d8cb5d522ee1917eaba:late-args",
+      "tool_name": "run_command",
+      "replace": true
+    }
+  ]
+}

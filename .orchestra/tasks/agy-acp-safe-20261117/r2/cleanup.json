@@ -1,0 +1,13 @@
+{
+  "owned_candidate_process_pids": [],
+  "production_head": "4e4e58dcba8eca8f4e961a2095be7efda1322d0e",
+  "production_tracked_status": [
+    " M .orchestra/workers/Orchestra-orchestrator.md",
+    " M scripts/video_artifact/README.md",
+    " M scripts/video_artifact/elevenlabs_tts.py"
+  ],
+  "production_untracked": "Unrelated research/runtime directories preserved; not audited or read.",
+  "services_changed": false,
+  "provider_settings_changed": false,
+  "pushed": false
+}

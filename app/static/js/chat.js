@@ -1461,6 +1461,11 @@ function _renderJsonGrid(obj, container, maxDepth) {
 }
 
 function buildCompactToolLine(type, content, ts, payload) {
+    const pendingInput = _pendingAcpToolInputs.get(payload?.tool_use_id);
+    if (type === 'tool' && pendingInput) {
+        _pendingAcpToolInputs.delete(payload.tool_use_id);
+        content = pendingInput.content; payload = {...payload, ...pendingInput.payload};
+    }
     const line = document.createElement('div');
     line.className = 'flex items-center gap-2 text-xs py-0.5 px-2 cursor-pointer rounded group';
     line.style.color = '#64748b';
@@ -1468,7 +1473,7 @@ function buildCompactToolLine(type, content, ts, payload) {
     if (type === 'tool') {
         const colonIdx = content.indexOf(':');
         const {name: rawName, body} = normalizeToolCall(
-            colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.trim(),
+            payload?.tool_name || (colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.trim()),
             colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '');
         let icon = toolIcon(rawName);
         const short = toolShortName(rawName);
@@ -1813,6 +1818,8 @@ function resetChatTransientState() {
     streamPending = '';
     _streamDeferredFinal = null;
     _lastFinalizedStreamText = '';
+    _acpSegments.clear();
+    _pendingAcpToolInputs.clear();
     _resetCodexActivityState();
     // The previous agent's compaction must not paint the next chat or make its Stop ask.
     applyCompactionState(selectedAgent, null);
@@ -1835,7 +1842,7 @@ function _codexToolHost(chat, payload, anchor) {
     return _findLastBefore(chat, '[data-last-tool], [data-compact-tool]', anchor);
 }
 
-function _applyCodexToolUpdate(host, type, content) {
+function _applyCodexToolUpdate(host, type, content, payload = {}) {
     if (!host) return;
     if (type === 'tool_patch') {
         const patch = renderCodexFileChange(content);
@@ -1861,7 +1868,7 @@ function _applyCodexToolUpdate(host, type, content) {
         host.appendChild(pre);
     }
     const prefix = type === 'tool_stream' && host.dataset.toolStream === 'stdin' ? '› ' : '';
-    pre.textContent = (pre.textContent + prefix + content).slice(-20_000);
+    pre.textContent = ((payload.replace ? '' : pre.textContent) + prefix + content).slice(-20_000);
     pre.scrollTop = pre.scrollHeight;
 }
 
@@ -1871,7 +1878,7 @@ function _queueOrApplyCodexToolUpdate(chat, type, content, payload, anchor) {
     if (host) {
         if (itemId) host.dataset.toolUseId = itemId;
         if (payload && payload.stream) host.dataset.toolStream = payload.stream;
-        _applyCodexToolUpdate(host, type, content);
+        _applyCodexToolUpdate(host, type, content, payload);
         return;
     }
     if (!itemId) return;
@@ -1888,7 +1895,7 @@ function _flushCodexToolUpdates(host, itemId) {
     _pendingCodexToolUpdates.delete(itemId);
     for (const [type, content, payload] of pending) {
         if (payload.stream) host.dataset.toolStream = payload.stream;
-        _applyCodexToolUpdate(host, type, content);
+        _applyCodexToolUpdate(host, type, content, payload);
     }
 }
 
@@ -3245,7 +3252,49 @@ function _watchWorkflowCard(card, runId) {
     card.addEventListener('DOMNodeRemoved', () => { if (timer) clearTimeout(timer); }, {once: true});
 }
 
+const _pendingAcpToolInputs = new Map();
+function _updateAcpToolInput(content, payload) {
+    const id = payload?.tool_use_id;
+    if (!id) return;
+    const chat = $('#chat');
+    const compact = _toolForResult(chat, payload, null, true);
+    if (compact && compact.dataset.toolContent !== content) {
+        const fresh = buildCompactToolLine('tool', content, null, payload);
+        compact.dataset.toolContent = content;
+        compact.dataset.toolRaw = fresh.dataset.toolRaw;
+        const result = compact.querySelector('.compact-result');
+        compact.replaceChildren(...fresh.childNodes);
+        if (result) compact.querySelector('.compact-result').replaceWith(result);
+        _stampChatLogNode(compact, payload);
+    }
+    const host = _toolForResult(chat, payload, null, false);
+    if (!host && compact) return;
+    if (!host) {
+        _pendingAcpToolInputs.set(id, {content, payload});
+        if (_pendingAcpToolInputs.size > 256) _pendingAcpToolInputs.delete(_pendingAcpToolInputs.keys().next().value);
+        return;
+    }
+    if (host.dataset.toolContent === content) return;
+    const result = host._acpResult;
+    const output = host.querySelector('.codex-live-output');
+    const replacement = document.createElement('div');
+    replacement.className = host.className;
+    for (const [key, value] of Object.entries(host.dataset)) replacement.dataset[key] = value;
+    host.replaceWith(replacement);
+    _renderFullToolCall(content, payload, replacement);
+    _stampChatLogNode(replacement, payload);
+    if (result) {
+        _renderFullToolResult(result.content, result.ts, result.payload, null,
+            document.createElement('div'), node => $('#chat').appendChild(node), false);
+    } else if (output) replacement.appendChild(output);
+}
+
 function _renderFullToolCall(content, payload, div) {
+    const pendingInput = _pendingAcpToolInputs.get(payload?.tool_use_id);
+    if (pendingInput) {
+        _pendingAcpToolInputs.delete(payload.tool_use_id);
+        content = pendingInput.content; payload = {...payload, ...pendingInput.payload};
+    }
     const colonIdx = content.indexOf(':');
     const {name: rawName, body} = normalizeToolCall(
         payload?.tool_name || (colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.trim()),
@@ -3996,6 +4045,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         div.appendChild(warning);
     }
     if (lastTool) {
+        if (String(payload?.tool_use_id || '').startsWith('acp:')) lastTool._acpResult = {content, ts, payload};
         liveStopToolClock(lastTool);
         const liveOutput = lastTool.querySelector('.codex-live-output');
         if (liveOutput) liveOutput.remove();
@@ -5303,16 +5353,78 @@ function _renderCompactEvent(type, content, ts, anchor, insertAndFollow, payload
     return true;
 }
 
+const _acpSegments = new Map();
+function _firstLiveAcpSegment(chat) {
+    for (const node of chat.children) {
+        if (node.dataset.acpSegmentLive === '1') return node;
+    }
+    return null;
+}
+function _renderAcpSegment(type, content, ts, anchor, payload) {
+    const id = String(payload?.item_id || payload?.event_id || '');
+    if (!id.startsWith('acp:') || !['stream','text','thinking_stream','thinking'].includes(type)) return false;
+    if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return true;
+    const chat = $('#chat');
+    const follow = typeof _chatAtBottom === 'function' && _chatAtBottom(chat);
+    const live = type === 'stream' || type === 'thinking_stream';
+    let segment = _acpSegments.get(id);
+    if (segment && segment.node.parentNode !== chat) { _acpSegments.delete(id); segment = null; }
+    if (!segment) {
+        const existing = chat.querySelector(`[data-segment-id="${CSS.escape(id)}"]`);
+        if (existing) {
+            segment = {node:existing, content:'', final:existing.dataset.acpSegmentLive === '0'};
+            _acpSegments.set(id, segment);
+        }
+    }
+    if (segment?.final && live) return true; // stale reconnect partial after its durable row
+    if (!segment) {
+        const node = document.createElement('div');
+        node.dataset.segmentId = id;
+        node.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot markdown-body';
+        segment = {node, content:'', final:false}; _acpSegments.set(id, segment);
+        const before = anchor || (!live && _firstLiveAcpSegment(chat));
+        if (before) chat.insertBefore(node, before); else chat.appendChild(node);
+    }
+    segment.content = live && !payload?.replace ? segment.content + content : content;
+    segment.node.dataset.acpSegmentLive = live ? '1' : '0';
+    segment.node.classList.toggle('streaming', live);
+    if (type === 'thinking') {
+        const thought = _renderCodexThinking(segment.content, T('◇ Reasoning'));
+        segment.node.className = thought.className;
+        segment.node.replaceChildren(...thought.childNodes);
+    } else {
+        segment.node.innerHTML = DOMPurify.sanitize(marked.parse(segment.content));
+    }
+    if (typeof _tagChatTimelineNode === 'function') _tagChatTimelineNode(segment.node, type, ts);
+    if (!live) {
+        segment.final = true;
+        _stampChatLogNode(segment.node, payload);
+        addTimestamp(segment.node, ts);
+        if (type === 'text') addCopyBtn(segment.node, segment.content);
+        if (typeof _scheduleChatReadCapture === 'function') _scheduleChatReadCapture();
+    }
+    if (follow) chat.scrollTop = chat.scrollHeight;
+    // Keep only connected recent entries; completed DOM nodes remain in the journal view.
+    if (_acpSegments.size > 512) {
+        for (const [key, value] of _acpSegments) {
+            if (value.final || !value.node.isConnected) _acpSegments.delete(key);
+            if (_acpSegments.size <= 256) break;
+        }
+    }
+    return true;
+}
+
 function renderNativeRequestCard(content) {
     const request = JSON.parse(content);
     const card = document.createElement('div');
-    card.className = 'chat-status';
+    card.className = 'native-request-card';
     card.dataset.nativeRequestId = request.id;
-    const heading = document.createElement('strong');
+    const heading = document.createElement('strong');heading.className='native-request-heading';
     heading.textContent = request.kind === 'question' ? 'Вопрос агента' : 'Подтверждение действия';
     const body = document.createElement('pre'); body.textContent = request.title + (Object.keys(request.details || {}).length ? '\n'+JSON.stringify(request.details,null,2) : '');
-    card.append(heading, body);
-    const state = document.createElement('span');state.textContent = request.state;card.appendChild(state);
+    const header=document.createElement('div');header.className='native-request-header';header.appendChild(heading);card.append(header, body);
+    const state = document.createElement('span');state.className='native-request-status';state.textContent = request.state;header.appendChild(state);
+    const actions=document.createElement('div');actions.className='native-request-actions';card.appendChild(actions);
     async function answer(option, cancel=false) {
         const buttons = [...card.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
         try {
@@ -5325,10 +5437,10 @@ function renderNativeRequestCard(content) {
     }
     for (const option of request.options) {
         const button=document.createElement('button');button.className='btn btn-sm';button.textContent=option.name+(option.warning ? " · "+option.warning : "");
-        button.disabled=request.state!=='pending';button.onclick=()=>answer(option.optionId);card.appendChild(button);
+        button.disabled=request.state!=='pending';button.onclick=()=>answer(option.optionId);actions.appendChild(button);
     }
     const cancel=document.createElement('button');cancel.className='btn btn-sm';cancel.textContent='Отмена';
-    cancel.disabled=request.state!=='pending';cancel.onclick=()=>answer(null,true);card.appendChild(cancel);
+    cancel.disabled=request.state!=='pending';cancel.onclick=()=>answer(null,true);actions.appendChild(cancel);
     // Revalidate on reconnect: old DB cards must never masquerade as live approvals.
     fetch('/api/native-requests?owner_id='+encodeURIComponent(request.owner_id),{credentials:'same-origin'})
       .then(r=>r.ok?r.json():[]).then(rows=>{if(!rows.some(r=>r.id===request.id)){card.querySelectorAll('button').forEach(b=>b.disabled=true);state.textContent='Запрос закрыт или устарел';}}).catch(()=>{});
@@ -5336,6 +5448,8 @@ function renderNativeRequestCard(content) {
 }
 
 function addChatEntry(type, content, ts, anchor, payload) {
+    if (_renderAcpSegment(type, content, ts, anchor, payload)) return;
+    if (type === 'tool_update') { _updateAcpToolInput(content, payload); return; }
     if (type === 'native_request_closed') {
         const value=JSON.parse(content);const card=[...document.querySelectorAll('[data-native-request-id]')].find(x=>x.dataset.nativeRequestId===value.id);
         if(card){card.querySelectorAll('button').forEach(x=>x.disabled=true);const state=card.querySelector('span');if(state)state.textContent=value.state;}
@@ -5379,9 +5493,10 @@ function addChatEntry(type, content, ts, anchor, payload) {
         if (anchor) return chat.insertBefore(el, anchor);
         const wasAtBottom = _chatAtBottom(chat);
         let inserted;
-        if (streamBubble && streamBubble.parentNode === chat) {
+        const liveSegment = _firstLiveAcpSegment(chat);
+        if (liveSegment || (streamBubble && streamBubble.parentNode === chat)) {
             _insertedBeforeStream = true;
-            inserted = chat.insertBefore(el, streamBubble);
+            inserted = chat.insertBefore(el, liveSegment || streamBubble);
         } else {
             inserted = chat.appendChild(el);
         }

@@ -1,21 +1,25 @@
-# Orchestra ACP foreground wave — MOCK ONLY, overall gate RED
-- Updated2026-11-17; base f68c2335c55efb1300a446be922ab0e1164f215c, branch agy-acp-safe.
-- Checkout /home/kesha/orchestra-worktrees/agy-acp-safe; one writer, no helpers/reviewers.
-- Delivered native permission/choice-question RPC bridge with owner/CSRF/TG creator ACL,
-  epoch/transport/turn/RPC/payload binding, dedup, deadline/cancel/EOF/stale protections.
-- No mailbox approval wake or extra model prompt; response is native RPC only.
-- Tool patch reducer, ordered text/thinking segments and ACP-only durable journal barrier.
-- Actual DB/SSE/TG formatting; primary-topic persistent cursor/outbox; unknown sends not replayed.
-- Exact offered model/effort ACK; fixed-profile binding/resume; no sameHOME account detection.
-- f68 receipt/provenance/disabled/egress/credit/no-replay guards preserved.
-- Scoped final248passed,0skipped,2warnings,43.85s; final pure-tool clarification1passed.
-- Browser UI gate OPEN:3bounded attempts exhausted; final transient-completed-tool selector
-  failed, static fixture correction not rerun. No full renderer screenshot/visual PASS.
-- Instructions/syntax/diff/secrets checked; own fake/runner/UI/browser processes0.
-- Production HEAD4e4e58dcb, its3dirty files and disabled providers unchanged.
-- No real agy/Google/OAuth/account/keyring/.env/credential/TG requests, copies or activation.
-- No main/T3/proxy/billing edits, push/merge/deploy/restart/publication.
-- Native file-only readiness/user-context role/systemPrompt.append limitations in capabilities.
-- Historical frozen RED15F/18P/79E not rerun; old compact timeout statically baseline Claude policy.
-- Parent owns stubSTATE; final result via native MCP exactly once with requested clientRequestId.
-- Evidence .orchestra/tasks/agy-acp-safe-20261117/report.md, acceptance-matrix.json, verification.json.
+# Orchestra ACP — R4 exact correction wave, MOCK ONLY
+- Updated2026-11-17; checkout /home/kesha/orchestra-worktrees/agy-acp-safe, branch agy-acp-safe.
+- Base faabd24e5236833a8af238fad2e09aeb907d091c; no helpers or other writer.
+- Closed6exact Astra R4 findings + native-request CSS with scoped regressions.
+- Ordered journal failure no longer poisons successors; own failure remains visible.
+- TG429 -> shared flood barrier + durable pending/next_attempt_at; ambiguity stays unknown.
+- Explicit zero-cursor forward scan preserves legacy tail semantics;120/120 delivered.
+- Late tool input -> immutable keyed update + final raw_input/canonical name metadata.
+- Full/compact UI updates one card; TG one argument revision; additive nullable log metadata.
+- Output snapshots carry replace through broker/SSE/JS; A->AB stays AB on replay.
+- ACP text/thinking nodes keyed by item_id/event_id; lateA preserves liveB; legacy path kept.
+- Real dark styles/native request card CSS; actual mock-stdio journal replay in headless UI.
+- Final targeted10P/0F/0skip/2warnings; compatibility298P/3F/0skip/2warnings.
+- Three test_logs_sync failures: strict audit denies git/task-runtime/full lifespan fixtures.
+- Negative controls2P; instructions/syntax/source diff/credential scan PASS.
+- Final UI PASS/page_errors0, screenshot r2/ui-renderer.png; CEO visual sign-off pending.
+- Initial UI fixture failures2 (helper omission, Markdown newline comparison) corrected.
+- Owned fake/runner/UI/browser PIDs0. Main4e4e58dcb/3tracked dirty files preserved.
+- No real agy/Google/OAuth/TG/account/credential reads, no settings/services/push/merge/deploy.
+- Existing receipts/provenance/disabled/egress/credits/no-fallback guards preserved.
+- Overall release gate RED: mock-only, native/live authorization and legacy acceptance open.
+- Fixed-profile only; no sameHOME account detection, no native CLI compatibility claim.
+- Historical frozen15F/18P/79E not rerun; old compact baseline policy fixture remains open.
+- Evidence .orchestra/tasks/agy-acp-safe-20261117/r2/{report,verification,commands,acceptance-matrix}.
+- Parent owns hub stubSTATE; notify parent once through native MCP after clean local commit.

@@ -69,6 +69,12 @@ async def prompt(request):
         update(sid,"agent_thought_chunk",content={"type":"text","text":"live thought segment"})
         await cancel[sid].wait()
         result(request,{"stopReason":"cancelled"});active.clear();trace("prompt_end",session=sid);return
+    if text.endswith("FG_LATE_INPUT"):
+        update(sid,"tool_call",toolCallId="late-args",name="run_command",status="in_progress",rawInput={})
+        update(sid,"tool_call_update",toolCallId="late-args",rawInput={"CommandLine":"echo late synthetic"},rawOutput="A")
+        update(sid,"tool_call_update",toolCallId="late-args",rawOutput="AB")
+        update(sid,"tool_call_update",toolCallId="late-args",status="completed")
+        result(request,{"stopReason":"end_turn"});active.clear();trace("prompt_end",session=sid);return
     if text.endswith("FG_TRANSCRIPT"):
         update(sid,"agent_message_chunk",content={"type":"text","text":"before tool "})
         update(sid,"agent_thought_chunk",content={"type":"text","text":"checking"})

@@ -3048,7 +3048,7 @@ class AgentSession:
                 return
             payload = {"type": event.type, "content": event.content}
             for key in ("activity", "item_id", "tool_use_id", "turn_id", "stream",
-                        "tool_name", "short_name", "estimated_tokens"):
+                        "tool_name", "short_name", "estimated_tokens", "replace"):
                 value = event.metadata.get(key)
                 if value:
                     payload[key] = value
@@ -3057,7 +3057,7 @@ class AgentSession:
         self._sync_live_activity(event)
         tool_use_id = str(event.metadata.get("tool_use_id") or "")
         tool_name_for_log = str(event.metadata.get("tool_name") or "")
-        if event.type == "tool_use" and tool_use_id:
+        if event.type in {"tool_use", "tool_update"} and tool_use_id:
             self._tool_names_by_id[tool_use_id] = (
                 event.metadata.get("tool_name") or "unknown"
             )
@@ -3110,10 +3110,14 @@ class AgentSession:
                 event.content,
                 tool_use_id=tool_use_id or None,
                 tool_name=tool_name_for_log or None,
+                tool_raw_input=event.metadata.get("raw_input"),
                 tool_is_error=False,
             )
             short = event.content[:80]
             self._turn_logs.append(f"[tool] {short}")
+        elif event.type == "tool_update":
+            self._log("tool_update", event.content, tool_use_id=tool_use_id or None,
+                      tool_name=tool_name_for_log or None, tool_raw_input=event.metadata.get("raw_input"))
         elif event.type == "policy_violation":
             self._policy_violation_messages.add(event.content)
             rule = event.content.split("]", 1)[0].removeprefix("POLICY VIOLATION [")
@@ -3144,6 +3148,7 @@ class AgentSession:
                 event.content,
                 tool_use_id=tool_use_id or None,
                 tool_name=tool_name_for_log or None,
+                tool_raw_input=event.metadata.get("raw_input"),
                 tool_is_error=bool(event.metadata.get("is_error")),
             )
         elif event.type == "file_change":
@@ -5425,12 +5430,13 @@ class AgentSession:
         tool_use_id: str | None = None,
         tool_name: str | None = None,
         tool_is_error: bool | None = None,
+        tool_raw_input=None,
     ) -> None:
         # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
         if self.backend_type == "antigravity" and not event_id:
             event_id = self._acp_log_event_id
         args = (self.id, datetime.now(timezone.utc), type, content, event_id)
-        if tool_use_id is None and tool_name is None and tool_is_error is None:
+        if tool_use_id is None and tool_name is None and tool_is_error is None and tool_raw_input is None:
             operation = partial(add_log, *args, provenance=provenance)
         else:
             operation = partial(
@@ -5440,11 +5446,16 @@ class AgentSession:
                 tool_use_id=tool_use_id,
                 tool_name=tool_name,
                 tool_is_error=tool_is_error,
+                **({"tool_raw_input":tool_raw_input} if tool_raw_input is not None else {}),
             )
         if self.backend_type == "antigravity":
             previous=self._acp_log_tail
             async def ordered_write():
-                if previous is not None:await asyncio.shield(previous)
+                if previous is not None:
+                    try:
+                        await asyncio.shield(previous)
+                    except Exception:
+                        pass  # A failed record must not poison later journal writes.
                 return await asyncio.get_running_loop().run_in_executor(_db_executor(),operation)
             future=asyncio.create_task(ordered_write())
             self._acp_log_tail=future

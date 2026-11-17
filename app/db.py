@@ -158,6 +158,12 @@ def _ensure_always_on_schema(connection: sqlite3.Connection) -> None:
             statement = ""
 
 
+def _ensure_tool_raw_input_schema(connection):
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(logs)")}
+    if "tool_raw_input_json" not in columns:
+        connection.execute("ALTER TABLE logs ADD COLUMN tool_raw_input_json TEXT")
+
+
 def init_db(path: Path | None = None) -> None:
     with _conn(path) as connection:
         version = connection.execute('PRAGMA user_version').fetchone()[0]
@@ -167,6 +173,7 @@ def init_db(path: Path | None = None) -> None:
             _ensure_session_model_reasons_schema(connection)
             _ensure_restart_cut_turns_schema(connection)
             _ensure_always_on_schema(connection)
+            _ensure_tool_raw_input_schema(connection)
             return
         if version or connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").fetchone():
             raise RuntimeError('database schema needs offline migration before starting Orchestra')
@@ -180,6 +187,7 @@ def init_db(path: Path | None = None) -> None:
         _ensure_session_model_reasons_schema(connection)
         _ensure_restart_cut_turns_schema(connection)
         _ensure_always_on_schema(connection)
+        _ensure_tool_raw_input_schema(connection)
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
 
 
@@ -831,6 +839,7 @@ def add_log(
     tool_use_id: str | None = None,
     tool_name: str | None = None,
     tool_is_error: bool | None = None,
+    tool_raw_input=None,
 ) -> int:
     """ИНВАРИАНТ: строки logs неизменяемы — только этот INSERT и оптовый DELETE по
     возрасту в cleanup_old_logs. Ни одного UPDATE. На этом стоит зеркало журнала в
@@ -856,13 +865,14 @@ def add_log(
         cur = c.execute(
             """INSERT INTO logs (
                    session_id, ts, type, content, event_id,
-                   tool_use_id, tool_name, tool_is_error, origin, origin_detail
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   tool_use_id, tool_name, tool_is_error, origin, origin_detail, tool_raw_input_json
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 session_id, ts.isoformat(), type, content, event_id,
                 tool_use_id, tool_name,
                 None if tool_is_error is None else int(tool_is_error),
                 origin, origin_detail,
+                None if tool_raw_input is None else json.dumps(tool_raw_input, ensure_ascii=False),
             ),
         )
         if type == "user_message" and provenance is not None and provenance.origin == "user":
@@ -1422,11 +1432,28 @@ def _decode_log_provenance(row: dict) -> dict:
     provenance = MessageProvenance.from_storage(
         row["origin"], row["origin_detail"],
     )
+    raw_input = row.pop("tool_raw_input_json", None)
+    if raw_input is not None:
+        row["raw_input"] = json.loads(raw_input)
     return {
         **row,
         "origin": provenance.origin,
         "origin_detail": provenance.detail(),
     }
+
+
+def get_logs_forward(session_id: str, after_id: int = 0, limit: int = 100, conn=None) -> list[dict]:
+    """Cursor scan, including an empty-journal cursor of zero. get_logs retains tail semantics."""
+    c = conn or _conn()
+    try:
+        rows = c.execute(
+            "SELECT * FROM logs WHERE session_id = ? AND id > ? ORDER BY id ASC LIMIT ?",
+            (session_id, after_id, limit),
+        ).fetchall()
+        return [_decode_log_provenance(dict(r)) for r in rows]
+    finally:
+        if conn is None:
+            c.close()
 
 
 def get_logs(session_id: str, after_id: int = 0, limit: int = 5000, conn=None) -> list[dict]:
@@ -1729,7 +1756,7 @@ def get_log_context(log_id: int, *, scope: str | None, before: int = 5,
 
 _SYNC_COLS = (
     "id, session_id, ts, type, content, event_id, "
-    "tool_use_id, tool_name, tool_is_error, origin, origin_detail"
+    "tool_use_id, tool_name, tool_is_error, origin, origin_detail, tool_raw_input_json"
 )
 
 

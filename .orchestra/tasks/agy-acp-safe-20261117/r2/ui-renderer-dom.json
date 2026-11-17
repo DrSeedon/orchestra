@@ -1,0 +1,10 @@
+{
+  "text": "before tool 🖥 Bashecho syntheticearly output08:00:24late output📋 reads task #?Full argumentsidsynthetic⚠️ --- synthetic.txt\na\n+++\nb\nresource preview08:00:24after toolbefore tool 🖥 Bashecho syntheticearly output08:00:24late output📋 reads task #?Full argumentsidsynthetic⚠️ --- synthetic.txt\na\n+++\nb\nresource preview08:00:24after tool🖥 Bashecho late syntheticAB08:04:38Вопрос агентаrespondedSynthetic choice <script>bad()</script>\n{\n  \"command\": \"echo synthetic\"\n}Choice AChoice BОтмена",
+  "canonical_names": [
+    "Bash",
+    "mcp__orchestra__task_get",
+    "Bash",
+    "mcp__orchestra__task_get",
+    "Bash"
+  ]
+}

@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field, StrictFloat, StrictInt, field_validator, 
 
 from app.db import (
     get_all_sessions,
+    get_logs_forward,
     get_history_logs,
     get_log_context,
     get_log,
@@ -871,6 +872,8 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
             else str((stored or {}).get("status") or "idle")
         )
         result = annotate_user_message({**payload, "agent_status": status})
+        if payload.get("type") in {"text", "thinking"} and str(payload.get("event_id", "")).startswith("acp:"):
+            result["item_id"] = payload["event_id"]
         # Compaction keeps a Codex turn "running" for minutes; the chat names it and the
         # Stop button asks before cutting it (02.11).
         compaction = getattr(live_session, "compaction_state", None)
@@ -922,7 +925,7 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
                 if closing:
                     return
                 # 2) DB-persisted logs (finals + all other log types)
-                logs = get_logs(session_id, after_id=last_id, conn=c)
+                logs = get_logs_forward(session_id, after_id=last_id, limit=5000, conn=c)
                 for log in logs:
                     yield f"data: {json.dumps(with_status(log))}\n\n"
                     last_id = log["id"]

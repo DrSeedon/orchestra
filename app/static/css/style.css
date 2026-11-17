@@ -1448,3 +1448,20 @@ body.panel-resizing, body.panel-resizing * { user-select: none !important; -webk
 .model-picker-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .model-picker-meta { flex: none; font-size: 10px; color: var(--ink-faint); }
 .model-picker-empty { padding: 12px; color: var(--ink-faint); }
+
+/* Native ACP requests share the dashboard surfaces and readable code styles. */
+.native-request-card { padding:16px; margin:12px 0; border:1px solid var(--border-strong);
+  border-radius:12px; background:var(--surface); color:var(--ink); }
+.native-request-header { display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+.native-request-heading { color:var(--ink-strong); font-size:14px; }
+.native-request-status { padding:3px 9px; border-radius:999px; font-size:11px;
+  background:var(--accent-soft); color:var(--accent-ink); }
+.native-request-card pre { margin:0 0 14px; padding:12px; border:1px solid var(--border-soft);
+  border-radius:8px; background:var(--bg); color:var(--ink-body); font-size:12px;
+  line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; max-height:280px; overflow:auto; }
+.native-request-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.native-request-actions button { padding:7px 12px; border:1px solid var(--border-strong);
+  border-radius:7px; background:var(--surface-2); color:var(--ink-strong); cursor:pointer; }
+.native-request-actions button:hover:not(:disabled) { border-color:var(--accent); background:var(--accent-soft); }
+.native-request-actions button:disabled { opacity:.55; cursor:default; }

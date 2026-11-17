@@ -1,0 +1,20 @@
+{
+  "actual_imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app/__init__.py",
+  "python_ast_files": [
+    "app/acp_tg_delivery.py",
+    "app/acp_tools.py",
+    "app/backend_antigravity.py",
+    "app/db.py",
+    "app/live_broker.py",
+    "app/routes/sessions.py",
+    "app/session.py",
+    "app/tg_bridge.py",
+    "tests/acp_mock/fake_agy_acp.py",
+    "tests/antigravity_foreground_ui.py",
+    "tests/test_antigravity_r4.py"
+  ],
+  "javascript_syntax": "PASS",
+  "source_diff_check": "PASS",
+  "new_diff_high_confidence_credential_matches": 0,
+  "secret_scan_limit": "Focused added-diff scan + manual boundary review, not exhaustive secret detector"
+}

@@ -4,6 +4,7 @@ import hashlib
 import json
 import time
 import uuid
+from aiogram.exceptions import TelegramRetryAfter
 from app import db
 
 
@@ -17,6 +18,10 @@ def schema():
     CREATE TABLE IF NOT EXISTS acp_tg_outbox (
       destination TEXT,log_id INTEGER,chunk INTEGER,digest TEXT,state TEXT,message_id INTEGER,
       PRIMARY KEY(destination,log_id,chunk));""")
+    with db._conn() as c:
+        columns = {r[1] for r in c.execute("PRAGMA table_info(acp_tg_outbox)")}
+        if "next_attempt_at" not in columns:
+            c.execute("ALTER TABLE acp_tg_outbox ADD COLUMN next_attempt_at REAL NOT NULL DEFAULT 0")
 
 
 def destination(session_id,chat_id,topic):return f"{session_id}:{chat_id}:{topic}"
@@ -67,6 +72,8 @@ def format_log(log,bridge):
         markup=native_markup(request)
     elif kind=="tool":
         name,body=parts(log);content=bridge._tool_line(name,body)+"\n"+body
+    elif kind=="tool_update":
+        name,body=parts(log);content="Аргументы: "+name+"\n"+body
     elif kind=="tool_result":
         content=("Ошибка: " if log.get("tool_is_error") else "Результат: ")+str(log.get("tool_name") or "tool")+"\n"+content
     elif kind in {"text","thinking","error"}:pass
@@ -83,7 +90,7 @@ async def pump(session_id,chat_id,topic,dest,lease,bridge):
         if row is None:raise Busy("Stale ACP Telegram stream lease")
         c.execute("UPDATE acp_tg_cursor SET until=? WHERE destination=? AND lease=?",(now+30,dest,lease))
         cursor=row["last_id"]
-    logs=db.get_logs(session_id,after_id=cursor,limit=100)
+    logs=db.get_logs_forward(session_id,after_id=cursor,limit=100)
     for log in logs:
         chunks=format_log(log,bridge)
         for i,(text,entities,markup) in enumerate(chunks):
@@ -94,7 +101,9 @@ async def pump(session_id,chat_id,topic,dest,lease,bridge):
                 if item:
                     if item["digest"]!=digest:raise UnknownSend("ACP Telegram payload binding changed")
                     if item["state"]=="sent":continue
-                    raise UnknownSend("ACP Telegram send outcome unknown; operator reconciliation required")
+                    if item["state"] != "pending":
+                        raise UnknownSend("ACP Telegram send outcome unknown; operator reconciliation required")
+                    if item["next_attempt_at"] > time.time():return 0
             # A rate wait is definitely pre-send. Do not turn a long flood-control
             # delay/cancellation into a fictitious ambiguous Telegram send.
             await bridge._acp_wait_for_rate(chat_id)
@@ -103,11 +112,20 @@ async def pump(session_id,chat_id,topic,dest,lease,bridge):
                 current=c.execute("SELECT lease FROM acp_tg_cursor WHERE destination=?",(dest,)).fetchone()
                 if current is None or current[0]!=lease:raise Busy("ACP Telegram stream lease changed during rate wait")
                 c.execute("UPDATE acp_tg_cursor SET until=? WHERE destination=? AND lease=?",(time.time()+30,dest,lease))
-                c.execute("INSERT INTO acp_tg_outbox VALUES (?,?,?,?,?,NULL)",(dest,log["id"],i,digest,"sending"))
+                c.execute("INSERT INTO acp_tg_outbox (destination,log_id,chunk,digest,state,next_attempt_at) VALUES (?,?,?,?,?,0) "
+                          "ON CONFLICT(destination,log_id,chunk) DO UPDATE SET state='sending',next_attempt_at=0",
+                          (dest,log["id"],i,digest,"sending"))
             try:
                 async with asyncio.timeout(10):
                     sent=await bridge._acp_send_once(chat_id,text,message_thread_id=topic,entities=entities,reply_markup=markup)
                 mid=sent.message_id
+            except TelegramRetryAfter as error:
+                # Telegram explicitly rejected before delivery. Retry this same bound
+                # chunk after the server delay, never an ambiguous transport failure.
+                delay = max(1.0, float(error.retry_after))
+                with db._conn() as c:c.execute("UPDATE acp_tg_outbox SET state='pending',next_attempt_at=? WHERE destination=? AND log_id=? AND chunk=?",
+                    (time.time()+delay,dest,log["id"],i))
+                return 0
             except BaseException:
                 with db._conn() as c:c.execute("UPDATE acp_tg_outbox SET state='unknown' WHERE destination=? AND log_id=? AND chunk=?",(dest,log["id"],i))
                 raise

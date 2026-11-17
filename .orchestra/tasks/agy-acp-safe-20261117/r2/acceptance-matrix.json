@@ -1,0 +1,50 @@
+[
+  {
+    "id": "P1-ordered-write",
+    "status": "PASS",
+    "test": "test_failed_first_journal_write_does_not_poison_two_successors",
+    "contract": "Predecessor only orders; each write executes and reports its own error. First failure remains visible."
+  },
+  {
+    "id": "P2-telegram-429",
+    "status": "PASS",
+    "test": "test_confirmed_429_remains_pending_and_resumes_after_backoff",
+    "contract": "Confirmed rate refusal -> pending,next_attempt_at,shared flood barrier. Timeout/reset -> durable unknown, no replay; restart covered."
+  },
+  {
+    "id": "P2-zero-cursor",
+    "status": "PASS",
+    "test": "test_empty_attach_forward_scan_delivers_all_120_in_exact_order",
+    "contract": "Ascending forward scan at zero; legacy get_logs(0) tail preserved."
+  },
+  {
+    "id": "P2-late-input",
+    "status": "PASS",
+    "test": "test_late_input_real_stdio_session_journal_and_tg",
+    "contract": "Immutable tool_update, same tool ID; final canonical name/raw_input metadata. One UI card (full+compact), concise TG argument update. Actual DB transcript replayed in headless UI."
+  },
+  {
+    "id": "P2-stream-snapshot",
+    "status": "PASS",
+    "test": "test_cumulative_tool_snapshots_live_and_reconnect_are_not_deltas",
+    "contract": "replace flag from reducer through AgentSession,broker,replay,renderer. A -> AB == AB; non-prefix replaces; legacy deltas append."
+  },
+  {
+    "id": "P2-segment-identity",
+    "status": "PASS",
+    "test": "test_real_sse_late_final_a_preserves_identity_of_live_b",
+    "contract": "Durable item_id == event_id, separate ACP text/thinking nodes; B survives late A, reconnect snapshot replaces, cache eviction retains DOM identity. Legacy no-ID branch preserved."
+  },
+  {
+    "id": "CEO-CSS",
+    "status": "PASS-awaiting-CEO-visual-signoff",
+    "test": "bash scripts/run_antigravity_ui_offline.sh",
+    "contract": "Real design-system/style/tailwind, dark dashboard body; header,details,badge,spaced controls,disabled state. Native pre contrast13.0:1."
+  },
+  {
+    "id": "nullable-tool-metadata-schema",
+    "status": "PASS",
+    "test": "test_additive_tool_metadata_upgrade_preserves_old_journal_and_sync",
+    "contract": "Old rows preserved, nullable additive metadata, synchronous/history projection retains raw_input."
+  }
+]

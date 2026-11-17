@@ -4865,5 +4865,11 @@ async def _acp_wait_for_rate(chat_id):
 
 async def _acp_send_once(chat_id,text,*,message_thread_id,entities,reply_markup):
     """Exactly one transport attempt; rate admission happens before durable SENDING."""
-    return await bot.send_message(chat_id,text,message_thread_id=message_thread_id,
-        entities=entities,reply_markup=reply_markup)
+    try:
+        return await bot.send_message(chat_id,text,message_thread_id=message_thread_id,
+            entities=entities,reply_markup=reply_markup)
+    except TelegramRetryAfter as error:
+        loop = asyncio.get_running_loop()
+        _tg_flood_until[chat_id] = max(_tg_flood_until.get(chat_id, 0),
+            loop.time() + error.retry_after + _TG_RETRY_AFTER_MARGIN)
+        raise

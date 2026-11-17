@@ -1,0 +1,27 @@
+/home/kesha/orchestra-worktrees/agy-acp-safe/tests/antigravity_foreground_ui.py:102: SyntaxWarning: invalid escape sequence '\d'
+  contrast=page.evaluate('''() => {
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/antigravity_foreground_ui.py", line 46, in <module>
+    renderer_checks=page.evaluate("""() => {
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py", line 9122, in evaluate
+    self._sync(
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/playwright/_impl/_page.py", line 469, in evaluate
+    return await self._main_frame.evaluate(expression, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py", line 323, in evaluate
+    await self._channel.send(
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: Page.evaluate: ReferenceError: _stampChatLogNode is not defined
+    at _renderAcpSegment (<anonymous>:5364:9)
+    at addChatEntry (<anonymous>:5411:9)
+    at eval (eval at evaluate (:302:30), <anonymous>:6:13)
+    at UtilityScript.evaluate (<anonymous>:309:18)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
