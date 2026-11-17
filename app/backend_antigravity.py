@@ -379,6 +379,16 @@ async def antigravity_readiness(context):
 
 
 class AntigravityBackend:
+    foreground_capabilities = {
+        "wire_version":1,"permissions":"native offered options","questions":"interaction_* single choice only",
+        "tools":"bounded merged snapshots; textual diff/resources; nontext marked unsupported",
+        "ordered_segments":True,"mid_turn_injection":False,"automated_prompts":False,
+        "profile_binding":"operator epoch; fixed account; no account-change detection",
+        "credential_readiness":"file-store presence only; keyring not autodetected",
+        "role_priority":"first-turn user context; systemPrompt.append unverified",
+        "effort":"exact offered model variant and ACK; no nearest fallback",
+        "telegram":"primary topic durable cursor; ambiguous sends block for operator reconciliation",
+    }
     def __init__(self, context):
         self.model = context.model.removeprefix("antigravity/")
         self.cwd = context.cwd
@@ -388,6 +398,12 @@ class AntigravityBackend:
         self.session_id = context.resume_session_id
         self.home = canonical_profile(context.profile)
         self._owner = None
+        self.app_session_id = ""
+        self.effort = getattr(context,"effort",None)
+        self._turn_id = ""
+        self._segment = None
+        self._segment_index = 0
+        self._assistant_reply = []
         self._task = None
         self._queue = asyncio.Queue()
         self._interrupted = False
@@ -406,10 +422,6 @@ class AntigravityBackend:
         self._submission = None
         self._before_submit = None
         self._stream_finished = True
-        self._text_chunks = []
-        self._thinking_chunks = []
-        self._tool_names = {}
-        self._tool_status = {}
 
     @property
     def is_alive(self):
@@ -454,10 +466,7 @@ class AntigravityBackend:
 
     def _end(self, *, ok=False, reason="error", error=None, usage=None, terminal=None,
              context=None):
-        for kind, chunks in (("thinking", self._thinking_chunks), ("text", self._text_chunks)):
-            if chunks:
-                self._queue.put_nowait(AgentEvent(kind, self._redact("".join(chunks))))
-                chunks.clear()
+        self._flush_segment()
         aggregate = AggregateUsage.normalized(accuracy="unknown", **{
             key: (usage or {}).get(key, 0) for key in
             ("input_tokens", "output_tokens", "cache_read_tokens")
@@ -476,6 +485,9 @@ class AntigravityBackend:
         )
         metadata = {
             "session_id": self.session_id,
+            "assistant_text": "".join(self._assistant_reply),
+            "selected_model": getattr(self,"_selected_model",self.model),
+            "profile_epoch": self._owner.epoch if self._owner else None,
             "ok": ok,
             "stop_reason": reason,
             "cost_usd": cost if cost is not None else 0.0,
@@ -531,10 +543,12 @@ class AntigravityBackend:
         self._cost_total = None
         self._cost_baseline = None
         self._stream_finished = False
-        self._text_chunks = []
-        self._thinking_chunks = []
-        self._tool_names = {}
-        self._tool_status = {}
+        self._turn_id = uuid.uuid4().hex
+        self._segment = None
+        self._segment_index = 0
+        self._assistant_reply = []
+        from app.acp_tools import ToolReducer
+        self._tools = ToolReducer()
         self._before_submit = before_submit
         self._submission = asyncio.get_running_loop().create_future()
         self._submission.add_done_callback(lambda f: None if f.cancelled() else f.exception())
@@ -564,48 +578,38 @@ class AntigravityBackend:
             self._queue.put_nowait(self._end(reason="interrupt", error="interrupted"))
             self._queue.put_nowait(None)
 
+    def _flush_segment(self):
+        if self._segment is None:return
+        kind,item_id,parts=self._segment
+        self._queue.put_nowait(AgentEvent(kind,self._redact("".join(parts)),metadata={"item_id":item_id}))
+        self._segment=None
+
     def _update(self, update):
-        kind = update.get("sessionUpdate")
-        content = update.get("content") or {}
-        if kind in {"agent_message_chunk", "agent_thought_chunk"} and content.get("type") == "text":
-            text = content.get("text", "")
-            if not isinstance(text, str):
-                return
-            chunks = self._text_chunks if kind == "agent_message_chunk" else self._thinking_chunks
-            chunks.append(text)
-            event = "stream" if kind == "agent_message_chunk" else "thinking_stream"
-            self._queue.put_nowait(AgentEvent(event, self._redact(text)))
-        elif kind == "usage_update":
-            self._context = current_context(update.get("used"), update.get("size"))
-            cost = update.get("cost") or {}
-            if isinstance(cost, dict) and cost.get("currency") == "USD":
-                amount = _cumulative_value(cost.get("amount"), integer=False)
-                if amount is not None:
-                    self._cost_total = amount
-        elif kind in {"tool_call", "tool_call_update"}:
-            tool_id, status = update.get("toolCallId"), update.get("status")
-            if kind == "tool_call":
-                self._tool_names[tool_id] = update.get("title") or update.get("kind") or "tool"
-                event = "tool_use"
-            elif status in {"completed", "failed"}:
-                if self._tool_status.get(tool_id) == status:
-                    return
-                event = "tool_result"
-            else:
-                event = "tool_stream"
-            self._tool_status[tool_id] = status
-            pieces = [update.get("title", "")]
-            for block in update.get("content") or []:
-                if isinstance(block, dict) and block.get("type") == "content":
-                    value = block.get("content") or {}
-                    if isinstance(value, dict) and value.get("type") == "text":
-                        pieces.append(value.get("text", ""))
-            raw = update.get("rawInput" if kind == "tool_call" else "rawOutput")
-            if raw is not None:
-                pieces.append(raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False))
-            self._queue.put_nowait(AgentEvent(event, self._redact("\n".join(p for p in pieces if isinstance(p, str) and p)),
-                metadata={"tool_use_id": tool_id, "tool_name": self._tool_names.get(tool_id, "tool"), "status": status,
-                          "is_error": update.get("status") == "failed"}))
+        kind=update.get("sessionUpdate");content=update.get("content") or {}
+        if kind in {"agent_message_chunk","agent_thought_chunk"} and content.get("type")=="text":
+            text=content.get("text")
+            if not isinstance(text,str):return
+            target="text" if kind=="agent_message_chunk" else "thinking"
+            if self._segment is not None and self._segment[0]!=target:self._flush_segment()
+            if self._segment is None:
+                self._segment_index+=1
+                self._segment=(target,"acp:"+str(self.session_id)+":"+self._turn_id+":"+str(self._segment_index),[])
+            self._segment[2].append(text)
+            if target=="text":self._assistant_reply.append(text)
+            self._queue.put_nowait(AgentEvent("stream" if target=="text" else "thinking_stream",self._redact(text),metadata={"item_id":self._segment[1]}))
+        elif kind=="usage_update":
+            self._context=current_context(update.get("used"),update.get("size"))
+            cost=update.get("cost") or {}
+            if isinstance(cost,dict) and cost.get("currency")=="USD":
+                amount=_cumulative_value(cost.get("amount"),integer=False)
+                if amount is not None:self._cost_total=amount
+        elif kind in {"tool_call","tool_call_update"}:
+            self._flush_segment()
+            for event,body,meta in self._tools.apply(update):
+                meta["native_tool_call_id"]=meta["tool_use_id"]
+                meta["tool_use_id"]="acp:"+str(self.session_id)+":"+self._turn_id+":"+meta["tool_use_id"]
+                meta["item_id"]="acp:"+str(self.session_id)+":"+self._turn_id+":tool:"+str(meta["tool_use_id"])+":"+str(meta["acp_revision"])+":"+event
+                self._queue.put_nowait(AgentEvent(event,self._redact(body),metadata=meta))
 
     async def _run(self, message):
         from app.provider_safety import verify_provider_egress, record_provider_activity
@@ -613,6 +617,11 @@ class AntigravityBackend:
         prompt_task = None
         try:
             async with self._owner.turn_lock:
+                from app.native_requests import bind_session, profile_epoch
+                if self._owner.epoch!=profile_epoch(self.home):
+                    raise AcpSessionError("ACP profile epoch changed; explicit recovery required")
+                if self.session_id:
+                    bind_session(self._owner,self.session_id,self.app_session_id,resume=True)
                 await verify_provider_egress("antigravity")
                 await self._owner.start()
                 record_provider_activity("antigravity")
@@ -633,34 +642,43 @@ class AntigravityBackend:
                     if method == "session/new" and session_id in self._owner.sessions:
                         raise AcpError("ACP new session ID collision; refusing shared conversation")
                     self.session_id = session_id
+                    bind_session(self._owner,session_id,self.app_session_id,resume=(method!="session/new"))
                     self._owner.sessions.add(session_id)
                     self._owner.model_states[session_id] = self._owner.model_state(result)
                     if method == "session/new":
                         self._owner.cost_totals[session_id] = 0.0
                 state = self._owner.model_states[self.session_id]
                 self._owner.models.update(state["available"])
-                if state["current"] != self.model:
-                    if self.model not in state["available"]:
+                requested=self.model
+                if self.effort:
+                    suffix="-"+str(self.effort)
+                    exact=re.sub(r"-(?:xhigh|high|medium|low)$","",self.model)+suffix
+                    if exact not in state["available"]:
+                        raise AcpSessionError("Requested effort variant is not advertised; no nearest fallback")
+                    requested=exact
+                self._selected_model=requested
+                if state["current"] != requested:
+                    if requested not in state["available"]:
                         raise AcpSessionError("Requested model absent from ACP catalog")
                     if state["config_id"]:
                         selected = await self._owner.request("session/set_config_option", {
-                            "sessionId": self.session_id, "configId": state["config_id"], "value": self.model})
+                            "sessionId": self.session_id, "configId": state["config_id"], "value": requested})
                         confirmed = self._owner.model_state(selected)
                         # The config-option contract returns updated options. Empty or
                         # mismatched metadata is not evidence that selection succeeded.
                         self._owner.model_states[self.session_id] = confirmed
-                        if confirmed["current"] != self.model:
+                        if confirmed["current"] != requested:
                             raise AcpSessionError("ACP model selection was not confirmed; prompt refused")
                         state = confirmed
                     else:
-                        selected = await self._owner.request("session/set_model", {"sessionId": self.session_id, "modelId": self.model})
+                        selected = await self._owner.request("session/set_model", {"sessionId": self.session_id, "modelId": requested})
                         # Legacy set_model has an empty success response by contract.
                         # Honor explicit metadata if the peer does provide it.
                         confirmed = self._owner.model_state(selected)
-                        if confirmed["current"] is not None and confirmed["current"] != self.model:
+                        if confirmed["current"] is not None and confirmed["current"] != requested:
                             self._owner.model_states[self.session_id] = confirmed
                             raise AcpSessionError("ACP model selection mismatch; prompt refused")
-                        state["current"] = self.model
+                        state["current"] = requested
                     self._owner.models = set().union(*(v["available"] for v in self._owner.model_states.values()))
                 self._cost_baseline = self._owner.cost_totals.get(self.session_id)
                 blocks = [{"type": "text", "text": message}]
@@ -669,6 +687,7 @@ class AntigravityBackend:
                     # as explicit first-turn context, never a shared agent file in HOME.
                     blocks.insert(0, {"type": "text", "text": "[Orchestra role instructions]\n" + self.system_prompt})
                 self._owner.listeners[self.session_id] = self._update
+                self._owner.permission_handlers[self.session_id] = self
                 try:
                     prompt_task = asyncio.create_task(self._owner.request("session/prompt", {
                         "sessionId": self.session_id, "prompt": blocks}, timeout=self._owner.prompt_timeout,
@@ -678,6 +697,9 @@ class AntigravityBackend:
                         result = await asyncio.shield(prompt_task)
                     except asyncio.CancelledError:
                         self._interrupted = True
+                        from app.native_requests import cancel_turn
+                        cancel_turn(self._owner,self._turn_id)
+                        await asyncio.sleep(0)
                         try:
                             # Cancellation must also bound a write-lock/backpressure
                             # wait; a queued cancel notification cannot hang forever.
@@ -689,6 +711,9 @@ class AntigravityBackend:
                         raise
                 finally:
                     self._owner.listeners.pop(self.session_id, None)
+                    self._owner.permission_handlers.pop(self.session_id,None)
+                    from app.native_requests import cancel_turn
+                    cancel_turn(self._owner,self._turn_id)
                 reason = result.get("stopReason", "error")
                 self._queue.put_nowait(self._end(ok=reason == "end_turn", reason=reason,
                     error=None if reason == "end_turn" else reason, context=self._context))

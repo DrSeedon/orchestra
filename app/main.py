@@ -652,6 +652,8 @@ from app.routes.dreaming import router as dreaming_router
 app.include_router(timers_router)
 app.include_router(inbox_router)
 app.include_router(outbox_router)
+from app.routes.native_requests import router as native_requests_router
+app.include_router(native_requests_router)
 app.include_router(approvals_router)
 app.include_router(dreaming_router)
 

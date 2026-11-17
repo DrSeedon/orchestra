@@ -3753,6 +3753,11 @@ async def stream_logs(orch_name: str, thread_id: int):
     if not session_id:
         return
 
+    if row and (row.get("backend_type")=="antigravity" or str(row.get("model","")).startswith("antigravity/")):
+        import sys
+        from app.acp_tg_delivery import stream
+        return await stream(session_id,config["group_id"],thread_id,sys.modules[__name__])
+
     from app.db import _conn
     # Dedicated connection per stream loop — avoids sharing state with the request threads
     _poll_conn = _conn()
@@ -3865,8 +3870,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                     elif t == "tool":
                         if log.get("tool_name") == TG_NOTIFY_TOOL:
                             _notify_reason = _notify_reason_from_args(c)
-                        tool_name = c.split(":")[0].strip() if ":" in c else "tool"
-                        tool_body = c[len(tool_name) + 1:].strip() if ":" in c else c
+                        from app.acp_tg_delivery import parts
+                        tool_name,tool_body = parts(log)
                         turn.add(log["id"], _tool_line(tool_name, tool_body),
                                  log.get("tool_use_id") or "")
                         turn.raw[log["id"]] = tool_body
@@ -4827,3 +4832,38 @@ async def stop_bridge():
         _manager = None
         _live_limits_wake = None
         _mirror_stopping.clear()
+
+
+@dp.callback_query(F.data.startswith("acpn:"))
+async def native_request_callback(query):
+    from app import native_requests,db
+    try:
+        prefix,rid,choice=query.data.split(":",2)
+        message=query.message
+        if message is None or message.chat.id!=config.get("group_id"):raise PermissionError("Wrong native request destination")
+        member=await bot.get_chat_member(message.chat.id,query.from_user.id)
+        if member.status!="creator":raise PermissionError("Native response requires chat owner")
+        row=native_requests.get(rid)
+        if row is None:raise ValueError("Unknown native request")
+        session=db.get_session(row["owner_id"])
+        if not session or config.get("topics",{}).get(session["name"])!=message.message_thread_id:
+            raise PermissionError("Native request belongs to another topic")
+        option=None if choice=="cancel" else row["options"][int(choice)]["optionId"]
+        result=native_requests.resolve(rid,owner_id=row["owner_id"],binding=row["binding"],option_id=option,cancel=choice=="cancel")
+        await query.answer("Ответ принят")
+        return result
+    except (ValueError,KeyError,IndexError,PermissionError) as error:
+        await query.answer(str(error)[:180],show_alert=True)
+        return {"error":str(error)}
+
+
+async def _acp_wait_for_rate(chat_id):
+    state=await _tg_delivery_state_for(chat_id)
+    if not await _tg_reserve_rate_slot(chat_id,state,wait_for_slot=True):
+        raise RuntimeError("Telegram bridge stopped before native delivery")
+
+
+async def _acp_send_once(chat_id,text,*,message_thread_id,entities,reply_markup):
+    """Exactly one transport attempt; rate admission happens before durable SENDING."""
+    return await bot.send_message(chat_id,text,message_thread_id=message_thread_id,
+        entities=entities,reply_markup=reply_markup)

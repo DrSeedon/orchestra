@@ -1,0 +1,419 @@
+{
+  "imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app",
+  "scoped_tests": {
+    "passed": 248,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 2,
+    "seconds": 43.85,
+    "log": "acceptance-final.log"
+  },
+  "last_target_after_nameless_tool_fallback": {
+    "passed": 1,
+    "log": "tool-name-final.log",
+    "note": "Final canonical-name fallback stays tool; initial completed AND failed tested. Other final application source unchanged from248 run."
+  },
+  "rpc_by_test": {
+    "test_ordered_transcript_two_sessions_two_turns_and_passive_poll": {
+      "test": "test_ordered_transcript_two_sessions_two_turns_and_passive_poll",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/prompt": 4,
+        "prompt_start": 4,
+        "prompt_end": 4
+      },
+      "pids": [
+        2008781
+      ],
+      "token_files": 0
+    },
+    "test_native_decision_returns_rpc_not_prompt[allow]": {
+      "test": "test_native_decision_returns_rpc_not_prompt[allow]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008786
+      ],
+      "token_files": 0
+    },
+    "test_native_decision_returns_rpc_not_prompt[deny]": {
+      "test": "test_native_decision_returns_rpc_not_prompt[deny]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008788
+      ],
+      "token_files": 0
+    },
+    "test_native_decision_returns_rpc_not_prompt[cancel]": {
+      "test": "test_native_decision_returns_rpc_not_prompt[cancel]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008790
+      ],
+      "token_files": 0
+    },
+    "test_native_decision_returns_rpc_not_prompt[timeout]": {
+      "test": "test_native_decision_returns_rpc_not_prompt[timeout]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008792
+      ],
+      "token_files": 0
+    },
+    "test_native_decision_returns_rpc_not_prompt[two]": {
+      "test": "test_native_decision_returns_rpc_not_prompt[two]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 2,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008794
+      ],
+      "token_files": 0
+    },
+    "test_native_decision_returns_rpc_not_prompt[question]": {
+      "test": "test_native_decision_returns_rpc_not_prompt[question]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008812
+      ],
+      "token_files": 0
+    },
+    "test_foreign_option_binding_and_stale_profile_rejected": {
+      "test": "test_foreign_option_binding_and_stale_profile_rejected",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "session/cancel": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008814
+      ],
+      "token_files": 0
+    },
+    "test_cancel_and_eof_retire_pending_native_requests": {
+      "test": "test_cancel_and_eof_retire_pending_native_requests",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "session/cancel": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008839
+      ],
+      "token_files": 0
+    },
+    "test_native_eof_invalidates_callback_without_replay": {
+      "test": "test_native_eof_invalidates_callback_without_replay",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1
+      },
+      "pids": [
+        2008841
+      ],
+      "token_files": 0
+    },
+    "test_native_http_owner_csrf_option_and_idempotent_decision": {
+      "test": "test_native_http_owner_csrf_option_and_idempotent_decision",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008880
+      ],
+      "token_files": 0
+    },
+    "test_real_tg_native_callback_rejects_foreign_user_and_topic": {
+      "test": "test_real_tg_native_callback_rejects_foreign_user_and_topic",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008884
+      ],
+      "token_files": 0
+    },
+    "test_malformed_and_unknown_native_requests_fail_closed[BAD]": {
+      "test": "test_malformed_and_unknown_native_requests_fail_closed[BAD]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008843
+      ],
+      "token_files": 0
+    },
+    "test_malformed_and_unknown_native_requests_fail_closed[UNKNOWN]": {
+      "test": "test_malformed_and_unknown_native_requests_fail_closed[UNKNOWN]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008845
+      ],
+      "token_files": 0
+    },
+    "test_duplicate_rpc_id_has_one_pending_card_and_one_reply": {
+      "test": "test_duplicate_rpc_id_has_one_pending_card_and_one_reply",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "native_reply": 1,
+        "native_responses": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008854
+      ],
+      "token_files": 0
+    },
+    "test_resume_binding_survives_backend_recreation_but_not_epoch_reset": {
+      "test": "test_resume_binding_survives_backend_recreation_but_not_epoch_reset",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 2,
+        "prompt_start": 2,
+        "prompt_end": 2
+      },
+      "pids": [
+        2008856
+      ],
+      "token_files": 0
+    },
+    "test_effort_is_exact_offered_variant_with_no_nearest_fallback[high-True]": {
+      "test": "test_effort_is_exact_offered_variant_with_no_nearest_fallback[high-True]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/set_model": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008862
+      ],
+      "token_files": 0
+    },
+    "test_effort_is_exact_offered_variant_with_no_nearest_fallback[xhigh-False]": {
+      "test": "test_effort_is_exact_offered_variant_with_no_nearest_fallback[xhigh-False]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1
+      },
+      "pids": [
+        2008864
+      ],
+      "token_files": 0
+    },
+    "test_v2_peer_is_not_silently_treated_as_v1": {
+      "test": "test_v2_peer_is_not_silently_treated_as_v1",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1
+      },
+      "pids": [
+        2008867
+      ],
+      "token_files": 0
+    },
+    "test_explicit_restart_resumes_bound_fixed_profile_without_history_replay": {
+      "test": "test_explicit_restart_resumes_bound_fixed_profile_without_history_replay",
+      "methods": {
+        "spawn": 2,
+        "initialize": 2,
+        "authenticate": 2,
+        "session/new": 1,
+        "session/prompt": 2,
+        "prompt_start": 2,
+        "prompt_end": 2,
+        "session/resume": 1
+      },
+      "pids": [
+        2008870,
+        2008872
+      ],
+      "token_files": 0
+    },
+    "test_live_thought_segment_reconnect_keeps_stable_item_identity": {
+      "test": "test_live_thought_segment_reconnect_keeps_stable_item_identity",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "session/cancel": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        2008874
+      ],
+      "token_files": 0
+    },
+    "test_reused_native_rpc_id_with_changed_payload_is_not_approved": {
+      "test": "test_reused_native_rpc_id_with_changed_payload_is_not_approved",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1
+      },
+      "pids": [
+        2008878
+      ],
+      "token_files": 0
+    }
+  },
+  "transcript": "ordered-transcript.json",
+  "sse": "foreground-http-sse.json",
+  "tg": "fake-tg-transcript.json",
+  "ui": {
+    "gate": "OPEN",
+    "last_execution": "ui-final.log",
+    "last_error": "Completed tool removed transient data-last-tool; locator timed out",
+    "fixture_correction": "data-tool-raw-name static correction, NOT rerun after budget",
+    "native_card_step": "Choice click and synthetic respond wait completed before tool selector failure; not full browser/visual acceptance",
+    "attempts": 3
+  },
+  "isolation": {
+    "isolation": "kernel network namespace + Python audit",
+    "interfaces": [
+      [
+        1,
+        "lo"
+      ]
+    ],
+    "external_routes": 0,
+    "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py",
+    "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe",
+    "credentials_in_environment": 0
+  },
+  "syntax_files": 15,
+  "instruction_check": "PASS",
+  "overall_gate": "RED; UI acceptance + historical frozen + native/auth support remain open"
+}

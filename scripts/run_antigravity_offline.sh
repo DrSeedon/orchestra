@@ -11,6 +11,6 @@ sudo -n unshare --net -- /bin/bash -c '
   exec sudo -u kesha /usr/bin/env -i HOME="$stand_home" PATH=/usr/bin:/bin LANG=C.UTF-8 \
     ORCHESTRA_ACP_OFFLINE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
     ORCHESTRA_DB_PATH="$stand_home/orchestra.db" \
-    /usr/bin/nice -n 10 /home/kesha/orchestra/.venv/bin/python \
+    /usr/bin/nice -n 10 "$root/.venv/bin/python" \
     "$root/scripts/run_antigravity_offline.py" "$@"
 ' offline-namespace "$root" "$stand_home" "$@"

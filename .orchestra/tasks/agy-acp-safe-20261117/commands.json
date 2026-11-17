@@ -1,0 +1,39 @@
+{
+  "final_scoped": [
+    "scripts/run_antigravity_offline.sh",
+    "tests/test_antigravity_acp.py",
+    "tests/test_antigravity_acp_review.py",
+    "tests/test_antigravity_acp_r2.py",
+    "tests/test_antigravity_acp_submission.py",
+    "tests/test_antigravity_foreground.py",
+    "tests/test_antigravity_foreground_delivery.py",
+    "tests/test_antigravity_foreground_sse.py",
+    "tests/test_always_on_agents.py",
+    "tests/test_runtime_registry.py",
+    "tests/test_usage_contract.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:faulthandler"
+  ],
+  "ui": [
+    "scripts/run_antigravity_ui_offline.sh"
+  ],
+  "deadlines_seconds": {
+    "scoped": 140,
+    "new_core": 80,
+    "ui": 45
+  },
+  "transport": "exec sessions awaited in active turn; parent confirmed t3-bg/watch transport unavailable; no credential/settings search or repair",
+  "ui_static_correction_rerun": false,
+  "log_format": {
+    "order-r2.log": {
+      "raw_sha256": "e8068bffec137dbdcaf5bb5fb8a9367a8d7eb7716ad9f84f30807989323a28bc",
+      "normalization": "trailing line whitespace/blank EOF only; raw retained locally as order-r2.log.raw"
+    },
+    "ui-final.log": {
+      "raw_sha256": "78d22015b9a24a4d7a3d0eceb5e22fcc2391d881c96ac6d22654b2542e20cd7e",
+      "normalization": "trailing line whitespace/blank EOF only; raw retained locally as ui-final.log.raw"
+    }
+  }
+}

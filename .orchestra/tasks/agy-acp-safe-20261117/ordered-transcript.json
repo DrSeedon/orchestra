@@ -1,0 +1,353 @@
+{
+  "methods": {
+    "spawn": 1,
+    "initialize": 1,
+    "authenticate": 1,
+    "session/new": 2,
+    "session/prompt": 4,
+    "prompt_start": 4,
+    "prompt_end": 4
+  },
+  "logs": [
+    {
+      "id": 1,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:36.897262+00:00",
+      "type": "user_message",
+      "content": "FG_TRANSCRIPT",
+      "event_id": "",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "user",
+      "origin_detail": {
+        "senders": [
+          "owner"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.036488+00:00",
+      "type": "text",
+      "content": "before tool ",
+      "event_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:1",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.036544+00:00",
+      "type": "thinking",
+      "content": "checking",
+      "event_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:2",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.036563+00:00",
+      "type": "tool",
+      "content": "run_command: {\"CommandLine\": \"echo synthetic\"}",
+      "event_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:tool:acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:fg-command:1:tool_use",
+      "tool_use_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:fg-command",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.036602+00:00",
+      "type": "tool_result",
+      "content": "early output",
+      "event_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:tool:acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:fg-command:3:tool_result",
+      "tool_use_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:fg-command",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.036615+00:00",
+      "type": "tool_result",
+      "content": "late output",
+      "event_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:tool:acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:fg-command:4:tool_result",
+      "tool_use_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:fg-command",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.036628+00:00",
+      "type": "tool",
+      "content": "mcp__orchestra__task_get: {\"id\": \"synthetic\"}",
+      "event_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:tool:acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:fg-mcp:1:tool_use",
+      "tool_use_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:fg-mcp",
+      "tool_name": "mcp__orchestra__task_get",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.036879+00:00",
+      "type": "tool_result",
+      "content": "--- synthetic.txt\na\n+++\nb\nresource preview",
+      "event_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:tool:acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:fg-mcp:1:tool_result",
+      "tool_use_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:fg-mcp",
+      "tool_name": "mcp__orchestra__task_get",
+      "tool_is_error": 1,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.037118+00:00",
+      "type": "text",
+      "content": "after tool",
+      "event_id": "acp:mock-session-1:b454244b95354716bcb9e9e759e74c9c:3",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.098853+00:00",
+      "type": "status",
+      "content": "turn ended (end_turn, 0 turns, cost unaccounted for antigravity/gemini-4-carbon-medium ctx:20%)",
+      "event_id": "",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.268131+00:00",
+      "type": "user_message",
+      "content": "FG_TRANSCRIPT",
+      "event_id": "",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "user",
+      "origin_detail": {
+        "senders": [
+          "owner"
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.300329+00:00",
+      "type": "text",
+      "content": "before tool ",
+      "event_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:1",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.300388+00:00",
+      "type": "thinking",
+      "content": "checking",
+      "event_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:2",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.300411+00:00",
+      "type": "tool",
+      "content": "run_command: {\"CommandLine\": \"echo synthetic\"}",
+      "event_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:tool:acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:fg-command:1:tool_use",
+      "tool_use_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:fg-command",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.300455+00:00",
+      "type": "tool_result",
+      "content": "early output",
+      "event_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:tool:acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:fg-command:3:tool_result",
+      "tool_use_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:fg-command",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 16,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.300470+00:00",
+      "type": "tool_result",
+      "content": "late output",
+      "event_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:tool:acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:fg-command:4:tool_result",
+      "tool_use_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:fg-command",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.300485+00:00",
+      "type": "tool",
+      "content": "mcp__orchestra__task_get: {\"id\": \"synthetic\"}",
+      "event_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:tool:acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:fg-mcp:1:tool_use",
+      "tool_use_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:fg-mcp",
+      "tool_name": "mcp__orchestra__task_get",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.300755+00:00",
+      "type": "tool_result",
+      "content": "--- synthetic.txt\na\n+++\nb\nresource preview",
+      "event_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:tool:acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:fg-mcp:1:tool_result",
+      "tool_use_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:fg-mcp",
+      "tool_name": "mcp__orchestra__task_get",
+      "tool_is_error": 1,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.302153+00:00",
+      "type": "text",
+      "content": "after tool",
+      "event_id": "acp:mock-session-1:ecc5981b94964ee9a0fbf5fba0a4d493:3",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:37.356873+00:00",
+      "type": "status",
+      "content": "turn ended (end_turn, 0 turns, cost unaccounted for antigravity/gemini-4-carbon-medium ctx:20%)",
+      "event_id": "",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      }
+    }
+  ]
+}

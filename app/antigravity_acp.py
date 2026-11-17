@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import asyncio
 import fcntl
+import hashlib
 import json
 import os
 import signal
+import uuid
 from pathlib import Path
 
 
@@ -53,6 +55,12 @@ class AcpProfile:
 
     def __init__(self, home: Path):
         self.home = home
+        from app.native_requests import profile_epoch
+        self.epoch = profile_epoch(home)
+        self.transport_generation = uuid.uuid4().hex
+        self.permission_handlers = {}
+        self._client_tasks = set()
+        self._client_request_ids = {}
         self.loop = asyncio.get_running_loop()
         self.turn_lock = asyncio.Lock()
         self._start_lock = asyncio.Lock()
@@ -198,6 +206,10 @@ class AcpProfile:
                 message = json.loads(line)
                 if not isinstance(message, dict) or message.get("jsonrpc") != "2.0":
                     raise AcpError("Invalid ACP envelope")
+                if "id" in message:
+                    rpc_id=message["id"]
+                    if isinstance(rpc_id,bool) or not isinstance(rpc_id,(str,int)) or len(str(rpc_id))>256:
+                        raise AcpError("Invalid ACP RPC identity")
                 if "method" in message:
                     method, params = message["method"], message.get("params") or {}
                     if "id" in message:
@@ -205,7 +217,20 @@ class AcpProfile:
                         # requests fail closed; unknown client methods are bounded errors.
                         reply = {"jsonrpc": "2.0", "id": message["id"]}
                         if method == "session/request_permission":
-                            reply["result"] = {"outcome": {"outcome": "cancelled"}}
+                            identity = json.dumps(message["id"],sort_keys=True)
+                            digest=hashlib.sha256(json.dumps(params,sort_keys=True).encode()).hexdigest()
+                            if identity in self._client_request_ids:
+                                if self._client_request_ids[identity]!=digest:
+                                    raise AcpError("ACP native RPC identity reused with changed payload")
+                                continue  # Exact native retry cannot create another card/response.
+                            if len(self._client_tasks)>=16 or len(self._client_request_ids)>=4096:
+                                await self._write({"jsonrpc":"2.0","id":message["id"],"result":{"outcome":{"outcome":"cancelled"}}})
+                                continue
+                            self._client_request_ids[identity]=digest
+                            task=asyncio.create_task(self._permission(message["id"],params))
+                            self._client_tasks.add(task)
+                            task.add_done_callback(self._client_tasks.discard)
+                            continue
                         else:
                             reply["error"] = {"code": -32601, "message": "Client method unsupported"}
                         await self._write(reply)
@@ -245,6 +270,33 @@ class AcpProfile:
         except Exception:
             await self.close("ACP stream ended/invalid; operator recovery required")
 
+    async def _permission(self,rpc_id,params):
+        from app import native_requests
+        rid=None
+        try:
+            backend=self.permission_handlers.get(params.get("sessionId"))
+            if backend is None:
+                response={"outcome":{"outcome":"cancelled"}}
+            else:
+                result=await native_requests.request(self,rpc_id,params,backend)
+                if isinstance(result,tuple):rid,response=result
+                else:response=result
+            await self._write({"jsonrpc":"2.0","id":rpc_id,"result":response})
+            if rid:
+                native_requests.finish(rid,"responded")
+                if backend is not None:
+                    from app.events import AgentEvent
+                    backend._queue.put_nowait(AgentEvent("native_request_closed",json.dumps({"id":rid,"state":"responded"}),metadata={"item_id":"acp-native:"+rid+":closed"}))
+        except asyncio.CancelledError:
+            if rid:native_requests.finish(rid,"stale")
+            raise
+        except ValueError:
+            if not self.failure:
+                await self._write({"jsonrpc":"2.0","id":rpc_id,"result":{"outcome":{"outcome":"cancelled"}}})
+        except Exception:
+            if rid:native_requests.finish(rid,"unknown")
+            await self.close("ACP native response failed; operator recovery required")
+
     async def _drain_stderr(self):
         # Drain without retaining or publishing secrets; chunks bound memory even
         # for a vendor that writes a huge unterminated stderr line.
@@ -261,7 +313,7 @@ class AcpProfile:
         await asyncio.shield(self._cleanup_task)
 
     async def _cleanup(self):
-        tasks = [t for t in (self._reader, self._stderr) if t]
+        tasks = [t for t in (self._reader, self._stderr, *self._client_tasks) if t]
         for task in tasks:
             task.cancel()
         try:

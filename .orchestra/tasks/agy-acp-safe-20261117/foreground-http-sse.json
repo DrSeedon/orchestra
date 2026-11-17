@@ -1,0 +1,214 @@
+{
+  "frames": [
+    {
+      "type": "__session",
+      "session_id": "real-acp-r2",
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "type": "stream",
+      "content": "before tool ",
+      "item_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:1",
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "type": "thinking_stream",
+      "content": "checking",
+      "item_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:2",
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "type": "tool_stream",
+      "content": "Analyze: sourceearly output",
+      "item_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:tool:acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-command:2:tool_stream",
+      "tool_use_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-command",
+      "tool_name": "run_command",
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "type": "stream",
+      "content": "after tool",
+      "item_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:3",
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "id": 1,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:45.345503+00:00",
+      "type": "user_message",
+      "content": "[13:00] FG_TRANSCRIPT",
+      "event_id": "",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "user",
+      "origin_detail": {
+        "senders": [
+          "user"
+        ],
+        "subtype": "http_send"
+      },
+      "agent_status": "idle",
+      "display_content": "FG_TRANSCRIPT",
+      "compaction": null
+    },
+    {
+      "id": 2,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:45.467668+00:00",
+      "type": "text",
+      "content": "before tool ",
+      "event_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:1",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "id": 3,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:45.467756+00:00",
+      "type": "thinking",
+      "content": "checking",
+      "event_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:2",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "id": 4,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:45.467782+00:00",
+      "type": "tool",
+      "content": "run_command: {\"CommandLine\": \"echo synthetic\"}",
+      "event_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:tool:acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-command:1:tool_use",
+      "tool_use_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-command",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "id": 5,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:45.467824+00:00",
+      "type": "tool_result",
+      "content": "early output",
+      "event_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:tool:acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-command:3:tool_result",
+      "tool_use_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-command",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "id": 6,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:45.467837+00:00",
+      "type": "tool_result",
+      "content": "late output",
+      "event_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:tool:acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-command:4:tool_result",
+      "tool_use_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-command",
+      "tool_name": "run_command",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "id": 7,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:45.467851+00:00",
+      "type": "tool",
+      "content": "mcp__orchestra__task_get: {\"id\": \"synthetic\"}",
+      "event_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:tool:acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-mcp:1:tool_use",
+      "tool_use_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-mcp",
+      "tool_name": "mcp__orchestra__task_get",
+      "tool_is_error": 0,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "id": 8,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:45.467921+00:00",
+      "type": "tool_result",
+      "content": "--- synthetic.txt\na\n+++\nb\nresource preview",
+      "event_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:tool:acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-mcp:1:tool_result",
+      "tool_use_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:fg-mcp",
+      "tool_name": "mcp__orchestra__task_get",
+      "tool_is_error": 1,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "agent_status": "idle",
+      "compaction": null
+    },
+    {
+      "id": 9,
+      "session_id": "real-acp-r2",
+      "ts": "2026-11-17T06:00:45.468266+00:00",
+      "type": "text",
+      "content": "after tool",
+      "event_id": "acp:mock-session-1:88af4c0263a6443d93044a9ab355a939:3",
+      "tool_use_id": null,
+      "tool_name": null,
+      "tool_is_error": null,
+      "origin": "unknown",
+      "origin_detail": {
+        "senders": [
+          "unknown"
+        ]
+      },
+      "agent_status": "idle",
+      "compaction": null
+    }
+  ],
+  "single_prompt": true
+}

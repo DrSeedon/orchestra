@@ -1,0 +1,14 @@
+{
+  "wire_version": 1,
+  "permissions": "native offered options",
+  "questions": "interaction_* single choice only",
+  "tools": "bounded merged snapshots; textual diff/resources; nontext marked unsupported",
+  "ordered_segments": true,
+  "mid_turn_injection": false,
+  "automated_prompts": false,
+  "profile_binding": "operator epoch; fixed account; no account-change detection",
+  "credential_readiness": "file-store presence only; keyring not autodetected",
+  "role_priority": "first-turn user context; systemPrompt.append unverified",
+  "effort": "exact offered model variant and ACK; no nearest fallback",
+  "telegram": "primary topic durable cursor; ambiguous sends block for operator reconciliation"
+}

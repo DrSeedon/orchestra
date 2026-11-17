@@ -18,6 +18,7 @@ active = set()
 cancel = {}
 costs = {}
 client_requests = {}
+permission_serial = 0
 current_models = {}
 
 
@@ -34,9 +35,9 @@ def result(request, value):
     emit({"id": request["id"], "result": value})
 
 
-def update(sid, kind, **extra):
+def update(sid, update_kind, **extra):
     emit({"method": "session/update", "params": {
-        "sessionId": sid, "update": {"sessionUpdate": kind, **extra}}})
+        "sessionId": sid, "update": {"sessionUpdate": update_kind, **extra}}})
 
 
 def models(sid):
@@ -48,6 +49,8 @@ def models(sid):
             "name": "Model", "type": "select", "currentValue": current_models.get(sid, "gemini-4-argon-medium" if MODE != "config-options" else "gemini-4-carbon-medium"),
             "options": [{"group": "Gemini", "options": [
                 {"value": m, "name": m} for m in ("gemini-4-carbon-medium", "gemini-4-argon-medium")]}]}]}
+    if MODE=="effort-variants":
+        return {"sessionId":sid,"models":{"currentModelId":"gemini-4-carbon-medium","availableModels":[{"modelId":m,"name":m} for m in ("gemini-4-carbon-medium","gemini-4-carbon-high")]}}
     return {"sessionId": sid, "models": {"currentModelId": "gemini-4-carbon-medium",
         "availableModels": [{"modelId": m, "name": m} for m in
                             ("gemini-4-carbon-medium", "gemini-4-argon-medium")]}}
@@ -62,6 +65,43 @@ async def prompt(request):
     cancel[sid] = asyncio.Event()
     trace("prompt_start", session=sid, text=text,
           role=p["prompt"][0]["text"] if len(p["prompt"]) > 1 else "")
+    if text.endswith("FG_LIVE_THOUGHT"):
+        update(sid,"agent_thought_chunk",content={"type":"text","text":"live thought segment"})
+        await cancel[sid].wait()
+        result(request,{"stopReason":"cancelled"});active.clear();trace("prompt_end",session=sid);return
+    if text.endswith("FG_TRANSCRIPT"):
+        update(sid,"agent_message_chunk",content={"type":"text","text":"before tool "})
+        update(sid,"agent_thought_chunk",content={"type":"text","text":"checking"})
+        update(sid,"tool_call",toolCallId="fg-command",name="run_command",title="Analyze: source",kind="execute",status="in_progress",rawInput={"CommandLine":"echo synthetic"})
+        update(sid,"tool_call_update",toolCallId="fg-command",content=[{"type":"content","content":{"type":"text","text":"early output"}}])
+        update(sid,"tool_call_update",toolCallId="fg-command",status="completed")
+        for _ in range(2):update(sid,"tool_call_update",toolCallId="fg-command",status="completed",content=[{"type":"content","content":{"type":"text","text":"late output"}}])
+        update(sid,"tool_call",toolCallId="fg-mcp",name="call_mcp_tool",title="Read task",kind="read",status="failed",rawInput={"ServerName":"orchestra","ToolName":"task_get","Arguments":{"id":"synthetic"}},content=[{"type":"diff","path":"synthetic.txt","oldText":"a","newText":"b"},{"type":"content","content":{"type":"resource","resource":{"uri":"file:///synthetic","text":"resource preview"}}}])
+        update(sid,"agent_message_chunk",content={"type":"text","text":"after "})
+        update(sid,"agent_message_chunk",content={"type":"text","text":"tool"})
+        update(sid,"usage_update",used=200,size=1000)
+        result(request,{"stopReason":"end_turn"});active.clear();trace("prompt_end",session=sid);return
+    if "FG_PERMISSION" in text or text.endswith("FG_QUESTION") or text.endswith("FG_NATIVE_EOF"):
+        global permission_serial
+        count=2 if text.endswith("FG_PERMISSION_TWO") else 1
+        waiting=[]
+        for i in range(count):
+            permission_serial+=1;rid="native-"+str(permission_serial)
+            future=asyncio.get_running_loop().create_future();client_requests[rid]=future;waiting.append(future)
+            tool_id=("interaction_" if text.endswith("FG_QUESTION") else "native-tool-")+str(permission_serial)
+            options=[{"optionId":"allow-"+str(i),"kind":"allow_once","name":"Allow once"},{"optionId":"deny-"+str(i),"kind":"reject_once","name":"Deny"}]
+            if text.endswith("FG_PERMISSION_BAD"):options[1]["optionId"]=options[0]["optionId"]
+            method="unknown/native_request" if text.endswith("FG_PERMISSION_UNKNOWN") else "session/request_permission"
+            emit({"id":rid,"method":method,"params":{"sessionId":sid,"toolCall":{"toolCallId":tool_id,"title":"Synthetic choice "+str(i),"rawInput":{"command":"echo synthetic"}},"options":options}})
+            if text.endswith("FG_PERMISSION_DUPLICATE") or text.endswith("FG_PERMISSION_MUTATED"):
+                emit({"id":rid,"method":method,"params":{"sessionId":sid,"toolCall":{"toolCallId":tool_id,"title":"Synthetic choice "+str(i),"rawInput":{"command":"changed" if text.endswith("FG_PERMISSION_MUTATED") else "echo synthetic"}},"options":options}})
+            update(sid,"agent_thought_chunk",content={"type":"text","text":"reader remains responsive"})
+        if text.endswith("FG_NATIVE_EOF"):
+            await asyncio.sleep(.05);os._exit(19)
+        replies=await asyncio.gather(*waiting)
+        trace("native_responses",session=sid,replies=replies)
+        update(sid,"agent_message_chunk",content={"type":"text","text":"continued after native response"})
+        result(request,{"stopReason":"end_turn"});active.clear();trace("prompt_end",session=sid);return
     if text == "PERMISSION":
         future = asyncio.get_running_loop().create_future()
         client_requests["permission-request"] = future
@@ -150,7 +190,7 @@ async def prompt(request):
         # Deliberately interleave an unrelated session update to prove routing.
         update("wrong-session", "agent_message_chunk", content={"type": "text", "text": "WRONG"})
         update(sid, "agent_thought_chunk", content={"type": "text", "text": "thinking:" + sid})
-        update(sid, "tool_call", toolCallId="tool-1", title="mock-tool", status="in_progress")
+        update(sid, "tool_call", toolCallId="tool-1", name="mock-tool", title="mock-tool", status="in_progress")
         await asyncio.sleep(0.03)
         update(sid, "tool_call_update", toolCallId="tool-1", status="in_progress", content=[{"type":"content", "content":{"type":"text", "text":"tool progress"}}])
         update(sid, "tool_call_update", toolCallId="tool-1", title="mock-result", status="completed")
@@ -170,14 +210,16 @@ async def main():
         request = json.loads(line)
         if "method" not in request:
             future = client_requests.pop(request.get("id"), None)
-            if future and not future.done(): future.set_result(request.get("result"))
+            if future and not future.done():
+                trace("native_reply",request_id=request.get("id"),result=request.get("result"))
+                future.set_result(request.get("result"))
             continue
         method = request.get("method")
         trace(method, params=request.get("params", {}) if method != "session/prompt" else {})
         if method == "initialize":
             if MODE == "init-death":
                 os._exit(18)
-            result(request, {"protocolVersion": 1,
+            result(request, {"protocolVersion": 2 if MODE=="wire-v2" else 1,
                 "agentCapabilities": {"sessionCapabilities": {"resume": {}}} if MODE != "no-resume" else {},
                 "authMethods": [{"id": "oauth-personal", "name": "Synthetic cached OAuth"}]})
         elif method == "authenticate":

@@ -1,0 +1,56 @@
+{
+  "base_commit": "f68c2335c55efb1300a446be922ab0e1164f215c",
+  "imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app",
+  "syntax_checked": [
+    "app/acp_tools.py",
+    "app/native_requests.py",
+    "app/routes/native_requests.py",
+    "app/acp_tg_delivery.py",
+    "app/antigravity_acp.py",
+    "app/backend_antigravity.py",
+    "app/session.py",
+    "app/live_broker.py",
+    "app/main.py",
+    "app/tg_bridge.py",
+    "tests/test_antigravity_foreground.py",
+    "tests/test_antigravity_foreground_delivery.py",
+    "tests/test_antigravity_foreground_sse.py",
+    "tests/acp_mock/fake_agy_acp.py",
+    "tests/antigravity_foreground_ui.py"
+  ],
+  "owned_processes": [],
+  "source_hashes": {
+    "app/acp_tools.py": "46211ca20031e8d0fbee7b722ccb79a5da36dc075c82649342f8dce741cb6b95",
+    "app/native_requests.py": "d9f5974e87db853d37fddeafa93928f796e6600bd1155f46eefd5287a6963448",
+    "app/routes/native_requests.py": "dfe9ea1b9ad91551fdb8b70ca717cd98a9c193cf1af77d3053224f7451be8d79",
+    "app/acp_tg_delivery.py": "52a4f46ad06105a98d7d6ea98ab21a6aca2e328e55b76f74c2efcbabd1f138ec",
+    "app/antigravity_acp.py": "e009fd407c853450a3703572ae80553a952ed3e93f73aee8d5562b23240fbd9f",
+    "app/backend_antigravity.py": "246e65d24d01a800637c1ac79001e965cb728e30d4663c2752b6896393520d7d",
+    "app/session.py": "5f0647644f468591b38e3609339192b2fa3c99d6989149fc7d5525856409170d",
+    "app/live_broker.py": "2918e68938bda4b001be06b93edb60bfb0d359a4f0f91c11654a18a20f317e4e",
+    "app/main.py": "211facf6bb6f457fe31d54fc78497473497ebf591e789bf8f54a3c6af4380896",
+    "app/tg_bridge.py": "26260c5659e84c681e0e47b76081cb2ab81889350340767d8490ea535dd796dd",
+    "tests/test_antigravity_foreground.py": "96a1db6393f763a052e4af9f33c123c946bb199291fc8f975691187047a22702",
+    "tests/test_antigravity_foreground_delivery.py": "e0a634cf345f11262f65f97cd98d777711d1ea75a1b37621fe17833e518bc5af",
+    "tests/test_antigravity_foreground_sse.py": "e76292c49de5e26049b6ee20c1b4997f1466f7fc8472abcc95b8371336007025",
+    "tests/acp_mock/fake_agy_acp.py": "19950b4d0ef20cc8023715d738ee65e83cfa179e29cf86c58979a32457e3cf95",
+    "tests/antigravity_foreground_ui.py": "d34400e1d1341189fba67e88c5c504a11749cb41223cbceac5fc3c586e7133c3",
+    "app/static/js/chat.js": "7b521b73aa6abf29de797a23fc79a690c8c19e2feb035268a453cac147d00f35",
+    "scripts/run_antigravity_offline.sh": "727a417e86bc3fb7074c3b16b913b9d194ae32bb89e1868bbfd7bec04af98ced",
+    "scripts/run_antigravity_ui_offline.sh": "31702d38ce096e0b3ce3442f09a89e69d4410f8f1f00365ec459908ac9fa62b6"
+  },
+  "other_owned_user_browser_leaders_not_signalled": 1,
+  "production_head": "4e4e58dcba8eca8f4e961a2095be7efda1322d0e",
+  "production_dirty": [
+    ".orchestra/workers/Orchestra-orchestrator.md",
+    "scripts/video_artifact/README.md",
+    "scripts/video_artifact/elevenlabs_tts.py"
+  ],
+  "disabled_providers": {
+    "disabled_providers": [
+      "antigravity",
+      "claude",
+      "grok"
+    ]
+  }
+}

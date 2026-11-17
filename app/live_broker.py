@@ -31,7 +31,7 @@ def live_key(payload: dict) -> tuple[str, str] | None:
 
 
 _MERGE_FIELDS = {
-    "stream": (),
+    "stream": ("item_id",),
     "subagent_stream": ("subagent_id", "event_type", "item_id"),
     "thinking_stream": ("item_id", "activity"),
     "tool_input_stream": ("tool_use_id",),
@@ -68,6 +68,7 @@ class LiveBroker:
     def __init__(self) -> None:
         self._subs: dict[str, set[asyncio.Queue]] = defaultdict(set)
         self._accum: dict[str, str] = {}
+        self._accum_ids: dict[str,str] = {}
         self._live: dict[str, dict[tuple[str, str], dict]] = {}
         self._closing = False
 
@@ -80,7 +81,7 @@ class LiveBroker:
         current = self._accum.get(session_id, "")
         if current:
             try:
-                q.put_nowait({"type": "stream", "content": current})
+                q.put_nowait({"type": "stream", "content": current, **({"item_id":self._accum_ids[session_id]} if session_id in self._accum_ids else {})})
             except asyncio.QueueFull:
                 pass
         for item in tuple(self._live.get(session_id, {}).values()):
@@ -109,6 +110,7 @@ class LiveBroker:
         # поэтому маскирование в db.add_log его не закрывает. Маскируем ДО _accum — иначе
         # реплей отдаст новому подписчику сырое значение.
         if payload.get("type") == "stream":
+            if payload.get("item_id"):self._accum_ids[session_id]=payload["item_id"]
             self._accum[session_id] = self._accum.get(session_id, "") + payload.get("content", "")
         key = live_key(payload)
         if key is not None:
@@ -157,6 +159,7 @@ class LiveBroker:
     def clear_accum(self, session_id: str) -> None:
         """Clear accumulated stream text — call when final 'text' event arrives."""
         self._accum.pop(session_id, None)
+        self._accum_ids.pop(session_id,None)
 
     def close_subscribers(self) -> None:
         """Ask all current SSE generators to finish before graceful shutdown."""

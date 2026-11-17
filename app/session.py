@@ -510,6 +510,8 @@ class AgentSession:
     _heartbeat_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _background_tasks: set = field(default_factory=set, repr=False)
     _log_futures: set = field(default_factory=set, repr=False)
+    _acp_log_tail: object = field(default=None, repr=False)
+    _acp_log_event_id: str = field(default="", repr=False)
     _log_write_generation: int = field(default=0, repr=False)
     _log_write_failure_generation: int = field(default=0, repr=False)
     _log_write_failure: str = field(default="", repr=False)
@@ -1011,6 +1013,8 @@ class AgentSession:
             ),
         )
         backend = build_backend(runtime, context)
+        if runtime == "antigravity":
+            backend.app_session_id = self.id
         if runtime == "claude" and not validation_profile:
             # ClaudeBackend hands this exact text to the CLI through
             # --append-system-prompt-file on every connect, resume included. `send`
@@ -1148,6 +1152,8 @@ class AgentSession:
         self._persist_task = None
         self._persist_dirty = False
         await self._disconnect_backend()
+        if self.backend_type == "antigravity":
+            await self._await_log_futures()
         self._listen_task = None
         self._heartbeat_task = None
         self._hibernate_task = None
@@ -2857,6 +2863,11 @@ class AgentSession:
                         backend,
                         RuntimeError(str(event.metadata["reader_failure"])),
                     )
+                if self.backend_type == "antigravity" and event.type == "turn_end" and self._acp_log_tail is not None:
+                    # Foreground ACP journal barrier: final state cannot overtake its
+                    # ordered completed text/tool records on the shared executor.
+                    async with asyncio.timeout(5):
+                        await asyncio.shield(self._acp_log_tail)
                 self._handle_event(event)
                 if event.type == "turn_end":
                     continuing = (
@@ -3001,11 +3012,17 @@ class AgentSession:
             broker.end_live(self.id, "tool_stream", str(meta.get("tool_use_id") or ""))
 
     def _handle_event(self, event: AgentEvent) -> None:
+        if self.backend_type == "antigravity":
+            self._acp_log_event_id = event.metadata.get("item_id", "")
+        if event.type in {"native_request","native_request_closed"}:
+            self._log(event.type,event.content,event_id=event.metadata.get("item_id",""))
+            return
         if event.type == "stream":
             # Live partials: push to in-memory broker for SSE fan-out, NEVER persist.
             # The final "text" event (below) is the DB source of truth.
             from app.live_broker import broker
-            broker.publish(self.id, {"type": "stream", "content": event.content})
+            broker.publish(self.id, {"type": "stream", "content": event.content,
+                                     **({"item_id":event.metadata["item_id"]} if event.metadata.get("item_id") else {})})
             return
         if event.type == "subagent_stream":
             # Live sub-agent output → broker only (ephemeral, like main stream).
@@ -3135,6 +3152,8 @@ class AgentSession:
         elif event.type in ("plan", "warning", "review"):
             self._log(event.type, event.content)
         elif event.type == "turn_end":
+            if self.backend_type == "antigravity" and "assistant_text" in event.metadata:
+                self._last_text_output = event.metadata["assistant_text"]
             # Сколько обращений к модели было в ходе: расход хода — их сумма, и компакт
             # делит на это число, чтобы получить размер контекста ОДНОГО обращения.
             self._last_turn_api_calls = max(1, int(event.metadata.get("num_turns") or 1))
@@ -5408,6 +5427,8 @@ class AgentSession:
         tool_is_error: bool | None = None,
     ) -> None:
         # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
+        if self.backend_type == "antigravity" and not event_id:
+            event_id = self._acp_log_event_id
         args = (self.id, datetime.now(timezone.utc), type, content, event_id)
         if tool_use_id is None and tool_name is None and tool_is_error is None:
             operation = partial(add_log, *args, provenance=provenance)
@@ -5420,7 +5441,15 @@ class AgentSession:
                 tool_name=tool_name,
                 tool_is_error=tool_is_error,
             )
-        future = asyncio.get_event_loop().run_in_executor(_db_executor(), operation)
+        if self.backend_type == "antigravity":
+            previous=self._acp_log_tail
+            async def ordered_write():
+                if previous is not None:await asyncio.shield(previous)
+                return await asyncio.get_running_loop().run_in_executor(_db_executor(),operation)
+            future=asyncio.create_task(ordered_write())
+            self._acp_log_tail=future
+        else:
+            future = asyncio.get_event_loop().run_in_executor(_db_executor(), operation)
         self._log_write_generation += 1
         generation = self._log_write_generation
         self._log_futures.add(future)
@@ -5430,6 +5459,11 @@ class AgentSession:
             # Без него asyncio печатает своё «Future exception was never retrieved» —
             # без имени агента, без типа записи и без её содержимого (#167).
             self._log_futures.discard(done)
+            if done.cancelled():
+                if self.backend_type == "antigravity":
+                    self._log_write_failure = "ACP journal write cancelled"
+                    self._failed_log_writes[generation] = (None, self._log_write_failure)
+                return
             try:
                 done.result()
             except Exception as error:

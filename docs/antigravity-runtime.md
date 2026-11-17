@@ -143,3 +143,18 @@ missing write proof after dispatch stays DELIVERY_UNKNOWN with no replay. The re
 per-turn reader runs while submission waits outside the session lifecycle lock,
 so queued/backpressured input stays interruptible. Direct/initial receipt state
 machines are unchanged. Evidence: task submission/report.md; overall gate remains RED.
+
+## Foreground mock wave (2026-11-17)
+
+Native permission/interaction choice RPCs now bridge to operator chat/TG callbacks,
+not deferred mailbox approvals or new model prompts. Ordered segments/tool snapshots
+are stored by the ACP-only journal path; canonical receipts remain unchanged. Primary
+TG delivery has an immutable chunk outbox and durable cursor; unknown external sends
+block, never auto-replay. Exact supported/unsupported capabilities are exposed through
+AntigravityBackend.foreground_capabilities and authenticated native-request capabilities.
+
+This remains MOCK ONLY, overall RED. Latest248scoped checks passed, but full browser
+renderer acceptance remains OPEN after bounded fixture failures; static selector fix
+was not rerun. No claim of system-priority role append, keyring autodetection, account
+switch detection, v2, background/swarm or complete T3 parity. Detailed matrix, command,
+raw failures and cleanup: .orchestra/tasks/agy-acp-safe-20261117/report.md.

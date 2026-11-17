@@ -1,18 +1,21 @@
-# Orchestra — focused delivery-receipt P1 correction after Astra R3
-- Updated2026-11-16; worktree /home/kesha/orchestra-worktrees/agy-acp-safe; branch agy-acp-safe.
-- Base1a247b24a434ee68c462ba899040516329c1d831; focused corrected commit in final reply.
-- No concurrent writer/helpers; production/accounts/providers unchanged, no real agy/Google.
-- Before fix:2 HTTP tests fail (SUBMITTED with prompt0 for missing model/config mismatch).
-- Existing canonical receipt states/hooks retained; before_submit now immediately precedes ACP prompt write.
-- Receipt waits for write+drain only, never full turn. Lifecycle lock released while waiting.
-- Preflight failure/cancel -> FAILED_BEFORE_SUBMIT; ambiguous write -> DELIVERY_UNKNOWN/no replay.
-- SUBMITTED is local transport handoff, NOT model success/remote inference acceptance.
-- Actual reader/HTTP interrupt remain active for profile queue and bounded backpressure cancellation.
-- Targeted10passed,0skipped,2warnings (11.29s), with real direct+initial receipts.
-- One combined run225passed/1failed (31.79s): old initial Claude fixture hits existing multicast gate before transport.
-- No policy/test weakening or broad reruns; instruction/syntax/diff/secrets checked.
-- Historical frozen15failed/18passed/79errors not rerun. Overall gate RED; no activation.
-- Old compact timeout statically localized on earlier snapshot: Claude+/test policy refusal ->30/60s retries before ACK.
-- Fixed-account only: account-generation/sameHOME account switch remains unsupported.
-- Stand stopped/ownedPID0; no main/provider/proxy/billing/T3/deploy/restart changes.
-- Evidence .orchestra/tasks/agy-acp-safe-20261116/submission/report.md; commands.json; verification.json.
+# Orchestra ACP foreground wave — MOCK ONLY, overall gate RED
+- Updated2026-11-17; base f68c2335c55efb1300a446be922ab0e1164f215c, branch agy-acp-safe.
+- Checkout /home/kesha/orchestra-worktrees/agy-acp-safe; one writer, no helpers/reviewers.
+- Delivered native permission/choice-question RPC bridge with owner/CSRF/TG creator ACL,
+  epoch/transport/turn/RPC/payload binding, dedup, deadline/cancel/EOF/stale protections.
+- No mailbox approval wake or extra model prompt; response is native RPC only.
+- Tool patch reducer, ordered text/thinking segments and ACP-only durable journal barrier.
+- Actual DB/SSE/TG formatting; primary-topic persistent cursor/outbox; unknown sends not replayed.
+- Exact offered model/effort ACK; fixed-profile binding/resume; no sameHOME account detection.
+- f68 receipt/provenance/disabled/egress/credit/no-replay guards preserved.
+- Scoped final248passed,0skipped,2warnings,43.85s; final pure-tool clarification1passed.
+- Browser UI gate OPEN:3bounded attempts exhausted; final transient-completed-tool selector
+  failed, static fixture correction not rerun. No full renderer screenshot/visual PASS.
+- Instructions/syntax/diff/secrets checked; own fake/runner/UI/browser processes0.
+- Production HEAD4e4e58dcb, its3dirty files and disabled providers unchanged.
+- No real agy/Google/OAuth/account/keyring/.env/credential/TG requests, copies or activation.
+- No main/T3/proxy/billing edits, push/merge/deploy/restart/publication.
+- Native file-only readiness/user-context role/systemPrompt.append limitations in capabilities.
+- Historical frozen RED15F/18P/79E not rerun; old compact timeout statically baseline Claude policy.
+- Parent owns stubSTATE; final result via native MCP exactly once with requested clientRequestId.
+- Evidence .orchestra/tasks/agy-acp-safe-20261117/report.md, acceptance-matrix.json, verification.json.

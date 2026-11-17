@@ -1,0 +1,25 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+TURN_STATE real-acp-r2 False False
+F[real-acp-r2] heartbeat cancelled
+
+=================================== FAILURES ===================================
+_______ test_ordered_transcript_two_sessions_two_turns_and_passive_poll ________
+tests/test_antigravity_foreground.py:45: in test_ordered_transcript_two_sessions_two_turns_and_passive_poll
+    await send_and_finish(s,"FG_TRANSCRIPT")
+tests/test_antigravity_acp_r2.py:36: in send_and_finish
+    await s.send(text, provenance=USER)
+app/session.py:1997: in send
+    await provider_send(outbound_message)
+app/backend_antigravity.py:531: in send
+    raise RuntimeError("Antigravity turn is already active")
+E   RuntimeError: Antigravity turn is already active
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2822 [real-acp-r2] antigravity turn started
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_foreground.py::test_ordered_transcript_two_sessions_two_turns_and_passive_poll
+1 failed in 9.62s

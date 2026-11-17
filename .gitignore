@@ -41,3 +41,6 @@ media/
 
 # Secret artifacts of tasks (V-1014): a plain folder, never published; re-ignored after the `!.orchestra/**` above
 .orchestra/private
+
+# Candidate uses a read-only link to the existing dependency environment.
+.venv

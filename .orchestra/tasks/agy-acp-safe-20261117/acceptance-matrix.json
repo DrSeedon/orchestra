@@ -1,0 +1,97 @@
+[
+  {
+    "contract": "Shared persistent process",
+    "status": "PASS",
+    "evidence_or_limit": "2 sessions x 2 turns; spawn/init/auth1, new2,prompt4; ordered-transcript.json"
+  },
+  {
+    "contract": "Idle/readiness/usage",
+    "status": "PASS",
+    "evidence_or_limit": "10 passive batches after foreground turns, no new RPC/verifier awaits"
+  },
+  {
+    "contract": "Ordered text/thinking/tool/text",
+    "status": "PASS",
+    "evidence_or_limit": "actual AgentSession -> ordered immutable DB logs; stable event/tool IDs; foreground-http-sse.json"
+  },
+  {
+    "contract": "Nested MCP/name/title/input/output",
+    "status": "PASS",
+    "evidence_or_limit": "canonical programmatic name preferred; absent name stays tool, title never used as identity; actual TG formatter"
+  },
+  {
+    "contract": "Tool snapshots/status-only/late output",
+    "status": "PASS",
+    "evidence_or_limit": "missing/null fields retain state; initial completed/failed emit start+result; identical snapshot dedup; changed terminal output retained"
+  },
+  {
+    "contract": "Rich diff/resource/image",
+    "status": "SCOPED",
+    "evidence_or_limit": "textual diff/resources preview; nontext content explicitly unsupported, no image fetch or decoded attachment parity"
+  },
+  {
+    "contract": "Permissions allow/deny/cancel/timeout/two pending",
+    "status": "PASS",
+    "evidence_or_limit": "one response per native RPC, zero extra prompts; reader continues updates while waiting"
+  },
+  {
+    "contract": "Choice questions interaction_*",
+    "status": "PASS",
+    "evidence_or_limit": "single choice offered option ID only; no custom/free-text schema invented"
+  },
+  {
+    "contract": "ACL/CSRF/payload/generation/stale",
+    "status": "PASS",
+    "evidence_or_limit": "real native REST auth/CSRF and real TG handler with fake bot; foreign user/topic/binding/options denied"
+  },
+  {
+    "contract": "Cancel/EOF/malformed/unknown native requests",
+    "status": "PASS",
+    "evidence_or_limit": "bounded fail-closed; stale decisions cannot revive prompt; exact RPC duplicate dedup, changed duplicate closes transport"
+  },
+  {
+    "contract": "Resume/explicit restart/profile epoch",
+    "status": "SCOPED",
+    "evidence_or_limit": "fixed-profile sessions bound to app owner + epoch; advertised resume; old callbacks rejected. No actual account-change detection"
+  },
+  {
+    "contract": "Model/effort config ACK",
+    "status": "PASS",
+    "evidence_or_limit": "existing mismatch/unknown ACK regressions retained; exact offered effort variant, no nearest/model/API fallback"
+  },
+  {
+    "contract": "f68 receipt boundary",
+    "status": "PASS",
+    "evidence_or_limit": "existing actual write/drain, known-before-write failure/unknown-after-write/idempotence/cancel tests included"
+  },
+  {
+    "contract": "Telegram real formatter + fake transport",
+    "status": "PASS",
+    "evidence_or_limit": "actual app/tg_bridge.py branch, metadata-first names, canonical DB events, fake Bot only"
+  },
+  {
+    "contract": "Telegram bridge restart",
+    "status": "PASS",
+    "evidence_or_limit": "durable destination/event/chunk cursor; first attachment skips old history; restart sends only unsent tail"
+  },
+  {
+    "contract": "Telegram ambiguity/chunked prefix",
+    "status": "PASS",
+    "evidence_or_limit": "sent chunk retained; unknown chunk never replayed; later tail blocks for operator reconciliation"
+  },
+  {
+    "contract": "Browser renderer / native UI",
+    "status": "OPEN",
+    "evidence_or_limit": "three bounded headless attempts, final transient-completed-tool selector timeout; native choice response step passed but full UI assertions NOT passed. Static fixture selector corrected, not rerun"
+  },
+  {
+    "contract": "Native compatibility / account support",
+    "status": "OPEN",
+    "evidence_or_limit": "real agy/profiles/keyring/account traffic not allowed or exercised; consumer personal-Pro/custom-VPS support unestablished"
+  },
+  {
+    "contract": "Frozen legacy acceptance",
+    "status": "OPEN",
+    "evidence_or_limit": "historical15failed/18passed/79setup errors, not rerun/restored/waived; old timeout static baseline Claude+/test policy-retry interaction"
+  }
+]

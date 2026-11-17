@@ -3248,8 +3248,8 @@ function _watchWorkflowCard(card, runId) {
 function _renderFullToolCall(content, payload, div) {
     const colonIdx = content.indexOf(':');
     const {name: rawName, body} = normalizeToolCall(
-        colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.trim(),
-        colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '');
+        payload?.tool_name || (colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.trim()),
+        colonIdx > 0 ? content.slice(colonIdx + 1).trim() : content);
     // V-636: the harness logs a file change as a pseudo-call "file: add <path>"; the Write/Edit
     // card above already shows the content, so this is one localized line, not an English card.
     if (rawName === 'file' && /^(add|update) /.test(body)) {
@@ -5303,7 +5303,50 @@ function _renderCompactEvent(type, content, ts, anchor, insertAndFollow, payload
     return true;
 }
 
+function renderNativeRequestCard(content) {
+    const request = JSON.parse(content);
+    const card = document.createElement('div');
+    card.className = 'chat-status';
+    card.dataset.nativeRequestId = request.id;
+    const heading = document.createElement('strong');
+    heading.textContent = request.kind === 'question' ? 'Вопрос агента' : 'Подтверждение действия';
+    const body = document.createElement('pre'); body.textContent = request.title + (Object.keys(request.details || {}).length ? '\n'+JSON.stringify(request.details,null,2) : '');
+    card.append(heading, body);
+    const state = document.createElement('span');state.textContent = request.state;card.appendChild(state);
+    async function answer(option, cancel=false) {
+        const buttons = [...card.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
+        try {
+            const csrf = await api('/api/native-requests/csrf');
+            const response = await api('/api/native-requests/'+encodeURIComponent(request.id)+'/respond', {
+                method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf.token},
+                body:JSON.stringify({owner_id:request.owner_id,binding:request.binding,option_id:option,cancel})});
+            state.textContent = response.state || 'responding';
+        } catch(error) {state.textContent = String(error);buttons.forEach(b=>b.disabled=false);}
+    }
+    for (const option of request.options) {
+        const button=document.createElement('button');button.className='btn btn-sm';button.textContent=option.name+(option.warning ? " · "+option.warning : "");
+        button.disabled=request.state!=='pending';button.onclick=()=>answer(option.optionId);card.appendChild(button);
+    }
+    const cancel=document.createElement('button');cancel.className='btn btn-sm';cancel.textContent='Отмена';
+    cancel.disabled=request.state!=='pending';cancel.onclick=()=>answer(null,true);card.appendChild(cancel);
+    // Revalidate on reconnect: old DB cards must never masquerade as live approvals.
+    fetch('/api/native-requests?owner_id='+encodeURIComponent(request.owner_id),{credentials:'same-origin'})
+      .then(r=>r.ok?r.json():[]).then(rows=>{if(!rows.some(r=>r.id===request.id)){card.querySelectorAll('button').forEach(b=>b.disabled=true);state.textContent='Запрос закрыт или устарел';}}).catch(()=>{});
+    return card;
+}
+
 function addChatEntry(type, content, ts, anchor, payload) {
+    if (type === 'native_request_closed') {
+        const value=JSON.parse(content);const card=[...document.querySelectorAll('[data-native-request-id]')].find(x=>x.dataset.nativeRequestId===value.id);
+        if(card){card.querySelectorAll('button').forEach(x=>x.disabled=true);const state=card.querySelector('span');if(state)state.textContent=value.state;}
+        return;
+    }
+    if (type === 'native_request') {
+        const chat=$('#chat');const card=renderNativeRequestCard(content);
+        if(anchor)chat.insertBefore(card,anchor);else chat.appendChild(card);
+        return card;
+    }
+
     if (type === 'provider_limit') return; // Runtime telemetry; the status/error row carries the user notice.
     if (type === 'done_gate_verdict') return; // V-614 (removed 30.09): old rows stay in logs, never render them.
     if (type === 'error' && /^compact attempt \d+\/\d+ failed:/.test(content || '')) return;
