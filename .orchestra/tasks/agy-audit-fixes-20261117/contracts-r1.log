@@ -1,0 +1,348 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+.....................................................................F.F [ 25%]
+.F......................FFFFFF.FF........F.............................. [ 50%]
+..........F......................F...FFFF............................... [ 76%]
+................F.FFFFF............................................      [100%]
+=================================== FAILURES ===================================
+____ test_resume_prompt_injection_respects_hub_preamble[False-False-claude] ____
+tests/test_prompting.py:103: in test_resume_prompt_injection_respects_hub_preamble
+    await session.send("Continue the task", provenance=MessageProvenance(origin="user", senders=("user",)))
+app/session.py:1457: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1166: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+app/models.py:1148: in ensure_project_model_allowed
+    raise ValueError(
+E   ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+____ test_resume_prompt_injection_respects_hub_preamble[False-True-claude] _____
+tests/test_prompting.py:103: in test_resume_prompt_injection_respects_hub_preamble
+    await session.send("Continue the task", provenance=MessageProvenance(origin="user", senders=("user",)))
+app/session.py:1457: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1166: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+app/models.py:1148: in ensure_project_model_allowed
+    raise ValueError(
+E   ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+_____ test_resume_prompt_injection_respects_hub_preamble[True-True-claude] _____
+tests/test_prompting.py:103: in test_resume_prompt_injection_respects_hub_preamble
+    await session.send("Continue the task", provenance=MessageProvenance(origin="user", senders=("user",)))
+app/session.py:1457: in send
+    ensure_hub_worker_allowed(self.model, **hub_worker_context(self))
+app/models.py:1166: in ensure_hub_worker_allowed
+    ensure_project_model_allowed(model, scope)
+app/models.py:1148: in ensure_project_model_allowed
+    raise ValueError(
+E   ValueError: claude_multicast_only: Claude is allowed only in Multicast projects; use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project
+______ TestCodexProjectSkills.test_includes_clean_committed_project_skill ______
+tests/test_prompting.py:429: in test_includes_clean_committed_project_skill
+    _git_init(repo)
+tests/test_prompting.py:135: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:28: in audit
+    raise PermissionError("offline harness: only fake_agy_acp.py acp may execute")
+E   PermissionError: offline harness: only fake_agy_acp.py acp may execute
+_ TestCodexProjectSkills.test_excludes_non_committed_project_state[untracked] __
+tests/test_prompting.py:453: in test_excludes_non_committed_project_state
+    _git_init(repo)
+tests/test_prompting.py:135: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:28: in audit
+    raise PermissionError("offline harness: only fake_agy_acp.py acp may execute")
+E   PermissionError: offline harness: only fake_agy_acp.py acp may execute
+__ TestCodexProjectSkills.test_excludes_non_committed_project_state[modified] __
+tests/test_prompting.py:453: in test_excludes_non_committed_project_state
+    _git_init(repo)
+tests/test_prompting.py:135: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:28: in audit
+    raise PermissionError("offline harness: only fake_agy_acp.py acp may execute")
+E   PermissionError: offline harness: only fake_agy_acp.py acp may execute
+___ TestCodexProjectSkills.test_excludes_non_committed_project_state[staged] ___
+tests/test_prompting.py:453: in test_excludes_non_committed_project_state
+    _git_init(repo)
+tests/test_prompting.py:135: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:28: in audit
+    raise PermissionError("offline harness: only fake_agy_acp.py acp may execute")
+E   PermissionError: offline harness: only fake_agy_acp.py acp may execute
+__ TestCodexProjectSkills.test_excludes_non_committed_project_state[deleted] ___
+tests/test_prompting.py:453: in test_excludes_non_committed_project_state
+    _git_init(repo)
+tests/test_prompting.py:135: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:28: in audit
+    raise PermissionError("offline harness: only fake_agy_acp.py acp may execute")
+E   PermissionError: offline harness: only fake_agy_acp.py acp may execute
+__________ TestCodexProjectSkills.test_excludes_clean_tracked_symlink __________
+tests/test_prompting.py:488: in test_excludes_clean_tracked_symlink
+    _git_init(repo)
+tests/test_prompting.py:135: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:28: in audit
+    raise PermissionError("offline harness: only fake_agy_acp.py acp may execute")
+E   PermissionError: offline harness: only fake_agy_acp.py acp may execute
+____ TestCodexProjectSkills.test_invalid_utf8_project_skill_warns_and_skips ____
+tests/test_prompting.py:521: in test_invalid_utf8_project_skill_warns_and_skips
+    _git_init(repo)
+tests/test_prompting.py:135: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:28: in audit
+    raise PermissionError("offline harness: only fake_agy_acp.py acp may execute")
+E   PermissionError: offline harness: only fake_agy_acp.py acp may execute
+__ TestCodexProjectSkills.test_pipeline_skill_shadows_divergent_project_name ___
+tests/test_prompting.py:548: in test_pipeline_skill_shadows_divergent_project_name
+    _git_init(repo)
+tests/test_prompting.py:135: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:28: in audit
+    raise PermissionError("offline harness: only fake_agy_acp.py acp may execute")
+E   PermissionError: offline harness: only fake_agy_acp.py acp may execute
+_ TestRefreshWorkerMemory.test_missing_layout_is_loud_but_unreadable_memory_empties_the_block _
+tests/test_prompting.py:729: in test_missing_layout_is_loud_but_unreadable_memory_empties_the_block
+    refresh_worker_memory(self.PROMPT, "w1", "worker", str(tmp_path))
+app/prompting.py:289: in refresh_worker_memory
+    mem = load_worker_memory(
+app/prompting.py:242: in load_worker_memory
+    raise LayoutMigrationError(
+app/orchestra_layout.py:107: in __init__
+    self.repository = _base_checkout(self.repository)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/orchestra_layout.py:88: in _base_checkout
+    result = _run(repository, "rev-parse", "--path-format=absolute", "--git-common-dir", check=False)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/orchestra_layout.py:36: in _run
+    result = subprocess.run(
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:28: in audit
+    raise PermissionError("offline harness: only fake_agy_acp.py acp may execute")
+E   PermissionError: offline harness: only fake_agy_acp.py acp may execute
+_______________ test_selectable_models_match_the_curated_catalog _______________
+tests/test_models.py:98: in test_selectable_models_match_the_curated_catalog
+    assert {spec.id for spec in SELECTABLE_MODEL_SPECS} == expected
+E   AssertionError: assert {'GigaChat-2'...3-Ultra', ...} == {'GigaChat-2'...3-Ultra', ...}
+E
+E     Extra items in the left set:
+E     'gpt-6.2-astra'
+E     'gpt-6.2-sol'
+E     Use -v to get more diff
+_______________ test_live_policy_change_appends_a_history_epoch ________________
+tests/test_quota_gate.py:128: in test_live_policy_change_appends_a_history_epoch
+    env_file.write_text("")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+_________ test_dotenv_quota_changes_are_applied_without_module_reload __________
+tests/test_quota_gate.py:190: in test_dotenv_quota_changes_are_applied_without_module_reload
+    env_file.write_text("QUOTA_GATED_LANES=claude\nQUOTA_HARD_STOP_PCT=91\n")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+_____ test_dotenv_edit_wins_over_the_copy_systemd_put_into_the_environment _____
+tests/test_quota_gate.py:259: in test_dotenv_edit_wins_over_the_copy_systemd_put_into_the_environment
+    env_file.write_text("QUOTA_GATED_LANES=\n")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+______ test_environment_value_that_differs_from_the_file_keeps_beating_it ______
+tests/test_quota_gate.py:274: in test_environment_value_that_differs_from_the_file_keeps_beating_it
+    env_file.write_text("QUOTA_GATED_LANES=claude,sol\n")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+_________________ test_invalid_live_dotenv_quota_value_raises __________________
+tests/test_quota_gate.py:286: in test_invalid_live_dotenv_quota_value_raises
+    env_file.write_text("QUOTA_HARD_STOP_PCT\n")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+_____ test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv ______
+tests/test_quota_gate.py:755: in test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv
+    env_file.write_text("QUOTA_LANE_HARD_STOP_PCT=luna=90,sol=80\n")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+___________________ test_malformed_lane_ceilings_raise[sol] ____________________
+tests/test_quota_gate.py:800: in test_malformed_lane_ceilings_raise
+    env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+_________________ test_malformed_lane_ceilings_raise[sol=abc] __________________
+tests/test_quota_gate.py:800: in test_malformed_lane_ceilings_raise
+    env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+_________________ test_malformed_lane_ceilings_raise[sol=101] __________________
+tests/test_quota_gate.py:800: in test_malformed_lane_ceilings_raise
+    env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+___________________ test_malformed_lane_ceilings_raise[=95] ____________________
+tests/test_quota_gate.py:800: in test_malformed_lane_ceilings_raise
+    env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+_________________ test_malformed_lane_ceilings_raise[sol=95,] __________________
+tests/test_quota_gate.py:800: in test_malformed_lane_ceilings_raise
+    env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+/usr/lib/python3.12/pathlib.py:1049: in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/pathlib.py:1015: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/run_antigravity_offline.py:51: in audit
+    raise PermissionError("offline harness: dotenv denied")
+E   PermissionError: offline harness: dotenv denied
+=========================== short test summary info ============================
+FAILED tests/test_prompting.py::test_resume_prompt_injection_respects_hub_preamble[False-False-claude]
+FAILED tests/test_prompting.py::test_resume_prompt_injection_respects_hub_preamble[False-True-claude]
+FAILED tests/test_prompting.py::test_resume_prompt_injection_respects_hub_preamble[True-True-claude]
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_includes_clean_committed_project_skill
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[untracked]
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[modified]
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[staged]
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[deleted]
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_clean_tracked_symlink
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_invalid_utf8_project_skill_warns_and_skips
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_pipeline_skill_shadows_divergent_project_name
+FAILED tests/test_prompting.py::TestRefreshWorkerMemory::test_missing_layout_is_loud_but_unreadable_memory_empties_the_block
+FAILED tests/test_models.py::test_selectable_models_match_the_curated_catalog
+FAILED tests/test_quota_gate.py::test_live_policy_change_appends_a_history_epoch
+FAILED tests/test_quota_gate.py::test_dotenv_quota_changes_are_applied_without_module_reload
+FAILED tests/test_quota_gate.py::test_dotenv_edit_wins_over_the_copy_systemd_put_into_the_environment
+FAILED tests/test_quota_gate.py::test_environment_value_that_differs_from_the_file_keeps_beating_it
+FAILED tests/test_quota_gate.py::test_invalid_live_dotenv_quota_value_raises
+FAILED tests/test_quota_gate.py::test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol] - Pe...
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol=abc]
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol=101]
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[=95] - Pe...
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol=95,]
+24 failed, 259 passed in 12.40s

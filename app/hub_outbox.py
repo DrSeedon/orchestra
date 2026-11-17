@@ -429,7 +429,7 @@ async def _execute_orchestrator_tool(
             (payload.get("error") if isinstance(payload, dict) else None)
             or (res.get("error") if isinstance(res, dict) else None)
         )
-        if state in {"SUCCEEDED", "PENDING", "RUNNING"} and not err:
+        if state == "SUCCEEDED" and not err:
             report.done.append(tool)
             return
         msg = err.get("message") if isinstance(err, dict) else str(err or f"merge ended in state {state}")
@@ -480,10 +480,13 @@ async def execute(entries: list[dict], who: Identity, call: ApiCall) -> OutboxRe
             if not is_orchestrator_identity(who):
                 _reject(report, entry, f"{tool}: tool is restricted to role='orchestrator'")
                 continue
+            done_before = len(report.done)
             try:
                 await _execute_orchestrator_tool(entry, who, call, report)
-            except Exception as exc:  # noqa: BLE001 - one bad entry must not lose the turn's other entries
+            except Exception as exc:  # noqa: BLE001 - retain the durable entry for retry
                 report.dropped.append(f"{tool}: {type(exc).__name__}: {str(exc)[:120]}")
+            if tool == "merge_worker" and len(report.done) == done_before:
+                break  # Do not release close_worker before terminal merge acceptance.
             continue
         # Only the broker can attach this field: parse_outbox strips unknown keys.
         planned = _request_for(tool, entry["args"], who, delivery_id=entry.get("_delivery_id", ""))

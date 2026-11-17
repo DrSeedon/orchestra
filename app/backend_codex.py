@@ -42,6 +42,8 @@ CODEX_BIN = shutil.which("codex") or os.environ.get("CODEX_BIN", "codex")
 # advertises a larger GPT-5.6 window, but that is a different surface; local rollout
 # token_count events are the runtime source of truth and may override these fallbacks.
 CODEX_CONTEXT_LIMITS = {
+    "gpt-6.2-sol": 500000,
+    "gpt-6.2-astra": 272000,
     "gpt-5.3-codex-spark": 128000,
     "gpt-5.6-sol":   258400,
     "gpt-6-astra":   258400,
@@ -78,6 +80,8 @@ def context_window_after_retarget(
 # The long-context tier is per request, while Codex's measured 258,400-token request window
 # is below its 272K threshold. Spark is listed explicitly but has no published final price.
 CODEX_TOKEN_PRICES = {
+    "gpt-6.2-sol": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "gpt-6.2-astra": {"input": 8.0, "cached": 0.40, "output": 40.0},
     # Promotional pricing from 22.08.2026, published "at least through November 21, 2026":
     # input −20%, output −33%. Verified in the source table, not from the announcement.
     # Rows already in `turn_usage` keep their own day's price, as with Terra/Luna below.

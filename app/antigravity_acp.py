@@ -1,12 +1,15 @@
 """One application-owned ACP v1 stdio connection per canonical OAuth HOME.
 
 No background starts, quota requests, auth retries or prompt replay. A failed owner
-is latched until application shutdown/operator recovery. Profile flock also refuses
+may be recreated only on a new explicit caller turn (never replay). Definite bans
+remain latched. Profile flock also refuses
 another app process, rather than creating competing daemons for the same account.
 """
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
+from contextlib import asynccontextmanager
 import fcntl
 import hashlib
 import json
@@ -66,10 +69,14 @@ class AcpProfile:
         self.transport_generation = uuid.uuid4().hex
         self.permission_handlers = {}
         self._client_tasks = set()
-        self._client_request_ids = {}
+        self._client_request_ids = OrderedDict()
+        self._client_responses = {}
+        self._permanent_failure = False
+        self.uncertain_sessions = set()
+        self._quarantined_slots = set()
         self.loop = asyncio.get_running_loop()
         try:
-            max_turns = max(1, int(os.environ.get("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "3")))
+            max_turns = min(3, max(1, int(os.environ.get("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "3"))))
         except ValueError:
             max_turns = 3
         self.max_concurrent_turns = max_turns
@@ -91,8 +98,27 @@ class AcpProfile:
         self.models = set()
         self.model_states = {}
         self.cost_totals = {}
+        self.usage_totals = {}
         self.capabilities = {}
         self.failure = ""
+
+    @asynccontextmanager
+    async def turn_slot(self, backend):
+        # A timed-out native prompt may still run. Retain its slot until actual
+        # close/transport death, rather than over-admitting three more prompts.
+        try:
+            async with asyncio.timeout(self.request_timeout):
+                await self.turn_semaphore.acquire()
+        except TimeoutError:
+            raise AcpSessionError("ACP prompt capacity busy/uncertain; no submission") from None
+        try:
+            yield
+        finally:
+            sid = backend.session_id
+            if sid in self.uncertain_sessions and not self.failure:
+                self._quarantined_slots.add(sid)
+            else:
+                self.turn_semaphore.release()
 
     def session_lock(self, session_id: str) -> asyncio.Lock:
         lock = self.session_locks.get(session_id)
@@ -169,12 +195,26 @@ class AcpProfile:
     async def start(self):
         from app import backend_antigravity as backend
         async with self._start_lock:
-            if self.failure:
+            if self._permanent_failure:
                 raise AcpError(self.failure)
+            if self.process is not None and self.process.returncode is not None and not self.failure:
+                await self.close("ACP daemon exited; next explicit turn may recreate transport")
+            if self.failure:
+                # Only a NEW caller turn may reopen a dead transport, never replay
+                # the failed prompt. Drain the old reader before replacing its pipes.
+                await self.close(self.failure)
+                self.process = self._reader = self._stderr = self._cleanup_task = None
+                self.failure = ""
+                self.transport_generation = uuid.uuid4().hex
+                self.sessions.clear()
+                self.models.clear()
+                self.model_states.clear()
+                self.cost_totals.clear()
+                self.usage_totals.clear()
+                self.uncertain_sessions.clear()
+                self._client_request_ids.clear()
+                self._client_responses.clear()
             if self.process is not None:
-                if self.process.returncode is not None:
-                    await self.close("ACP daemon exited; operator recovery required")
-                    raise AcpError(self.failure)
                 return
             try:
                 self._check_settings()
@@ -184,10 +224,10 @@ class AcpProfile:
                 self._lock_fd = os.open(self.home / ".orchestra-acp.lock",
                                         os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
                 fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                cmd = [
-                    backend.ANTIGRAVITY_BIN, "acp", "--disable-telemetry",
-                    "--process-per-session",
-                ]
+                from app.antigravity_auth import prepare_acp_token_store
+                prepare_acp_token_store(self.home)
+                # One Go tokenSource/mutex, not independently refreshing subprocesses.
+                cmd = [backend.ANTIGRAVITY_BIN, "acp", "--disable-telemetry"]
                 if auto_approve_enabled():
                     cmd.append("--dangerously-skip-permissions")
                 cmd.extend([
@@ -227,7 +267,7 @@ class AcpProfile:
             raise AcpError(self.failure or "ACP daemon unavailable")
         payload = (json.dumps(message, ensure_ascii=False) + "\n").encode()
         if len(payload) > 1024 * 1024:
-            raise AcpError("ACP message exceeds 1 MiB limit")
+            raise AcpSessionError("ACP message exceeds 1 MiB limit")
         async with self._write_lock:
             if before_write is not None:
                 await before_write()
@@ -254,10 +294,14 @@ class AcpProfile:
         except asyncio.CancelledError:
             # The backend shields submitted prompts and sends protocol cancellation.
             raise
-        except BaseException as exc:
-            reason = str(exc) if isinstance(exc, AcpError) else "ACP request failed/timed out; operator recovery required"
-            await self.close(reason)
-            raise AcpError(reason) from None
+        except TimeoutError:
+            sid = params.get("sessionId")
+            if sid:
+                self.uncertain_sessions.add(sid)
+            raise AcpSessionError("ACP session timed out; outcome unknown, explicit recovery required") from None
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            await self.close("ACP transport write failed; outcome unknown, no replay")
+            raise AcpError(self.failure) from None
         finally:
             self._pending.pop(request_id, None)
             if not future.done():
@@ -287,8 +331,12 @@ class AcpProfile:
                             if identity in self._client_request_ids:
                                 if self._client_request_ids[identity]!=digest:
                                     raise AcpError("ACP native RPC identity reused with changed payload")
-                                continue  # Exact native retry cannot create another card/response.
-                            if len(self._client_tasks)>=16 or len(self._client_request_ids)>=4096:
+                                response = self._client_responses.get(identity)
+                                if response is not None:
+                                    await self._write(response)
+                                continue  # In-flight duplicate shares the original decision.
+                            self._prune_client_requests()
+                            if len(self._client_tasks)>=16:
                                 await self._write({"jsonrpc":"2.0","id":message["id"],"result":{"outcome":{"outcome":"cancelled"}}})
                                 continue
                             self._client_request_ids[identity]=digest
@@ -318,10 +366,13 @@ class AcpProfile:
                         error = message["error"]
                         banned = backend._is_account_disabled_payload(error)
                         if banned:
+                            self._permanent_failure = True
                             backend._trip_antigravity_circuit_breaker("ACP confirmed account-disabled/Terms-of-Service refusal")
-                        local = isinstance(error, dict) and error.get("code") in {-32601, -32602} and not banned
-                        refusal = AcpSessionError if local else AcpError
+                        refusal = AcpError if banned else AcpSessionError
                         future.set_exception(refusal("ACP RPC rejected; operator recovery required"))
+                        if banned:
+                            await self.close("ACP confirmed account-disabled/Terms-of-Service refusal")
+                            return
                     elif isinstance(message.get("result"), dict):
                         future.set_result(message["result"])
                     else:
@@ -353,7 +404,10 @@ class AcpProfile:
                     result=await native_requests.request(self,rpc_id,params,backend)
                     if isinstance(result,tuple):rid,response=result
                     else:response=result
-            await self._write({"jsonrpc":"2.0","id":rpc_id,"result":response})
+            reply = {"jsonrpc":"2.0","id":rpc_id,"result":response}
+            await self._write(reply)
+            self._client_responses[json.dumps(rpc_id,sort_keys=True)] = reply
+            self._prune_client_requests()
             if rid:
                 native_requests.finish(rid,"responded")
                 if backend is not None:
@@ -364,10 +418,51 @@ class AcpProfile:
             raise
         except ValueError:
             if not self.failure:
-                await self._write({"jsonrpc":"2.0","id":rpc_id,"result":{"outcome":{"outcome":"cancelled"}}})
+                reply = {"jsonrpc":"2.0","id":rpc_id,"result":{"outcome":{"outcome":"cancelled"}}}
+                await self._write(reply)
+                self._client_responses[json.dumps(rpc_id,sort_keys=True)] = reply
+                self._prune_client_requests()
         except Exception:
             if rid:native_requests.finish(rid,"unknown")
             await self.close("ACP native response failed; operator recovery required")
+
+    def _prune_client_requests(self):
+        # Completed FIFO entries are evictable. At most 16 in-flight requests
+        # remain pinned; this is a bounded retry window, not a lifetime quota.
+        while len(self._client_request_ids) > 512:
+            key = next((k for k in self._client_request_ids if k in self._client_responses), None)
+            if key is None:
+                break
+            self._client_request_ids.pop(key)
+            self._client_responses.pop(key, None)
+
+    async def release_session(self, sid):
+        if sid not in self.sessions:
+            return
+        try:
+            # ACP session/close is an optional extension: never invent support.
+            caps = self.capabilities.get("sessionCapabilities") or {}
+            if not self.failure and caps.get("close") is not None:
+                await self.request("session/close", {"sessionId": sid}, timeout=2)
+                if sid in self._quarantined_slots:
+                    self._quarantined_slots.remove(sid)
+                    self.turn_semaphore.release()
+        except AcpError:
+            # Optional close refusal cannot resurrect an already archived app
+            # session. Remaining native memory is bounded by profile exit.
+            pass
+        finally:
+            self.sessions.discard(sid)
+            self.listeners.pop(sid, None)
+            self.permission_handlers.pop(sid, None)
+            self.model_states.pop(sid, None)
+            self.session_locks.pop(sid, None)
+            self.cost_totals.pop(sid, None)
+            self.usage_totals.pop(sid, None)
+            self.uncertain_sessions.discard(sid)
+            self.models = set().union(*(self.published_models(v) for v in self.model_states.values()))
+            if not self.sessions and self.process is not None:
+                await self.close("ACP last owned session released")
 
     async def _drain_stderr(self):
         # Drain without retaining or publishing secrets; chunks bound memory even
@@ -409,42 +504,69 @@ class AcpProfile:
             if self._lock_fd is not None:
                 os.close(self._lock_fd)
                 self._lock_fd = None
+            for _ in self._quarantined_slots:
+                self.turn_semaphore.release()
+            self._quarantined_slots.clear()
 
 
 def ensure_interactive_input(model, provenance, *, target_session=None, allow_child_agent=True):
-    """User input or a verified durable direct-child report, never scheduled activation."""
+    """Admit durable event ownership; provenance labels alone are never authority."""
     if not is_consumer_model(model):
         return
     origin = getattr(provenance, "origin", None)
-    if origin == "user":
+    subtype = getattr(provenance, "subtype", "")
+    blocked = {"system", "platform", "unknown", "cron", "cron_command", "cron_command_timeout",
+               "timer", "dreaming", "scheduler", "limit_wake", "rate_limit_retry", "server_error_retry"}
+    if origin == "user" and subtype not in blocked:
         return
     def field(value, name):
         return value.get(name) if isinstance(value, dict) else getattr(value, name, None)
-    if origin == "agent" and allow_child_agent and field(target_session, "is_orchestrator"):
+    if allow_child_agent and origin in {"agent", "background_task"} and subtype not in blocked:
         from app import db
         try:
             parent = db.get_session(field(target_session, "id"))
-        except sqlite3.Error:
-            parent = None  # Missing durable evidence must deny, never authorize a wake.
-        senders = getattr(provenance, "senders", ())
-        blocked = {"system", "platform", "unknown", "cron", "timer", "dreaming", "scheduler", "limit_wake", "rate_limit_retry", "server_error_retry"}
-        if (parent and parent.get("is_orchestrator") and field(target_session, "is_orchestrator")
-                and parent["scope"] == field(target_session, "scope")
-                and parent["name"] == field(target_session, "name") and senders
-                and getattr(provenance, "subtype", "") not in blocked):
-            with db._conn() as connection:
-                for sender in senders:
-                    # The latest durable identity owns a reused name, including after
-                    # completion/archive. An in-memory sender label is not authority.
-                    child = connection.execute(
-                        "SELECT id,parent_id,parent_name FROM sessions WHERE name=? AND scope=? "
-                        "ORDER BY created_at DESC, rowid DESC LIMIT 1", (sender, parent["scope"])).fetchone()
-                    if not child or child["id"] == parent["id"] or not (
-                        child["parent_id"] == parent["id"] or child["parent_name"] == parent["name"]):
-                        break
-                else:
-                    return
-    raise ValueError("antigravity_interactive_only: explicit user input or verified direct-child report required")
+            senders = getattr(provenance, "senders", ())
+            if (parent and parent["scope"] == field(target_session, "scope")
+                    and parent["name"] == field(target_session, "name") and senders):
+                if origin == "background_task":
+                    ref = getattr(provenance, "ref", "")
+                    job = db.bg_get_job(ref) if ref and senders == (ref,) else None
+                    config = json.loads(job["config"]) if job else {}
+                    if (job and job["type"] in {"run", "file", "merge"}
+                            and job["target_session_id"] == parent["id"]
+                            and job["target_scope"] == parent["scope"]
+                            and config.get("_creator_session_id") == parent["id"]
+                            and job["status"] in {"triggering", "triggered", "failed", "expired"}
+                            and subtype in {"completed", "success", "failed", "timeout", "expired", "triggered"}):
+                        return
+                elif parent.get("is_orchestrator") and field(target_session, "is_orchestrator"):
+                    with db._conn() as connection:
+                        for sender in senders:
+                            source_id = None
+                            if subtype == "direct_message" and len(senders) == 1 and getattr(provenance, "ref", ""):
+                                from app.message_deliveries import _row
+                                receipt = _row(provenance.ref)
+                                if (receipt and receipt["target_session_id"] == parent["id"]
+                                        and receipt["source_name"] == sender and receipt["origin"] == "agent"):
+                                    source_id = receipt["source_session_id"]
+                            if source_id:
+                                row = connection.execute("SELECT * FROM sessions WHERE id=?", (source_id,)).fetchone()
+                            else:
+                                row = connection.execute(
+                                    "SELECT * FROM sessions WHERE name=? AND scope=? "
+                                    "ORDER BY created_at DESC, rowid DESC LIMIT 1", (sender, parent["scope"])).fetchone()
+                            child = dict(row) if row else {}
+                            direct_child = child and (child["parent_id"] == parent["id"] or child["parent_name"] == parent["name"])
+                            peer = (child and (child.get("is_orchestrator") or child.get("role") == "orchestrator")
+                                    and child.get("status") not in {"archived", "closed"}
+                                    and subtype in {"direct_message", "http_send"})
+                            if not child or child["id"] == parent["id"] or not (direct_child or peer):
+                                break
+                        else:
+                            return
+        except (sqlite3.Error, ValueError, TypeError, KeyError):
+            pass
+    raise ValueError("antigravity_interactive_only: user input or verified owned event required")
 
 
 def is_consumer_model(model):

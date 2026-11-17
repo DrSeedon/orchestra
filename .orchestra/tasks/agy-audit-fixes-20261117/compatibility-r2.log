@@ -1,0 +1,47 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+........................................................................ [ 40%]
+........................................................................ [ 80%]
+................................FF.                                      [100%]
+=================================== FAILURES ===================================
+_ test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive[FG_PERMISSION-allow-0] _
+tests/test_antigravity_split_stand.py:190: in test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive
+    assert '--process-per-session' in spawn['argv'] and '--dangerously-skip-permissions' in spawn['argv']
+E   AssertionError: assert ('--process-per-session' in ['acp', '--disable-telemetry', '--dangerously-skip-permissions', '--gemini-dir', '/tmp/pytest-of-kesha/pytest-261/test_default_auto_approve_pass0/profile/.gemini', '--app-data-dir', ...])
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+_ test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive[FG_ALLOW_ALWAYS_ONLY-always-0] _
+tests/test_antigravity_split_stand.py:190: in test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive
+    assert '--process-per-session' in spawn['argv'] and '--dangerously-skip-permissions' in spawn['argv']
+E   AssertionError: assert ('--process-per-session' in ['acp', '--disable-telemetry', '--dangerously-skip-permissions', '--gemini-dir', '/tmp/pytest-of-kesha/pytest-261/test_default_auto_approve_pass1/profile/.gemini', '--app-data-dir', ...])
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+=============================== warnings summary ===============================
+tests/test_antigravity_acp_r2.py::test_real_http_receipts_interrupt_and_compact
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_antigravity_acp_r2.py::test_real_http_receipts_interrupt_and_compact
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_split_stand.py::test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive[FG_PERMISSION-allow-0]
+FAILED tests/test_antigravity_split_stand.py::test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive[FG_ALLOW_ALWAYS_ONLY-always-0]
+2 failed, 177 passed, 2 warnings in 43.08s

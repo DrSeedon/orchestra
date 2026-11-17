@@ -1,0 +1,8 @@
+{
+  "base": "76255bc268ecd951093e3cb19e763215d5474d04",
+  "preserve": {
+    ".orchestra/workers/Orchestra-orchestrator.md": "ed2af782763032620ec176ff907dee2321f6325253cf3f35dd34a3d74a10c6f6",
+    "scripts/video_artifact/README.md": "a2ce4af92a0d9b86e7537a695673578b33c57f9052efb7ca33930ee9a71f0f14",
+    "scripts/video_artifact/elevenlabs_tts.py": "39eefbb8cc7b388fd815921e5b7799f88c8549bf42c3dadccf12174998357dc7"
+  }
+}

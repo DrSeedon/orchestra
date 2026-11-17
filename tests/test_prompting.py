@@ -74,6 +74,8 @@ async def test_resume_prompt_injection_respects_hub_preamble(
     from app.events import MessageProvenance
 
     native_prompt = "NATIVE_CLI_PROMPT: git commit and report_done"
+    tmp_path = tmp_path / "multicode"
+    tmp_path.mkdir()
     session = session_module.AgentSession(
         id="prompt-test", name="worker", scope=str(tmp_path), cwd=str(tmp_path),
         model="hub-gpt-6.1-sol" if backend_type == "hub" else "claude-sonnet-5-5[1m]",

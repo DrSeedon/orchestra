@@ -1466,6 +1466,7 @@ class SessionManager:
             session._cancel_precompact_timer("removed")
         # Процесс CLI есть только у загруженной живой сессии; гасим его до удаления
         # worktree, в котором он работает. Гидрированная из БД сессия его не имеет.
+        retired_backend = getattr(session, "_backend", None)
         if session is not None and session.loaded:
             await session._disconnect_backend()
         if session.worktree_path:
@@ -1477,6 +1478,14 @@ class SessionManager:
         # Сессии больше нет — снять её имена из FD store (#230 T2). Иначе store дорастает до
         # `FileDescriptorStoreMax=256`, и новые агенты молча перестают быть защищёнными.
         archive_session(session_id)
+        if retired_backend is not None and getattr(session, "backend_type", "") == "antigravity":
+            await retired_backend.release()
+        elif getattr(session, "backend_type", "") == "antigravity" and session.session_id:
+            from app.backend_antigravity import canonical_profile
+            from app.antigravity_acp import cached_profile
+            owner = cached_profile(canonical_profile(session.profile))
+            if owner is not None:
+                await owner.release_session(session.session_id)
         self.sessions.pop(session_id, None)
         await asyncio.to_thread(self._cleanup_cli_home, session_id)
 

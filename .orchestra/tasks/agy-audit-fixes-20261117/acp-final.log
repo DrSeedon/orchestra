@@ -1,0 +1,67 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+.......................................................................F [ 27%]
+........................................................................ [ 54%]
+.......F..................................F............................. [ 81%]
+..................................................                       [100%]
+=================================== FAILURES ===================================
+______ test_harness_enforces_external_network_and_real_executable_denial _______
+tests/test_antigravity_acp.py:371: in test_harness_enforces_external_network_and_real_executable_denial
+    subprocess.run(["/bin/true"], check=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+
+During handling of the above exception, another exception occurred:
+tests/test_antigravity_acp.py:370: in test_harness_enforces_external_network_and_real_executable_denial
+    with pytest.raises(PermissionError, match="only fake_agy"):
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'only fake_agy'
+E     Actual message: 'offline harness: only fake ACP or bounded synthetic local Git may execute'
+_______ test_new_session_collision_refuses_to_share_another_conversation _______
+tests/test_antigravity_acp_review.py:135: in test_new_session_collision_refuses_to_share_another_conversation
+    assert a._owner.failure
+E   AssertionError: assert ''
+E    +  where '' = <app.antigravity_acp.AcpProfile object at 0x7cefedb62180>.failure
+E    +    where <app.antigravity_acp.AcpProfile object at 0x7cefedb62180> = <app.backend_antigravity.AntigravityBackend object at 0x7cefedb62660>._owner
+______ test_explicit_google_telegram_and_real_provider_negative_controls _______
+tests/test_antigravity_foreground.py:246: in test_explicit_google_telegram_and_real_provider_negative_controls
+    subprocess.run([executable,"acp"],check=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+
+During handling of the above exception, another exception occurred:
+tests/test_antigravity_foreground.py:245: in test_explicit_google_telegram_and_real_provider_negative_controls
+    with pytest.raises(PermissionError,match="only fake_agy"):
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'only fake_agy'
+E     Actual message: 'offline harness: only fake ACP or bounded synthetic local Git may execute'
+=============================== warnings summary ===============================
+tests/test_antigravity_acp.py::test_loopback_http_and_real_orchestra_sse_smoke
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_antigravity_acp.py::test_loopback_http_and_real_orchestra_sse_smoke
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_acp.py::test_harness_enforces_external_network_and_real_executable_denial
+FAILED tests/test_antigravity_acp_review.py::test_new_session_collision_refuses_to_share_another_conversation
+FAILED tests/test_antigravity_foreground.py::test_explicit_google_telegram_and_real_provider_negative_controls
+3 failed, 263 passed, 9 deselected, 2 warnings in 58.54s

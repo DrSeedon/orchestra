@@ -979,6 +979,10 @@ class AgentSession:
         runtime = get_model_spec(model).runtime
         spec = get_model_spec(model)
         system_prompt = self.system_prompt
+        from app.pipeline import provider_prompt_overlay
+        overlay = provider_prompt_overlay(runtime)
+        if overlay:
+            system_prompt = f"{system_prompt}\n\n{overlay}"
         project_doc_instruction = getattr(self, "_codex_project_doc_instruction", "")
         if runtime == "codex" and project_doc_instruction:
             system_prompt = f"{system_prompt}\n\n{project_doc_instruction}"
@@ -4299,6 +4303,10 @@ class AgentSession:
                 self._spawn_bg(self._flush_pending())
             self._wake_durable_message_deliveries()
 
+        if (self.backend_type == "antigravity" and self._backend is not None
+                and pre_compact_session_id and pre_compact_session_id != self.session_id):
+            # Old native state remains until the new summary+ACK is accepted.
+            await self._backend._owner.release_session(pre_compact_session_id)
         self.last_summary = _bounded_summary(summary)
         self.history_import_source = None
         # compact() hands the session a NEW native session_id, and every later
@@ -4553,6 +4561,9 @@ class AgentSession:
                 self._spawn_bg(self._flush_pending())
 
     async def _auto_compact(self, *, delay_seconds: float = 2) -> None:
+        if not get_runtime(self.backend_type).capabilities.automated_prompts:
+            self._log("status", "Automatic compaction disabled by runtime policy; owner manual compaction required")
+            return
         generation = (self._turn_gen, self._turn_start_cancel_gen)
         if delay_seconds > 0:
             await asyncio.sleep(delay_seconds)

@@ -1,0 +1,249 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+....................................................FFFFF..FF........... [ 32%]
+..............F...F.FFF...........F............F...............F........ [ 64%]
+........................................................................ [ 96%]
+....FF.                                                                  [100%]
+=================================== FAILURES ===================================
+______ test_start_failure_latches_without_login_or_spawn_loop[init-death] ______
+tests/test_antigravity_acp.py:184: in test_start_failure_latches_without_login_or_spawn_loop
+    assert methods["spawn"] == 1 and methods["session/prompt"] == 0
+E   assert (3 == 1)
+______ test_start_failure_latches_without_login_or_spawn_loop[auth-error] ______
+tests/test_antigravity_acp.py:184: in test_start_failure_latches_without_login_or_spawn_loop
+    assert methods["spawn"] == 1 and methods["session/prompt"] == 0
+E   assert (3 == 1)
+_________ test_turn_failure_no_automatic_prompt_replay_or_restart[DIE] _________
+tests/test_antigravity_acp.py:196: in test_turn_failure_no_automatic_prompt_replay_or_restart
+    assert not end(await turn(stand.backend(), "later user action")).metadata["ok"]
+E   assert not True
+______ test_turn_failure_no_automatic_prompt_replay_or_restart[MALFORMED] ______
+tests/test_antigravity_acp.py:196: in test_turn_failure_no_automatic_prompt_replay_or_restart
+    assert not end(await turn(stand.backend(), "later user action")).metadata["ok"]
+E   assert not True
+________ test_turn_failure_no_automatic_prompt_replay_or_restart[ERROR] ________
+tests/test_antigravity_acp.py:196: in test_turn_failure_no_automatic_prompt_replay_or_restart
+    assert not end(await turn(stand.backend(), "later user action")).metadata["ok"]
+E   assert not True
+__________ test_prompt_timeout_latches_and_shutdown_cleans_owned_pid ___________
+tests/test_antigravity_acp.py:236: in test_prompt_timeout_latches_and_shutdown_cleans_owned_pid
+    assert b._owner.process.returncode is not None
+E   assert None is not None
+E    +  where None = <Process 2474974>.returncode
+E    +    where <Process 2474974> = <app.antigravity_acp.AcpProfile object at 0x7179d0593950>.process
+E    +      where <app.antigravity_acp.AcpProfile object at 0x7179d0593950> = <app.backend_antigravity.AntigravityBackend object at 0x7179d0592990>._owner
+__________________ test_unacknowledged_cancel_closes_profile ___________________
+tests/test_antigravity_acp.py:249: in test_unacknowledged_cancel_closes_profile
+    assert b._owner.failure and b._owner.process.returncode is not None
+E   AssertionError: assert ('')
+E    +  where '' = <app.antigravity_acp.AcpProfile object at 0x7179d1eea2d0>.failure
+E    +    where <app.antigravity_acp.AcpProfile object at 0x7179d1eea2d0> = <app.backend_antigravity.AntigravityBackend object at 0x7179d1eeac00>._owner
+_________ test_failed_turn_cost_is_recorded_without_success_or_replay __________
+tests/test_antigravity_acp.py:559: in test_failed_turn_cost_is_recorded_without_success_or_replay
+    assert b._owner.failure
+E   AssertionError: assert ''
+E    +  where '' = <app.antigravity_acp.AcpProfile object at 0x7179d025c7a0>.failure
+E    +    where <app.antigravity_acp.AcpProfile object at 0x7179d025c7a0> = <app.backend_antigravity.AntigravityBackend object at 0x7179d025fd40>._owner
+_____________ test_auth_loss_after_success_latches_without_reauth ______________
+tests/test_antigravity_acp.py:592: in test_auth_loss_after_success_latches_without_reauth
+    assert not end(await turn(b, "never resubmitted")).metadata["ok"]
+E   assert not True
+_ test_real_compact_ack_lifecycle_context_receipt_and_rollback[normal-True-True] _
+tests/test_antigravity_acp_r2.py:64: in test_real_compact_ack_lifecycle_context_receipt_and_rollback
+    assert s.session_id != old_id and s._last_turn_ok
+E   AssertionError: assert ('mock-session-1' != 'mock-session-1')
+E    +  where 'mock-session-1' = AgentSession(id='real-acp-r2', name='real-acp-r2', scope='/tmp/pytest-of-kesha/pytest-260/test_real_compact_ack_lifecy...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=2).session_id
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+_ test_real_compact_ack_lifecycle_context_receipt_and_rollback[ack-unknown-True-False] _
+tests/test_antigravity_acp_r2.py:64: in test_real_compact_ack_lifecycle_context_receipt_and_rollback
+    assert s.session_id != old_id and s._last_turn_ok
+E   AssertionError: assert ('mock-session-1' != 'mock-session-1')
+E    +  where 'mock-session-1' = AgentSession(id='real-acp-r2', name='real-acp-r2', scope='/tmp/pytest-of-kesha/pytest-260/test_real_compact_ack_lifecy...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=2).session_id
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+_ test_real_compact_ack_lifecycle_context_receipt_and_rollback[ack-error-False-True] _
+tests/test_antigravity_acp_r2.py:77: in test_real_compact_ack_lifecycle_context_receipt_and_rollback
+    assert methods["spawn"] == methods["initialize"] == methods["authenticate"] == 1
+E   assert 2 == 1
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] heartbeat cancelled
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+________________ test_real_http_receipts_interrupt_and_compact _________________
+tests/test_antigravity_acp_r2.py:180: in test_real_http_receipts_interrupt_and_compact
+    assert methods["spawn"] == 1 and methods["session/prompt"] == 4 and methods["session/cancel"] == 1
+E   assert (2 == 1)
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+________ test_cancel_during_backpressured_write_is_unknown_and_bounded _________
+tests/test_antigravity_acp_submission.py:215: in test_cancel_during_backpressured_write_is_unknown_and_bounded
+    assert row["state"]=="DELIVERY_UNKNOWN" and s._backend._owner.failure
+E   AssertionError: assert ('DELIVERY_UNKNOWN' == 'DELIVERY_UNKNOWN'
+E
+E       DELIVERY_UNKNOWN and '')
+E    +  where '' = <app.antigravity_acp.AcpProfile object at 0x7179c2c781d0>.failure
+E    +    where <app.antigravity_acp.AcpProfile object at 0x7179c2c781d0> = <app.backend_antigravity.AntigravityBackend object at 0x7179c2c78c50>._owner
+E    +      where <app.backend_antigravity.AntigravityBackend object at 0x7179c2c78c50> = AgentSession(id='real-acp-r2', name='real-acp-r2', scope='/tmp/pytest-of-kesha/pytest-260/test_cancel_during_backpress...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._backend
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+message delivery runner failed
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/message_deliveries.py", line 1564, in _observe_target_runner
+    drained = task.result()
+              ^^^^^^^^^^^^^
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/message_deliveries.py", line 1499, in run_target_message_deliveries
+    await run_message_delivery(head["delivery_id"], manager=manager)
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/message_deliveries.py", line 1259, in run_message_delivery
+    await manager.send_message_delivery(
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/manager.py", line 1232, in send_message_delivery
+    delivery_task.result()
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/manager.py", line 1226, in deliver
+    await session.send(
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/session.py", line 2004, in send
+    await backend.wait_for_submission()
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/backend_antigravity.py", line 589, in wait_for_submission
+    await asyncio.shield(self._submission)
+app.antigravity_acp.AcpError: ACP submission cancelled
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+ERROR    orchestra.message_deliveries:message_deliveries.py:1566 message delivery runner failed
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/message_deliveries.py", line 1564, in _observe_target_runner
+    drained = task.result()
+              ^^^^^^^^^^^^^
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/message_deliveries.py", line 1499, in run_target_message_deliveries
+    await run_message_delivery(head["delivery_id"], manager=manager)
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/message_deliveries.py", line 1259, in run_message_delivery
+    await manager.send_message_delivery(
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/manager.py", line 1232, in send_message_delivery
+    delivery_task.result()
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/manager.py", line 1226, in deliver
+    await session.send(
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/session.py", line 2004, in send
+    await backend.wait_for_submission()
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/app/backend_antigravity.py", line 589, in wait_for_submission
+    await asyncio.shield(self._submission)
+app.antigravity_acp.AcpError: ACP submission cancelled
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+_____ test_resume_binding_survives_backend_recreation_but_not_epoch_reset ______
+tests/test_antigravity_foreground.py:160: in test_resume_binding_survives_backend_recreation_but_not_epoch_reset
+    assert sum(x["method"]=="session/resume" for x in stand.trace())==0 # same owner already holds native session
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert 1 == 0
+E    +  where 1 = sum(<generator object test_resume_binding_survives_backend_recreation_but_not_epoch_reset.<locals>.<genexpr> at 0x7179c2a002b0>)
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] heartbeat cancelled
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+_ test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive[FG_PERMISSION-allow-0] _
+tests/test_antigravity_split_stand.py:190: in test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive
+    assert '--process-per-session' in spawn['argv'] and '--dangerously-skip-permissions' in spawn['argv']
+E   AssertionError: assert ('--process-per-session' in ['acp', '--disable-telemetry', '--dangerously-skip-permissions', '--gemini-dir', '/tmp/pytest-of-kesha/pytest-260/test_default_auto_approve_pass0/profile/.gemini', '--app-data-dir', ...])
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+_ test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive[FG_ALLOW_ALWAYS_ONLY-always-0] _
+tests/test_antigravity_split_stand.py:190: in test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive
+    assert '--process-per-session' in spawn['argv'] and '--dangerously-skip-permissions' in spawn['argv']
+E   AssertionError: assert ('--process-per-session' in ['acp', '--disable-telemetry', '--dangerously-skip-permissions', '--gemini-dir', '/tmp/pytest-of-kesha/pytest-260/test_default_auto_approve_pass1/profile/.gemini', '--app-data-dir', ...])
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+=============================== warnings summary ===============================
+tests/test_antigravity_acp.py::test_loopback_http_and_real_orchestra_sse_smoke
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_antigravity_acp.py::test_loopback_http_and_real_orchestra_sse_smoke
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_acp.py::test_start_failure_latches_without_login_or_spawn_loop[init-death]
+FAILED tests/test_antigravity_acp.py::test_start_failure_latches_without_login_or_spawn_loop[auth-error]
+FAILED tests/test_antigravity_acp.py::test_turn_failure_no_automatic_prompt_replay_or_restart[DIE]
+FAILED tests/test_antigravity_acp.py::test_turn_failure_no_automatic_prompt_replay_or_restart[MALFORMED]
+FAILED tests/test_antigravity_acp.py::test_turn_failure_no_automatic_prompt_replay_or_restart[ERROR]
+FAILED tests/test_antigravity_acp.py::test_prompt_timeout_latches_and_shutdown_cleans_owned_pid
+FAILED tests/test_antigravity_acp.py::test_unacknowledged_cancel_closes_profile
+FAILED tests/test_antigravity_acp.py::test_failed_turn_cost_is_recorded_without_success_or_replay
+FAILED tests/test_antigravity_acp.py::test_auth_loss_after_success_latches_without_reauth
+FAILED tests/test_antigravity_acp_r2.py::test_real_compact_ack_lifecycle_context_receipt_and_rollback[normal-True-True]
+FAILED tests/test_antigravity_acp_r2.py::test_real_compact_ack_lifecycle_context_receipt_and_rollback[ack-unknown-True-False]
+FAILED tests/test_antigravity_acp_r2.py::test_real_compact_ack_lifecycle_context_receipt_and_rollback[ack-error-False-True]
+FAILED tests/test_antigravity_acp_r2.py::test_real_http_receipts_interrupt_and_compact
+FAILED tests/test_antigravity_acp_submission.py::test_cancel_during_backpressured_write_is_unknown_and_bounded
+FAILED tests/test_antigravity_foreground.py::test_resume_binding_survives_backend_recreation_but_not_epoch_reset
+FAILED tests/test_antigravity_split_stand.py::test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive[FG_PERMISSION-allow-0]
+FAILED tests/test_antigravity_split_stand.py::test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive[FG_ALLOW_ALWAYS_ONLY-always-0]
+17 failed, 206 passed, 2 warnings in 54.09s

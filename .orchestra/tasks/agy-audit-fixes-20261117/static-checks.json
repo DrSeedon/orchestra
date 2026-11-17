@@ -1,0 +1,7 @@
+{
+  "imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app",
+  "secret_pattern_findings": 0,
+  "files_scanned": 45,
+  "owned_fake_pids": [],
+  "production_dirty_files_preserved": true
+}

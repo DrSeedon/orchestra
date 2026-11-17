@@ -1014,6 +1014,7 @@ def _provider_usage_snapshot(
     codex: dict | None,
     grok: dict | None = None,
     antigravity: dict | None = None,
+    antigravity_5h: dict | None = None,
 ) -> dict:
     """Normalize provider-specific limits into one history/chart contract."""
     providers = {}
@@ -1118,19 +1119,23 @@ def _provider_usage_snapshot(
             }
             if provider_id == "codex" and (usage or {}).get("raw_payload") is not None:
                 providers[provider_id]["raw_payload"] = (usage or {}).get("raw_payload")
-    for key, provider_id, label in (
-        ("gemini-weekly", "antigravity_gemini", "Antigravity Gemini"),
-        ("3p-weekly", "antigravity_3p", "Antigravity Claude/GPT"),
+    for prefix, provider_id, label in (
+        ("gemini", "antigravity_gemini", "Antigravity Gemini"),
+        ("3p", "antigravity_3p", "Antigravity Claude/GPT"),
     ):
-        bucket = (antigravity or {}).get(key)
-        fraction = bucket.get("remaining_fraction") if isinstance(bucket, dict) else None
-        if (not isinstance(fraction, (int, float)) or isinstance(fraction, bool)
-                or not math.isfinite(fraction) or not 0 <= fraction <= 1):
-            continue
-        providers[provider_id] = {"label": label, "windows": [{
-            "id": key, "label": "7d", "utilization": (1 - fraction) * 100,
-            "window_minutes": 10080, "resets_at": bucket.get("reset_time"),
-        }]}
+        windows = []
+        for suffix, minutes, source in (("weekly",10080,antigravity), ("5h",300,antigravity_5h)):
+            key = prefix + "-" + suffix
+            bucket = (source or {}).get(key)
+            fraction = bucket.get("remaining_fraction") if isinstance(bucket, dict) else None
+            if (not isinstance(fraction, (int, float)) or isinstance(fraction, bool)
+                    or not math.isfinite(fraction) or not 0 <= fraction <= 1):
+                continue
+            windows.append({"id": key, "label": "7d" if suffix == "weekly" else "5h",
+                "utilization": (1-fraction)*100, "window_minutes": minutes,
+                "resets_at": bucket.get("reset_time")})
+        if windows:
+            providers[provider_id] = {"label": label, "windows": windows}
     return providers
 
 
@@ -1572,7 +1577,7 @@ async def _get_usage_data(
     agy = None if is_provider_disabled("antigravity") else _antigravity_usage_cache.get("data")
     agy_5h = (
         None
-        if (required_provider or is_provider_disabled("antigravity"))
+        if is_provider_disabled("antigravity")
         else _antigravity_usage_cache.get("five_hour")
     )
     extra_agy = (
@@ -1706,6 +1711,7 @@ async def current_provider_usage(
         usage.get("codex"),
         usage.get("grok"),
         usage.get("antigravity"),
+        usage.get("antigravity_5h"),
     )
 
 
@@ -1731,6 +1737,7 @@ def _quota_observation_from_cache() -> dict:
             _codex_usage_cache.get("data"),
             _grok_usage_cache.get("data"),
             None if is_provider_disabled("antigravity") else _antigravity_usage_cache.get("data"),
+            None if is_provider_disabled("antigravity") else _antigravity_usage_cache.get("five_hour"),
         ),
         "observed_at_by_provider": observed_at_by_provider,
     }

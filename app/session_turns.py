@@ -1153,6 +1153,11 @@ class TurnManager:
     def schedule_context_compaction(self, live_pct: int) -> None:
         """Run both automatic compaction decisions from one validated context."""
         s = self.s
+        from app.runtime_registry import get_runtime
+        if not get_runtime(s.backend_type).capabilities.automated_prompts:
+            if live_pct >= _auto_compact_threshold_pct(s):
+                s._log("status", "Automatic compaction disabled by runtime policy; owner manual compaction required")
+            return
         if self._compact_codex_before_limit():
             return
         if live_pct >= _auto_compact_threshold_pct(s):

@@ -1,0 +1,137 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+........................................................................ [ 24%]
+........................FFFFFF.FF....................................... [ 49%]
+........................................................................ [ 74%]
+........................................................................ [ 99%]
+.                                                                        [100%]
+=================================== FAILURES ===================================
+______ TestCodexProjectSkills.test_includes_clean_committed_project_skill ______
+tests/test_prompting.py:431: in test_includes_clean_committed_project_skill
+    _git_init(repo)
+tests/test_prompting.py:137: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+_ TestCodexProjectSkills.test_excludes_non_committed_project_state[untracked] __
+tests/test_prompting.py:455: in test_excludes_non_committed_project_state
+    _git_init(repo)
+tests/test_prompting.py:137: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+__ TestCodexProjectSkills.test_excludes_non_committed_project_state[modified] __
+tests/test_prompting.py:455: in test_excludes_non_committed_project_state
+    _git_init(repo)
+tests/test_prompting.py:137: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+___ TestCodexProjectSkills.test_excludes_non_committed_project_state[staged] ___
+tests/test_prompting.py:455: in test_excludes_non_committed_project_state
+    _git_init(repo)
+tests/test_prompting.py:137: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+__ TestCodexProjectSkills.test_excludes_non_committed_project_state[deleted] ___
+tests/test_prompting.py:455: in test_excludes_non_committed_project_state
+    _git_init(repo)
+tests/test_prompting.py:137: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+__________ TestCodexProjectSkills.test_excludes_clean_tracked_symlink __________
+tests/test_prompting.py:490: in test_excludes_clean_tracked_symlink
+    _git_init(repo)
+tests/test_prompting.py:137: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+____ TestCodexProjectSkills.test_invalid_utf8_project_skill_warns_and_skips ____
+tests/test_prompting.py:523: in test_invalid_utf8_project_skill_warns_and_skips
+    _git_init(repo)
+tests/test_prompting.py:137: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+__ TestCodexProjectSkills.test_pipeline_skill_shadows_divergent_project_name ___
+tests/test_prompting.py:550: in test_pipeline_skill_shadows_divergent_project_name
+    _git_init(repo)
+tests/test_prompting.py:137: in _git_init
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+=========================== short test summary info ============================
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_includes_clean_committed_project_skill
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[untracked]
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[modified]
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[staged]
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[deleted]
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_clean_tracked_symlink
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_invalid_utf8_project_skill_warns_and_skips
+FAILED tests/test_prompting.py::TestCodexProjectSkills::test_pipeline_skill_shadows_divergent_project_name
+8 failed, 281 passed in 14.92s

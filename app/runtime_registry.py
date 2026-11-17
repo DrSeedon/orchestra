@@ -36,6 +36,7 @@ class RuntimeCapabilities:
     resume: bool = True
     resume_across_models: bool = True
     model_retarget: bool = False
+    automated_prompts: bool = True
     subagents: bool = True
 
     def to_dict(self) -> dict:
@@ -48,6 +49,7 @@ class RuntimeCapabilities:
             "resume": self.resume,
             "resume_across_models": self.resume_across_models,
             "model_retarget": self.model_retarget,
+            "automated_prompts": self.automated_prompts,
             "subagents": self.subagents,
         }
 
@@ -381,7 +383,7 @@ register_runtime(RuntimeDefinition(
     capabilities=RuntimeCapabilities(
         event_stream="per_turn", mid_turn_inject=False, reconnect=False,
         hibernate=False, process_liveness=True, resume_across_models=False,
-        subagents=False,
+        subagents=False, model_retarget=True, automated_prompts=False,
     ),
     factory=_antigravity_factory,
     readiness=_antigravity_readiness,

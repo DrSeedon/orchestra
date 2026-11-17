@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 import time
 
-_prefix = ["acp", "--disable-telemetry", "--process-per-session"]
+_prefix = ["acp", "--disable-telemetry"]
 _suffix = ["--gemini-dir", str(Path(os.environ["HOME"]) / ".gemini"), "--app-data-dir", "antigravity-acp"]
 assert sys.argv[1:] in ([*_prefix, *_suffix], [*_prefix, "--dangerously-skip-permissions", *_suffix]), sys.argv[1:]
 TRACE = Path(os.environ["AGY_MOCK_TRACE"])
@@ -160,6 +160,24 @@ async def prompt(request):
     if text.endswith("HTTP_RPC_MODEL"):
         emit({"id":request["id"],"error":{"code":-32602,"message":"Synthetic model refused after prompt write"}})
         active.discard(sid); trace("prompt_end",session=sid); return
+    if text == "AUDIT_TOKENS":
+        update(sid, "usage_update", used=200, size=1000, usage={
+            "input_tokens":100, "output_tokens":20, "cache_read_tokens":50})
+        result(request, {"stopReason":"end_turn"})
+        active.discard(sid); trace("prompt_end",session=sid); return
+    if text == "AUDIT_DUP_PERMISSION":
+        rid = "audit-repeat-permission"
+        params = {"sessionId":sid, "toolCall":{"toolCallId":"audit-tool","title":"Synthetic permission"},
+                  "options":[{"optionId":"yes","kind":"allow_once","name":"Allow"}]}
+        replies = []
+        for _ in range(2):
+            future = asyncio.get_running_loop().create_future()
+            client_requests[rid] = future
+            emit({"jsonrpc":"2.0","id":rid,"method":"session/request_permission","params":params})
+            replies.append(await future)
+        assert replies[0] == replies[1]
+        result(request, {"stopReason":"end_turn"})
+        active.discard(sid); trace("prompt_end",session=sid); return
     if text.startswith("RPC_") or text.startswith("BAN_"):
         ban = "This service has been disabled in this account for violation of Terms of Service. synthetic-secret-never-persist"
         payloads = {
@@ -256,7 +274,7 @@ async def main():
             if MODE == "init-death":
                 os._exit(18)
             result(request, {"protocolVersion": 2 if MODE=="wire-v2" else 1,
-                "agentCapabilities": {"sessionCapabilities": {"resume": {}}} if MODE != "no-resume" else {},
+                "agentCapabilities": {"sessionCapabilities": {"resume": {}, **({"close": {}} if MODE == "close-support" else {})}} if MODE != "no-resume" else {},
                 "authMethods": [{"id": "oauth-personal", "name": "Synthetic cached OAuth", **({"type":"oauth"} if MODE=="auth-oauth-type" else {})}]})
         elif method == "authenticate":
             if MODE == "auth-error":
@@ -286,6 +304,8 @@ async def main():
             else:
                 current_models[sid] = wanted
                 result(request, {})
+        elif method == "session/close":
+            result(request, {})
         elif method == "session/prompt":
             tasks.append(asyncio.create_task(prompt(request)))
         elif method == "session/cancel":

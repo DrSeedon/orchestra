@@ -1,0 +1,36 @@
+{
+  "sessions": [
+    {
+      "id": "75285d62-98bc-441c-9727-22c54bd8ab97",
+      "name": "Orchestra-orchestrator",
+      "model": "gpt-6.1-sol",
+      "status": "waiting",
+      "backend_type": "codex",
+      "is_orchestrator": 1
+    },
+    {
+      "id": "626ea34f-d213-4ebc-81e1-b209468d31cd",
+      "name": "hydrogen-sandbox-orchestrator",
+      "model": "antigravity/gemini-4-hydrogen-high",
+      "status": "idle",
+      "backend_type": "antigravity",
+      "is_orchestrator": 1
+    },
+    {
+      "id": "09b75a6c-c93f-45ea-b2f4-6728851a1bbd",
+      "name": "seedon-orchestrator",
+      "model": "gpt-6.1-sol",
+      "status": "waiting",
+      "backend_type": "codex",
+      "is_orchestrator": 1
+    }
+  ],
+  "restart_cut": [],
+  "units": {
+    "orchestra": "MainPID=2407834\nMemoryHigh=15032385536\nMemoryMax=17179869184\nActiveState=active\nActiveEnterTimestampMonotonic=1248804738597\n",
+    "orchestra-agy-spawner": "MainPID=814096\nMemoryHigh=infinity\nMemoryMax=infinity\nActiveState=active\nActiveEnterTimestampMonotonic=1054552769509\n",
+    "orchestra-agy-tool-exec": "MainPID=814098\nMemoryHigh=infinity\nMemoryMax=infinity\nActiveState=active\nActiveEnterTimestampMonotonic=1054552778371\n",
+    "telegram-bot-api": "MainPID=2786980\nMemoryHigh=infinity\nMemoryMax=infinity\nActiveState=active\nActiveEnterTimestampMonotonic=283208333567\n"
+  },
+  "disabled_file_sha256": "08edf19da9bb5881776983370303e72cb787f4cf090cd29598c07b0e02645347"
+}

@@ -1,0 +1,111 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+F......F...........FFFFFFFFFFF..............                             [100%]
+=================================== FAILURES ===================================
+__________ test_owned_run_completion_reaches_actual_parent_transport ___________
+tests/test_antigravity_audit_fixes.py:42: in test_owned_run_completion_reaches_actual_parent_transport
+    assert s._last_turn_ok and s._backend._owner.process.pid == pid
+E   AssertionError: assert (False)
+E    +  where False = AgentSession(id='real-acp-r2', name='real-acp-r2', scope='/tmp/pytest-of-kesha/pytest-258/test_owned_run_completion_re...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._last_turn_ok
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+__________ test_live_peer_direct_only_and_manual_compact_not_extended __________
+tests/test_antigravity_audit_fixes.py:66: in test_live_peer_direct_only_and_manual_compact_not_extended
+    assert s._last_turn_ok
+E   AssertionError: assert False
+E    +  where False = AgentSession(id='real-acp-r2', name='real-acp-r2', scope='/tmp/pytest-of-kesha/pytest-258/test_live_peer_direct_only_a...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._last_turn_ok
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+_______ test_rpc_refusal_is_local_and_sibling_runs_same_daemon[RPC_AUTH] _______
+tests/test_antigravity_audit_fixes.py:89: in test_rpc_refusal_is_local_and_sibling_runs_same_daemon
+    assert not a._owner.failure
+E   AssertionError: assert not 'ACP stream ended/invalid; operator recovery required'
+E    +  where 'ACP stream ended/invalid; operator recovery required' = <app.antigravity_acp.AcpProfile object at 0x7ce75d7964e0>.failure
+E    +    where <app.antigravity_acp.AcpProfile object at 0x7ce75d7964e0> = <app.backend_antigravity.AntigravityBackend object at 0x7ce75d794950>._owner
+______ test_rpc_refusal_is_local_and_sibling_runs_same_daemon[RPC_QUOTA] _______
+tests/test_antigravity_audit_fixes.py:89: in test_rpc_refusal_is_local_and_sibling_runs_same_daemon
+    assert not a._owner.failure
+E   AssertionError: assert not 'ACP stream ended/invalid; operator recovery required'
+E    +  where 'ACP stream ended/invalid; operator recovery required' = <app.antigravity_acp.AcpProfile object at 0x7ce75d7b2ae0>.failure
+E    +    where <app.antigravity_acp.AcpProfile object at 0x7ce75d7b2ae0> = <app.backend_antigravity.AntigravityBackend object at 0x7ce75d7b2990>._owner
+______ test_rpc_refusal_is_local_and_sibling_runs_same_daemon[RPC_MODEL] _______
+tests/test_antigravity_audit_fixes.py:89: in test_rpc_refusal_is_local_and_sibling_runs_same_daemon
+    assert not a._owner.failure
+E   AssertionError: assert not 'ACP stream ended/invalid; operator recovery required'
+E    +  where 'ACP stream ended/invalid; operator recovery required' = <app.antigravity_acp.AcpProfile object at 0x7ce75d63bcb0>.failure
+E    +    where <app.antigravity_acp.AcpProfile object at 0x7ce75d63bcb0> = <app.backend_antigravity.AntigravityBackend object at 0x7ce75d63bad0>._owner
+_____ test_rpc_refusal_is_local_and_sibling_runs_same_daemon[RPC_INTERNAL] _____
+tests/test_antigravity_audit_fixes.py:89: in test_rpc_refusal_is_local_and_sibling_runs_same_daemon
+    assert not a._owner.failure
+E   AssertionError: assert not 'ACP stream ended/invalid; operator recovery required'
+E    +  where 'ACP stream ended/invalid; operator recovery required' = <app.antigravity_acp.AcpProfile object at 0x7ce75d7b04a0>.failure
+E    +    where <app.antigravity_acp.AcpProfile object at 0x7ce75d7b04a0> = <app.backend_antigravity.AntigravityBackend object at 0x7ce75d7b0650>._owner
+________ test_rpc_refusal_is_local_and_sibling_runs_same_daemon[ERROR] _________
+tests/test_antigravity_audit_fixes.py:89: in test_rpc_refusal_is_local_and_sibling_runs_same_daemon
+    assert not a._owner.failure
+E   AssertionError: assert not 'ACP stream ended/invalid; operator recovery required'
+E    +  where 'ACP stream ended/invalid; operator recovery required' = <app.antigravity_acp.AcpProfile object at 0x7ce75d7a4770>.failure
+E    +    where <app.antigravity_acp.AcpProfile object at 0x7ce75d7a4770> = <app.backend_antigravity.AntigravityBackend object at 0x7ce75d7a6300>._owner
+____ test_oversized_first_prompt_does_not_lose_instructions_or_kill_sibling ____
+tests/test_antigravity_audit_fixes.py:99: in test_oversized_first_prompt_does_not_lose_instructions_or_kill_sibling
+    assert not a._instructions_sent and not a._owner.failure
+E   AssertionError: assert (not False and not 'ACP stream ended/invalid; operator recovery required')
+E    +  where False = <app.backend_antigravity.AntigravityBackend object at 0x7ce75d7945f0>._instructions_sent
+E    +  and   'ACP stream ended/invalid; operator recovery required' = <app.antigravity_acp.AcpProfile object at 0x7ce75d79c770>.failure
+E    +    where <app.antigravity_acp.AcpProfile object at 0x7ce75d79c770> = <app.backend_antigravity.AntigravityBackend object at 0x7ce75d7945f0>._owner
+_________ test_eof_only_recreates_on_next_explicit_turn_never_replays __________
+tests/test_antigravity_audit_fixes.py:117: in test_eof_only_recreates_on_next_explicit_turn_never_replays
+    assert end(await turn(b,"new explicit turn")).metadata["ok"]
+E   assert False
+____________ test_bounded_native_response_cache_replays_exact_retry ____________
+tests/test_antigravity_audit_fixes.py:126: in test_bounded_native_response_cache_replays_exact_retry
+    assert end(await turn(b,"AUDIT_DUP_PERMISSION")).metadata["ok"]
+E   assert False
+________ test_retarget_is_acknowledged_without_prompt_and_keeps_session ________
+tests/test_antigravity_audit_fixes.py:146: in test_retarget_is_acknowledged_without_prompt_and_keeps_session
+    assert b._owner.model_states[sid]["current"]=="gemini-4-argon-medium"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: None
+_________ test_disconnect_releases_only_owned_session_then_last_front __________
+tests/test_antigravity_audit_fixes.py:157: in test_disconnect_releases_only_owned_session_then_last_front
+    assert end(await turn(b,"still healthy")).metadata["ok"]
+E   assert False
+_____ test_tokens_reported_separately_from_context_and_unknown_never_free ______
+tests/test_antigravity_audit_fixes.py:169: in test_tokens_reported_separately_from_context_and_unknown_never_free
+    assert measured.usage.aggregate.accuracy=="reported"
+E   AssertionError: assert 'unknown' == 'reported'
+E
+E     - reported
+E     + unknown
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_audit_fixes.py::test_owned_run_completion_reaches_actual_parent_transport
+FAILED tests/test_antigravity_audit_fixes.py::test_live_peer_direct_only_and_manual_compact_not_extended
+FAILED tests/test_antigravity_audit_fixes.py::test_rpc_refusal_is_local_and_sibling_runs_same_daemon[RPC_AUTH]
+FAILED tests/test_antigravity_audit_fixes.py::test_rpc_refusal_is_local_and_sibling_runs_same_daemon[RPC_QUOTA]
+FAILED tests/test_antigravity_audit_fixes.py::test_rpc_refusal_is_local_and_sibling_runs_same_daemon[RPC_MODEL]
+FAILED tests/test_antigravity_audit_fixes.py::test_rpc_refusal_is_local_and_sibling_runs_same_daemon[RPC_INTERNAL]
+FAILED tests/test_antigravity_audit_fixes.py::test_rpc_refusal_is_local_and_sibling_runs_same_daemon[ERROR]
+FAILED tests/test_antigravity_audit_fixes.py::test_oversized_first_prompt_does_not_lose_instructions_or_kill_sibling
+FAILED tests/test_antigravity_audit_fixes.py::test_eof_only_recreates_on_next_explicit_turn_never_replays
+FAILED tests/test_antigravity_audit_fixes.py::test_bounded_native_response_cache_replays_exact_retry
+FAILED tests/test_antigravity_audit_fixes.py::test_retarget_is_acknowledged_without_prompt_and_keeps_session
+FAILED tests/test_antigravity_audit_fixes.py::test_disconnect_releases_only_owned_session_then_last_front
+FAILED tests/test_antigravity_audit_fixes.py::test_tokens_reported_separately_from_context_and_unknown_never_free
+13 failed, 31 passed in 8.28s

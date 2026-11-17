@@ -19,6 +19,8 @@ from __future__ import annotations
 import array
 import base64
 import errno
+import fcntl
+import time
 import grp
 import ipaddress
 import json
@@ -79,6 +81,9 @@ SPAWNER_ENV_EXACT_ALLOWLIST = frozenset({
     "XDG_DATA_HOME",
     "XDG_STATE_HOME",
     "GEMINI_CLI_HOME",
+    "GEMINI_HOME",
+    "BROWSER",
+    "AGY_ACP_FORCE_FILE_STORAGE",
     "ANTIGRAVITY_CLI_HOME",
     "AGY_CLI_DISABLE_AUTO_UPDATE",
     "T3CODE_NO_BROWSER",
@@ -198,31 +203,56 @@ def _verify_proxy_chain(proxy_url: str) -> None:
             raise RuntimeError(f"upstream xray 127.0.0.1:{upstream_port} unreachable ({exc})") from exc
 
 
+IPC_REQUEST_TIMEOUT = 5.0
+IPC_MAX_CONNECTIONS = 64
+
+
 def _recv_request_with_fds(conn: socket.socket) -> tuple[dict, list[int]]:
+    """Own received rights until validation transfers them to the handler."""
     hdr_buf = bytearray()
     fds: list[int] = []
     max_fds = 4
     cmsg_space = socket.CMSG_SPACE(max_fds * array.array("i").itemsize)
-    while len(hdr_buf) < 4:
-        chunk, ancdata, _flags, _addr = conn.recvmsg(4 - len(hdr_buf), cmsg_space)
-        if not chunk:
-            raise EOFError("empty IPC request header")
-        hdr_buf.extend(chunk)
-        for cmsg_level, cmsg_type, cmsg_data in ancdata:
-            if cmsg_level == socket.SOL_SOCKET and cmsg_type == socket.SCM_RIGHTS:
-                arr = array.array("i")
-                arr.frombytes(cmsg_data[: len(cmsg_data) - (len(cmsg_data) % arr.itemsize)])
-                fds.extend(arr.tolist())
-    (payload_len,) = struct.unpack("!I", bytes(hdr_buf))
-    if payload_len <= 0 or payload_len > 2 * 1024 * 1024:
-        raise ValueError(f"invalid IPC payload size {payload_len}")
-    body = bytearray()
-    while len(body) < payload_len:
-        chunk = conn.recv(min(65536, payload_len - len(body)))
-        if not chunk:
-            raise EOFError("truncated IPC request payload")
-        body.extend(chunk)
-    return json.loads(body.decode("utf-8")), fds
+    deadline = time.monotonic() + IPC_REQUEST_TIMEOUT
+    previous_timeout = conn.gettimeout()
+    try:
+        while len(hdr_buf) < 4:
+            conn.settimeout(max(0.001, deadline-time.monotonic()))
+            chunk, ancdata, flags, _addr = conn.recvmsg(4-len(hdr_buf), cmsg_space)
+            # Collect descriptors before ANY validation, including truncation.
+            for level, kind, data in ancdata:
+                if level == socket.SOL_SOCKET and kind == socket.SCM_RIGHTS:
+                    arr = array.array("i")
+                    arr.frombytes(data[:len(data)-(len(data)%arr.itemsize)])
+                    fds.extend(arr)
+            if flags & socket.MSG_CTRUNC or len(fds) > 3:
+                raise ValueError("truncated/excess IPC file descriptors")
+            if not chunk:
+                raise EOFError("empty IPC request header")
+            hdr_buf.extend(chunk)
+        (length,) = struct.unpack("!I", hdr_buf)
+        if not 0 < length <= 2*1024*1024:
+            raise ValueError("invalid IPC payload size")
+        body = bytearray()
+        while len(body) < length:
+            remaining = deadline-time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("IPC request deadline exceeded")
+            conn.settimeout(remaining)
+            chunk = conn.recv(min(65536,length-len(body)))
+            if not chunk:
+                raise EOFError("truncated IPC request payload")
+            body.extend(chunk)
+        request = json.loads(body.decode("utf-8"))
+        if not isinstance(request,dict) or len(fds) != 3:
+            raise ValueError("invalid IPC request/stdio descriptors")
+        return request,fds
+    except BaseException:
+        for fd in fds:
+            os.close(fd)
+        raise
+    finally:
+        conn.settimeout(previous_timeout)
 
 
 def _send_response(conn: socket.socket, obj: dict) -> None:
@@ -275,6 +305,7 @@ def _kill_pgrp(pid: int) -> None:
 def _handle_spawner_conn(conn: socket.socket, kesha_uid: int, agy_gid: int) -> None:
     fds: list[int] = []
     proc: subprocess.Popen | None = None
+    writer_fd = None
     try:
         _verify_peer_uid(conn, {0, kesha_uid})
         req, fds = _recv_request_with_fds(conn)
@@ -347,6 +378,14 @@ def _handle_spawner_conn(conn: socket.socket, kesha_uid: int, agy_gid: int) -> N
         for npv in NO_PROXY_VARS:
             clean_env[npv] = safe_np
 
+        if not is_offline:
+            gemini = Path(clean_env.get("GEMINI_HOME") or Path(clean_env["HOME"]) / ".gemini")
+            if "--gemini-dir" in argv:
+                gemini = Path(argv[argv.index("--gemini-dir")+1])
+            writer_fd = os.open(gemini.resolve() / ".orchestra-vendor-writer.lock",
+                                os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+            # Never queue account processes or replay failed requests.
+            fcntl.flock(writer_fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
         proc = subprocess.Popen(
             argv,
             executable=VENDOR_ELF,
@@ -393,6 +432,8 @@ def _handle_spawner_conn(conn: socket.socket, kesha_uid: int, agy_gid: int) -> N
         except OSError:
             pass
     finally:
+        if writer_fd is not None:
+            os.close(writer_fd)
         for fd in fds:
             try:
                 os.close(fd)
@@ -504,10 +545,23 @@ def _serve_unix_daemon(default_sock_path: str, handler, *handler_args) -> int:
         srv.bind(str(p))
         srv.listen(64)
     srv.setblocking(True)
+    capacity = threading.BoundedSemaphore(IPC_MAX_CONNECTIONS)
+    def serve(conn):
+        try:
+            handler(conn, *handler_args)
+        finally:
+            capacity.release()
     while True:
         conn, _ = srv.accept()
-        t = threading.Thread(target=handler, args=(conn, *handler_args), daemon=True)
-        t.start()
+        if not capacity.acquire(blocking=False):
+            conn.close()  # bounded refusal before accepting any descriptors
+            continue
+        try:
+            threading.Thread(target=serve, args=(conn,), daemon=True).start()
+        except BaseException:
+            conn.close()
+            capacity.release()
+            raise
 
 
 def _ipc_client_exec(sock_path: str, argv: list[str], env: dict[str, str]) -> int:

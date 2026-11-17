@@ -636,6 +636,13 @@ def build_prompt_modules(pipeline_name: str, modules: list[str] | tuple[str, ...
     return "\n\n".join(parts)
 
 
+def provider_prompt_overlay(runtime: str) -> str:
+    """Canonical provider contract, independent of role/custom overlays."""
+    if runtime != "antigravity":
+        return ""
+    return prompt_path(DEFAULT_PIPELINE, "providers/antigravity.md").read_text().strip()
+
+
 def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
     """Собрать system_prompt из prompt_layers резолвнутой роли.
 

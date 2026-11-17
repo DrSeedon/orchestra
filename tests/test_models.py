@@ -84,7 +84,7 @@ def test_selectable_models_match_the_curated_catalog():
         "claude-opus-5-5[1m]", "claude-sonnet-5-5[1m]", "gpt-6-luna",
         "gpt-5.3-codex-spark", "grok-4.6", "claude-opus-4-6[1m]",
         "claude-haiku-5-5", "claude-fable-5-1[1m]", "gpt-6-astra",
-        "gpt-6.1-sol", "gpt-6.1-terra", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
+        "gpt-6.1-sol", "gpt-6.1-terra", "gpt-6.2-sol", "gpt-6.2-astra", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
         "GigaChat-2-Pro", "GigaChat-3-Lightning", "GigaChat-3-Pro",
         "hub-claude-haiku-5-5", "hub-claude-sonnet-5-5", "hub-claude-opus-5-5",
         "hub-gpt-6-luna", "hub-gpt-6.1-sol", "hub-gpt-6-astra", "hub-grok-4.7",

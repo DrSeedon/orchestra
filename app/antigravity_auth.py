@@ -81,6 +81,52 @@ def _parse_token_identity_and_expiry(token: bytes) -> tuple[str | None, datetime
     return identity, expiry_dt
 
 
+def prepare_acp_token_store(home: Path) -> None:
+    gemini = Path(home) / ".gemini"
+    fd = os.open(gemini / ".orchestra-vendor-writer.lock", os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX|fcntl.LOCK_NB)
+        _prepare_acp_token_store(home)
+    finally:
+        os.close(fd)
+
+
+def _prepare_acp_token_store(home: Path) -> None:
+    """Called under the profile lifetime lock, before the sole vendor writer starts.
+
+    ACP is authoritative; retain a legacy snapshot privately before linking CLI.
+    No refresh, token introspection, account detection or login is performed.
+    Atomic application writes resolve this link to the canonical target.
+    """
+    home = Path(home)
+    canonical = home / ".gemini/antigravity-acp/antigravity-oauth-token"
+    legacy = home / TOKEN_RELATIVE_PATH
+    if not canonical.is_file():
+        return  # synthetic credential-free profiles
+    private_directory(canonical.parent)
+    private_directory(legacy.parent)
+    if canonical.is_symlink():
+        raise ValueError("ACP credential must be the canonical regular file")
+    canonical.chmod(0o600)
+    if legacy.is_symlink():
+        if legacy.resolve() != canonical.resolve():
+            raise ValueError("CLI credential link points outside canonical ACP store")
+        return
+    # Keep opaque legacy bytes without interpreting or losing account state.
+    if legacy.exists():
+        backup = legacy.with_name(legacy.name + ".pre-acp-link")
+        if backup.exists():
+            raise ValueError("Unresolved legacy credential backup; operator action required")
+        os.replace(legacy, backup)
+        backup.chmod(0o600)
+    temporary = legacy.with_name(".oauth-link-" + uuid.uuid4().hex)
+    try:
+        temporary.symlink_to(os.path.relpath(canonical, legacy.parent))
+        os.replace(temporary, legacy)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def read_auth_snapshot(auth_home: Path) -> AuthSnapshot:
     token = (Path(auth_home) / TOKEN_RELATIVE_PATH).read_bytes()
     if not token.strip():
@@ -96,6 +142,8 @@ def private_directory(path: Path) -> None:
 
 
 def atomic_private_write(path: Path, content: bytes) -> None:
+    if path.is_symlink():
+        path = path.resolve(strict=True)
     private_directory(path.parent)
     fd, temporary = tempfile.mkstemp(prefix=".orchestra-", dir=path.parent)
     try:
@@ -116,6 +164,7 @@ def _auth_sync_lock(auth_home: Path, *, timeout: float = DEFAULT_SYNC_LOCK_TIMEO
     lock_path = auth_home / SYNC_LOCK_FILENAME
     fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
     locked = False
+    vendor_fd = None
     deadline = time.monotonic() + max(0.05, float(timeout))
     try:
         while True:
@@ -129,8 +178,18 @@ def _auth_sync_lock(auth_home: Path, *, timeout: float = DEFAULT_SYNC_LOCK_TIMEO
                         f"Timed out after {timeout:.1f}s waiting for Antigravity OAuth sync lock"
                     ) from exc
                 time.sleep(0.01)
+        gemini = auth_home / ".gemini"
+        private_directory(gemini)
+        vendor_fd = os.open(gemini / ".orchestra-vendor-writer.lock",
+                            os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            fcntl.flock(vendor_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError("Antigravity credential update requires stopping the active profile writer") from None
         yield
     finally:
+        if vendor_fd is not None:
+            os.close(vendor_fd)
         try:
             if locked:
                 fcntl.flock(fd, fcntl.LOCK_UN)
@@ -307,6 +366,8 @@ def promote_staged_token(auth_home: Path, staged_token: Path) -> str:
     auth_home = Path(auth_home)
     with _auth_sync_lock(auth_home):
         target = auth_home / TOKEN_RELATIVE_PATH
+        if target.is_symlink():
+            target = target.resolve(strict=True)
         private_directory(target.parent)
         staged_token.chmod(0o600)
         with staged_token.open("rb") as stream:

@@ -12,6 +12,8 @@ NoNewPrivileges=yes
 PrivateTmp=false
 ReadOnlyPaths=/opt/orchestra/runtimes
 ExecStart=/usr/bin/python3 /usr/local/libexec/orchestra-agy-ipc.py --mode spawner-daemon
+MemoryHigh=6G
+MemoryMax=8G
 Restart=always
 RestartSec=1s
 

@@ -497,9 +497,16 @@ class BgJobManager:
     async def create(self, job_type: str, config: dict, message: str,
                      target_session_id: str, target_name: str, target_scope: str,
                      created_by: str, timeout_seconds: int = DEFAULT_TIMEOUT,
-                     replace_key: str = "") -> dict:
+                     replace_key: str = "", creator_session_id: str = "") -> dict:
         # The progress record is written only by the platform sampler, never by a caller.
-        config = {key: value for key, value in config.items() if key != "_progress"}
+        config = {key: value for key, value in config.items() if key not in {"_progress", "_creator_session_id"}}
+        from app.antigravity_acp import is_consumer_model
+        target = get_session(target_session_id)
+        if target and is_consumer_model(target.get("model")):
+            if job_type not in {"run", "file", "merge"} or creator_session_id != target_session_id:
+                return {"error": "antigravity_interactive_only: only own one-shot jobs permitted"}
+        if creator_session_id:
+            config["_creator_session_id"] = creator_session_id
         if job_type != "run" and "progress" in config:
             return {"error": "progress is supported only for run jobs"}
         err = _validate_config(job_type, config)

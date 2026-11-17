@@ -1,22 +1,13 @@
-# STATE.md — Orchestra (Живая память проекта)
-
-**Обновлено:** 2026-11-17 (**`hub-gemini-4-hydrogen` 24/7 ОРКЕСТРАТОР ВЫКАЧЕН В БОЙ `:8888` И ПОДТВЕРЖДЁН ЖИВЫМ E2E В `hydrogen-sandbox-orchestrator`**)
-
-## 1. Боевой контур (`orchestra-vps:/home/kesha/orchestra`, `:8888`)
-- **Статус деплоя:** `orchestra.service` — `active` (код `178ec13b1` + конфиг скоупа `d4c63cade`), `telegram-bot-api.service` не тронут, `restart_cut_turns` дельта `0`, все 3 локально изменённых файла в `/home/kesha/orchestra` сохранены побайтово, остальные боевые оркестраторы Максима нетронуты.
-- **Сессия Максима `hydrogen-sandbox-orchestrator` (`626ea34f-d213-4ebc-81e1-b209468d31cd`, TG `#300743`, `/home/kesha/projects/hydrogen-sandbox`):**
-  - Переведена на **`hub-gemini-4-hydrogen` (`effort: high`, `status: idle`)** — работает 24/7 через Ultra-пул хаба без пиковых блокировок consumer `g1-pro`.
-  - Скоуп `/home/kesha/projects/hydrogen-sandbox` прописан в `data/hub-projects.json` (`persistent: true`) и `.orchestra/projects.yaml` (`git:vps-hydrogen-sandbox`).
-
-## 2. Полноценный оркестраторский контур для `HubBackend` (`role == "orchestrator"`)
-1. **Контракт рядовых воркеров (`role != "orchestrator"`) сохранён 100% без изменений:** доступны только `send_message`, `update_checklist`, `update_progress` + защита в `parse_outbox` и `execute()`.
-2. **Оркестраторские команды `.orchestra-outbox.jsonl` (`app/hub_outbox.py`, `app/backend_hub.py`, `app/session.py`):**
-   - `spawn_worker` (2-шаговый `POST /api/sessions` + `initial-deliveries` с `use_worktree=True`, `parent_name=who.name`, проверками `resolve_model` / `ensure_project_model_allowed`), `send_to_worker`, `merge_worker` (с авто-подстановкой 40-символьного `expected_head` из worktree воркера и ожиданием `SUCCEEDED`), `close_worker`, `update_checklist`, `update_progress`.
-   - Жёсткая изоляция владения: команды действуют строго на прямых дочерних воркеров своего `who.scope` (`parent_name == who.name` / `parent_id == who.session_id`).
-   - Живой срез `<orchestra-workers>` (`status`, `model`, `role`, `branch`, 40-символьный `head`) подаётся на 1-м и всех последующих ходах; барьер `_finalizing_turn` гарантирует постановку входящих авто-отчётов/уведомлений в очередь без потери пробуждения следующего хода.
-3. **Верификация:**
-   - Офлайн: `223 passed` (`test_hub_orchestrator_outbox.py` + `test_hub_workspace.py` + `test_default_pipeline.py`), `87 passed` (`test_backend_hub.py` + `test_hub_completion_directive_v1244.py`), `69 passed` (`test_hub_outbox_validation_v1222.py` + `test_v1028_hub_outbox_report.py` + `test_hub_report_order_v1213.py`), `check_instruction_contract.py` (`PASS`).
-   - **Живой E2E на `:8888` (`PASS`, `85.6s`):** Ход 1 (`hub-gemini-4-hydrogen`, `24.15s`) заспавнил `hello-worker` (`hub-gpt-6-luna`, `task-V-1/hello-worker`) → `hello-worker` создал `hello_hydrogen.py` + `test_hello_hydrogen.py`, прогнал `unittest` (`2 ok`), отправил отчёт → Ход 2 (`hub-gemini-4-hydrogen`, `25.33s`) выполнил `merge_worker` (`5531fe0a`, `SUCCEEDED` → `a28af45`) + `close_worker` (`archived`) → Ход 3 (`8.47s`) подтвердил чистое слияние и закрытие воркера.
-
-## 3. Ранее выкаченный Шаг 2 (`Antigravity ACP` на VPS)
-- В бою активны auto-approve (`--dangerously-skip-permissions`), `--process-per-session`, `asyncio.Semaphore(3)`, `canonical_profile("personal")`, прокси `127.0.0.1:18080` (`NL`) + `nftables skgid 977 reject` (`0/0`).
+# Orchestra — audit correction wave, 2026-11-17
+- Owner: CTO · Orchestra; Codex Sol. Checkout agy-acp-safe, base 76255bc26.
+- Authorized: A1–A12/S2, own one-shot bg + peer direct admission, local Antigravity overlay, Sol62/Astra62 registration, controlled production deployment.
+- Keep sol alias and all live orchestrator models unchanged. Hydrogen remains local, never Hub.
+- Preserve three dirty production files byte-for-byte; baseline in .orchestra/tasks/agy-audit-fixes-20261117/baseline.json.
+- No real provider prompts/probes or Telegram calls during validation. Synthetic profiles/DB + network namespace.
+- Never restart telegram-bot-api. Deploy after focused checks; wait for active turns before controlled restart.
+- Code ready: 267 ACP checks passed / 9 superseded profile-latch cases deselected / 2 warnings.
+- 55 new audit regressions and 289 pipeline/model/quota/Hub contracts passed. Instruction contract OK.
+- Frozen old assertions retained. No full-suite/global GREEN claim.
+- Vendor limits: own writes remain non-atomic on crash; native close optional; missing quota/token telemetry stays unknown.
+- Deployment next: controlled main fast-forward + IPC/units reload/restart, no running-turn cuts.
+- Evidence: .orchestra/tasks/agy-audit-fixes-20261117/.

@@ -1,0 +1,63 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+........................................................................ [ 24%]
+.........................................F.............................. [ 49%]
+........................................................................ [ 74%]
+.....................................................................FF. [ 99%]
+.                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestRefreshWorkerMemory.test_missing_layout_is_loud_but_unreadable_memory_empties_the_block _
+tests/test_prompting.py:731: in test_missing_layout_is_loud_but_unreadable_memory_empties_the_block
+    refresh_worker_memory(self.PROMPT, "w1", "worker", str(tmp_path))
+app/prompting.py:289: in refresh_worker_memory
+    mem = load_worker_memory(
+app/prompting.py:242: in load_worker_memory
+    raise LayoutMigrationError(
+app/orchestra_layout.py:107: in __init__
+    self.repository = _base_checkout(self.repository)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/orchestra_layout.py:88: in _base_checkout
+    result = _run(repository, "rev-parse", "--path-format=absolute", "--git-common-dir", check=False)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/orchestra_layout.py:36: in _run
+    result = subprocess.run(
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:41: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+_______________ test_orchestrator_preamble_and_followup_snapshot _______________
+tests/test_hub_orchestrator_outbox.py:102: in test_orchestrator_preamble_and_followup_snapshot
+    subprocess.run(["git", "init", "-b", "adhoc-child1", str(wt)], check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:41: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+_____ test_orchestrator_outbox_spawn_send_merge_close_and_scope_isolation ______
+tests/test_hub_orchestrator_outbox.py:155: in test_orchestrator_outbox_spawn_send_merge_close_and_scope_isolation
+    subprocess.run(["git", "init", "-b", "adhoc-kid", str(wt)], check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:41: in audit
+    raise PermissionError("offline harness: only fake ACP or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake ACP or bounded synthetic local Git may execute
+=========================== short test summary info ============================
+FAILED tests/test_prompting.py::TestRefreshWorkerMemory::test_missing_layout_is_loud_but_unreadable_memory_empties_the_block
+FAILED tests/test_hub_orchestrator_outbox.py::test_orchestrator_preamble_and_followup_snapshot
+FAILED tests/test_hub_orchestrator_outbox.py::test_orchestrator_outbox_spawn_send_merge_close_and_scope_isolation
+3 failed, 286 passed in 11.46s

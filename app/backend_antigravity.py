@@ -53,6 +53,7 @@ ANTIGRAVITY_TOKEN_PRICES: dict[str, dict[str, float]] = {
     "gemini-4-carbon-medium": {"input": 2.0, "cached": 0.10, "output": 10.0},
     "gemini-4-carbon-low": {"input": 2.0, "cached": 0.10, "output": 10.0},
     "gemini-pro-orchestrator": {"input": 2.0, "cached": 0.10, "output": 10.0},
+    "gemini-pro-orchestrator-g1-pro": {"input": 2.0, "cached": 0.10, "output": 10.0},
     "gemini-4-argon-high": {"input": 2.0, "cached": 0.10, "output": 10.0},
     "gemini-4-argon-medium": {"input": 2.0, "cached": 0.10, "output": 10.0},
     "gemini-4-argon-low": {"input": 2.0, "cached": 0.10, "output": 10.0},
@@ -375,7 +376,7 @@ async def antigravity_readiness(context):
     except ValueError as exc:
         return RuntimeReadinessResult(False, False, str(exc))
     owner = cached_profile(home)
-    if owner and owner.failure:
+    if owner and owner.failure and owner._permanent_failure:
         return RuntimeReadinessResult(False, False, owner.failure)
     credentials = _has_cached_credentials(home)
     available = bool(owner and context.model.removeprefix("antigravity/") in owner.models)
@@ -473,7 +474,7 @@ class AntigravityBackend:
     def _end(self, *, ok=False, reason="error", error=None, usage=None, terminal=None,
              context=None, duration_ms=None):
         self._flush_segment()
-        aggregate = AggregateUsage.normalized(accuracy="unknown", **{
+        aggregate = AggregateUsage.normalized(accuracy="reported" if usage and all(k in usage for k in ("input_tokens", "output_tokens")) else "unknown", **{
             key: (usage or {}).get(key, 0) for key in
             ("input_tokens", "output_tokens", "cache_read_tokens")
         })
@@ -486,7 +487,7 @@ class AntigravityBackend:
                 aggregate.cache_read_tokens,
                 aggregate.output_tokens,
             )
-            if terminal is not None
+            if terminal is not None and aggregate.accuracy == "reported"
             else None
         )
         metadata = {
@@ -521,7 +522,7 @@ class AntigravityBackend:
                 ),
             )
             if cost is not None:
-                metadata.update(cost_usd_cached=cost, cost_is_delta=True)
+                metadata.update(cost_usd_cached=cost, cost_is_delta=True, cost_kind="api_equivalent")
         else:
             metadata.update(
                 event_id=f"agy:{self.session_id or self.home.name}:{(getattr(self, '_turn_id', '') or uuid.uuid4().hex)[:12]}",
@@ -557,6 +558,7 @@ class AntigravityBackend:
         self._context = None
         self._cost_total = None
         self._cost_baseline = None
+        self._reported_usage = None
         self._stream_finished = False
         self._turn_id = uuid.uuid4().hex
         self._segment = None
@@ -576,6 +578,10 @@ class AntigravityBackend:
                 self._submission.set_result(None)
             else:
                 self._submission.set_exception(error)
+
+    def _prompt_submitted(self):
+        self._instructions_sent = True
+        self._settle_submission()
 
     async def wait_for_submission(self):
         """Wait only for prompt write+drain, never for inference or terminal output."""
@@ -616,7 +622,18 @@ class AntigravityBackend:
             if self._owner is not None and self.session_id:
                 self._owner.remember_model_state(self.session_id, update)
         elif kind=="usage_update":
-            self._context=current_context(update.get("used"),update.get("size"))
+            # Optional vendor token totals use explicit counter names. Never infer
+            # input/output from the ACP context fields used/size.
+            if isinstance(update.get("usage"), dict):
+                self._reported_usage = update["usage"]
+            quota = update.get("quota")
+            if isinstance(quota, dict):
+                weekly = normalize_antigravity_quota(quota)
+                short = normalize_antigravity_five_hour_quota(quota)
+                if any(v is not None for v in (*weekly.values(), *short.values())):
+                    _publish_quota(weekly, time.time(), self._owner.epoch, short)
+            if "used" in update or "size" in update:
+                self._context=current_context(update.get("used"),update.get("size"))
             cost=update.get("cost") or {}
             if isinstance(cost,dict) and cost.get("currency")=="USD":
                 amount=_cumulative_value(cost.get("amount"),integer=False)
@@ -695,7 +712,7 @@ class AntigravityBackend:
                 await cand_lock.acquire()
                 held_session_lock = cand_lock
                 owns_session_lock = True
-            async with self._owner.turn_semaphore:
+            async with self._owner.turn_slot(self):
                 async with self._owner._setup_lock:
                     if self._owner.epoch!=profile_epoch(self.home):
                         raise AcpSessionError("ACP profile epoch changed; explicit recovery required")
@@ -719,6 +736,7 @@ class AntigravityBackend:
                         if not isinstance(session_id, str) or not session_id:
                             raise AcpError("ACP session response missing sessionId")
                         if method == "session/new" and session_id in self._owner.sessions:
+                            await self._owner.close("ACP session ID collision; transport identity is corrupt")
                             raise AcpError("ACP new session ID collision; refusing shared conversation")
                         if not owns_session_lock:
                             fresh_lock = self._owner.session_lock(session_id)
@@ -728,6 +746,7 @@ class AntigravityBackend:
                             held_session_lock = fresh_lock
                             owns_session_lock = True
                         elif session_id != self.session_id:
+                            await self._owner.close("ACP resumed session identity is corrupt")
                             raise AcpError("ACP resumed session ID mismatch")
                         self.session_id = session_id
                         bind_session(self._owner,session_id,self.app_session_id,resume=(method!="session/new"))
@@ -735,6 +754,9 @@ class AntigravityBackend:
                         self._owner.remember_model_state(session_id, result)
                         if method == "session/new":
                             self._owner.cost_totals[session_id] = 0.0
+                            self._owner.usage_totals[session_id] = {}
+                    if self.session_id in self._owner.uncertain_sessions:
+                        raise AcpSessionError("ACP session outcome unknown; explicit new session required")
                     await self._select_model()
                     self._cost_baseline = self._owner.cost_totals.get(self.session_id)
                     blocks = [{"type": "text", "text": message}]
@@ -748,8 +770,7 @@ class AntigravityBackend:
                 try:
                     prompt_task = asyncio.create_task(self._owner.request("session/prompt", {
                         "sessionId": self.session_id, "prompt": blocks}, timeout=self._owner.prompt_timeout,
-                        before_write=self._before_submit, on_written=self._settle_submission))
-                    self._instructions_sent = True
+                        before_write=self._before_submit, on_written=self._prompt_submitted))
                     try:
                         result = await asyncio.shield(prompt_task)
                     except asyncio.CancelledError:
@@ -764,7 +785,12 @@ class AntigravityBackend:
                                 await self._owner.notify("session/cancel", {"sessionId": self.session_id})
                                 await asyncio.shield(prompt_task)
                         except (Exception, asyncio.CancelledError):
-                            await self._owner.close("ACP cancellation was not acknowledged; operator recovery required")
+                            if self._owner._write_lock.locked():
+                                # Partial framed transport write blocks ALL sessions.
+                                await self._owner.close("ACP transport write stalled; outcome unknown, no replay")
+                            else:
+                                self._owner.uncertain_sessions.add(self.session_id)
+                                # A slow model cancel alone must not kill siblings.
                         raise
                 finally:
                     self._owner.listeners.pop(self.session_id, None)
@@ -772,7 +798,19 @@ class AntigravityBackend:
                     from app.native_requests import cancel_turn
                     cancel_turn(self._owner,self._turn_id)
                 reason = result.get("stopReason", "error")
+                counters = result.get("usage", getattr(self, "_reported_usage", None))
+                measured_terminal = {**result, "usage": counters} if isinstance(counters, dict) else None
+                deltas = None
+                if measured_terminal is not None:
+                    baseline = self._owner.usage_totals.get(self.session_id)
+                    self._baseline_key = self._conversation_key()
+                    self._cumulative = dict(baseline or {})
+                    measured = self._turn_deltas(measured_terminal)
+                    self._owner.usage_totals[self.session_id] = dict(self._cumulative)
+                    if baseline is not None:
+                        deltas = measured  # Unknown resumed totals establish only a baseline.
                 self._queue.put_nowait(self._end(ok=reason == "end_turn", reason=reason,
+                    usage=deltas, terminal=measured_terminal,
                     error=None if reason == "end_turn" else reason, context=self._context,
                     duration_ms=round((time.monotonic() - prompt_started) * 1000)))
         except asyncio.CancelledError:
@@ -782,8 +820,8 @@ class AntigravityBackend:
             self._settle_submission(exc if isinstance(exc, AcpError) else AcpError("ACP submission failed"))
             # Raw server error bodies and stderr can contain OAuth material.
             # Only bounded, locally authored errors reach the event stream.
-            if isinstance(exc, AcpError) and not isinstance(exc, AcpSessionError):
-                await self._owner.close(str(exc))
+            # Only the transport reader/writer or definite ban owns profile close.
+            # A late failed turn must not close a replacement transport generation.
             reason = str(exc) if isinstance(exc, AcpError) else type(exc).__name__
             self._queue.put_nowait(AgentEvent("error", "Antigravity ACP failure: " + reason[:280]))
             self._queue.put_nowait(self._end(error="protocol", context=self._context))
@@ -826,6 +864,30 @@ class AntigravityBackend:
             self._cancelled_before_run(self._task)
         return True
 
+    async def retarget_model(self, model):
+        from app.antigravity_acp import AcpSessionError
+        if self._task is not None and not self._task.done():
+            raise AcpSessionError("Cannot retarget an active ACP turn")
+        previous = self.model
+        previous_effort = self.effort
+        self.model = model.removeprefix("antigravity/")
+        self.effort = None  # Exact target model suffix takes precedence on retarget.
+        try:
+            if self._owner and self.session_id in self._owner.sessions:
+                async with self._owner._setup_lock:
+                    await self._select_model()  # ACK before publishing the switch.
+        except BaseException:
+            self.model, self.effort = previous, previous_effort
+            raise
+        from app.models import get_model_spec
+        self.context_limit = get_model_spec(model).context_length
+
+    async def release(self):
+        """Final archive/accepted handoff only; disconnect is also used for resume."""
+        await self.interrupt()
+        if self._owner and self.session_id:
+            await self._owner.release_session(self.session_id)
+
     async def disconnect(self):
-        # The application, not an individual session, owns the shared daemon.
+        # Temporary adapter detachment must preserve native idle/resume state.
         await self.interrupt()

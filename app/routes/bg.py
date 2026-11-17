@@ -438,6 +438,15 @@ async def bg_job_create(req: BgJobCreateRequest, request: Request = None):
     target = get_session(session_id) or {}
     run = assignment(scope, session_id, str(target.get("task_id") or ""))
     config = dict(req.config)
+    from app.antigravity_acp import is_consumer_model
+    creator_session_id = ""
+    if is_consumer_model(target.get("model")):
+        from app.mcp_proof import check_mcp_proof, PROOF_HEADER
+        caller_id = request.headers.get("x-orchestra-session-id", "") if request else ""
+        proof = request.headers.get(PROOF_HEADER, "") if request else ""
+        if caller_id != session_id or not check_mcp_proof(caller_id, proof):
+            return JSONResponse({"error": "antigravity_owned_job_proof_required"}, status_code=403)
+        creator_session_id = caller_id
     if req.type == "run" and not config.get("host"):
         caller_session_id = request.headers.get("x-orchestra-session-id", "") if request else ""
         caller_session = get_session(caller_session_id) if caller_session_id else None
@@ -484,6 +493,7 @@ async def bg_job_create(req: BgJobCreateRequest, request: Request = None):
         job_type=req.type, config=config, message=req.message,
         target_session_id=session_id, target_name=name, target_scope=scope,
         created_by=str(target.get("name") or name) if review_job else req.created_by, timeout_seconds=req.timeout_seconds,
+        creator_session_id=creator_session_id,
     )
     if result.get("error"):
         return JSONResponse(result, status_code=400)

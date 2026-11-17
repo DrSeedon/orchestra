@@ -1,0 +1,34 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+....................................................F..                  [100%]
+=================================== FAILURES ===================================
+_________ test_actual_archive_releases_front_and_keeps_durable_history _________
+tests/test_antigravity_audit_fixes.py:443: in test_actual_archive_releases_front_and_keeps_durable_history
+    await manager.remove(s.id)
+app/manager.py:1480: in remove
+    archive_session(session_id)
+app/db.py:780: in archive_session
+    with tm.active_runtime().operation():
+         ^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:589: in runtime
+    subprocess.run(['git', 'init', '--initial-branch=main', str(root)], check=True, capture_output=True)
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+/usr/lib/python3.12/subprocess.py:1823: in _execute_child
+    sys.audit("subprocess.Popen", executable, args, cwd, env)
+scripts/run_antigravity_offline.py:48: in audit
+    raise PermissionError("offline harness: only fake_agy_acp.py acp or bounded synthetic local Git may execute")
+E   PermissionError: offline harness: only fake_agy_acp.py acp or bounded synthetic local Git may execute
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] heartbeat cancelled
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_audit_fixes.py::test_actual_archive_releases_front_and_keeps_durable_history
+1 failed, 54 passed in 13.63s

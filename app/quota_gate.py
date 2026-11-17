@@ -1131,6 +1131,12 @@ def evaluate_worker_admission(
                        reason_key="observation_stale")
 
     window = deciding_window(provider, bucket)
+    if runtime == "antigravity" and isinstance(provider, Mapping):
+        candidates = [w for w in provider.get("windows", []) if isinstance(w, Mapping)
+                      and _utilization(w.get("utilization")) is not None
+                      and (parse_quota_timestamp(w.get("resets_at")) or 0) > checked_at]
+        if candidates:
+            window = max(candidates, key=lambda w: float(w["utilization"]))
     if window is None:
         return unknown("deciding window is missing", resolved=resolved, bucket=bucket,
                        label=label, lane=lane, observed_at=observed_at,
@@ -1233,7 +1239,7 @@ def evaluate_worker_admission(
     # пул не даёт ходу состояться (V-993: 21.10 override скрыл V-983 и ходы падали).
     # Подтверждённое исчерпание = окно ≥100% с ещё не наступившим сбросом.
     exhausted_reset = (
-        _exhausted_window_reset(provider, checked_at) if bucket in _CODEX_BUCKETS else None
+        _exhausted_window_reset(provider, checked_at) if bucket in _CODEX_BUCKETS or runtime == "antigravity" else None
     )
     if exhausted_reset is not None and (
         state != "blocked" or release_in_seconds is None

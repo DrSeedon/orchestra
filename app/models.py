@@ -61,7 +61,7 @@ class ProviderMetadata:
 
 
 # Models that owners may select for manual orchestrator sessions but agents cannot use.
-MANUAL_ONLY_MODEL_IDS = frozenset({"gpt-6-astra", "gpt-6.1-sol", "gpt-6.1-terra"})
+MANUAL_ONLY_MODEL_IDS = frozenset({"gpt-6-astra", "gpt-6.1-sol", "gpt-6.1-terra", "gpt-6.2-sol", "gpt-6.2-astra"})
 RETIRED_SELECTABLE_MODEL_IDS = frozenset({
     "gpt-5.6-luna", "gpt-5.6-sol", "gpt-6-sol", "gpt-5.6-terra", "gpt-5.5",
     "grok-4.5", "claude-opus-5[1m]", "claude-sonnet-5[1m]", "claude-opus-4-6",
@@ -125,6 +125,10 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="codex", provider="openai", context_length=258400,
         default_agents=False,
     ),
+    ModelSpec(id="gpt-6.2-sol", name="GPT-6.2 Sol", runtime="codex", provider="openai",
+              context_length=500000, price_input=2.0, price_output=10.0, default_agents=False),
+    ModelSpec(id="gpt-6.2-astra", name="GPT-6.2 Astra", runtime="codex", provider="openai",
+              context_length=272000, price_input=8.0, price_output=40.0, default_agents=False),
     # Conservative Codex fallback, not the public API's 1.05M window. Native
     # catalog/config metadata and rollout telemetry remain the runtime authority.
     ModelSpec(
@@ -240,7 +244,7 @@ ANTIGRAVITY_RAW_MODELS = (
     "gemini-4-carbon-medium", "gemini-4-carbon-high", "gemini-4-carbon-low",
     "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
     "gemini-4-argon-medium", "gemini-4-argon-high", "gemini-4-argon-low",
-    "gemini-pro-orchestrator", "gemini-pro-orchestrator-argon",
+    "gemini-pro-orchestrator", "gemini-pro-orchestrator-g1-pro", "gemini-pro-orchestrator-argon",
     "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
     "claude-opus-5-5-high", "claude-opus-5-5-medium", "claude-opus-5-5-low",
     "claude-sonnet-5-5-high", "claude-sonnet-5-5-medium", "claude-sonnet-5-5-low",
@@ -261,6 +265,7 @@ ANTIGRAVITY_DISPLAY_NAMES = {
     "gemini-4-argon-medium": "Antigravity: Gemini 4 Argon (Medium)",
     "gemini-4-argon-high": "Antigravity: Gemini 4 Argon (High)",
     "gemini-4-argon-low": "Antigravity: Gemini 4 Argon (Low)",
+    "gemini-pro-orchestrator-g1-pro": "Antigravity: Orchestrator (G1 Pro)",
     "gemini-pro-orchestrator": "Antigravity: Orchestrator (Carbon)",
     "gemini-pro-orchestrator-argon": "Antigravity: Orchestrator (Argon)",
     "gemini-3.8-flash-high": "Antigravity: Gemini 3.8 Flash (High)",
@@ -287,6 +292,7 @@ ANTIGRAVITY_CONTEXT_LENGTHS = {
     "gemini-4-argon-high": 1_000_000,
     "gemini-4-argon-medium": 1_000_000,
     "gemini-4-argon-low": 1_000_000,
+    "gemini-pro-orchestrator-g1-pro": 1_000_000,
     "gemini-pro-orchestrator": 1_000_000,
     "gemini-pro-orchestrator-argon": 1_000_000,
     "gemini-3.8-flash-high": 1_000_000,
@@ -316,10 +322,10 @@ CONTEXT_LIMITS: dict[str, int] = {}
 # Short aliases let agents use "opus", "sonnet" etc. in spawn_worker without
 # knowing the exact versioned model ID — reduces prompt brittleness on model upgrades
 ALIASES = {
-    "agy-flash": "antigravity/gemini-3.6-flash-low",
+    "agy-flash": "antigravity/gemini-3.8-flash-medium",
     "agy-pro": "antigravity/gemini-3.1-pro-low",
-    "agy-sonnet": "antigravity/claude-sonnet-4-6",
-    "agy-opus": "antigravity/claude-opus-4-6-thinking",
+    "agy-sonnet": "antigravity/claude-sonnet-5-5-medium",
+    "agy-opus": "antigravity/claude-opus-5-5-medium",
     "agy-gptoss": "antigravity/gpt-oss-120b-medium",
     "agy-argon": "antigravity/gemini-4-argon-medium",
     "agy-carbon": "antigravity/gemini-4-carbon-medium",
@@ -350,6 +356,8 @@ ALIASES = {
     "codexspark": "gpt-5.3-codex-spark",
     "gpt5.3spark": "gpt-5.3-codex-spark",
     "sol": "gpt-6.1-sol",
+    "sol62": "gpt-6.2-sol",
+    "astra62": "gpt-6.2-astra",
     "terra": "gpt-6.1-terra",
     "gpt6.1terra": "gpt-6.1-terra",
     "astra": "gpt-6-astra",
