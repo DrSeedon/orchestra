@@ -1,0 +1,37 @@
+{"at": "2026-11-17T10:24:16.328500+00:00", "kind": "safety_preflight_pass", "proxy": {"ip": "178.93.29.64", "country": "NL", "org": "AS215294 Lumina broadband UAB", "city": "Amsterdam"}, "nft_before": {"packets": 0, "bytes": 0}}
+{"at": "2026-11-17T10:24:17.142095+00:00", "kind": "stand_started", "port": 18889, "background_loops": false}
+{"at": "2026-11-17T10:24:27.290908+00:00", "kind": "idle_precheck_pass", "seconds": 10, "real_vendor_processes": 0, "rpc": 0}
+{"at": "2026-11-17T10:24:27.332114+00:00", "kind": "progress", "parent_turns": 0, "children": 0, "child_turns": 0, "parent_status": "idle"}
+{"at": "2026-11-17T10:24:27.627502+00:00", "kind": "progress", "parent_turns": 0, "children": 0, "child_turns": 0, "parent_status": "running"}
+{"at": "2026-11-17T10:24:27.913621+00:00", "kind": "vendor_started", "pid": 2171216}
+{"at": "2026-11-17T10:24:28.351941+00:00", "kind": "initialized", "protocolVersion": 1}
+{"at": "2026-11-17T10:24:40.510347+00:00", "kind": "progress", "parent_turns": 0, "children": 1, "child_turns": 0, "parent_status": "running"}
+{"at": "2026-11-17T10:24:43.201033+00:00", "kind": "progress", "parent_turns": 0, "children": 1, "child_turns": 0, "parent_status": "idle"}
+WARNING:orchestra.provider_safety:Stripped untrusted extra_env override key 'PYTHONPATH'
+WARNING:orchestra.provider_safety:Stripped untrusted extra_env override key 'NO_PROXY'
+WARNING:orchestra.provider_safety:Stripped untrusted extra_env override key 'ORCHESTRA_RESIDENTIAL_PROXY_URL'
+WARNING:orchestra.provider_safety:Stripped untrusted extra_env override key 'CODEX_PROXY_URL'
+WARNING:orchestra.provider_safety:Stripped untrusted extra_env override key 'ANTIGRAVITY_PROXY_URL'
+WARNING:orchestra.provider_safety:Stripped untrusted extra_env override key 'ORCHESTRA_DISABLED_PROVIDERS_FILE'
+WARNING:orchestra.provider_safety:Stripped untrusted extra_env override key 'ORCHESTRA_ENFORCE_PROVIDER_EGRESS'
+WARNING:orchestra.provider_safety:Stripped untrusted extra_env override key 'no_proxy'
+WARNING:app.backend_codex:Codex hibernation unavailable: Delegated cgroup v2 required for hibernation: [Errno 13] Permission denied: '/sys/fs/cgroup/user.slice/user-1001.slice/session-45109.scope/runtime-85344f635fd3424d9def0adf50dd1b85'
+INFO:app.backend_codex:codex_connect_stage worker=stand-calc-worker stage=cli_spawn duration=0.014s
+INFO:app.backend_codex:codex_connect_stage worker=stand-calc-worker stage=cli_initialize duration=0.581s
+INFO:app.backend_codex:codex_connect_stage worker=stand-calc-worker stage=mcp_codex_apps_starting duration=1.493s
+INFO:app.backend_codex:codex_connect_stage worker=stand-calc-worker stage=mcp_orchestra_starting duration=1.493s
+INFO:app.backend_codex:codex_connect_stage worker=stand-calc-worker stage=cli_thread_start duration=0.893s
+INFO:app.session:[stand-calc-worker] heartbeat started
+INFO:app.session:[stand-calc-worker] codex turn started
+INFO:app.backend_codex:codex_connect_stage worker=stand-calc-worker stage=mcp_orchestra_ready duration=2.123s
+INFO:app.backend_codex:codex_connect_stage worker=stand-calc-worker stage=mcp_codex_apps_ready duration=2.456s
+INFO:app.backend_codex:codex_connect_stage worker=stand-calc-worker stage=mcp_codex_apps_ready duration=5.834s
+INFO:app.backend_codex:codex_connect_stage worker=stand-calc-worker stage=mcp_orchestra_ready duration=5.834s
+INFO:app.session:[stand-ceo] antigravity turn started
+{"at": "2026-11-17T10:25:27.761738+00:00", "kind": "progress", "parent_turns": 0, "children": 1, "child_turns": 0, "parent_status": "running"}
+{"at": "2026-11-17T10:25:31.251551+00:00", "kind": "progress", "parent_turns": 0, "children": 1, "child_turns": 0, "parent_status": "idle"}
+WARNING:app.session:[stand-calc-worker] automatic hibernate unavailable: Delegated cgroup v2 required for hibernation: [Errno 13] Permission denied: '/sys/fs/cgroup/user.slice/user-1001.slice/session-45109.scope/runtime-85344f635fd3424d9def0adf50dd1b85'
+INFO:app.session:[stand-ceo] heartbeat cancelled
+INFO:app.session:[stand-calc-worker] heartbeat cancelled
+{"at": "2026-11-17T10:31:27.831902+00:00", "kind": "stand_shutdown", "server_stopped": true, "vendor_pids": []}
+{"at": "2026-11-17T10:31:27.835048+00:00", "kind": "fail_stop", "error": "one-cycle stand deadline reached; no retries", "error_type": "TimeoutError"}

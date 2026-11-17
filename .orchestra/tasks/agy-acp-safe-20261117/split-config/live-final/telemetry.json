@@ -1,0 +1,412 @@
+{
+  "authorization": "one isolated live stand cycle, explicit owner Step1",
+  "started_at": "2026-11-17T10:24:15.906688+00:00",
+  "events": [
+    {
+      "at": "2026-11-17T10:24:16.328500+00:00",
+      "kind": "safety_preflight_pass",
+      "proxy": {
+        "ip": "178.93.29.64",
+        "country": "NL",
+        "org": "AS215294 Lumina broadband UAB",
+        "city": "Amsterdam"
+      },
+      "nft_before": {
+        "packets": 0,
+        "bytes": 0
+      }
+    },
+    {
+      "at": "2026-11-17T10:24:17.142095+00:00",
+      "kind": "stand_started",
+      "port": 18889,
+      "background_loops": false
+    },
+    {
+      "at": "2026-11-17T10:24:27.290908+00:00",
+      "kind": "idle_precheck_pass",
+      "seconds": 10,
+      "real_vendor_processes": 0,
+      "rpc": 0
+    },
+    {
+      "at": "2026-11-17T10:24:27.332114+00:00",
+      "kind": "progress",
+      "parent_turns": 0,
+      "children": 0,
+      "child_turns": 0,
+      "parent_status": "idle"
+    },
+    {
+      "at": "2026-11-17T10:24:27.627502+00:00",
+      "kind": "progress",
+      "parent_turns": 0,
+      "children": 0,
+      "child_turns": 0,
+      "parent_status": "running"
+    },
+    {
+      "at": "2026-11-17T10:24:27.913621+00:00",
+      "kind": "vendor_started",
+      "pid": 2171216
+    },
+    {
+      "at": "2026-11-17T10:24:28.351941+00:00",
+      "kind": "initialized",
+      "protocolVersion": 1
+    },
+    {
+      "at": "2026-11-17T10:24:40.510347+00:00",
+      "kind": "progress",
+      "parent_turns": 0,
+      "children": 1,
+      "child_turns": 0,
+      "parent_status": "running"
+    },
+    {
+      "at": "2026-11-17T10:24:43.201033+00:00",
+      "kind": "progress",
+      "parent_turns": 0,
+      "children": 1,
+      "child_turns": 0,
+      "parent_status": "idle"
+    },
+    {
+      "at": "2026-11-17T10:25:27.761738+00:00",
+      "kind": "progress",
+      "parent_turns": 0,
+      "children": 1,
+      "child_turns": 0,
+      "parent_status": "running"
+    },
+    {
+      "at": "2026-11-17T10:25:31.251551+00:00",
+      "kind": "progress",
+      "parent_turns": 0,
+      "children": 1,
+      "child_turns": 0,
+      "parent_status": "idle"
+    },
+    {
+      "at": "2026-11-17T10:31:27.831902+00:00",
+      "kind": "stand_shutdown",
+      "server_stopped": true,
+      "vendor_pids": []
+    },
+    {
+      "at": "2026-11-17T10:31:27.835048+00:00",
+      "kind": "fail_stop",
+      "error": "one-cycle stand deadline reached; no retries",
+      "error_type": "TimeoutError"
+    }
+  ],
+  "outcome": "STOPPED_NO_RETRY",
+  "native_permission_requests": 1,
+  "native_owner_responses": [
+    {
+      "request_id": "ab7530e76f7a4d6eacd6039c28d77c55",
+      "tool_name": "mcp_orchestra_spawn_worker",
+      "option_id": "allow",
+      "state": "responding"
+    }
+  ],
+  "preexisting_vendor_pids": [],
+  "persistent_profile_gitignored": true,
+  "profile_copy": {
+    "file_count": 7,
+    "source_file_hash_count": 119,
+    "source_unchanged": true,
+    "no_credit_settings": true,
+    "persistent_profile": "/home/kesha/orchestra/.orchestra/tasks/katya-nl-pro-probe-20261116/acp_stand_profile"
+  },
+  "quota_cache": {
+    "observed_at": "2026-11-17T10:18:40.395932+00:00",
+    "codex_available": true,
+    "probe_policy": "cache-only; no quota refresh"
+  },
+  "proxy": {
+    "ip": "178.93.29.64",
+    "country": "NL",
+    "org": "AS215294 Lumina broadband UAB",
+    "city": "Amsterdam"
+  },
+  "nft_before": {
+    "packets": 0,
+    "bytes": 0
+  },
+  "stand_project_catalog": {
+    "scopes": {
+      "/tmp/orchestra-live-stand-20261117/demo_repo": "git:stand-live"
+    }
+  },
+  "PID_ACP": 2171216,
+  "initialize": {
+    "protocolVersion": 1,
+    "authMethods": [
+      {
+        "id": "oauth-personal",
+        "type": null
+      },
+      {
+        "id": "oauth-business",
+        "type": null
+      },
+      {
+        "id": "gemini-api-key",
+        "type": null
+      },
+      {
+        "id": "agent-platform",
+        "type": null
+      }
+    ],
+    "agentCapabilities": {
+      "loadSession": true,
+      "load_session": true,
+      "promptCapabilities": {
+        "image": true,
+        "audio": false,
+        "embeddedContext": true
+      },
+      "sessionCapabilities": {
+        "resume": {},
+        "close": {},
+        "load": {},
+        "list": {},
+        "additionalDirectories": {}
+      },
+      "session_capabilities": {
+        "resume": {},
+        "close": {},
+        "load": {},
+        "list": {},
+        "additionalDirectories": {}
+      },
+      "auth": {
+        "logout": {}
+      },
+      "_meta": {
+        "antigravity": {
+          "tier": true,
+          "systemPrompt": {
+            "append": true
+          }
+        }
+      }
+    }
+  },
+  "authenticate_success": true,
+  "auth_state_updates": [
+    {
+      "directory": "/home/kesha/orchestra/.orchestra/tasks/katya-nl-pro-probe-20261116/acp_stand_profile",
+      "atomic": true,
+      "mode": "0600",
+      "files_updated": 2
+    },
+    {
+      "directory": "/home/kesha/orchestra/.orchestra/tasks/katya-nl-pro-probe-20261116/acp_stand_profile",
+      "atomic": true,
+      "mode": "0600",
+      "files_updated": 0
+    }
+  ],
+  "session_catalog": [
+    {
+      "method": "session/new",
+      "summary": {
+        "configOptions": [
+          {
+            "id": "model",
+            "category": "model",
+            "currentValue": "gemini-4-argon",
+            "values": [
+              "gemini-4-argon",
+              "gemini-4-hydrogen",
+              "gemini-pro-orchestrator-g1-pro",
+              "gemini-3.8-flash",
+              "claude-opus-5-5",
+              "claude-sonnet-5-5",
+              "gpt-oss-120b-medium"
+            ]
+          },
+          {
+            "id": "thought_level",
+            "category": "thought_level",
+            "currentValue": "medium",
+            "values": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          {
+            "id": "mode",
+            "category": "mode",
+            "currentValue": "default",
+            "values": [
+              "default",
+              "accept-edits",
+              "plan"
+            ]
+          }
+        ],
+        "models": {
+          "currentModelId": "gemini-4-argon-medium",
+          "availableModelIds": [
+            "gemini-4-argon-medium",
+            "gemini-4-argon-high",
+            "gemini-4-argon-low",
+            "gemini-4-hydrogen-high",
+            "gemini-4-hydrogen-xhigh",
+            "gemini-4-hydrogen-medium",
+            "gemini-4-hydrogen-low",
+            "gemini-pro-orchestrator-g1-pro",
+            "gemini-3.8-flash-high",
+            "gemini-3.8-flash-medium",
+            "gemini-3.8-flash-low",
+            "claude-opus-5-5-low",
+            "claude-opus-5-5-medium",
+            "claude-opus-5-5-high",
+            "claude-sonnet-5-5-low",
+            "claude-sonnet-5-5-medium",
+            "claude-sonnet-5-5-high",
+            "gpt-oss-120b-medium"
+          ]
+        },
+        "modes": {
+          "currentModeId": "default",
+          "availableModeIds": [
+            "default",
+            "accept-edits",
+            "plan"
+          ]
+        }
+      }
+    },
+    {
+      "method": "session/set_config_option",
+      "summary": {
+        "configOptions": [
+          {
+            "id": "model",
+            "category": "model",
+            "currentValue": "gemini-4-hydrogen",
+            "values": [
+              "gemini-4-argon",
+              "gemini-4-hydrogen",
+              "gemini-pro-orchestrator-g1-pro",
+              "gemini-3.8-flash",
+              "claude-opus-5-5",
+              "claude-sonnet-5-5",
+              "gpt-oss-120b-medium"
+            ]
+          },
+          {
+            "id": "thought_level",
+            "category": "thought_level",
+            "currentValue": "medium",
+            "values": [
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ]
+          },
+          {
+            "id": "mode",
+            "category": "mode",
+            "currentValue": "default",
+            "values": [
+              "default",
+              "accept-edits",
+              "plan"
+            ]
+          }
+        ],
+        "models": {
+          "currentModelId": null,
+          "availableModelIds": []
+        },
+        "modes": {
+          "currentModeId": null,
+          "availableModeIds": []
+        }
+      }
+    }
+  ],
+  "turn_usage": [
+    {
+      "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+      "model": "gpt-6-luna",
+      "ok": 1,
+      "stop_reason": "end_turn",
+      "input_tokens": 194207,
+      "output_tokens": 1753,
+      "cache_read_tokens": 153344,
+      "turn_duration_ms": 44975
+    }
+  ],
+  "rpc_counts": {
+    "initialize": 1,
+    "authenticate": 1,
+    "session/new": 1,
+    "session/set_config_option": 1,
+    "session/prompt": 2
+  },
+  "rpc_outcomes": [
+    {
+      "method": "initialize",
+      "at": 1223252.08534694,
+      "ok": true
+    },
+    {
+      "method": "authenticate",
+      "at": 1223252.805374467,
+      "ok": true
+    },
+    {
+      "method": "session/new",
+      "at": 1223254.498629218,
+      "ok": true
+    },
+    {
+      "method": "session/set_config_option",
+      "at": 1223255.333277786,
+      "ok": true
+    },
+    {
+      "method": "session/prompt",
+      "at": 1223255.335957602,
+      "ok": true
+    },
+    {
+      "method": "session/prompt",
+      "at": 1223312.141821732,
+      "ok": true
+    }
+  ],
+  "spawn_counts": {
+    "agy": 1,
+    "codex": 1
+  },
+  "server_stopped": true,
+  "stand_child_creation_attempts": 1,
+  "error": "one-cycle stand deadline reached; no retries",
+  "nft_after": {
+    "packets": 0,
+    "bytes": 0
+  },
+  "nft_delta": {
+    "packets": 0,
+    "bytes": 0
+  },
+  "oauth_refresh_state_changed": true,
+  "refresh_state_policy": "authenticated refresh state atomically saved to private acp_stand_profile; temporary copy removed; source immutable",
+  "stand_created": true,
+  "stand_removed": true,
+  "leftover_owned_vendor_pids": [],
+  "foreign_vendor_pids_preserved": [],
+  "production_tracked_unchanged": true,
+  "production_disabled_unchanged": true,
+  "ended_at": "2026-11-17T10:31:28.050534+00:00"
+}

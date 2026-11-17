@@ -215,6 +215,8 @@ async def prompt(request):
             await asyncio.Event().wait()
         else:
             await cancel[sid].wait()
+        active.remove(sid)
+        trace("prompt_end", session=sid)
         result(request, {"stopReason": "cancelled"})
     else:
         # Deliberately interleave an unrelated session update to prove routing.
@@ -227,9 +229,9 @@ async def prompt(request):
         if not (MODE == "ack-unknown" and text.endswith("Acknowledge briefly.")):
             update(sid, "usage_update", used=True if text == "INVALID_CONTEXT" else (700 if "INITIAL_CONTEXT" in text and not text.endswith("Acknowledge briefly.") else 200), size=1000)
         update(sid, "agent_message_chunk", content={"type": "text", "text": sid + ":" + text})
+        active.remove(sid)
+        trace("prompt_end", session=sid)
         result(request, {"stopReason": "end_turn"})
-    active.remove(sid)
-    trace("prompt_end", session=sid)
 
 
 async def main():

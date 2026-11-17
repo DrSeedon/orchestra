@@ -469,7 +469,7 @@ class AntigravityBackend:
         return deltas
 
     def _end(self, *, ok=False, reason="error", error=None, usage=None, terminal=None,
-             context=None):
+             context=None, duration_ms=None):
         self._flush_segment()
         aggregate = AggregateUsage.normalized(accuracy="unknown", **{
             key: (usage or {}).get(key, 0) for key in
@@ -520,6 +520,12 @@ class AntigravityBackend:
             )
             if cost is not None:
                 metadata.update(cost_usd_cached=cost, cost_is_delta=True)
+        else:
+            metadata.update(
+                event_id=f"agy:{self.session_id or self.home.name}:{(getattr(self, '_turn_id', '') or uuid.uuid4().hex)[:12]}",
+                num_turns=1 if ok else 0,
+                turn_duration_ms=duration_ms,
+            )
         if self._cost_total is not None:
             # ACP cost is cumulative. Advance the shared baseline on success,
             # error and cancellation alike, so later turns never count it twice.
@@ -718,6 +724,7 @@ class AntigravityBackend:
                     blocks.insert(0, {"type": "text", "text": "[Orchestra role instructions]\n" + self.system_prompt})
                 self._owner.listeners[self.session_id] = self._update
                 self._owner.permission_handlers[self.session_id] = self
+                prompt_started = time.monotonic()
                 try:
                     prompt_task = asyncio.create_task(self._owner.request("session/prompt", {
                         "sessionId": self.session_id, "prompt": blocks}, timeout=self._owner.prompt_timeout,
@@ -746,7 +753,8 @@ class AntigravityBackend:
                     cancel_turn(self._owner,self._turn_id)
                 reason = result.get("stopReason", "error")
                 self._queue.put_nowait(self._end(ok=reason == "end_turn", reason=reason,
-                    error=None if reason == "end_turn" else reason, context=self._context))
+                    error=None if reason == "end_turn" else reason, context=self._context,
+                    duration_ms=round((time.monotonic() - prompt_started) * 1000)))
         except asyncio.CancelledError:
             self._settle_submission(AcpError("ACP submission cancelled"))
             self._queue.put_nowait(self._end(reason="interrupt", error="interrupted", context=self._context))

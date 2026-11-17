@@ -1,0 +1,497 @@
+[
+  {
+    "id": 6,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:40.369783+00:00",
+    "type": "user_message",
+    "content": "Создай файл calc_stand.py с функцией multiply(a, b) и тест test_calc_stand.py, запусти python3 -m unittest и заверши работу кратким отчётом.",
+    "event_id": "",
+    "tool_use_id": null,
+    "tool_name": null,
+    "tool_is_error": null,
+    "origin": "agent",
+    "origin_detail": {
+      "senders": [
+        "stand-ceo"
+      ],
+      "subtype": "initial_delivery",
+      "ref": "70502365-6673-45c1-80fd-57498791b0aa"
+    }
+  },
+  {
+    "id": 10,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:46.186805+00:00",
+    "type": "warning",
+    "content": "Codex's Linux sandbox uses bubblewrap and needs access to create user namespaces.",
+    "event_id": "",
+    "tool_use_id": null,
+    "tool_name": null,
+    "tool_is_error": null,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 11,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:46.186993+00:00",
+    "type": "status",
+    "content": "codex thread=01a1e909-a2cf-7161-9eaf-98a9b5b12da3",
+    "event_id": "",
+    "tool_use_id": null,
+    "tool_name": null,
+    "tool_is_error": null,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 12,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:46.256000+00:00",
+    "type": "status",
+    "content": "codex turn=01a1e909-a656-76f2-8b8b-42950e369459 started",
+    "event_id": "",
+    "tool_use_id": null,
+    "tool_name": null,
+    "tool_is_error": null,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 13,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:51.201205+00:00",
+    "type": "text",
+    "content": "Сначала проверю инструкции проекта и состояние ветки, затем добавлю функцию с unittest-тестом и запущу указанную проверку.",
+    "event_id": "",
+    "tool_use_id": null,
+    "tool_name": null,
+    "tool_is_error": null,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 14,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:54.089557+00:00",
+    "type": "tool",
+    "content": "Bash: {\"command\": \"/bin/bash -lc \\\"pwd && rg --files -g 'AGENTS.md' -g 'TODO.md' -g 'CHANGELOG.md' -g '*.py' -g '.orchestra/kb/**' | head -80 && git status --short --branch && git log -1 --oneline\\\"\", \"cwd\": \"/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"pwd && rg --files -g 'AGENTS.md' -g 'TODO.md' -g 'CHANGELOG.md' -g '*.py' -g '.orchestra/kb/**' | head -80 && git status --short --branch && git log -1 --oneline\"}], \"_codex_item_id\": \"exec-5434ca73-24dc-4145-93fa-f020d6c66eb3\"}",
+    "event_id": "",
+    "tool_use_id": "exec-5434ca73-24dc-4145-93fa-f020d6c66eb3",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 15,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:54.090785+00:00",
+    "type": "tool_result",
+    "content": "/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker\n## task-1/stand-calc-worker\n7f02a9f Initialize isolated stand\n",
+    "event_id": "",
+    "tool_use_id": "exec-5434ca73-24dc-4145-93fa-f020d6c66eb3",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 16,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:57.245060+00:00",
+    "type": "tool",
+    "content": "mcp__orchestra__update_progress: {\"percent\": 10, \"status\": \"Проверяю правила проекта и готовлю файлы функции и теста\", \"_codex_item_id\": \"exec-f3a4c5d9-d28b-45df-a749-483996a31a04\"}",
+    "event_id": "",
+    "tool_use_id": "exec-f3a4c5d9-d28b-45df-a749-483996a31a04",
+    "tool_name": "mcp__orchestra__update_progress",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 17,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:57.243559+00:00",
+    "type": "tool",
+    "content": "Bash: {\"command\": \"/bin/bash -lc 'ls -la && find .. -name AGENTS.md -print'\", \"cwd\": \"/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker\", \"command_actions\": [{\"type\": \"listFiles\", \"command\": \"ls -la\", \"path\": null}, {\"type\": \"search\", \"command\": \"find .. -name AGENTS.md -print\", \"query\": \"AGENTS.md\", \"path\": \"..\"}], \"_codex_item_id\": \"exec-89e525b1-c560-4d4d-832c-8252bb40629d\"}",
+    "event_id": "",
+    "tool_use_id": "exec-89e525b1-c560-4d4d-832c-8252bb40629d",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 18,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:57.243719+00:00",
+    "type": "tool_result",
+    "content": "total 20\ndrwx------ 3 kesha kesha 4096 Nov 17 11:24 .\ndrwx------ 3 kesha kesha 4096 Nov 17 11:24 ..\ndrwx------ 3 kesha kesha 4096 Nov 17 11:24 .codex\n-rw------- 1 kesha kesha   86 Nov 17 11:24 .git\n-rw------- 1 kesha kesha   39 Nov 17 11:24 README.md\n",
+    "event_id": "",
+    "tool_use_id": "exec-89e525b1-c560-4d4d-832c-8252bb40629d",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 19,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:24:57.291526+00:00",
+    "type": "tool_result",
+    "content": "Progress: 10% — Проверяю правила проекта и готовлю файлы функции и теста",
+    "event_id": "",
+    "tool_use_id": "exec-f3a4c5d9-d28b-45df-a749-483996a31a04",
+    "tool_name": "mcp__orchestra__update_progress",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 20,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:02.234723+00:00",
+    "type": "tool",
+    "content": "Bash: {\"command\": \"/bin/bash -lc 'cat README.md && git status --porcelain=v1'\", \"cwd\": \"/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"cat README.md && git status --porcelain=v1\"}], \"_codex_item_id\": \"exec-60214924-a90b-452c-9106-d068f7687efb\"}",
+    "event_id": "",
+    "tool_use_id": "exec-60214924-a90b-452c-9106-d068f7687efb",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 21,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:02.237878+00:00",
+    "type": "tool_result",
+    "content": "# Isolated multiplication verification\n",
+    "event_id": "",
+    "tool_use_id": "exec-60214924-a90b-452c-9106-d068f7687efb",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 22,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:08.977576+00:00",
+    "type": "tool",
+    "content": "FileChange: {\"changes\": [{\"path\": \"/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker/calc_stand.py\", \"kind\": {\"type\": \"add\"}, \"diff\": \"\\\"\\\"\\\"Simple multiplication helper.\\\"\\\"\\\"\\n\\n\\ndef multiply(a, b):\\n    \\\"\\\"\\\"Return the product of ``a`` and ``b``.\\\"\\\"\\\"\\n    return a * b\\n\"}, {\"path\": \"/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker/test_calc_stand.py\", \"kind\": {\"type\": \"add\"}, \"diff\": \"import unittest\\n\\nfrom calc_stand import multiply\\n\\n\\nclass MultiplyTests(unittest.TestCase):\\n    def test_multiplies_integers(self):\\n        self.assertEqual(multiply(6, 7), 42)\\n\\n    def test_handles_zero_and_negative_values(self):\\n        self.assertEqual(multiply(0, 9), 0)\\n        self.assertEqual(multiply(-3, 4), -12)\\n\\n\\nif __name__ == \\\"__main__\\\":\\n    unittest.main()\\n\"}], \"status\": \"inProgress\", \"_codex_item_id\": \"exec-1dba723d-4bf9-4d92-89d0-165965d7eb0b\"}",
+    "event_id": "",
+    "tool_use_id": "exec-1dba723d-4bf9-4d92-89d0-165965d7eb0b",
+    "tool_name": "FileChange",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 23,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:08.977711+00:00",
+    "type": "tool_result",
+    "content": "{\"status\": \"completed\", \"files\": 2}",
+    "event_id": "",
+    "tool_use_id": "exec-1dba723d-4bf9-4d92-89d0-165965d7eb0b",
+    "tool_name": "FileChange",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 24,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:11.634378+00:00",
+    "type": "text",
+    "content": "Файлы готовы: `multiply` возвращает произведение аргументов, тесты покрывают обычные, нулевые и отрицательные значения. Запускаю указанную команду `python3 -m unittest`.",
+    "event_id": "",
+    "tool_use_id": null,
+    "tool_name": null,
+    "tool_is_error": null,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 25,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:12.353133+00:00",
+    "type": "tool",
+    "content": "Bash: {\"command\": \"/bin/bash -lc 'python3 -m unittest'\", \"cwd\": \"/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"python3 -m unittest\"}], \"_codex_item_id\": \"exec-6478d2f5-4602-44c4-9ccd-ef0347cb97c9\"}",
+    "event_id": "",
+    "tool_use_id": "exec-6478d2f5-4602-44c4-9ccd-ef0347cb97c9",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 26,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:12.356416+00:00",
+    "type": "tool_result",
+    "content": "..\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+    "event_id": "",
+    "tool_use_id": "exec-6478d2f5-4602-44c4-9ccd-ef0347cb97c9",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 27,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:16.410978+00:00",
+    "type": "tool",
+    "content": "Bash: {\"command\": \"/bin/bash -lc \\\"git diff --check && git status --short && git add calc_stand.py test_calc_stand.py && git commit -m '#1: Add multiplication helper and tests' && git rev-parse HEAD\\\"\", \"cwd\": \"/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"git diff --check && git status --short && git add calc_stand.py test_calc_stand.py && git commit -m '#1: Add multiplication helper and tests' && git rev-parse HEAD\"}], \"_codex_item_id\": \"exec-40358cf8-0adc-430b-8db0-40289fcd13a1\"}",
+    "event_id": "",
+    "tool_use_id": "exec-40358cf8-0adc-430b-8db0-40289fcd13a1",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 28,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:16.413795+00:00",
+    "type": "tool_result",
+    "content": "?? __pycache__/\n?? calc_stand.py\n?? test_calc_stand.py\n[task-1/stand-calc-worker e4afcee] #1: Add multiplication helper and tests\n 2 files changed, 22 insertions(+)\n create mode 100644 calc_stand.py\n create mode 100644 test_calc_stand.py\ne4afcee8b5b3d029b9b428bdda80065aa95e72d5\n",
+    "event_id": "",
+    "tool_use_id": "exec-40358cf8-0adc-430b-8db0-40289fcd13a1",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 29,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:21.945847+00:00",
+    "type": "tool",
+    "content": "Bash: {\"command\": \"/bin/bash -lc \\\"python3 -c 'from pathlib import Path; p=Path(\\\\\\\"__pycache__\\\\\\\"); [f.unlink() for f in p.iterdir() if f.is_file()]; p.rmdir()' && git status --short --branch\\\"\", \"cwd\": \"/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"python3 -c 'from pathlib import Path; p=Path(\\\"__pycache__\\\"); [f.unlink() for f in p.iterdir() if f.is_file()]; p.rmdir()' && git status --short --branch\"}], \"_codex_item_id\": \"exec-df7c9130-dfbc-43fd-a9bd-ae5b5fdfba2c\"}",
+    "event_id": "",
+    "tool_use_id": "exec-df7c9130-dfbc-43fd-a9bd-ae5b5fdfba2c",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 30,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:21.948629+00:00",
+    "type": "tool_result",
+    "content": "## task-1/stand-calc-worker\n",
+    "event_id": "",
+    "tool_use_id": "exec-df7c9130-dfbc-43fd-a9bd-ae5b5fdfba2c",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 31,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:27.523699+00:00",
+    "type": "tool",
+    "content": "mcp__orchestra__update_progress: {\"percent\": 100, \"status\": \"Функция и тесты добавлены, unittest прошёл, изменения закоммичены\", \"_codex_item_id\": \"exec-71b0ea0b-ccaf-4543-b54c-e5868e17bedc\"}",
+    "event_id": "",
+    "tool_use_id": "exec-71b0ea0b-ccaf-4543-b54c-e5868e17bedc",
+    "tool_name": "mcp__orchestra__update_progress",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 32,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:27.560971+00:00",
+    "type": "tool_result",
+    "content": "Progress: 100% — Функция и тесты добавлены, unittest прошёл, изменения закоммичены",
+    "event_id": "",
+    "tool_use_id": "exec-71b0ea0b-ccaf-4543-b54c-e5868e17bedc",
+    "tool_name": "mcp__orchestra__update_progress",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 33,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:27.567848+00:00",
+    "type": "tool",
+    "content": "mcp__orchestra__send_message: {\"to\": \"stand-ceo\", \"message\": \"Outcome: DONE — task #1.\\nGit state: branch task-1/stand-calc-worker, HEAD e4afcee8b5b3d029b9b428bdda80065aa95e72d5; worktree clean.\\nChanges: added calc_stand.py with multiply(a, b) and test_calc_stand.py covering standard, zero, and negative integer products.\\nVerification: `python3 -m unittest` — 2 tests passed; `git diff --check` passed. Raw output was not saved under .orchestra/tasks/1/.\\nFindings & risks: none for this small helper.\", \"_codex_item_id\": \"exec-65eefe38-540c-49be-a6f8-5f02d01a8c9d\"}",
+    "event_id": "",
+    "tool_use_id": "exec-65eefe38-540c-49be-a6f8-5f02d01a8c9d",
+    "tool_name": "mcp__orchestra__send_message",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 35,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:27.710768+00:00",
+    "type": "tool_result",
+    "content": "Message accepted; delivery is proceeding now to 'stand-ceo', and the quota gate is not holding it. delivery_id=09785c6d-d13c-45d1-83c3-b22312dcb37d; state=QUEUED.\nTerminal delivery failures wake the sender automatically; do not poll. After an ambiguous call outcome, repeat this send_message call with the same delivery_id.",
+    "event_id": "",
+    "tool_use_id": "exec-65eefe38-540c-49be-a6f8-5f02d01a8c9d",
+    "tool_name": "mcp__orchestra__send_message",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 36,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:31.098549+00:00",
+    "type": "text",
+    "content": "Добавил [calc_stand.py](/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker/calc_stand.py) с функцией `multiply(a, b)` и тесты в [test_calc_stand.py](/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker/test_calc_stand.py).\n\n`python3 -m unittest` — 2 теста пройдены. Изменения закоммичены: `e4afcee`.",
+    "event_id": "",
+    "tool_use_id": null,
+    "tool_name": null,
+    "tool_is_error": null,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 37,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:31.142558+00:00",
+    "type": "status",
+    "content": "turn ended (end_turn, 0 turns, $0.0065 turn, $0.0065 ctx, $0.0065 session, $0.0065 total ctx:2%)",
+    "event_id": "01a1e909-a656-76f2-8b8b-42950e369459",
+    "tool_use_id": null,
+    "tool_name": null,
+    "tool_is_error": null,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  },
+  {
+    "id": 38,
+    "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+    "ts": "2026-11-17T10:25:31.162041+00:00",
+    "type": "status",
+    "content": "auto-report skipped: explicit report to parent",
+    "event_id": "",
+    "tool_use_id": null,
+    "tool_name": null,
+    "tool_is_error": null,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  }
+]

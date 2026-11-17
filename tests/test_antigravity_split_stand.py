@@ -157,3 +157,20 @@ async def test_stand_worker_routers_mount_without_background_loops_or_404(tmp_pa
                     '/api/approvals?recipient=stand-ceo&scope='+str(repo)):
             resp=await client.get(url)
             assert resp.status_code==200, (url, resp.status_code, resp.text)
+
+
+@pytest.mark.asyncio
+async def test_acp_turns_record_turn_usage_and_completed_turns_handles_codex_zero_counter(stand,real_session):
+    from types import SimpleNamespace
+    from app import db
+    s=real_session
+    await s.send('turn one',provenance=USER);await finish(s)
+    await s.send('turn two',provenance=USER);await finish(s)
+    await s._await_log_futures()
+    assert s.total_turns==2 and driver.completed_turns(db,s)==2
+    with db._conn() as connection:
+        rows=connection.execute('SELECT ok,stop_reason,cost_unaccounted,turn_duration_ms FROM turn_usage WHERE session_id=? ORDER BY id',(s.id,)).fetchall()
+    assert len(rows)==2 and all(r['ok']==1 and r['stop_reason']=='end_turn' and r['cost_unaccounted']==1 and r['turn_duration_ms'] is not None for r in rows)
+    # Simulate Codex worker where session.total_turns stays 0 while turn_usage/status logs record completion:
+    codex_stub=SimpleNamespace(id=s.id,total_turns=0)
+    assert driver.completed_turns(db,codex_stub)==2

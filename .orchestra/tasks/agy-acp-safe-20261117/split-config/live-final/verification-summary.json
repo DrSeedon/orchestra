@@ -1,0 +1,99 @@
+{
+  "substantive_verdict": "LIVE_CYCLE_PASS",
+  "raw_driver_exit_reason": "AgentSession.total_turns stayed 0 on non-Claude backends (ACP and Codex), so the driver loop waited out 356.65s of post-Turn-2 silence until its 420s deadline instead of breaking at Turn 2 end; fixed and verified offline (221 passed, 0 failed) with zero live retries.",
+  "actual_imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app/__init__.py",
+  "pre_live_code_commit": "c8e153b08337ae8f1f2d103485197522beecf914",
+  "live_window_utc": {
+    "started_at": "2026-11-17T10:24:15.906688+00:00",
+    "turn1_ended_at": "2026-11-17T10:24:42.989752+00:00",
+    "worker_ended_at": "2026-11-17T10:25:31.162041+00:00",
+    "turn2_ended_at": "2026-11-17T10:25:31.179482+00:00",
+    "shutdown_at": "2026-11-17T10:31:28.050534+00:00"
+  },
+  "live_metrics": {
+    "idle_precheck_seconds": 10,
+    "idle_precheck_vendor_pids": 0,
+    "PID_ACP": 2171216,
+    "same_pid_across_turn1_turn2_and_silence": true,
+    "spawn_counts": {
+      "agy": 1,
+      "codex": 1
+    },
+    "rpc_counts": {
+      "initialize": 1,
+      "authenticate": 1,
+      "session/new": 1,
+      "session/set_config_option": 1,
+      "session/prompt": 2
+    },
+    "native_permission_requests": 1,
+    "native_owner_responses": [
+      {
+        "request_id": "ab7530e76f7a4d6eacd6039c28d77c55",
+        "tool_name": "mcp_orchestra_spawn_worker",
+        "option_id": "allow",
+        "state": "responding"
+      }
+    ],
+    "worker": {
+      "name": "stand-calc-worker",
+      "model": "gpt-6-luna",
+      "branch": "task-1/stand-calc-worker",
+      "commit": "e4afcee8b5b3d029b9b428bdda80065aa95e72d5",
+      "files_verified": [
+        "calc_stand.py",
+        "test_calc_stand.py"
+      ],
+      "unittest_passed": 2,
+      "turn_usage": {
+        "session_id": "50124d69-def1-476c-be13-adb52cd8679d",
+        "model": "gpt-6-luna",
+        "ok": 1,
+        "stop_reason": "end_turn",
+        "input_tokens": 194207,
+        "output_tokens": 1753,
+        "cache_read_tokens": 153344,
+        "turn_duration_ms": 44975
+      }
+    },
+    "turn1_parent": {
+      "pid": 2171216,
+      "stop_reason": "end_turn",
+      "context_pct": 3,
+      "reply": "Воркер `stand-calc-worker` запущен, ожидаю его отчёт."
+    },
+    "turn2_parent": {
+      "pid": 2171216,
+      "duration_seconds": 3.559,
+      "stop_reason": "end_turn",
+      "context_pct": 3,
+      "reply": "Отчёт воркера `stand-calc-worker` получен: задача #1 выполнена, оба теста `python3 -m unittest` прошли успешно."
+    },
+    "post_turn_silence_seconds_verified": 356.652,
+    "quota_or_models_cli_calls": 0,
+    "idle_wakes": 0,
+    "nft_skgid_977_delta": {
+      "packets": 0,
+      "bytes": 0
+    },
+    "proxy": {
+      "ip": "178.93.29.64",
+      "country": "NL",
+      "org": "AS215294 Lumina broadband UAB",
+      "city": "Amsterdam"
+    },
+    "source_sandbox_home_unchanged": true,
+    "source_file_hash_count": 119,
+    "stand_removed": true,
+    "leftover_owned_vendor_pids": [],
+    "production_tracked_unchanged": true,
+    "production_disabled_unchanged": true
+  },
+  "post_live_offline_checks": {
+    "acp_11_suites_passed": 221,
+    "acp_11_suites_failed": 0,
+    "instruction_contract": "PASS",
+    "network_namespace_airgapped": true,
+    "real_agy_invocations_in_tests": 0
+  }
+}

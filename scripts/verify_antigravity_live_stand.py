@@ -176,6 +176,14 @@ def catalog_summary(result):
         'availableModeIds':[x['id'] for x in modes.get('availableModes',[]) or [] if isinstance(x,dict) and isinstance(x.get('id'),str)]}}
 
 
+def completed_turns(db_mod, session):
+    logs = db_mod.get_logs_forward(session.id, limit=2000)
+    ended = sum(1 for row in logs if row.get('type') == 'status' and str(row.get('content') or '').startswith('turn ended ('))
+    with db_mod._conn() as connection:
+        recorded = connection.execute('SELECT COUNT(*) FROM turn_usage WHERE session_id=?', (session.id,)).fetchone()[0]
+    return max(int(getattr(session, 'total_turns', 0) or 0), ended, int(recorded or 0))
+
+
 def allowed_spawn_permission(request,repo):
     from app.acp_tools import canonical_name
     if request.get('kind')!='permission':raise RuntimeError('question/unknown native request is outside live authorization')
@@ -449,19 +457,20 @@ async def exercise(quota):
                 for child in children:
                     child_errors=[x for x in db.get_logs_forward(child.id,limit=2000) if x['type']=='error']
                     if child_errors:raise RuntimeError('child error: '+safe(child_errors[-1]['content'])[:1200])
-                progress=(ceo.total_turns,len(children),sum(x.total_turns for x in children),ceo.status.value)
+                parent_done=completed_turns(db,ceo);child_done=sum(completed_turns(db,x) for x in children)
+                progress=(parent_done,len(children),child_done,ceo.status.value)
                 if progress!=last_progress:event('progress',parent_turns=progress[0],children=progress[1],child_turns=progress[2],parent_status=progress[3]);last_progress=progress
-                if ceo.total_turns>=1 and turn1 is None:
+                if parent_done>=1 and turn1 is None:
                     turn1={'pid':pid_seen,'status':ceo.status.value,'stop_reason':ceo._last_stop_reason,'ok':ceo._last_turn_ok};REPORT['turn1']=turn1
-                if ceo.total_turns>=2 and ceo.status.value=='idle' and children and children[0].total_turns>=1 and children[0].status.value=='idle':
+                if parent_done>=2 and ceo.status.value=='idle' and children and completed_turns(db,children[0])>=1 and children[0].status.value=='idle':
                     worker=children[0]
                     if not ceo._last_turn_ok or not worker._last_turn_ok:raise RuntimeError('parent/child terminal turn not successful')
                     REPORT['turn2']={'pid':pid_seen,'status':ceo.status.value,'stop_reason':ceo._last_stop_reason,'ok':ceo._last_turn_ok}
-                    REPORT['worker']={'id':worker.id,'model':worker.model,'worktree':worker.worktree_path,'turns':worker.total_turns,'ok':worker._last_turn_ok}
+                    REPORT['worker']={'id':worker.id,'model':worker.model,'worktree':worker.worktree_path,'turns':completed_turns(db,worker),'ok':worker._last_turn_ok}
                     break
                 await asyncio.sleep(.25)
             else:raise TimeoutError('one-cycle stand deadline reached; no retries')
-            assert ceo.total_turns==2 and len(children)==1 and vendor_pids()=={pid_seen:vendor_pids()[pid_seen]}
+            assert completed_turns(db,ceo)==2 and len(children)==1 and vendor_pids()=={pid_seen:vendor_pids()[pid_seen]}
             assert (Path(worker.worktree_path)/'calc_stand.py').is_file() and (Path(worker.worktree_path)/'test_calc_stand.py').is_file()
             # Retain only redacted event content and quantitative telemetry, never raw native protocol/auth.
             for session in (ceo,worker):
@@ -471,11 +480,11 @@ async def exercise(quota):
             with db._conn() as connection:
                 REPORT['turn_usage']=[{k:r[k] for k in ('session_id','model','ok','stop_reason','input_tokens','output_tokens','cache_read_tokens','turn_duration_ms')} for r in connection.execute('SELECT * FROM turn_usage ORDER BY id')]
             before={'logs':len(db.get_logs_forward(ceo.id,limit=5000))+len(db.get_logs_forward(worker.id,limit=5000)),
-                    'parent_turns':ceo.total_turns,'worker_turns':worker.total_turns,'rpc':len(RPC),'pids':vendor_pids()}
+                    'parent_turns':completed_turns(db,ceo),'worker_turns':completed_turns(db,worker),'rpc':len(RPC),'pids':vendor_pids()}
             event('silence_audit_start',seconds=45)
             await asyncio.sleep(45)
             after={'logs':len(db.get_logs_forward(ceo.id,limit=5000))+len(db.get_logs_forward(worker.id,limit=5000)),
-                   'parent_turns':ceo.total_turns,'worker_turns':worker.total_turns,'rpc':len(RPC),'pids':vendor_pids()}
+                   'parent_turns':completed_turns(db,ceo),'worker_turns':completed_turns(db,worker),'rpc':len(RPC),'pids':vendor_pids()}
             REPORT['silence']={'seconds':45,'before':before,'after':after,'unchanged':before==after}
             if before!=after:raise RuntimeError('post-turn silence audit changed')
             REPORT['outcome']='LIVE_CYCLE_PASS'

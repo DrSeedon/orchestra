@@ -1,0 +1,60 @@
+{
+  "turn2_ended_at": "2026-11-17T10:25:31.179482+00:00",
+  "snapshot_1_at": "2026-11-17T10:26:34.734268+00:00",
+  "snapshot_2_at": "2026-11-17T10:27:57.597025+00:00",
+  "silence_elapsed_seconds": 336.699,
+  "vendor_pids": {
+    "2171216": "122325221"
+  },
+  "sessions": [
+    {
+      "id": "ba074759-ffa6-467b-8f42-1c5b74172df5",
+      "name": "stand-ceo",
+      "model": "antigravity/gemini-4-hydrogen-medium",
+      "role": "orchestrator",
+      "status": "idle",
+      "total_turns": 0,
+      "parent_id": "",
+      "worktree_path": null
+    },
+    {
+      "id": "50124d69-def1-476c-be13-adb52cd8679d",
+      "name": "stand-calc-worker",
+      "model": "gpt-6-luna",
+      "role": "worker",
+      "status": "idle",
+      "total_turns": 0,
+      "parent_id": "ba074759-ffa6-467b-8f42-1c5b74172df5",
+      "worktree_path": "/tmp/orchestra-live-stand-20261117/worktrees/tmp-orchestra-live-stand-20261117-demo-repo/stand-calc-worker"
+    }
+  ],
+  "log_counts": {
+    "50124d69-def1-476c-be13-adb52cd8679d": {
+      "cnt": 29,
+      "max_ts": "2026-11-17T10:25:31.162041+00:00"
+    },
+    "ba074759-ffa6-467b-8f42-1c5b74172df5": {
+      "cnt": 11,
+      "max_ts": "2026-11-17T10:25:31.179482+00:00"
+    }
+  },
+  "calc_stand_exists": true,
+  "test_calc_stand_exists": true,
+  "unchanged_across_silence_window": false,
+  "snapshot_3_at": "2026-11-17T10:31:07.878752+00:00",
+  "snapshot_3_log_counts": {
+    "50124d69-def1-476c-be13-adb52cd8679d": {
+      "cnt": 29,
+      "max_ts": "2026-11-17T10:25:31.162041+00:00"
+    },
+    "ba074759-ffa6-467b-8f42-1c5b74172df5": {
+      "cnt": 11,
+      "max_ts": "2026-11-17T10:25:31.179482+00:00"
+    }
+  },
+  "snapshot_3_vendor_pids": {
+    "2171216": "122325221"
+  },
+  "unchanged_across_all_snapshots_normalized": true,
+  "note": "unchanged_across_silence_window in snapshot_3 was False only due to int(2171216) vs str(\"2171216\") JSON dict key type; both log_counts (11 parent, 29 worker) and vendor PID {2171216: \"122325221\"} remained 100% identical from 10:25:31.179482Z through shutdown at 10:31:27.831902Z (356.65s)."
+}

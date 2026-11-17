@@ -1,21 +1,15 @@
-# Orchestra ACP — split contract live attempt stopped at native wire alias
-- Updated2026-11-17; agy-acp-safe, /home/kesha/orchestra-worktrees/agy-acp-safe.
-- Pre-live code commits8902ae8546df5a25404fc94fcdc754f05b0833af,6ce1fa27388928aebf52046c8ac56289b06207c8.
-- Offline main291P, final exact48P, driver11P/source-snapshot12P; no real providers in tests.
-- A local preparation stopped on cli.log symlink BEFORE all provider/server/RPC activity.
-- Source symlink now hashed as link metadata without target traversal; source unchanged.
-- One actual authorized live cycle09:14:52—09:15:15Z, PID_ACP2128162, no provider retry.
--10s idle baseline0 PASS; init/auth/session-new each1, protocol1, personal OAuth success.
-- Real split ACK selectedHydrogen, thought medium; only family setter needed (medium already current).
-- session/prompt1; native permission1; owner responses0; child creation/worker0.
-- Actual native name mcp_orchestra_spawn_worker, exact Luna/demo payload, allow_once offered.
-- Driver did not recognize the flat wire alias and STOPPED; vendor/server closed, no retry.
-- Offline exact-alias fix/regression in progress; no further live run authorized in this wave.
-- Temp stand removed; all vendor PIDs0/owned MCP0;18889 closed.
-- Source119snapshot entries unchanged; persistent private acp_stand_profile initialized/gitignored.
-- Refreshed token atomically saved both ACP/CLI600; cache/root700; source never overwritten.
-- nft delta0packets/0bytes; proxy178.93.29.64 NL AS215294. Production unchanged.
-- Turn1end/worker unittest/Turn2/warm reuse/45s silence NOT ACHIEVED or NOT MEASURED.
-- Offered catalog retained in split-config/live/telemetry.json; no speculative fallback.
-- No main/services/provider/T3/proxy/push/merge/deploy/restart changes; private cache is explicit exception.
-- Next: offline alias test, final evidence/report commit, single parent result. No live retry.
+# STATE.md — Orchestra (`agy-acp-safe`)
+
+- **Updated:** 2026-11-17 (Step 1 isolated live stand completed — `LIVE_CYCLE_PASS` substance, `0` retries).
+- **Worktree / Branch:** `/home/kesha/orchestra-worktrees/agy-acp-safe` (`agy-acp-safe`), production `/home/kesha/orchestra` untouched at `4e4e58dcb` (`disabled_providers.json = ["antigravity", "claude", "grok"]`).
+- **Authorized Single Live Cycle (`10:24:15Z – 10:31:28Z`, `:18889`, `PID_ACP = 2171216`):**
+  - `10s` idle precheck: `0` `agy-vendor.elf` processes, `0` RPCs, passive `/api/stats` & `/api/usage`.
+  - Turn 1 (`stand-ceo`, `antigravity/gemini-4-hydrogen-medium`): `initialize=1`, `authenticate=1` (`oauth-personal` via NL `178.93.29.64` `AS215294`), `session/new=1`, `session/set_config_option=1` (`gemini-4-hydrogen` + `medium`), `session/prompt` #1 -> `mcp_orchestra_spawn_worker` -> HTTP owner `Allow` -> `end_turn` (`ctx:3%`).
+  - Worker (`stand-calc-worker`, `gpt-6-luna`, `task #1`): wrote `calc_stand.py` + `test_calc_stand.py`, passed `python3 -m unittest` (`2` tests), committed `e4afcee8b5b3d029b9b428bdda80065aa95e72d5`, sent completion report to `stand-ceo` (`end_turn`, `44.98s`).
+  - Turn 2 (`stand-ceo`): verified child report admitted, reused **same `PID_ACP = 2171216`** (`3.56s` warm session, `session/prompt` #2 `ok=true`, `end_turn`, `ctx:3%`).
+  - Post-turn silence: **`356.65s`** (`10:25:31.18Z – 10:31:27.83Z`) with `0` new logs, `0` new RPCs, `0` `/quota` or `models` calls, `0` `nftables` `skgid 977` drops (`0 packets / 0 bytes`).
+  - Cleanup: `:18889` stopped, `/tmp/orchestra-live-stand-20261117` removed, `0` leftover owned PIDs, `sandbox_home` (`119` hashes) unchanged, refreshed OAuth state saved (`0600`) in gitignored `acp_stand_profile`.
+- **Post-Live Accounting Fix & Offline Suite:**
+  - Fixed `AntigravityBackend._end()` (`event_id`, `num_turns`, `turn_duration_ms` -> `turn_usage` & `total_turns`) and driver `completed_turns()` for `CodexBackend` `total_turns == 0`.
+  - Airgapped offline suite (`unshare --net`): **`221 passed, 0 failed`** across all 11 ACP test files + `check_instruction_contract.py` **PASS**.
+- **Next Gate:** Await explicit owner decision before any merge/deploy or live production enablement.
