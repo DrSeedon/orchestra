@@ -1,0 +1,169 @@
+{
+  "started_at": "2026-11-17T14:26:18.241641+00:00",
+  "deployed_commit": "7cfc494dbcf534939ad9e572b274d626a66a971c",
+  "orchestra_service": "active",
+  "telegram_bot_api_untouched": true,
+  "restart_cut_turns_delta": 0,
+  "nft_before": {
+    "packets": 0,
+    "bytes": 0
+  },
+  "vendor_procs_before_smoke": [],
+  "api_models_antigravity_count": 22,
+  "api_models_antigravity": [
+    "antigravity/claude-opus-5-5-high",
+    "antigravity/claude-opus-5-5-low",
+    "antigravity/claude-opus-5-5-medium",
+    "antigravity/claude-sonnet-5-5-high",
+    "antigravity/claude-sonnet-5-5-low",
+    "antigravity/claude-sonnet-5-5-medium",
+    "antigravity/gemini-3.8-flash-high",
+    "antigravity/gemini-3.8-flash-low",
+    "antigravity/gemini-3.8-flash-medium",
+    "antigravity/gemini-4-argon-high",
+    "antigravity/gemini-4-argon-low",
+    "antigravity/gemini-4-argon-medium",
+    "antigravity/gemini-4-carbon-high",
+    "antigravity/gemini-4-carbon-low",
+    "antigravity/gemini-4-carbon-medium",
+    "antigravity/gemini-4-hydrogen-high",
+    "antigravity/gemini-4-hydrogen-low",
+    "antigravity/gemini-4-hydrogen-medium",
+    "antigravity/gemini-4-hydrogen-xhigh",
+    "antigravity/gemini-pro-orchestrator",
+    "antigravity/gemini-pro-orchestrator-argon",
+    "antigravity/gpt-oss-120b-medium"
+  ],
+  "disabled_providers": [
+    "claude",
+    "grok"
+  ],
+  "vendor_procs_after_passive_models_and_usage": [],
+  "elapsed_parallel_seconds": 15.641,
+  "both_running_simultaneously_observed": true,
+  "peak_vendor_procs": [
+    {
+      "pid": 2287718,
+      "flags": [
+        "acp",
+        "--disable-telemetry",
+        "--process-per-session",
+        "--dangerously-skip-permissions"
+      ]
+    },
+    {
+      "pid": 2287731,
+      "flags": [
+        "acp",
+        "--worker",
+        "--dangerously-skip-permissions",
+        "--disable_telemetry"
+      ]
+    },
+    {
+      "pid": 2287761,
+      "flags": [
+        "acp",
+        "--worker",
+        "--dangerously-skip-permissions",
+        "--disable_telemetry"
+      ]
+    },
+    {
+      "pid": 2287804,
+      "flags": [
+        "acp",
+        "--worker",
+        "--dangerously-skip-permissions",
+        "--disable_telemetry"
+      ]
+    }
+  ],
+  "native_requests_created_during_tool_calls": 0,
+  "sessions": {
+    "acp-smoke-s1": {
+      "session": {
+        "id": "48745154-be14-4605-8f1e-358e0b0603db",
+        "name": "acp-smoke-s1",
+        "model": "antigravity/gemini-3.8-flash-high",
+        "profile": "",
+        "status": "idle",
+        "total_turns": 1,
+        "session_id": "59f9825e-bd9d-409b-a794-47c880d59a11",
+        "scope": "/home/kesha/workspace/acp-smoke-s1",
+        "cwd": "/home/kesha/workspace/acp-smoke-s1"
+      },
+      "turn_usage": [
+        {
+          "model": "antigravity/gemini-3.8-flash-high",
+          "ok": 1,
+          "stop_reason": "end_turn",
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_read_tokens": 0,
+          "cost_unaccounted": 1,
+          "turn_duration_ms": 8591
+        }
+      ],
+      "tools_called": [
+        "mcp_orchestra_list_agents",
+        "read_file"
+      ],
+      "texts": [
+        "ALPHA_PARALLEL_SCOPE_771 acp-smoke-s1"
+      ],
+      "errors": [],
+      "expected_marker_present": true
+    },
+    "acp-smoke-s2": {
+      "session": {
+        "id": "0f93f22a-8c38-426b-93cf-ac2f97e621f3",
+        "name": "acp-smoke-s2",
+        "model": "antigravity/gemini-3.8-flash-medium",
+        "profile": "personal",
+        "status": "idle",
+        "total_turns": 1,
+        "session_id": "5e33e43f-610d-4c71-9438-5fcd16dc6b5b",
+        "scope": "/home/kesha/workspace/acp-smoke-s2",
+        "cwd": "/home/kesha/workspace/acp-smoke-s2"
+      },
+      "turn_usage": [
+        {
+          "model": "antigravity/gemini-3.8-flash-medium",
+          "ok": 1,
+          "stop_reason": "end_turn",
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_read_tokens": 0,
+          "cost_unaccounted": 1,
+          "turn_duration_ms": 9582
+        }
+      ],
+      "tools_called": [
+        "mcp_orchestra_list_agents",
+        "read_file"
+      ],
+      "texts": [
+        "BETA_PARALLEL_SCOPE_882 acp-smoke-s2"
+      ],
+      "errors": [],
+      "expected_marker_present": true
+    }
+  },
+  "archived_http_statuses": {
+    "acp-smoke-s1": 200,
+    "acp-smoke-s2": 200
+  },
+  "smoke_remaining_active": 0,
+  "existing_orchestrators_untouched_count": 10,
+  "nft_after": {
+    "packets": 0,
+    "bytes": 0
+  },
+  "nft_delta": {
+    "packets": 0,
+    "bytes": 0
+  },
+  "outcome": "PASS",
+  "ended_at": "2026-11-17T14:26:35.405390+00:00"
+}
