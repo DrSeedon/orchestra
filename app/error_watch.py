@@ -36,12 +36,22 @@ _HARNESS_READ_PATH_NOISE = "harness read workspace guard refusal"
 _HARNESS_READ_PATH_REFUSAL = re.compile(
     r"\[read error\] path '[^'\r\n]+' is outside the workspace",
 )
+_SHARED_PRIVATE_NON_GIT_NOISE = "optional shared-private preparation outside Git"
+# Match the complete optional-helper warning, before signature normalization can
+# hide provenance or mixed errors. Both occurrences must name the same cwd;
+# ambiguous colon/newline-containing paths remain actionable.
+_SHARED_PRIVATE_NON_GIT_WARNING = re.compile(
+    r"(?:WARNING:app\.private_folder:[ \t]*)?"
+    r"Could not prepare shared private folder for (?P<cwd>[^:<>\s][^:<>\r\n]*): "
+    r"git-common-dir failed in (?P=cwd): "
+    r"fatal: not a git repository \(or any of the parent directories\): \.git",
+)
 # Only these event classes are excluded from registered-fix observation. In
 # particular, HTTP success requires the raw journal record checked by _event_noise.
 _POST_FIX_EVENT_NOISE = {
     "hub provider limit", "hub credential guard refusal", "hub owned_dirs guard refusal",
     _HUB_UNFINISHED_TOOL_NOISE, "successful HTTP access log", _HARNESS_READ_PATH_NOISE,
-    "agent read of missing file",
+    "agent read of missing file", _SHARED_PRIVATE_NON_GIT_NOISE,
 }
 # session.py emits only these reset labels and ISO times (or "неизвестно").
 # Accept <N> as well so classification survives numeric signature normalization.
@@ -200,6 +210,9 @@ def classify_noise(signature: str) -> str | None:
 
 
 def _event_noise(event: dict, signature: str) -> str | None:
+    if (event.get("source") == "journalctl"
+            and _SHARED_PRIVATE_NON_GIT_WARNING.fullmatch(event["message"])):
+        return _SHARED_PRIVATE_NON_GIT_NOISE
     # Antigravity's standalone read_file miss is an ordinary tool refusal.
     # Keep legacy error banners, other tools and mixed errors actionable.
     if (event.get("source") == "logs" and event.get("type") == "tool_result"

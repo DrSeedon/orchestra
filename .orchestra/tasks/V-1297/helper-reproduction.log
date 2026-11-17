@@ -1,0 +1,2 @@
+PASS: real optional helper returned None; standalone cwd stayed empty
+WARNING:app.private_folder:Could not prepare shared private folder for <PATH>: git-common-dir failed in <PATH>: fatal: not a git repository (or any of the parent directories): .git

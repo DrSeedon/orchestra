@@ -1,0 +1,11 @@
+SYNTAX PASS: app/error_watch.py
+SYNTAX PASS: tests/test_error_watch.py
+SYNTAX PASS: app/private_folder.py
+SYNTAX PASS: .orchestra/tasks/V-1297/reproduce_helper.py
+SCOPE PASS: _event_noise is the only modified function
+TEST INTEGRITY PASS: all existing test/helper function ASTs unchanged
+ADDED: 5 V-1297 test functions (parameterized cases not collected)
+REGEX COMPILE PASS: _SHARED_PRIVATE_NON_GIT_WARNING
+DIFF: app/error_watch.py +14 -1
+DIFF: tests/test_error_watch.py +204 -0
+DIFF: CHANGELOG.md +7 -0

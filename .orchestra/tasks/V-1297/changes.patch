@@ -1,0 +1,272 @@
+--- a/app/error_watch.py
++++ b/app/error_watch.py
+@@ -36,12 +36,22 @@
+ _HARNESS_READ_PATH_REFUSAL = re.compile(
+     r"\[read error\] path '[^'\r\n]+' is outside the workspace",
+ )
++_SHARED_PRIVATE_NON_GIT_NOISE = "optional shared-private preparation outside Git"
++# Match the complete optional-helper warning, before signature normalization can
++# hide provenance or mixed errors. Both occurrences must name the same cwd;
++# ambiguous colon/newline-containing paths remain actionable.
++_SHARED_PRIVATE_NON_GIT_WARNING = re.compile(
++    r"(?:WARNING:app\.private_folder:[ \t]*)?"
++    r"Could not prepare shared private folder for (?P<cwd>[^:<>\s][^:<>\r\n]*): "
++    r"git-common-dir failed in (?P=cwd): "
++    r"fatal: not a git repository \(or any of the parent directories\): \.git",
++)
+ # Only these event classes are excluded from registered-fix observation. In
+ # particular, HTTP success requires the raw journal record checked by _event_noise.
+ _POST_FIX_EVENT_NOISE = {
+     "hub provider limit", "hub credential guard refusal", "hub owned_dirs guard refusal",
+     _HUB_UNFINISHED_TOOL_NOISE, "successful HTTP access log", _HARNESS_READ_PATH_NOISE,
+-    "agent read of missing file",
++    "agent read of missing file", _SHARED_PRIVATE_NON_GIT_NOISE,
+ }
+ # session.py emits only these reset labels and ISO times (or "неизвестно").
+ # Accept <N> as well so classification survives numeric signature normalization.
+@@ -200,6 +210,9 @@
+ 
+ 
+ def _event_noise(event: dict, signature: str) -> str | None:
++    if (event.get("source") == "journalctl"
++            and _SHARED_PRIVATE_NON_GIT_WARNING.fullmatch(event["message"])):
++        return _SHARED_PRIVATE_NON_GIT_NOISE
+     # Antigravity's standalone read_file miss is an ordinary tool refusal.
+     # Keep legacy error banners, other tools and mixed errors actionable.
+     if (event.get("source") == "logs" and event.get("type") == "tool_result"
+--- a/tests/test_error_watch.py
++++ b/tests/test_error_watch.py
+@@ -682,6 +682,98 @@
+     assert any("Traceback" in item["signature"] and "RuntimeError" in item["signature"] for item in candidates)
+ 
+ 
++_V1297_NOT_GIT = "fatal: not a git repository (or any of the parent directories): .git"
++_V1297_PRIVATE_WARNING = (
++    "Could not prepare shared private folder for /synthetic/source-only: "
++    "git-common-dir failed in /synthetic/source-only: " + _V1297_NOT_GIT
++)
++_V1297_PRIVATE_NOISE = "optional shared-private preparation outside Git"
++
++
++@pytest.mark.parametrize("prefix", ["", "WARNING:app.private_folder:", "WARNING:app.private_folder: "])
++@pytest.mark.parametrize("path", ["/synthetic/source-only", "/synthetic/папка с пробелами", "../standalone"])
++def test_v1297_complete_optional_non_git_warning_is_journal_event_noise(prefix, path):
++    message = prefix + _V1297_PRIVATE_WARNING.replace("/synthetic/source-only", path)
++    events = [_event(message, i) for i in range(10)]
++    before = [dict(event) for event in events]
++    signature = watch.normalize_signature(message)
++    # A signature alone cannot prove the source or the equality of raw paths.
++    assert watch.classify_noise(signature) is None
++    candidates, noise = watch.aggregate(events, datetime.now(timezone.utc))
++    assert candidates == []
++    assert [(item["signature"], item["noise"], item["count"]) for item in noise] == [
++        (signature, _V1297_PRIVATE_NOISE, 10),
++    ]
++    assert watch.post_fix_verdict(
++        events, signature, datetime.fromisoformat(events[0]["ts"]), 168,
++    )["count"] == 0
++    assert events == before
++
++
++def test_v1297_real_optional_helper_warning_keeps_non_git_cwd_untouched(tmp_path, monkeypatch, caplog):
++    from app import private_folder
++
++    cwd = tmp_path / "standalone"
++    cwd.mkdir()
++    # Bound Git discovery to this synthetic directory, independent of the host.
++    for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"):
++        monkeypatch.delenv(name, raising=False)
++    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
++    monkeypatch.setenv("LC_ALL", "C")
++    assert private_folder.ensure_main_private(cwd) is None
++    record, = [record for record in caplog.records if record.name == "app.private_folder"]
++    assert record.levelname == "WARNING"
++    assert record.getMessage() == _V1297_PRIVATE_WARNING.replace("/synthetic/source-only", str(cwd))
++    assert list(cwd.iterdir()) == []
++    for message in (record.getMessage(), f"{record.levelname}:{record.name}:{record.getMessage()}"):
++        signature = watch.normalize_signature(message)
++        candidates, noise = watch.aggregate([_event(message)], datetime.now(timezone.utc), threshold=1)
++        assert candidates == []
++        assert [(item["noise"], item["count"]) for item in noise] == [(_V1297_PRIVATE_NOISE, 1)]
++        assert signature.endswith(_V1297_NOT_GIT)
++
++
++@pytest.mark.parametrize("overrides", [
++    {"source": "logs"}, {"source": "other"}, {"source": None},
++    {"message": "WARNING:another.logger:" + _V1297_PRIVATE_WARNING},
++    {"message": "ERROR:app.private_folder:" + _V1297_PRIVATE_WARNING},
++    {"message": "INFO:app.private_folder:" + _V1297_PRIVATE_WARNING},
++    {"message": _V1297_PRIVATE_WARNING.replace(_V1297_NOT_GIT, "fatal: Permission denied")},
++    {"message": _V1297_PRIVATE_WARNING.replace(_V1297_NOT_GIT, "fatal: detected dubious ownership")},
++    {"message": _V1297_PRIVATE_WARNING.replace(_V1297_NOT_GIT, "fatal: bad config file")},
++    {"message": _V1297_PRIVATE_WARNING.replace(_V1297_NOT_GIT, "fatal: invalid gitfile format: .git")},
++    {"message": _V1297_PRIVATE_WARNING.replace("git-common-dir failed in /synthetic/source-only",
++                                             "git-common-dir failed in /synthetic/different")},
++    {"message": "git-common-dir failed in /synthetic/source-only: " + _V1297_NOT_GIT},
++    {"message": _V1297_NOT_GIT},
++    {"message": _V1297_PRIVATE_WARNING[:-1]},
++    {"message": _V1297_PRIVATE_WARNING + "\n"},
++    {"message": _V1297_PRIVATE_WARNING + "\r"},
++    {"message": " " + _V1297_PRIVATE_WARNING},
++    {"message": _V1297_PRIVATE_WARNING + "; PermissionError: denied"},
++    {"message": _V1297_PRIVATE_WARNING + "\nRuntimeError: storage failed"},
++    {"message": "RuntimeError: storage failed\n" + _V1297_PRIVATE_WARNING},
++    {"message": _V1297_PRIVATE_WARNING + " " * 1100 + "RuntimeError: storage failed"},
++    {"message": _V1297_PRIVATE_WARNING.replace("for /synthetic", "for\n/synthetic")},
++    {"message": _V1297_PRIVATE_WARNING.replace("/synthetic/source-only", "/synthetic/line\nbreak")},
++    {"message": _V1297_PRIVATE_WARNING.replace("/synthetic/source-only", "/synthetic/ambiguous:cwd")},
++    {"message": _V1297_PRIVATE_WARNING.replace("/synthetic/source-only", "")},
++    {"message": _V1297_PRIVATE_WARNING.replace("/synthetic/source-only", "<PATH>")},
++])
++def test_v1297_other_sources_git_failures_truncated_and_mixed_errors_stay_actionable(overrides):
++    event = _event(_V1297_PRIVATE_WARNING)
++    event.update(overrides)
++    before = dict(event)
++    signature = watch.normalize_signature(event["message"])
++    candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
++    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 1)]
++    assert noise == []
++    assert watch.post_fix_verdict(
++        [event], signature, datetime.fromisoformat(event["ts"]), 168,
++    )["count"] == 1
++    assert event == before
++
++
+ _V1191_HTTP_ACCESS = 'INFO:     192.0.2.1:52000 - "GET /api/search?query=failed HTTP/1.1" 200 OK'
+ _V1191_HTTP_SIGNATURE = 'INFO: <N>.<N>:<N> - "GET <PATH> HTTP/<N>" <N> OK'
+ 
+@@ -710,6 +802,118 @@
+         }
+         for i in range(count)
+     ]
++
++
++@pytest.mark.parametrize("complete", [False, True])
++@pytest.mark.parametrize("already_reported", [False, True])
++def test_v1297_journal_dedup_scan_and_registered_fix_preserve_observation_state(
++    complete, already_reported, v1191_journal_scan, capsys, scan_reports,
++):
++    db_path, rows, _ = v1191_journal_scan
++    started = datetime.now(timezone.utc) - timedelta(hours=2 if complete else 1)
++    rows.extend(_v1191_access_rows(_V1297_PRIVATE_WARNING, started))
++    # Reproduce 12 raw / 10 deduplicated records through the actual JSON collector.
++    rows.extend({**row, "MESSAGE": "WARNING:app.private_folder:" + row["MESSAGE"]} for row in rows[:2])
++    signature = watch.normalize_signature(_V1297_PRIVATE_WARNING)
++    assert signature == (
++        "Could not prepare shared private folder for <PATH>: "
++        "git-common-dir failed in <PATH>: " + _V1297_NOT_GIT
++    )
++    assert watch.record_fix(SimpleNamespace(
++        db=str(db_path), signature=signature, task="V-1297", commit="example",
++        started_at=started.isoformat(), window_hours=1 if complete else 168,
++    )) == 0
++    capsys.readouterr()
++    state_path = watch._state_path(db_path)
++    initial = watch._load_state(state_path)
++    initial["alerts"][signature] = {"count": 10}
++    if already_reported:
++        initial["fixes"][signature]["recurrence_reported"] = True
++    watch._write_state(state_path, initial)
++    args = SimpleNamespace(db=str(db_path), window_hours=168, threshold=10, dry_run=True)
++    assert watch.scan(args) == 0
++    output = json.loads(capsys.readouterr().out)
++    assert output["signals"] == []
++    assert output["events_by_source"] == {"journalctl": 12, "logs": 0}
++    assert output["noise_events"] == 10
++    assert output["noise_by_class"] == {_V1297_PRIVATE_NOISE: 10}
++    assert watch._load_state(state_path) == initial
++
++    args.dry_run = False
++    assert watch.scan(args) == 0
++    capsys.readouterr()
++    if complete:
++        signals, verdicts = scan_reports.call_args.args
++        assert signals == []
++        assert [(item["signature"], item["count"], item["complete"]) for item in verdicts] == [
++            (signature, 0, True),
++        ]
++    else:
++        assert not scan_reports.called
++    state = watch._load_state(state_path)
++    assert state["fixes"] == {
++        signature: {**initial["fixes"][signature], **({"completion_reported": True} if complete else {})},
++    }
++    assert watch.scan(args) == 0
++    capsys.readouterr()
++    assert watch._load_state(state_path) == state
++    rows.clear()
++    assert watch.scan(args) == 0
++    capsys.readouterr()
++    assert watch._load_state(state_path)["fixes"] == state["fixes"]
++    assert scan_reports.call_count == int(complete)
++
++
++@pytest.mark.parametrize("source,message", [
++    ("logs", _V1297_PRIVATE_WARNING),
++    ("journalctl", "WARNING:another.logger:" + _V1297_PRIVATE_WARNING),
++    ("journalctl", _V1297_PRIVATE_WARNING.replace("git-common-dir failed in /synthetic/source-only",
++                                               "git-common-dir failed in /synthetic/different")),
++    ("journalctl", _V1297_PRIVATE_WARNING.replace("for /synthetic", "for\n/synthetic")),
++])
++def test_v1297_same_signature_real_errors_still_alert_and_recur(
++    source, message, v1191_journal_scan, capsys, scan_reports,
++):
++    db_path, rows, _ = v1191_journal_scan
++    started = datetime.now(timezone.utc) - timedelta(minutes=1)
++    rows.extend(_v1191_access_rows(_V1297_PRIVATE_WARNING, started))
++    signature = watch.normalize_signature(_V1297_PRIVATE_WARNING)
++    assert watch.normalize_signature(message) == signature
++    assert watch.record_fix(SimpleNamespace(
++        db=str(db_path), signature=signature, task="V-1297", commit="example",
++        started_at=started.isoformat(), window_hours=168,
++    )) == 0
++    capsys.readouterr()
++    args = SimpleNamespace(db=str(db_path), window_hours=168, threshold=10, dry_run=False)
++    assert watch.scan(args) == 0
++    capsys.readouterr()
++    assert not scan_reports.called
++
++    def insert_errors(count):
++        if source == "journalctl":
++            rows.extend(_v1191_access_rows(message, started + timedelta(seconds=len(rows) + 1), count))
++        else:
++            _insert_error_rows(db_path, [("error", message, None, 1)] * count, started + timedelta(seconds=1))
++
++    insert_errors(1)
++    assert watch.scan(args) == 0
++    capsys.readouterr()
++    signals, verdicts = scan_reports.call_args.args
++    assert signals == []
++    assert [(item["signature"], item["count"]) for item in verdicts] == [(signature, 1)]
++    state = watch._load_state(watch._state_path(db_path))
++    assert state["fixes"][signature]["recurrence_reported"] is True
++    assert watch.scan(args) == 0
++    capsys.readouterr()
++    assert scan_reports.call_count == 1
++    assert watch._load_state(watch._state_path(db_path)) == state
++
++    insert_errors(9)
++    assert watch.scan(args) == 0
++    capsys.readouterr()
++    signals, verdicts = scan_reports.call_args.args
++    assert [(item["signature"], item["count"]) for item in signals] == [(signature, 10)]
++    assert verdicts == []
+ 
+ 
+ @pytest.mark.parametrize("complete", [False, True])
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -5,6 +5,13 @@
+ > content: the VPS block comes first below, followed by the laptop block. Task #52 fixes the format.
+ 
+ ## Unreleased
++
++- **Error-watch classifies the optional shared-private non-Git warning as noise**
++  (V-1297; `app/error_watch.py`). Only complete journal warnings from the optional
++  helper, with matching cwd paths and the exact `not a git repository` cause, are
++  excluded from alerts and registered-fix recurrence counts. Permission errors,
++  other Git failures, other sources/loggers and truncated or mixed messages remain
++  actionable. Private-folder preparation and session startup are unchanged.
+ 
+ - **Error-watch treats exact Antigravity missing-file reads as agent noise**
+   (V-1291; `app/error_watch.py`). Only `logs` / `tool_result` / `read_file`

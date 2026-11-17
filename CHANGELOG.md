@@ -6,6 +6,13 @@
 
 ## Unreleased
 
+- **Error-watch classifies the optional shared-private non-Git warning as noise**
+  (V-1297; `app/error_watch.py`). Only complete journal warnings from the optional
+  helper, with matching cwd paths and the exact `not a git repository` cause, are
+  excluded from alerts and registered-fix recurrence counts. Permission errors,
+  other Git failures, other sources/loggers and truncated or mixed messages remain
+  actionable. Private-folder preparation and session startup are unchanged.
+
 - **Error-watch treats exact Antigravity missing-file reads as agent noise**
   (V-1291; `app/error_watch.py`). Only `logs` / `tool_result` / `read_file`
   events with the complete single-line response
