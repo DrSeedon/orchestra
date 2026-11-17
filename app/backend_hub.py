@@ -27,7 +27,7 @@ from uuid import uuid4
 
 from app import hub_workspace as hw
 from app.hub_activity import HubActivityStream
-from app.hub_outbox import OUTBOX_NAME, OutboxReport, parse_outbox, _request_for
+from app.hub_outbox import OUTBOX_NAME, OutboxReport, is_orchestrator_identity, parse_outbox, _request_for, _worktree_head_sha
 from app.events import AgentEvent
 from app.models import ensure_hub_worker_allowed, hub_worker_context, HUB_ARGON_MODEL, HUB_SPECIALIST_ROLE, get_model_spec
 from app.multicode_client import MultiCodeClient, MultiCodeError, _last_assistant_text
@@ -95,11 +95,102 @@ def _specialist_instructions(who) -> str:
     return prompt_path(context["pipeline"] or DEFAULT_PIPELINE, "roles/specialist.md").read_text().rstrip() + "\n\n"
 
 
+ORCHESTRATOR_PREAMBLE = (
+    "<role>\n"
+    "## Role: Orchestrator (hub session)\n"
+    "You are orchestrator {name} managing project scope `{scope}`.\n"
+    "You run on a remote Hub workspace synced with `{scope}` (no `.git` or credentials in this "
+    "copy). Delegate coding/testing tasks to child workers via `{outbox}`, review their reports "
+    "and changed files, merge/close completed workers, and answer the owner concisely.\n"
+    "Do not run `git commit`, `git push` or `git clone` yourself, and never wait in sleep/polling "
+    "loops: once you append a command to `{outbox}` and finish your turn, Orchestra executes it "
+    "immediately and automatically wakes you on your next turn when a child worker reports back.\n"
+    "</role>\n\n"
+)
+
+ORCHESTRATOR_OUTBOX_SECTION = (
+    "<orchestra-link>\n"
+    "## Orchestra Orchestrator Commands (`{outbox}`)\n"
+    "You have no native Orchestra MCP tools here. To run Orchestra orchestrator actions, append "
+    "one JSON object per line to `./{outbox}` in the workspace root (not inside `.orchestra/`); "
+    "Orchestra executes them in order as soon as your turn ends:\n"
+    '- `{{"tool":"spawn_worker","args":{{"name":"worker-slug","task":"clear self-contained brief",'
+    '"model":"hub-gpt-6-luna","role":"worker","base_branch":"main",'
+    '"description":"lifecycle=one-shot; short summary","model_reason":""}}}}` '
+    "(allowed worker models: `hub-gpt-6-luna` for fast tasks/tests, `hub-gpt-6.1-sol` for complex code, "
+    "or `gpt-6-luna` with a non-empty `model_reason` for strictly local VPS tasks)\n"
+    '- `{{"tool":"send_to_worker","args":{{"worker":"worker-slug","message":"follow-up instructions"}}}}`\n'
+    '- `{{"tool":"merge_worker","args":{{"worker":"worker-slug","target_branch":"main"}}}}` '
+    "(optional: `expected_head` 40-char SHA, `acceptance_note`)\n"
+    '- `{{"tool":"close_worker","args":{{"worker":"worker-slug","reason":"merged and verified","force":false}}}}`\n'
+    '- `{{"tool":"update_progress","args":{{"percent":50,"status":"short phase description"}}}}`\n'
+    '- `{{"tool":"update_checklist","args":{{"items":["step"],"completed":[],"current":0,'
+    '"estimates_minutes":[5]}}}}`\n'
+    "Only direct child workers in `{scope}` can be targeted; unknown tools or foreign targets are rejected.\n"
+    "</orchestra-link>\n\n"
+)
+
+
+def orchestrator_workers_snapshot(who) -> str:
+    """Compact live snapshot of active child workers in `who.scope` before an orchestrator turn."""
+    if not is_orchestrator_identity(who):
+        return ""
+    scope = (getattr(who, "scope", "") or "").rstrip("/")
+    orch_name = getattr(who, "name", "") or ""
+    orch_id = getattr(who, "session_id", "") or ""
+    if not scope:
+        return ""
+    rows: list[dict] = []
+    try:
+        import sqlite3
+        from app import db
+
+        with db._conn() as conn:
+            found = conn.execute(
+                "SELECT id, name, status, model, role, branch, worktree_path, parent_name, parent_id "
+                "FROM sessions WHERE scope = ? AND status != 'archived' ORDER BY created_at ASC",
+                (scope,),
+            ).fetchall()
+            rows = [
+                dict(r) for r in found
+                if r["id"] != orch_id
+                and not bool(r["role"] == "orchestrator")
+                and (r["parent_name"] == orch_name or (orch_id and r["parent_id"] == orch_id))
+            ]
+    except Exception:
+        rows = []
+    if not rows:
+        body = "Active child workers: (none)"
+    else:
+        lines = ["Active child workers:"]
+        for r in rows[:30]:
+            head = _worktree_head_sha(str(r.get("worktree_path") or ""))
+            head_part = f" | head={head}" if head else ""
+            lines.append(
+                f"- {r['name']} | status={r.get('status', '')} | model={r.get('model', '')} "
+                f"| role={r.get('role', 'worker')} | branch={r.get('branch') or '-'}{head_part}"
+            )
+        body = "\n".join(lines)
+    return f"<orchestra-workers scope=\"{scope}\">\n{body}\n</orchestra-workers>\n\n"
+
+
 def hub_preamble(who, task_ref: str = "", *, has_link: bool = False, specialist_context=None) -> str:
     """The trimmed prompt a hub model gets: role, task rules, the outbox tools, the report
     contract. It leaves out everything that assumes native MCP tools or the full pipeline."""
     from app.pipeline import DEFAULT_PIPELINE, prompt_path
     from app.prompting import safe_format_prompt
+
+    if is_orchestrator_identity(who) or (
+        isinstance(specialist_context, dict) and specialist_context.get("role") == "orchestrator"
+    ):
+        name = getattr(who, "name", "") or "orchestrator"
+        scope = getattr(who, "scope", "") or (specialist_context or {}).get("scope", "")
+        role_block = ORCHESTRATOR_PREAMBLE.format(name=name, scope=scope, outbox=OUTBOX_NAME)
+        where = (f"Put any notes, reports or other task artifacts under .orchestra/tasks/{task_ref}/ "
+                 "(create it); nowhere else outside the source tree.\n\n") if task_ref else ""
+        link = ORCHESTRATOR_OUTBOX_SECTION.format(outbox=OUTBOX_NAME, scope=scope) if has_link else ""
+        workers = orchestrator_workers_snapshot(who)
+        return f"{role_block}{hw.HUB_UV_INSTRUCTIONS}{where}{link}{workers}Task:\n"
 
     parent = getattr(who, "parent_name", "") or ""
     try:
@@ -305,6 +396,7 @@ class HubBackend:
         self._sync_no_work = False
         self._sync_failure = ""
         self._recovering_sync = False
+        self._finalizing_turn = False
         self._uv_ready = False
 
     @property
@@ -383,6 +475,8 @@ class HubBackend:
             self._abort = False
             self._turn_active = True
             return
+        if self._finalizing_turn:
+            raise RuntimeError("hub turn is finalizing sync; deferring message to next turn")
         # Mid-turn: steer the running hub thread (it picks the text up between its steps).
         state, run_id = self._state, self._run_id
         if state and state.thread_id and run_id:
@@ -505,6 +599,7 @@ class HubBackend:
             yield AgentEvent("error", f"Hub worker turn failed: {detail}",
                              metadata={"hub_provider_limit": bool(limit)})
         finally:
+            self._finalizing_turn = False
             self._turn_active = False
         if self._abort:
             ok, stop_reason = False, "interrupted"
@@ -638,6 +733,8 @@ class HubBackend:
                         yield _relative(event, state.remote_dir)
                     state.activity_pos = stream.cursor or 0
                     state.save()
+                    self._run_id = None
+                    self._finalizing_turn = True
                     self._sync_no_work = False
                     sync_error = None
                     try:
@@ -675,6 +772,7 @@ class HubBackend:
                             "threadId": state.thread_id, "message": wire, "mode": "auto"})
                         if not isinstance(sent, dict) or not sent.get("runId"):
                             raise MultiCodeError("MultiCode retry send returned no runId")
+                        self._finalizing_turn = False
                         run_id = sent["runId"]
                         continue
                     if status in {"failed", "cancelled", "interrupted", "rolled_back"}:
@@ -774,9 +872,11 @@ class HubBackend:
         parts = list(self._early_steer) + [message]
         body = "\n\n".join(parts)
         if not first:
+            who = self._bridge.identity() if self._bridge is not None else None
+            workers = orchestrator_workers_snapshot(who) if is_orchestrator_identity(who) else ""
             # Also update a thread that predates uv provisioning, or resumed without PATH.
             return (_specialist_instructions(self._worker_context())
-                    + (hw.HUB_UV_INSTRUCTIONS if self._uv_ready else "") + body)
+                    + (hw.HUB_UV_INSTRUCTIONS if self._uv_ready else "") + workers + body)
         return self._preamble() + body
 
     def _preamble(self) -> str:
@@ -1132,7 +1232,12 @@ class HubBackend:
                                                          if before.get(r) != d}) & set(result.manifest))
         self._sync_changed_files += len(result.changed) + len(result.deleted)
         state.turns += 1
-        entries, dropped = parse_outbox(result.outbox)
+        who = self._bridge.identity() if self._bridge is not None else None
+        entries, dropped = parse_outbox(
+            result.outbox,
+            role=getattr(who, "role", "worker"),
+            is_orchestrator=is_orchestrator_identity(who),
+        )
         for entry in entries:
             entry["_delivery_id"] = str(uuid4())
         state.pending_sync.update(phase="commit", changed=result.changed, deleted=result.deleted,
@@ -1164,7 +1269,7 @@ class HubBackend:
                     sent["args"]["message"] = context + "\n\nWorker report:\n" + str(entry["args"].get("message", ""))
                 ran = await self._bridge.run(
                     [sent], mark_reported=not self._recovering_sync or bool(self._sync_failure))
-                if ran.dropped and (entry["tool"] not in {"update_checklist", "update_progress"}
+                if ran.dropped and (entry["tool"] == "send_message"
                                     or ran.dropped != ran.rejected):
                     # A lost response may already have accepted the report. Retry
                     # its saved delivery_id through the existing durable API owner.
@@ -1179,7 +1284,12 @@ class HubBackend:
             return report.summary()
         if not data.strip():
             return ""
-        entries, dropped = parse_outbox(data)
+        who = self._bridge.identity() if self._bridge is not None else None
+        entries, dropped = parse_outbox(
+            data,
+            role=getattr(who, "role", "worker"),
+            is_orchestrator=is_orchestrator_identity(who),
+        )
         report = OutboxReport(dropped=dropped)
         try:
             await ssh.delete_files(state.remote_dir, [OUTBOX_NAME])   # each entry runs at most once

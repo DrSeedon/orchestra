@@ -962,7 +962,7 @@ class AgentSession:
         return HubBridge(lambda: Identity(
             session_id=self.id, name=self.name, scope=self.scope, parent_name=self.parent_name or "",
             role=self.role, branch=self.branch or "", pipeline=self.pipeline or "", turn_gen=self._turn_gen,
-            base_branch=self.base_branch or ""),
+            base_branch=self.base_branch or "", is_orchestrator=bool(self.is_orchestrator)),
             on_parent_report=reported)
 
     def _make_backend(
