@@ -1477,6 +1477,13 @@ class SessionManager:
         # Сессии больше нет — снять её имена из FD store (#230 T2). Иначе store дорастает до
         # `FileDescriptorStoreMax=256`, и новые агенты молча перестают быть защищёнными.
         archive_session(session_id)
+        if session is not None and session.backend_type == "antigravity" and session.session_id:
+            from app.antigravity_acp import release_archived_session
+            from app.backend_antigravity import canonical_profile
+            try:
+                await release_archived_session(canonical_profile(session.profile), session.session_id)
+            except Exception:
+                pass
         self.sessions.pop(session_id, None)
         await asyncio.to_thread(self._cleanup_cli_home, session_id)
 

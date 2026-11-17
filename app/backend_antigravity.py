@@ -429,11 +429,14 @@ class AntigravityBackend:
         self._before_submit = None
         self._stream_finished = True
 
+    def _transport_key(self) -> str:
+        from app.antigravity_acp import transport_signature
+        return transport_signature(self.cwd, self._acp_mcp_servers())
+
     @property
     def is_alive(self):
         # Registration is deliberately lazy: connect() never starts a CLI.
-        return bool(self._owner and not self._owner.failure and self._owner.process
-                    and self._owner.process.returncode is None)
+        return bool(self._owner and self._owner.is_transport_alive(getattr(self, "_active_transport_key", None)))
 
     def _redact(self, text: object, *, all_env=False) -> str:
         result = str(text)
@@ -700,12 +703,18 @@ class AntigravityBackend:
                         raise AcpSessionError("ACP profile epoch changed; explicit recovery required")
                     if self.session_id:
                         bind_session(self._owner,self.session_id,self.app_session_id,resume=True)
+                    mcp_servers = self._acp_mcp_servers()
+                    from app.antigravity_acp import transport_signature
+                    tkey = (self._owner._session_transport.get(self.session_id)
+                            if self.session_id and self.session_id in self._owner._session_transport
+                            else transport_signature(self.cwd, mcp_servers))
+                    self._active_transport_key = tkey
                     await verify_provider_egress("antigravity")
-                    await self._owner.start()
+                    await self._owner.start(transport_key=tkey)
                     record_provider_activity("antigravity")
                     if self.session_id not in self._owner.sessions:
                         params = {"cwd": str(Path(self.cwd).resolve()),
-                                  "mcpServers": self._acp_mcp_servers()}
+                                  "mcpServers": mcp_servers}
                         method = "session/new"
                         if self.session_id:
                             caps = self._owner.capabilities.get("sessionCapabilities", {})
@@ -713,7 +722,7 @@ class AntigravityBackend:
                                 raise AcpSessionError("ACP resume unsupported; explicit new session required")
                             params["sessionId"] = self.session_id
                             method = "session/resume"
-                        result = await self._owner.request(method, params)
+                        result = await self._owner.request(method, params, transport_key=tkey)
                         session_id = result.get("sessionId", self.session_id)
                         if not isinstance(session_id, str) or not session_id:
                             raise AcpError("ACP session response missing sessionId")
@@ -731,6 +740,7 @@ class AntigravityBackend:
                         self.session_id = session_id
                         bind_session(self._owner,session_id,self.app_session_id,resume=(method!="session/new"))
                         self._owner.sessions.add(session_id)
+                        self._owner.register_session_transport(session_id, tkey)
                         self._owner.remember_model_state(session_id, result)
                         if method == "session/new":
                             self._owner.cost_totals[session_id] = 0.0
