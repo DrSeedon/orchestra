@@ -1,0 +1,239 @@
+{
+  "code_commit": "912b2f18afe65986c4158286a16676046489ce5e",
+  "steps": [
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/home/kesha/orchestra",
+        "rev-parse",
+        "HEAD"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/home/kesha/orchestra",
+        "merge",
+        "--ff-only",
+        "912b2f18afe65986c4158286a16676046489ce5e"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "sudo",
+        "-n",
+        "install",
+        "-o",
+        "root",
+        "-g",
+        "root",
+        "-m",
+        "0755",
+        "/home/kesha/orchestra/deploy/bin/orchestra_agy_ipc.py",
+        "/usr/local/libexec/orchestra-agy-ipc.py"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "sudo",
+        "-n",
+        "install",
+        "-o",
+        "root",
+        "-g",
+        "root",
+        "-m",
+        "0644",
+        "/home/kesha/orchestra/deploy/systemd/orchestra-agy-spawner.service",
+        "/etc/systemd/system/orchestra-agy-spawner.service"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "sudo",
+        "-n",
+        "install",
+        "-o",
+        "root",
+        "-g",
+        "root",
+        "-m",
+        "0644",
+        "/home/kesha/orchestra/deploy/systemd/orchestra-agy-tool-exec.service",
+        "/etc/systemd/system/orchestra-agy-tool-exec.service"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "sudo",
+        "-n",
+        "systemctl",
+        "daemon-reload"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "sudo",
+        "-n",
+        "systemctl",
+        "restart",
+        "orchestra.service"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "systemctl",
+        "is-active",
+        "orchestra.service"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "systemctl",
+        "show",
+        "orchestra-agy-tool-exec.service",
+        "-p",
+        "MainPID",
+        "--value"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "systemctl",
+        "show",
+        "orchestra-agy-spawner.service",
+        "-p",
+        "MainPID",
+        "--value"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "sudo",
+        "-n",
+        "systemctl",
+        "restart",
+        "orchestra-agy-spawner.service",
+        "orchestra-agy-tool-exec.service"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "systemctl",
+        "show",
+        "orchestra.service",
+        "--property=MainPID,ActiveState,MemoryMax,MemoryHigh,ActiveEnterTimestampMonotonic"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "systemctl",
+        "show",
+        "orchestra-agy-spawner.service",
+        "--property=MainPID,ActiveState,MemoryMax,MemoryHigh,ActiveEnterTimestampMonotonic"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "systemctl",
+        "show",
+        "orchestra-agy-tool-exec.service",
+        "--property=MainPID,ActiveState,MemoryMax,MemoryHigh,ActiveEnterTimestampMonotonic"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "systemctl",
+        "show",
+        "telegram-bot-api.service",
+        "--property=MainPID,ActiveState,MemoryMax,MemoryHigh,ActiveEnterTimestampMonotonic"
+      ],
+      "returncode": 0
+    }
+  ],
+  "real_provider_prompts_sent": 0,
+  "before": {
+    "sessions": [
+      {
+        "id": "626ea34f-d213-4ebc-81e1-b209468d31cd",
+        "name": "hydrogen-sandbox-orchestrator",
+        "model": "antigravity/gemini-4-hydrogen-high",
+        "status": "idle",
+        "backend_type": "antigravity"
+      }
+    ],
+    "restart_cut_turns": 0,
+    "possibly_compacting": []
+  },
+  "credential_store": {
+    "single_source": true,
+    "canonical_mode": "0o600",
+    "legacy_link": true,
+    "secret_values_exported": 0
+  },
+  "units": {
+    "orchestra": {
+      "MainPID": "2492052",
+      "MemoryHigh": "15032385536",
+      "MemoryMax": "17179869184",
+      "ActiveState": "active",
+      "ActiveEnterTimestampMonotonic": "1255088198813"
+    },
+    "orchestra-agy-spawner": {
+      "MainPID": "2492813",
+      "MemoryHigh": "6442450944",
+      "MemoryMax": "8589934592",
+      "ActiveState": "active",
+      "ActiveEnterTimestampMonotonic": "1255088334471"
+    },
+    "orchestra-agy-tool-exec": {
+      "MainPID": "2492814",
+      "MemoryHigh": "6442450944",
+      "MemoryMax": "8589934592",
+      "ActiveState": "active",
+      "ActiveEnterTimestampMonotonic": "1255088337401"
+    },
+    "telegram-bot-api": {
+      "MainPID": "2786980",
+      "MemoryHigh": "infinity",
+      "MemoryMax": "infinity",
+      "ActiveState": "active",
+      "ActiveEnterTimestampMonotonic": "283208333567"
+    }
+  },
+  "after": {
+    "sessions": [
+      {
+        "id": "626ea34f-d213-4ebc-81e1-b209468d31cd",
+        "name": "hydrogen-sandbox-orchestrator",
+        "model": "antigravity/gemini-4-hydrogen-high",
+        "status": "idle",
+        "backend_type": "antigravity"
+      }
+    ],
+    "restart_cut_turns": 0,
+    "possibly_compacting": []
+  },
+  "preserved_dirty_files": true,
+  "disabled_providers_unchanged": true,
+  "production_app_root": "/home/kesha/orchestra/app",
+  "main_pid_cwd": "/home/kesha/orchestra",
+  "vendor_pids_after": [],
+  "verdict": "DEPLOYED_SCOPED_CHECKS_PASS"
+}

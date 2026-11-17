@@ -1,0 +1,10 @@
+{
+  "running": [],
+  "restart_cut_turns_before": 0,
+  "/api/sessions": {
+    "status": 401
+  },
+  "/api/stats": {
+    "status": 401
+  }
+}

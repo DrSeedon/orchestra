@@ -1,0 +1,13 @@
+{
+  "live_imported_app": "/home/kesha/orchestra/app",
+  "proxy_listeners": {
+    "18080": "listening",
+    "10809": "listening"
+  },
+  "useG1Credits": false,
+  "useAiCredits": false,
+  "native_catalog_after_restart": "unknown/passive until next authorized caller turn",
+  "native_canary_prompts": 0,
+  "active_provider_probe": false,
+  "authenticated_http_endpoints": "401 without a cookie; no auth bypass performed"
+}

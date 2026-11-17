@@ -1,0 +1,1 @@
+{"verdict": "DEPLOYED_SCOPED_CHECKS_PASS", "code_commit": "912b2f18afe65986c4158286a16676046489ce5e", "restart_cut_turns": 0, "memory_max_gib": 8, "telegram_pid_unchanged": true, "preserved_dirty_files": true, "hydrogen_model": "antigravity/gemini-4-hydrogen-high", "vendor_pids": []}

@@ -9,5 +9,8 @@
 - 55 new audit regressions and 289 pipeline/model/quota/Hub contracts passed. Instruction contract OK.
 - Frozen old assertions retained. No full-suite/global GREEN claim.
 - Vendor limits: own writes remain non-atomic on crash; native close optional; missing quota/token telemetry stays unknown.
-- Deployment next: controlled main fast-forward + IPC/units reload/restart, no running-turn cuts.
+- DEPLOYED code 912b2f18a to main. Orchestra PID 2492052 active; restart_cut_turns=0.
+- IPC daemons restarted only after child exit; both MemoryHigh=6G/MemoryMax=8G; Telegram PID unchanged.
+- OAuth ACP regular0600 + CLI link prepared privately, previous CLI bytes retained. Both credit flags false.
+- Hydrogen remains local antigravity/gemini-4-hydrogen-high, idle; post-restart native catalogue cold/unknown, no live canary.
 - Evidence: .orchestra/tasks/agy-audit-fixes-20261117/.
