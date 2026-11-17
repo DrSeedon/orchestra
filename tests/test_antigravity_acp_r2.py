@@ -25,6 +25,7 @@ async def real_session(stand, monkeypatch, tmp_path):
         model="antigravity/gemini-4-carbon-medium", backend_type="antigravity",
         is_orchestrator=True, mcp_servers={}, system_prompt="Synthetic R2 role")
     s._persist()
+    await s._drain_persist()  # Durable parent must exist before the first log/child write.
     # No _ensure_backend/_make_backend/event-loop replacement: actual lifecycle.
     try:
         yield s

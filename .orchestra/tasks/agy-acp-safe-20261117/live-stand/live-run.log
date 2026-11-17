@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/scripts/verify_antigravity_live_stand.py", line 382, in <module>
+    if __name__=='__main__':raise SystemExit(main())
+                                             ^^^^^^
+  File "/home/kesha/orchestra-worktrees/agy-acp-safe/scripts/verify_antigravity_live_stand.py", line 344, in main
+    BASELINE_PIDS.update(vendor_pids());assert not BASELINE_PIDS,'existing vendor process; refuse live stand'
+                                               ^^^^^^^^^^^^^^^^^
+AssertionError: existing vendor process; refuse live stand

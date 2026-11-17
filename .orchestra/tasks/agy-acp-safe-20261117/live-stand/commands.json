@@ -1,0 +1,79 @@
+{
+  "cwd": "/home/kesha/orchestra-worktrees/agy-acp-safe",
+  "offline_final": {
+    "argv": [
+      "bash",
+      "scripts/run_antigravity_offline.sh",
+      "tests/test_antigravity_live_preflight.py",
+      "tests/test_antigravity_acp_submission.py",
+      "tests/test_antigravity_acp_r2.py",
+      "tests/test_antigravity_foreground.py",
+      "tests/test_antigravity_r4.py",
+      "-q",
+      "--tb=short",
+      "-p",
+      "no:faulthandler"
+    ],
+    "deadline_s": 100,
+    "exit": 0,
+    "log": "offline-final-2.log"
+  },
+  "live": {
+    "argv": [
+      "env",
+      "-i",
+      "HOME=/home/kesha",
+      "USER=kesha",
+      "LOGNAME=kesha",
+      "PATH=/home/kesha/.local/bin:/usr/local/bin:/usr/bin:/bin",
+      "LANG=C.UTF-8",
+      "nice",
+      "-n",
+      "10",
+      ".venv/bin/python",
+      "scripts/verify_antigravity_live_stand.py",
+      "--authorized-step1"
+    ],
+    "deadline_s": 540,
+    "exit": 1,
+    "stopped_before": "prepare() / provider launch",
+    "log": "live-run.log"
+  },
+  "instructions": [
+    "bash",
+    "scripts/run_antigravity_offline.sh",
+    "--instructions"
+  ],
+  "log_integrity": {
+    "live-run.log": {
+      "raw_sha256": "a661eaa74329923ad3fc7fcfec285aea9552c5bb22e2e2cfc97188d310d1bd61",
+      "normalization": "trailing line whitespace / blank EOF only; raw retained locally"
+    },
+    "offline-preflight.log": {
+      "raw_sha256": "e97093b476a773ef46bb32fe27031a9bf501e071addccfccfc551e9a7e09f4c8",
+      "normalization": "trailing line whitespace / blank EOF only; raw retained locally"
+    },
+    "offline-preflight-2.log": {
+      "raw_sha256": "b4e76d5f4245cd06f79529099ebab76e4a736046cb9e82ea1ec534a718bf3897",
+      "normalization": "trailing line whitespace / blank EOF only; raw retained locally"
+    },
+    "offline-final-2.log": {
+      "raw_sha256": "ea5910a11cb9eff654f62125d4f2f34e5f622ef0390beca35df36122b745b888",
+      "normalization": "trailing line whitespace / blank EOF only; raw retained locally"
+    },
+    "instructions-before-live.log": {
+      "raw_sha256": "360712bcb4fa9db1641ed2ef707e24f4f659344a87c0b18796b53f79400ce3eb",
+      "normalization": "trailing line whitespace / blank EOF only; raw retained locally"
+    },
+    "offline-final.log": {
+      "raw_sha256": "9a52c1db26829f390ce5282cc238f22405f068261d51fdcb1b8495332972cc28",
+      "normalization": "trailing line whitespace / blank EOF only; raw retained locally"
+    },
+    "instructions-final.log": {
+      "raw_sha256": "360712bcb4fa9db1641ed2ef707e24f4f659344a87c0b18796b53f79400ce3eb",
+      "normalization": "trailing line whitespace / blank EOF only; raw retained locally"
+    }
+  },
+  "external_reads": "IPinfo through approved proxy, nft JSON, static wrappers/ELF strings; no account request",
+  "bounded_polling": "all exec sessions awaited in active turn; no live command remains"
+}

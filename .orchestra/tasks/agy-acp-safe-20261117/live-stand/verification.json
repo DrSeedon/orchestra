@@ -1,0 +1,55 @@
+{
+  "outcome": "BLOCKED_BEFORE_LIVE",
+  "blocker": "preexisting active agy-vendor.elf PID894529 GID977, not owned by this task",
+  "phase_a": "offline implemented and verified",
+  "final_offline": {
+    "passed": 84,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 2,
+    "seconds": 31.51,
+    "log": "offline-final-2.log"
+  },
+  "intermediate_results": [
+    {
+      "log": "offline-preflight.log",
+      "passed": 43,
+      "failed": 5,
+      "reason": "additional start-turn and taskless-parent boundaries plus three fixture assumptions found before any live launch"
+    },
+    {
+      "log": "offline-preflight-2.log",
+      "passed": 48,
+      "failed": 0,
+      "warnings": 2
+    },
+    {
+      "log": "offline-final.log",
+      "passed": 83,
+      "failed": 1,
+      "reason": "shared synthetic fixture did not await parent durable creation; now awaits actual persistence, assertions unchanged"
+    }
+  ],
+  "live_attempt": {
+    "driver_invocations": 1,
+    "server_launches": 0,
+    "own_vendor_spawns": 0,
+    "initialize": 0,
+    "authenticate": 0,
+    "session_new": 0,
+    "prompts": 0,
+    "workers": 0,
+    "profile_copies": 0,
+    "stop": "before stand/profile creation; existing process assertion",
+    "log": "live-run.log"
+  },
+  "turn1": null,
+  "turn2": null,
+  "silence_45_seconds": "NOT RUN: no live turn completed",
+  "nft_delta": "NOT A LIVE AUDIT: read-only snapshot0packets/0bytes only",
+  "instruction_contract": "PASS",
+  "syntax_diff_secret_checks": "PASS (focused scan, not exhaustive)",
+  "actual_imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app/__init__.py",
+  "blocked_driver_later_observability_fix": "Guard moved into structured try/finally and cleanup only deletes newly owned stand; driver was NOT rerun",
+  "no_live_compatibility_claim": true
+}

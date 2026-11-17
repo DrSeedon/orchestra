@@ -537,6 +537,7 @@ class AgentSession:
     _last_event: str = field(default="", repr=False)
     _pending_messages: list = field(default_factory=list, repr=False)
     _pending_owner_initiated_turn: bool = field(default=False, repr=False)
+    _pending_acp_provenance: list = field(default_factory=list, repr=False)
     # Owner texts among `_pending_messages`: the batch puts them first (02.11).
     _pending_owner_texts: list = field(default_factory=list, repr=False)
     # Turn whose held agent/background input already has its age escape armed.
@@ -735,8 +736,10 @@ class AgentSession:
             self._log("status", f"precompact timer cancelled: {self._precompact_payload(payload)}")
         self._precompact_timer = None
 
-    def _queue_pending(self, message: str, owner_initiated: bool) -> None:
+    def _queue_pending(self, message: str, owner_initiated: bool, provenance=None) -> None:
         self._pending_messages.append(message)
+        if self.backend_type == "antigravity":
+            self._pending_acp_provenance.append(provenance)
         self._pending_owner_initiated_turn |= owner_initiated
         if owner_initiated:
             self._pending_owner_texts.append(message)
@@ -1269,10 +1272,12 @@ class AgentSession:
         compact_ack: bool = False,
         owner_initiated: bool = False,
         auto_continuation: bool = False,
+        input_provenance=None,
     ) -> None:
         """Publish the single in-memory/DB transition into a running turn."""
         if self.backend_type == "antigravity" and not owner_initiated:
-            raise ValueError("antigravity_interactive_only: no automated consumer ACP turns")
+            from app.antigravity_acp import ensure_interactive_input
+            ensure_interactive_input(self.model, input_provenance, target_session=self)
         self._manually_interrupted = False
         if not auto_continuation:
             self._auto_continue_count = 0
@@ -1414,7 +1419,7 @@ class AgentSession:
         if isinstance(message, InjectedMessage) and message.provenance != provenance:
             raise ValueError("injected message provenance mismatch")
         from app.antigravity_acp import ensure_interactive_input
-        ensure_interactive_input(self.model, provenance)
+        ensure_interactive_input(self.model, provenance, target_session=self)
         owner_initiated = _is_owner_direct_message(provenance)
         message_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
         message = message.text if isinstance(message, InjectedMessage) else message
@@ -1583,7 +1588,7 @@ class AgentSession:
                     return
                 if require_submit:
                     raise DeliveryDeferred("context compaction in progress")
-                self._queue_pending(message, owner_initiated)
+                self._queue_pending(message, owner_initiated, provenance)
                 log_user_message(message)
                 self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
                 return
@@ -1655,7 +1660,7 @@ class AgentSession:
                     raise DeliveryDeferred("the running turn cannot take this input now")
                 log_user_message(message)
                 if deferred_interrupt:
-                    self._queue_pending(message, owner_initiated)
+                    self._queue_pending(message, owner_initiated, provenance)
                     self._log(
                         "status",
                         f"message queued (deferred interrupt pending, "
@@ -1663,7 +1668,7 @@ class AgentSession:
                     )
                     return
                 if not capabilities.mid_turn_inject:
-                    self._queue_pending(message, owner_initiated)
+                    self._queue_pending(message, owner_initiated, provenance)
                     self._log("status", f"message queued ({len(self._pending_messages)} pending)")
                     return
                 hold, hold_reason = (None, "") if require_submit else self._turns.turn_end_hold(
@@ -1738,7 +1743,7 @@ class AgentSession:
                         raise DeliveryDeferred(f"mid-turn inject failed: {e}") from e
                     logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
                     if mailbox_id is None:
-                        self._queue_pending(message, owner_initiated)
+                        self._queue_pending(message, owner_initiated, provenance)
                     pending = len(self._pending_messages) + int(mailbox_id is not None)
                     self._log("status", f"inject failed, queued ({pending} pending)")
                     if self.status != AgentStatus.RUNNING and not self._compacting:
@@ -1877,6 +1882,7 @@ class AgentSession:
                 _refuse_if_draining(self)  # no await between here and RUNNING below
                 self._start_turn_state(
                     owner_initiated=owner_initiated,
+                    input_provenance=provenance,
                     auto_continuation=(
                         provenance.subtype == "turn_limit_continue"
                         and retry_generation is not None
@@ -3397,6 +3403,17 @@ class AgentSession:
             self._pending_messages.clear()
             owner_initiated = self._pending_owner_initiated_turn
             self._pending_owner_initiated_turn = False
+            acp_inputs = list(self._pending_acp_provenance)
+            self._pending_acp_provenance.clear()
+            acp_provenance = None
+            if self.backend_type == "antigravity":
+                from app.antigravity_acp import ensure_interactive_input
+                if len(acp_inputs) != len(msgs):
+                    raise ValueError("antigravity_interactive_only: pending provenance missing")
+                for item in acp_inputs:
+                    ensure_interactive_input(self.model, item, target_session=self)
+                acp_provenance = (MessageProvenance("user", ("owner",)) if owner_initiated else
+                    MessageProvenance("agent", tuple(dict.fromkeys(sender for item in acp_inputs for sender in item.senders)), "child_reports"))
             if len(msgs) == 1:
                 combined = msgs[0]
             else:
@@ -3409,7 +3426,7 @@ class AgentSession:
             self._log("status", f"delivering {len(msgs)} queued message(s)")
             try:
                 _refuse_if_draining(self)  # no await between here and RUNNING below
-                self._start_turn_state(owner_initiated=owner_initiated)
+                self._start_turn_state(owner_initiated=owner_initiated, input_provenance=acp_provenance)
                 self._hibernated = False
                 try:
                     backend = await self._ensure_backend(
@@ -3428,7 +3445,7 @@ class AgentSession:
                         )
                     combined, fact_keys = self._attach_pending_facts(combined)
                     if self.backend_type == "antigravity":
-                        combined = InjectedMessage(combined, MessageProvenance("user", ("owner",)), "")
+                        combined = InjectedMessage(combined, acp_provenance, "")
                     await backend.send(combined)
                 except BaseException:
                     self._turns.release_mailbox_held_after_stop(held)
@@ -3447,6 +3464,7 @@ class AgentSession:
                 self._log("status", f"drain: {refusal}")
                 self._pending_messages[0:0] = msgs
                 self._pending_owner_initiated_turn |= owner_initiated
+                self._pending_acp_provenance[0:0] = acp_inputs
                 self._pending_owner_texts[0:0] = owner_texts
                 self.status = AgentStatus.IDLE
                 self._persist()
@@ -3458,6 +3476,7 @@ class AgentSession:
                 logger.error(f"[{self.name}] flush pending failed: {e}")
                 self._pending_messages[0:0] = msgs
                 self._pending_owner_initiated_turn |= owner_initiated
+                self._pending_acp_provenance[0:0] = acp_inputs
                 self._pending_owner_texts[0:0] = owner_texts
                 self.status = AgentStatus.IDLE
                 self._persist()
@@ -3900,7 +3919,7 @@ class AgentSession:
         if self.backend_type == "antigravity":
             from app.antigravity_acp import ensure_interactive_input
             try:
-                ensure_interactive_input(self.model, provenance)
+                ensure_interactive_input(self.model, provenance, target_session=self, allow_child_agent=False)
             except ValueError as error:
                 return {"ok": False, "error": str(error)}
         if self.backend_type == "codex":

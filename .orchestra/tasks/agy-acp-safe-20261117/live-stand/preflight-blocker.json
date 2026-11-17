@@ -1,0 +1,29 @@
+{
+  "proxy": {
+    "ip": "178.93.29.64",
+    "country": "NL",
+    "org": "AS215294 Lumina broadband UAB",
+    "city": "Amsterdam"
+  },
+  "nft_snapshot": [
+    {
+      "packets": 0,
+      "bytes": 0
+    }
+  ],
+  "existing_vendor": [
+    {
+      "pid": 894529,
+      "state": "S (sleeping)",
+      "ppid": 814096,
+      "gid": "977",
+      "start_ticks": "106617344"
+    }
+  ],
+  "stand_path_exists": false,
+  "stand_own_provider_launches": 0,
+  "stand_server_launches": 0,
+  "profile_copies": 0,
+  "account_calls": 0,
+  "status": "BLOCKED_BEFORE_STAND: preexisting vendor must not be killed or shared"
+}

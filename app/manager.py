@@ -398,7 +398,7 @@ def _make_mcp_config(name: str, scope: str, role: str = "worker",
     env = {
         "ORCHESTRA_DISABLED_TOOLS": json.dumps(denied),
         **MCP_BASE_ENV,
-        "ORCHESTRA_URL": "http://127.0.0.1:8888",
+        "ORCHESTRA_URL": os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888"),
         "ORCHESTRA_SCOPE": scope,
         "ORCHESTRA_ROLE": role,
         "ORCHESTRA_ACCESS_MODE": "reducer" if role == "reducer" else "full",

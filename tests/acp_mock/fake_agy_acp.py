@@ -227,7 +227,7 @@ async def main():
                 os._exit(18)
             result(request, {"protocolVersion": 2 if MODE=="wire-v2" else 1,
                 "agentCapabilities": {"sessionCapabilities": {"resume": {}}} if MODE != "no-resume" else {},
-                "authMethods": [{"id": "oauth-personal", "name": "Synthetic cached OAuth"}]})
+                "authMethods": [{"id": "oauth-personal", "name": "Synthetic cached OAuth", **({"type":"oauth"} if MODE=="auth-oauth-type" else {})}]})
         elif method == "authenticate":
             if MODE == "auth-error":
                 emit({"id": request["id"], "error": {"code": -32000, "message": "synthetic-auth-error"}})

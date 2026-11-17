@@ -1427,7 +1427,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
             return JSONResponse({"error": f"agent '{name}' not found.{hint}"}, status_code=404)
         from app.antigravity_acp import ensure_interactive_input
         try:
-            ensure_interactive_input(getattr(session, "model", ""), provenance)
+            ensure_interactive_input(getattr(session, "model", ""), provenance, target_session=session)
         except ValueError as error:
             return JSONResponse({"error": str(error)}, status_code=403)
         task_state = None
@@ -1436,7 +1436,10 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
         if req.sender and not durable:
             return JSONResponse({"error": "durable session binding is required"}, status_code=409)
         durable_task_id = (durable or {}).get("task_id") or ""
-        if req.sender and not durable_task_id:
+        if req.sender and not durable_task_id and not (
+            getattr(session, "backend_type", "") == "antigravity"
+            and bool((durable or {}).get("is_orchestrator"))
+        ):
             if req.sender != durable.get("parent_name", ""):
                 return JSONResponse(
                     {"error": "only the durable parent may assign a task"}, status_code=403,

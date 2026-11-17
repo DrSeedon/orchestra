@@ -147,8 +147,7 @@ class AcpProfile:
                 self.capabilities = initialized.get("agentCapabilities") or {}
                 methods = initialized.get("authMethods") or []
                 if methods:
-                    oauth = next((m for m in methods if m.get("id") == "oauth-personal"
-                                  and m.get("type", "agent") == "agent"), None)
+                    oauth = next((m for m in methods if m.get("id") == "oauth-personal"), None)
                     if oauth is None:
                         raise AcpError("ACP cached personal OAuth method unavailable; no auth fallback")
                     await self.request("authenticate", {"methodId": oauth["id"]})
@@ -339,11 +338,37 @@ class AcpProfile:
                 self._lock_fd = None
 
 
-def ensure_interactive_input(model, provenance):
-    """Execution boundary, independent of disabled-provider and worker policy."""
-    from app.models import backend_for_model
-    if is_consumer_model(model) and getattr(provenance, "origin", None) != "user":
-        raise ValueError("antigravity_interactive_only: consumer ACP requires explicit user input")
+def ensure_interactive_input(model, provenance, *, target_session=None, allow_child_agent=True):
+    """User input or a verified durable direct-child report, never scheduled activation."""
+    if not is_consumer_model(model):
+        return
+    origin = getattr(provenance, "origin", None)
+    if origin == "user":
+        return
+    def field(value, name):
+        return value.get(name) if isinstance(value, dict) else getattr(value, name, None)
+    if origin == "agent" and allow_child_agent and target_session is not None:
+        from app import db
+        parent = db.get_session(field(target_session, "id"))
+        senders = getattr(provenance, "senders", ())
+        blocked = {"system", "platform", "unknown", "cron", "timer", "dreaming", "scheduler", "limit_wake", "rate_limit_retry", "server_error_retry"}
+        if (parent and parent.get("is_orchestrator") and field(target_session, "is_orchestrator")
+                and parent["scope"] == field(target_session, "scope")
+                and parent["name"] == field(target_session, "name") and senders
+                and getattr(provenance, "subtype", "") not in blocked):
+            with db._conn() as connection:
+                for sender in senders:
+                    # The latest durable identity owns a reused name, including after
+                    # completion/archive. An in-memory sender label is not authority.
+                    child = connection.execute(
+                        "SELECT id,parent_id,parent_name FROM sessions WHERE name=? AND scope=? "
+                        "ORDER BY created_at DESC, rowid DESC LIMIT 1", (sender, parent["scope"])).fetchone()
+                    if not child or child["id"] == parent["id"] or not (
+                        child["parent_id"] == parent["id"] or child["parent_name"] == parent["name"]):
+                        break
+                else:
+                    return
+    raise ValueError("antigravity_interactive_only: explicit user input or verified direct-child report required")
 
 
 def is_consumer_model(model):

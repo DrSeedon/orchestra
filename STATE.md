@@ -1,25 +1,28 @@
-# Orchestra ACP — R4 exact correction wave, MOCK ONLY
-- Updated2026-11-17; checkout /home/kesha/orchestra-worktrees/agy-acp-safe, branch agy-acp-safe.
-- Base faabd24e5236833a8af238fad2e09aeb907d091c; no helpers or other writer.
-- Closed6exact Astra R4 findings + native-request CSS with scoped regressions.
-- Ordered journal failure no longer poisons successors; own failure remains visible.
-- TG429 -> shared flood barrier + durable pending/next_attempt_at; ambiguity stays unknown.
-- Explicit zero-cursor forward scan preserves legacy tail semantics;120/120 delivered.
-- Late tool input -> immutable keyed update + final raw_input/canonical name metadata.
-- Full/compact UI updates one card; TG one argument revision; additive nullable log metadata.
-- Output snapshots carry replace through broker/SSE/JS; A->AB stays AB on replay.
-- ACP text/thinking nodes keyed by item_id/event_id; lateA preserves liveB; legacy path kept.
-- Real dark styles/native request card CSS; actual mock-stdio journal replay in headless UI.
-- Final targeted10P/0F/0skip/2warnings; compatibility298P/3F/0skip/2warnings.
-- Three test_logs_sync failures: strict audit denies git/task-runtime/full lifespan fixtures.
-- Negative controls2P; instructions/syntax/source diff/credential scan PASS.
-- Final UI PASS/page_errors0, screenshot r2/ui-renderer.png; CEO visual sign-off pending.
-- Initial UI fixture failures2 (helper omission, Markdown newline comparison) corrected.
-- Owned fake/runner/UI/browser PIDs0. Main4e4e58dcb/3tracked dirty files preserved.
-- No real agy/Google/OAuth/TG/account/credential reads, no settings/services/push/merge/deploy.
-- Existing receipts/provenance/disabled/egress/credits/no-fallback guards preserved.
-- Overall release gate RED: mock-only, native/live authorization and legacy acceptance open.
-- Fixed-profile only; no sameHOME account detection, no native CLI compatibility claim.
-- Historical frozen15F/18P/79E not rerun; old compact baseline policy fixture remains open.
-- Evidence .orchestra/tasks/agy-acp-safe-20261117/r2/{report,verification,commands,acceptance-matrix}.
-- Parent owns hub stubSTATE; notify parent once through native MCP after clean local commit.
+# Orchestra ACP — Step1 BLOCKED BEFORE LIVE
+- Updated2026-11-17; branch agy-acp-safe, /home/kesha/orchestra-worktrees/agy-acp-safe.
+- Base8bbf60d929af2a89326074695f924fff10c780ea; single writer/no helpers.
+- Maxim authorized one controlled18889 live cycle, not production deployment.
+- PhaseA completed offline: ORCHESTRA_URL env, durable direct-child report admission,
+  preserved queued provenance, start-turn/backend/HTTP boundaries, compact user-only.
+- Model/provider/task guards preserved. Non-ACP task assignment behavior unchanged.
+- AUTH_HOME env, caller disabled-file env, ACP-first read-only conversation SQLite.
+- Existing /usr/local/bin/agy-clean-exec used (local-bin counterpart absent).
+- OAuth offered id matched without type-agent constraint; wire v1 remains required.
+- Hydrogen orchestrator quota exemption / canonical cached Luna admission verified offline.
+- Final focused84P/0F/0skip/2warnings,31.51s; instructions/syntax/diff/secret scan PASS.
+- Shared test fixture now awaits actual durable parent write; assertions unchanged.
+- ONE driver invocation stopped at existing vendor baseline before prepare()/server/profile.
+- Foreign PID894529, GID977, state sleeping, parent814096 preserved. Owner identity requested.
+- Live own agy/init/auth/session/prompt/worker counts0. NO retry or queued autonomous attempt.
+- Stand/tmp/orchestra-live-stand-20261117 not created; auth files not copied/read/modified.
+- Independent proxy snapshot178.93.29.64 NL AS215294; nft snapshot0packets/0bytes.
+- Turn1/2/cache/unittest/45s silence/nftdelta NOT MEASURED. No live success claim.
+- Owned server/vendor/mock PIDs0; production main4e4e58dcb +3dirty tracked files preserved.
+- Production disabled[antigravity,claude,grok], services/settings/8888 untouched.
+- No real provider/Google/OAuth/TG/quota/model requests; no push/merge/deploy/restart.
+- Prepared live driver needs cleared foreign-session precondition; no permission to kill it.
+- Native compatibility/eligibility and overall live release gate remain RED/unverified.
+- Historical frozen15F/18P/79E not rerun. R4 snapshot retained unchanged.
+- Report .orchestra/tasks/agy-acp-safe-20261117/live-stand-report.md.
+- Evidence live-stand/{verification,preflight-blocker,commands,cleanup}.json.
+- Parent owns hub stubSTATE. Final report once through native MCP after clean local commit.

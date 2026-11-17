@@ -29,7 +29,7 @@ from app.usage_contract import (
 logger = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[1]
 ANTIGRAVITY_BIN = os.environ.get("ANTIGRAVITY_BIN", "agy")
-ANTIGRAVITY_AUTH_HOME = ROOT / "data/antigravity-auth-home"
+ANTIGRAVITY_AUTH_HOME = Path(os.environ.get("ANTIGRAVITY_AUTH_HOME", str(ROOT / "data/antigravity-auth-home")))
 ANTIGRAVITY_HOME_ROOT = ROOT / "data/antigravity-homes"
 ANTIGRAVITY_CLEAN_SHELL = os.environ.get(
     "ANTIGRAVITY_CLEAN_SHELL", "/home/kesha/.local/bin/agy-clean-shell"
@@ -135,7 +135,9 @@ def _conversation_context(home: Path, conversation_id: str | None,
         context_limit, "Antigravity did not report current-context semantics")
     if not isinstance(conversation_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", conversation_id):
         return unknown
-    database = home / ".gemini/antigravity-cli/conversations" / f"{conversation_id}.db"
+    database = home / ".gemini/antigravity-acp/conversations" / f"{conversation_id}.db"
+    if not database.is_file():
+        database = home / ".gemini/antigravity-cli/conversations" / f"{conversation_id}.db"
     try:
         # mode=ro never creates a missing conversation; keep lock waits bounded.
         with closing(sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True,
@@ -216,6 +218,8 @@ def cli_environment(home: Path) -> dict:
         "AGY_ACP_FORCE_FILE_STORAGE": "1",
         "BASH_ENV": bash_env_path,
     })
+    if os.environ.get("ORCHESTRA_DISABLED_PROVIDERS_FILE"):
+        env["ORCHESTRA_DISABLED_PROVIDERS_FILE"] = os.environ["ORCHESTRA_DISABLED_PROVIDERS_FILE"]
     if Path(ANTIGRAVITY_CLEAN_SHELL).is_file() and os.access(ANTIGRAVITY_CLEAN_SHELL, os.X_OK):
         env["SHELL"] = ANTIGRAVITY_CLEAN_SHELL
     return env
@@ -531,8 +535,11 @@ class AntigravityBackend:
 
     async def send(self, message, *, before_submit=None):
         from app.antigravity_acp import ensure_interactive_input
+        from app import db
+        target = db.get_session(self.app_session_id) if getattr(self, "app_session_id", "") else None
         ensure_interactive_input("antigravity/" + self.model,
-            message.provenance if isinstance(message, InjectedMessage) else None)
+            message.provenance if isinstance(message, InjectedMessage) else None,
+            target_session=target)
         if self._task is not None and not self._task.done():
             raise RuntimeError("Antigravity turn is already active")
         if self._owner is None:
@@ -743,8 +750,13 @@ class AntigravityBackend:
         for name, config in self.mcp_servers.items():
             if "command" not in config:
                 raise ValueError("Antigravity ACP currently requires stdio MCP servers")
-            servers.append({"name": name, "command": config["command"],
-                "args": config.get("args", []), "env": [
+            # Existing IPC tool boundary restores kesha's GID and scrubs provider proxies.
+            clean = next((p for p in ("/home/kesha/.local/bin/agy-clean-exec", "/usr/local/bin/agy-clean-exec")
+                          if Path(p).is_file() and os.access(p, os.X_OK)), None)
+            command = clean or config["command"]
+            args = [config["command"], *config.get("args", [])] if clean else config.get("args", [])
+            servers.append({"name": name, "command": command,
+                "args": args, "env": [
                     {"name": key, "value": str(value)} for key, value in config.get("env", {}).items()]})
         return servers
 

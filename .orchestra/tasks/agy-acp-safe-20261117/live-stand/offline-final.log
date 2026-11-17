@@ -1,0 +1,28 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+........................................................................ [ 85%]
+..F.........                                                             [100%]
+=================================== FAILURES ===================================
+________ test_failed_first_journal_write_does_not_poison_two_successors ________
+tests/test_antigravity_r4.py:47: in test_failed_first_journal_write_does_not_poison_two_successors
+    assert all(isinstance(x, int) for x in results[1:])
+E   assert False
+E    +  where False = all(<generator object test_failed_first_journal_write_does_not_poison_two_successors.<locals>.<genexpr> at 0x72f97e569d20>)
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] log write lost (text): RuntimeError: synthetic transient journal fault | first
+[real-acp-r2] log write lost (text): IntegrityError: FOREIGN KEY constraint failed | second
+------------------------------ Captured log call -------------------------------
+ERROR    app.session:session.py:5511 [real-acp-r2] log write lost (text): RuntimeError: synthetic transient journal fault | first
+ERROR    app.session:session.py:5511 [real-acp-r2] log write lost (text): IntegrityError: FOREIGN KEY constraint failed | second
+=============================== warnings summary ===============================
+tests/test_antigravity_live_preflight.py::test_verified_http_child_report_reaches_real_transport
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_antigravity_live_preflight.py::test_verified_http_child_report_reaches_real_transport
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_r4.py::test_failed_first_journal_write_does_not_poison_two_successors
+1 failed, 83 passed, 2 warnings in 37.53s
