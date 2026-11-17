@@ -53,9 +53,9 @@ def models(sid):
             options.append({"id":"thought_level","category":"thought_level","type":"select","currentValue":thought,
                 "options":[{"value":level,"name":level} for level in levels]})
         value={"sessionId":sid,"configOptions":options}
-        if MODE in {"split-legacy","split-conflict"}:
+        if MODE in {"split-legacy","split-conflict","split-new-only-conflict"} and (MODE!="split-new-only-conflict" or sid not in current_models):
             ids=["gemini-4-argon-low","gemini-4-hydrogen-high","gpt-oss-120b-medium"]
-            if MODE!="split-conflict":ids.append("gemini-4-hydrogen-medium")
+            if MODE not in {"split-conflict","split-new-only-conflict"}:ids.append("gemini-4-hydrogen-medium")
             value["models"]={"currentModelId":family+"-"+thought,"availableModels":[{"modelId":m} for m in ids]}
         return value
     if MODE == "only-argon":
@@ -119,6 +119,8 @@ async def prompt(request):
             if text.endswith("FG_SPAWN_PERMISSION"):
                 tool.update(name="mcp__orchestra__spawn_worker",rawInput={"ServerName":"orchestra","ToolName":"spawn_worker",
                     "Arguments":{"name":"stand-calc-worker","model":"gpt-6-luna","role":"worker","repo_path":str(HOME.parent)}})
+                if MODE=="spawn-flat-permission":
+                    tool.update(name="mcp_orchestra_spawn_worker",rawInput=tool["rawInput"]["Arguments"])
             emit({"id":rid,"method":method,"params":{"sessionId":sid,"toolCall":tool,"options":options}})
             if text.endswith("FG_PERMISSION_DUPLICATE") or text.endswith("FG_PERMISSION_MUTATED"):
                 emit({"id":rid,"method":method,"params":{"sessionId":sid,"toolCall":{"toolCallId":tool_id,"title":"Synthetic choice "+str(i),"rawInput":{"command":"changed" if text.endswith("FG_PERMISSION_MUTATED") else "echo synthetic"}},"options":options}})

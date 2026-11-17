@@ -1,27 +1,21 @@
-# Orchestra ACP — split config offline code ready, live pending
-- Updated2026-11-17; branch agy-acp-safe, /home/kesha/orchestra-worktrees/agy-acp-safe.
-- Base89b2f49d84c425129097a018e078dd518f9f1333; single writer/no helpers.
-- New owner authorization: one live18889 cycle after offline fixes and clean code commit.
-- resolve_effort preserves explicit model suffix over runtime/default role map fallback.
-- Exact model map key and scalar effort retain precedence.
-- ACP split family/model + active-family thought_level supported with exact ACK/no fallback.
-- Legacy combined variants/set_model and fixed single-effort IDs retained.
-- Config notifications update shared state; readiness only projects advertised active levels.
-- Secondary legacy variant catalog contradiction refuses before prompt.
-- Driver captures sanitized session/new/config catalog; native router/CSRF owner response.
-- Only exact spawn_worker, authorized Luna/demo target, allow_once, max1; all other native requests stop.
-- Dedicated private acp_stand_profile authorized; atomic refreshed token retention, source immutable.
-- Entire sandbox_home file SHA snapshot,0700/0600, local .gitignore prevents Git tracking.
-- Fresh demo scope registered through canonical project catalog/sync, no production bootstrap.
-- Offline main291P/0F/0skip/2warnings33.85s; final exact48P/0F/2warnings10.37s.
-- Driver11P/0F4.13s; instructions/AST/diff/focused credential scan PASS.
-- Two intermediate failures fixed (early durable denial; fake terminal trace race); frozen assertions intact.
-- This wave real provider calls0 so far. Persistent real profile not initialized by tests.
-- Next: clean code commit, baseline0/proxy/nft checks, exactly1 authorized driver invocation.
-- Live error/auth403/model/native-unapproved request -> immediate stop/no retry.
-- Main4e4e58dcb/disabled/services/8888 unchanged; no push/merge/deploy/restart.
-- Historical attempted live89b2f49 stopped before prompt; evidence retained separately.
-- New evidence .orchestra/tasks/agy-acp-safe-20261117/split-config/.
-- Parent owns hub stubSTATE; one final result after live cleanup and evidence commit.
-- Local prepare stopped before RPC/server/profile on cli.log symlink; archived, no live call.
-- Source snapshot now hashes symlink metadata without traversal; source alias remains untouched.
+# Orchestra ACP — split contract live attempt stopped at native wire alias
+- Updated2026-11-17; agy-acp-safe, /home/kesha/orchestra-worktrees/agy-acp-safe.
+- Pre-live code commits8902ae8546df5a25404fc94fcdc754f05b0833af,6ce1fa27388928aebf52046c8ac56289b06207c8.
+- Offline main291P, final exact48P, driver11P/source-snapshot12P; no real providers in tests.
+- A local preparation stopped on cli.log symlink BEFORE all provider/server/RPC activity.
+- Source symlink now hashed as link metadata without target traversal; source unchanged.
+- One actual authorized live cycle09:14:52—09:15:15Z, PID_ACP2128162, no provider retry.
+-10s idle baseline0 PASS; init/auth/session-new each1, protocol1, personal OAuth success.
+- Real split ACK selectedHydrogen, thought medium; only family setter needed (medium already current).
+- session/prompt1; native permission1; owner responses0; child creation/worker0.
+- Actual native name mcp_orchestra_spawn_worker, exact Luna/demo payload, allow_once offered.
+- Driver did not recognize the flat wire alias and STOPPED; vendor/server closed, no retry.
+- Offline exact-alias fix/regression in progress; no further live run authorized in this wave.
+- Temp stand removed; all vendor PIDs0/owned MCP0;18889 closed.
+- Source119snapshot entries unchanged; persistent private acp_stand_profile initialized/gitignored.
+- Refreshed token atomically saved both ACP/CLI600; cache/root700; source never overwritten.
+- nft delta0packets/0bytes; proxy178.93.29.64 NL AS215294. Production unchanged.
+- Turn1end/worker unittest/Turn2/warm reuse/45s silence NOT ACHIEVED or NOT MEASURED.
+- Offered catalog retained in split-config/live/telemetry.json; no speculative fallback.
+- No main/services/provider/T3/proxy/push/merge/deploy/restart changes; private cache is explicit exception.
+- Next: offline alias test, final evidence/report commit, single parent result. No live retry.

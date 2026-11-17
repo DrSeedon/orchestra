@@ -127,6 +127,8 @@ class AcpProfile:
 
     def remember_model_state(self, sid, result):
         state = self.model_state(result)
+        if "models" not in result and sid in self.model_states:
+            state["legacy_available"] = self.model_states[sid].get("legacy_available", set())
         if not state["model_present"] and state["thought_present"] and sid in self.model_states:
             previous = self.model_states[sid]
             state = {**previous, **{k:state[k] for k in

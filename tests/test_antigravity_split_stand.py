@@ -51,17 +51,21 @@ def test_persistent_path_cannot_escape_to_source(tmp_path,monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_only_authorized_spawn_gets_one_real_owner_http_response(stand,real_session,monkeypatch):
+@pytest.mark.parametrize('wire_name',[None,'mcp_orchestra_spawn_worker'])
+async def test_only_authorized_spawn_gets_one_real_owner_http_response(stand,real_session,monkeypatch,wire_name):
     from app.routes.native_requests import router
     from app.auth import create_session
     monkeypatch.setenv('DASHBOARD_USER','synthetic-owner');monkeypatch.setenv('DASHBOARD_PASSWORD','synthetic-private-test-only')
     app=FastAPI();app.include_router(router)
+    if wire_name:monkeypatch.setenv('AGY_MOCK_MODE','spawn-flat-permission')
     s=real_session;await s.send('FG_SPAWN_PERMISSION',provenance=USER);row=(await pending(s))[0]
+    if wire_name:assert row['details']['name']==wire_name  # Actual native RPC payload and binding, not a rewritten card.
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://127.0.0.1',trust_env=False,
         cookies={'session':create_session('synthetic-owner')}) as client:
         result=await driver.answer_spawn_permission(client,row,s.cwd)
     await finish(s)
     assert result['option_id']==row['options'][0]['optionId']
+    assert result['tool_name']==(wire_name or 'mcp__orchestra__spawn_worker')
     assert sum(r['method']=='native_reply' for r in stand.trace())==1
     assert sum(r['method']=='session/prompt' for r in stand.trace())==1
 
@@ -118,3 +122,38 @@ def test_source_snapshot_hashes_log_symlink_without_following_external_target(tm
     assert driver.source_snapshot()==snapshot
     (source/'ordinary').write_bytes(b'changed source')
     assert driver.source_snapshot()!=snapshot and link.is_symlink()
+
+
+@pytest.mark.parametrize('wire_name',['mcp_orchestra_run_command','mcp_other_spawn_worker','mcp_orchestra_spawn_worker_extra'])
+def test_observed_spawn_alias_is_exact_not_a_generic_mcp_name_bypass(wire_name,tmp_path):
+    request={'kind':'permission','details':{'name':wire_name,'rawInput':{'name':'stand-calc-worker','role':'worker',
+        'model':'gpt-6-luna','repo_path':str(tmp_path)}},'options':[{'kind':'allow_once','optionId':'allow'}]}
+    with pytest.raises(RuntimeError):driver.allowed_spawn_permission(request,tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_stand_worker_routers_mount_without_background_loops_or_404(tmp_path,monkeypatch):
+    from app import db,tm,project_catalog
+    from app.auth import create_session
+    from app.routes import sessions,system,tm as tm_routes,inbox,outbox,artifacts,attention,approvals,temp_rules
+    from app.routes.native_requests import router as native_router
+    repo=tmp_path/'demo';repo.mkdir();data=tmp_path/'data';data.mkdir()
+    catalog_path=driver.seed_stand_catalog(repo,data)
+    monkeypatch.setenv('ORCHESTRA_DB_PATH',str(data/'orchestra.db'))
+    monkeypatch.setenv('ORCHESTRA_PROJECT_CATALOG',str(catalog_path))
+    monkeypatch.setenv('DASHBOARD_USER','synthetic-owner')
+    monkeypatch.setenv('DASHBOARD_PASSWORD','synthetic-private-test-only')
+    project_catalog.reset_cache();db.init_db()
+    with db._conn() as connection:tm.sync_catalog(connection)
+    app=FastAPI()
+    for router in (sessions.router,system.router,native_router,tm_routes.router,inbox.router,
+            outbox.router,artifacts.router,attention.router,approvals.router,temp_rules.router):
+        app.include_router(router)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://127.0.0.1:18889',
+            trust_env=False,cookies={'session':create_session('synthetic-owner')}) as client:
+        routes={getattr(r,'path','') for r in app.routes}
+        assert {'/api/tm/tasks','/api/inbox/events','/api/outbox','/api/artifacts/publish','/api/attention','/api/approvals','/api/temp-rules'}<=routes
+        for url in ('/api/tm/projects?scope='+str(repo),'/api/outbox?recipient=stand-ceo&scope='+str(repo),
+                    '/api/approvals?recipient=stand-ceo&scope='+str(repo)):
+            resp=await client.get(url)
+            assert resp.status_code==200, (url, resp.status_code, resp.text)

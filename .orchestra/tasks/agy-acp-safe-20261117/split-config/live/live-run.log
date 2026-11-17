@@ -1,0 +1,9 @@
+{"at": "2026-11-17T09:14:53.189397+00:00", "kind": "safety_preflight_pass", "proxy": {"ip": "178.93.29.64", "country": "NL", "org": "AS215294 Lumina broadband UAB", "city": "Amsterdam"}, "nft_before": {"packets": 0, "bytes": 0}}
+{"at": "2026-11-17T09:14:53.927689+00:00", "kind": "stand_started", "port": 18889, "background_loops": false}
+{"at": "2026-11-17T09:15:04.087352+00:00", "kind": "idle_precheck_pass", "seconds": 10, "real_vendor_processes": 0, "rpc": 0}
+{"at": "2026-11-17T09:15:04.148254+00:00", "kind": "progress", "parent_turns": 0, "children": 0, "child_turns": 0, "parent_status": "idle"}
+{"at": "2026-11-17T09:15:04.439655+00:00", "kind": "progress", "parent_turns": 0, "children": 0, "child_turns": 0, "parent_status": "running"}
+{"at": "2026-11-17T09:15:04.737247+00:00", "kind": "vendor_started", "pid": 2128162}
+{"at": "2026-11-17T09:15:04.830148+00:00", "kind": "initialized", "protocolVersion": 1}
+{"at": "2026-11-17T09:15:15.000522+00:00", "kind": "stand_shutdown", "server_stopped": true, "vendor_pids": []}
+{"at": "2026-11-17T09:15:15.002461+00:00", "kind": "fail_stop", "error": "native request is not the authorized spawn_worker", "error_type": "RuntimeError"}

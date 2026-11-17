@@ -30,8 +30,7 @@ PROFILE_FILES = ('.config/antigravity/credential-user-scope','.gemini/config/con
     '.gemini/antigravity-cli/cache/onboarding.json','.gemini/antigravity-cli/cache/default_project_id.txt',
     '.gemini/antigravity-cli/settings.json')
 PRODUCTION = Path('/home/kesha/orchestra')
-OUT = ROOT/'.orchestra/tasks/agy-acp-safe-20261117/split-config/live'
-OUT.mkdir(parents=True, exist_ok=True)
+OUT = ROOT/'.orchestra/tasks/agy-acp-safe-20261117/split-config/live-final'
 sys.path.insert(0, str(ROOT))
 REPORT = {'authorization':'one isolated live stand cycle, explicit owner Step1',
           'started_at':datetime.now(timezone.utc).isoformat(), 'events':[], 'outcome':'PREPARING', 'native_permission_requests':0, 'native_owner_responses':[]}
@@ -53,6 +52,7 @@ def safe(value):
 
 
 def save():
+    OUT.mkdir(parents=True, exist_ok=True)
     (OUT/'telemetry.json').write_text(json.dumps(REPORT,ensure_ascii=False,indent=2)+'\n')
 
 
@@ -180,7 +180,8 @@ def allowed_spawn_permission(request,repo):
     from app.acp_tools import canonical_name
     if request.get('kind')!='permission':raise RuntimeError('question/unknown native request is outside live authorization')
     details=request.get('details') or {}
-    if canonical_name(details)!='mcp__orchestra__spawn_worker':raise RuntimeError('native request is not the authorized spawn_worker')
+    if canonical_name(details) not in {'mcp__orchestra__spawn_worker','mcp_orchestra_spawn_worker'}:
+        raise RuntimeError('native request is not the authorized spawn_worker')
     raw=details.get('rawInput') or {};arguments=raw.get('Arguments',raw) if isinstance(raw,dict) else None
     if not isinstance(arguments,dict) or arguments.get('model') not in {'gpt-6-luna','luna'} or arguments.get('role','worker')!='worker':
         raise RuntimeError('native spawn request model/role is not authorized')
@@ -199,7 +200,8 @@ async def answer_spawn_permission(client,request,repo):
         headers={'X-CSRF-Token':csrf.json()['token']},json={'owner_id':request['owner_id'],
             'binding':request['binding'],'option_id':option,'cancel':False})
     response.raise_for_status()
-    return {'request_id':request['id'],'tool_name':'mcp__orchestra__spawn_worker','option_id':option,
+    from app.acp_tools import canonical_name
+    return {'request_id':request['id'],'tool_name':canonical_name(request.get('details') or {}),'option_id':option,
             'state':response.json().get('state')}
 
 
@@ -219,7 +221,7 @@ def prepare():
     if STAND.exists():raise RuntimeError('Stand path already exists; refuse to reuse state')
     STAND.mkdir(mode=0o700)
     STAND_CREATED = True
-    for folder in ('data','profile_home','demo_repo','worktrees','tasks','runtime'):(STAND/folder).mkdir(mode=0o700)
+    for folder in ('data','profile_home','demo_repo','worktrees','tasks','runtime','codex_homes'):(STAND/folder).mkdir(mode=0o700)
     home=STAND/'profile_home'
     SOURCE_HASHES.update(source_snapshot())
     initialize_persistent_profile()
@@ -294,9 +296,11 @@ def audit(kind,args):
     if kind=='subprocess.Popen':
         argv=args[1]
         if isinstance(argv,(tuple,list)) and argv:
-            binary=Path(argv[0]).name
+            items=list(argv)
+            if len(items)>=4 and Path(items[1]).name=='runtime_process_group.py':items=items[3:]
+            binary=Path(items[0]).name
             if binary in {'agy','agy.real','agy-vendor.elf'}:
-                if binary!='agy' or list(argv)[1:2]!=['acp'] or any(x['binary']=='agy' for x in SPAWNS):
+                if binary!='agy' or items[1:2]!=['acp'] or any(x['binary']=='agy' for x in SPAWNS):
                     raise PermissionError('stand guard: only one agy acp launch, no probes/retries')
                 SPAWNS.append({'binary':'agy','at':time.monotonic()})
             elif binary in {'codex','codex.real'}:
@@ -308,8 +312,8 @@ async def exercise(quota):
     from fastapi import FastAPI,Request
     from fastapi.responses import JSONResponse
     import httpx,uvicorn
-    from app import db,workspace,manager as manager_module,deps,models,native_requests
-    from app.routes import sessions,system
+    from app import db,workspace,manager as manager_module,deps,models,native_requests,backend_codex
+    from app.routes import sessions,system,tm as tm_routes,inbox,outbox,artifacts,attention,approvals,temp_rules
     from app.routes.native_requests import router as native_router
     from app import antigravity_acp as acp
     from app.auth import create_session,validate_session,check_internal_token
@@ -322,7 +326,7 @@ async def exercise(quota):
     with db._conn() as connection:
         REPORT['stand_project_catalog']=tm.sync_catalog(connection)
         assert tm.get_project_by_scope(connection,str(STAND/'demo_repo')) is not None
-    workspace.WORKTREE_ROOT=STAND/'worktrees';manager_module.WORKTREE_ROOT=workspace.WORKTREE_ROOT
+    workspace.WORKTREE_ROOT=STAND/'worktrees';manager_module.WORKTREE_ROOT=workspace.WORKTREE_ROOT;backend_codex._CODEX_HOME_ROOT=STAND/'codex_homes'
     system._USAGE_CACHE_FILE=STAND/'data/usage_cache.json'
     observed=datetime.fromisoformat(quota['observed_at']).timestamp() if quota.get('observed_at') else 0
     system._codex_usage_cache.update(data=quota.get('codex'),ts=observed,failed_at=time.time())
@@ -362,7 +366,10 @@ async def exercise(quota):
             finally:
                 await manager.shutdown_all()
                 await acp.shutdown_profiles()
-    app=FastAPI(lifespan=lifespan);app.include_router(sessions.router);app.include_router(system.router);app.include_router(native_router)
+    app=FastAPI(lifespan=lifespan)
+    for router in (sessions.router,system.router,native_router,tm_routes.router,inbox.router,
+            outbox.router,artifacts.router,attention.router,approvals.router,temp_rules.router):
+        app.include_router(router)
     worker_creations=0
     @app.middleware('http')
     async def isolate_http(request:Request,call_next):
@@ -396,8 +403,9 @@ async def exercise(quota):
             role=('Single explicitly authorized local integration check. Spawn exactly ONE gpt-6-luna worker in this demo repo. '
                 'Pass model_reason="Explicit local-only isolated stand verification authorized by owner; use this VPS worktree". '
                 'Use role worker, base_branch main, name stand-calc-worker. No other workers/models, no retries, no background jobs. '
-                'Do not call Bash/run_command/edit/read_file yourself. Only the Orchestra spawn tool and optional worker_wip. '
-                'On any error, report it once and stop. After the worker report, acknowledge in one short sentence and finish; no further tools.')
+                'Do not call Bash/run_command/edit/read_file yourself. Call ONLY the Orchestra spawn_worker tool once in Turn 1, '
+                'then reply in one short sentence that you are waiting for the worker report (do not call worker_wip or any other tool). '
+                'On any error, report it once and stop. After the worker auto-report in Turn 2, acknowledge in one short sentence and finish; no further tools.')
             response=await client.post('/api/sessions',json={'name':'stand-ceo','cwd':str(STAND/'demo_repo'),'scope':str(STAND/'demo_repo'),
                 'model':'antigravity/gemini-4-hydrogen-medium','is_orchestrator':True,'role':'orchestrator','system_prompt':role})
             if response.status_code>=400:raise RuntimeError('session create refused: '+safe(response.text)[:1000])
@@ -425,7 +433,7 @@ async def exercise(quota):
                 if errors:raise RuntimeError('live turn error: '+safe(errors[-1]['content'])[:1500])
                 if ceo._backend and ceo._backend._owner.failure:raise RuntimeError(ceo._backend._owner.failure)
                 for log in logs:
-                    if log['type']=='tool' and log.get('tool_name') not in {'mcp__orchestra__spawn_worker','mcp__orchestra__worker_wip','call_mcp_tool','tool_search','mcp__orchestra__get_worker_wip'}:
+                    if log['type']=='tool' and log.get('tool_name') not in {'mcp__orchestra__spawn_worker','mcp_orchestra_spawn_worker','mcp__orchestra__worker_wip','mcp_orchestra_worker_wip','mcp__orchestra__get_worker_wip','mcp_orchestra_get_worker_wip','mcp__orchestra__list_workers','mcp_orchestra_list_workers','call_mcp_tool','tool_search'}:
                         # Name may be opaque until structured MCP input arrives; do not allow shell/edit.
                         if any(k in (log.get('tool_name') or '').lower() for k in ('command','bash','edit','write_file')):
                             raise RuntimeError('orchestrator attempted prohibited shell/edit tool')
@@ -445,7 +453,7 @@ async def exercise(quota):
                 if progress!=last_progress:event('progress',parent_turns=progress[0],children=progress[1],child_turns=progress[2],parent_status=progress[3]);last_progress=progress
                 if ceo.total_turns>=1 and turn1 is None:
                     turn1={'pid':pid_seen,'status':ceo.status.value,'stop_reason':ceo._last_stop_reason,'ok':ceo._last_turn_ok};REPORT['turn1']=turn1
-                if ceo.total_turns>=2 and ceo.status.value=='idle' and children and children[0].total_turns>=1:
+                if ceo.total_turns>=2 and ceo.status.value=='idle' and children and children[0].total_turns>=1 and children[0].status.value=='idle':
                     worker=children[0]
                     if not ceo._last_turn_ok or not worker._last_turn_ok:raise RuntimeError('parent/child terminal turn not successful')
                     REPORT['turn2']={'pid':pid_seen,'status':ceo.status.value,'stop_reason':ceo._last_stop_reason,'ok':ceo._last_turn_ok}

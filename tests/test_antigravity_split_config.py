@@ -31,7 +31,7 @@ async def test_split_family_ack_then_family_specific_thought_ack_and_warm_reuse(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('mode', ['split-no-level','split-no-selector','split-family-mismatch','split-thought-mismatch','split-empty-ack','split-conflict'])
+@pytest.mark.parametrize('mode', ['split-no-level','split-no-selector','split-family-mismatch','split-thought-mismatch','split-empty-ack','split-conflict','split-new-only-conflict'])
 async def test_split_unoffered_or_unconfirmed_combination_refuses_before_prompt(stand,monkeypatch,mode):
     monkeypatch.setenv('AGY_MOCK_MODE',mode)
     b=stand.backend(model='gemini-4-hydrogen-medium');b.effort='medium'
