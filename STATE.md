@@ -23,3 +23,5 @@
 - Historical attempted live89b2f49 stopped before prompt; evidence retained separately.
 - New evidence .orchestra/tasks/agy-acp-safe-20261117/split-config/.
 - Parent owns hub stubSTATE; one final result after live cleanup and evidence commit.
+- Local prepare stopped before RPC/server/profile on cli.log symlink; archived, no live call.
+- Source snapshot now hashes symlink metadata without traversal; source alias remains untouched.

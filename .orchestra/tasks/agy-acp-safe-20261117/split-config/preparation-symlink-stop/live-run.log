@@ -1,0 +1,1 @@
+{"at": "2026-11-17T09:11:27.753505+00:00", "kind": "fail_stop", "error": "source profile contains a symlink; refusing traversal", "error_type": "RuntimeError"}

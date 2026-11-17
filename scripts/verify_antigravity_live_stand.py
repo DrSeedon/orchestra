@@ -92,7 +92,11 @@ def nft_counter():
 def source_snapshot():
     result={}
     for file in SOURCE.rglob('*'):
-        if file.is_symlink():raise RuntimeError('source profile contains a symlink; refusing traversal')
+        if file.is_symlink():
+            # A log alias is part of the immutable source metadata, not a
+            # directory or credential target to traverse/copy implicitly.
+            result[str(file.relative_to(SOURCE))]=hashlib.sha256(b'symlink\0'+os.fsencode(os.readlink(file))).digest()
+            continue
         if file.is_file():
             digest=hashlib.sha256()
             with file.open('rb') as stream:

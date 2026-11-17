@@ -49,5 +49,17 @@
     "offline-acceptance.log": "ed9226ae5b3fda8b6bec099b26bc45ce4081c93e59a74b8e92dcf51f4f21fa71",
     "offline-final.log": "fc0efb9d19cfed5e53610a8f0ccee7ace225f41bc37dfab29d1429c1b0e8c7e6"
   },
-  "normalization": "trailing line whitespace/blank EOF only; raw retained locally"
+  "normalization": "trailing line whitespace/blank EOF only; raw retained locally",
+  "source_snapshot_final": {
+    "passed": 12,
+    "failed": 0,
+    "seconds": 3.41,
+    "log": "offline-source-snapshot.log"
+  },
+  "local_preparation_stop": {
+    "cause": "immutable source cli.log symlink was rejected before any profile copy/provider start; now hash the link metadata without target traversal",
+    "server_or_provider_spawns": 0,
+    "rpc": 0,
+    "evidence": "preparation-symlink-stop/"
+  }
 }

@@ -1,0 +1,30 @@
+{
+  "authorization": "one isolated live stand cycle, explicit owner Step1",
+  "started_at": "2026-11-17T09:11:27.700071+00:00",
+  "events": [
+    {
+      "at": "2026-11-17T09:11:27.753505+00:00",
+      "kind": "fail_stop",
+      "error": "source profile contains a symlink; refusing traversal",
+      "error_type": "RuntimeError"
+    }
+  ],
+  "outcome": "PRIVATE_STATE_CLEANUP_ERROR",
+  "native_permission_requests": 0,
+  "native_owner_responses": [],
+  "preexisting_vendor_pids": [],
+  "error": "source profile contains a symlink; refusing traversal",
+  "nft_after": {
+    "packets": 0,
+    "bytes": 0
+  },
+  "oauth_refresh_state_changed": false,
+  "auth_state_cleanup_error": "source profile contains a symlink; refusing traversal",
+  "stand_created": true,
+  "stand_removed": true,
+  "leftover_owned_vendor_pids": [],
+  "foreign_vendor_pids_preserved": [],
+  "production_tracked_unchanged": true,
+  "production_disabled_unchanged": true,
+  "ended_at": "2026-11-17T09:11:27.861600+00:00"
+}

@@ -104,3 +104,17 @@ def test_persistent_profile_initializes_once_without_reverting_refreshed_state(t
     driver.initialize_persistent_profile()
     assert (cache/'.gemini/antigravity-acp/antigravity-oauth-token').read_bytes()==b'synthetic refreshed cache'
     assert before=={str(p.relative_to(source)):p.read_bytes() for p in source.rglob('*') if p.is_file()}
+
+
+def test_source_snapshot_hashes_log_symlink_without_following_external_target(tmp_path,monkeypatch):
+    import hashlib,os
+    source=tmp_path/'source';source.mkdir();(source/'ordinary').write_bytes(b'immutable source')
+    outside=tmp_path/'external-log';outside.write_bytes(b'outside log')
+    link=source/'cli.log';link.symlink_to(outside)
+    monkeypatch.setattr(driver,'SOURCE',source)
+    snapshot=driver.source_snapshot()
+    assert snapshot['cli.log']==hashlib.sha256(b'symlink\0'+os.fsencode(os.readlink(link))).digest()
+    outside.write_bytes(b'changed outside source')
+    assert driver.source_snapshot()==snapshot
+    (source/'ordinary').write_bytes(b'changed source')
+    assert driver.source_snapshot()!=snapshot and link.is_symlink()
