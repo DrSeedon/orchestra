@@ -1,0 +1,33 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+........................................................................ [ 36%]
+.......................................................................F [ 73%]
+...................................................                      [100%]
+=================================== FAILURES ===================================
+_ test_real_compact_ack_lifecycle_context_receipt_and_rollback[ack-error-False-True] _
+tests/test_antigravity_acp_r2.py:79: in test_real_compact_ack_lifecycle_context_receipt_and_rollback
+    assert sum(r["method"] == "prompt_end" for r in stand.trace()) == 3
+E   assert 2 == 3
+E    +  where 2 = sum(<generator object test_real_compact_ack_lifecycle_context_receipt_and_rollback.<locals>.<genexpr> at 0x7a2b7b77b510>)
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] antigravity turn started
+[real-acp-r2] heartbeat cancelled
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2830 [real-acp-r2] antigravity turn started
+INFO     app.session:session.py:2830 [real-acp-r2] antigravity turn started
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+=============================== warnings summary ===============================
+tests/test_antigravity_live_preflight.py::test_verified_http_child_report_reaches_real_transport
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_antigravity_live_preflight.py::test_verified_http_child_report_reaches_real_transport
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_acp_r2.py::test_real_compact_ack_lifecycle_context_receipt_and_rollback[ack-error-False-True]
+1 failed, 194 passed, 2 warnings in 38.86s

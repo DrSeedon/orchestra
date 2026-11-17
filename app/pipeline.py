@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Union
@@ -579,7 +580,14 @@ def resolve_effort(effort: EffortSpec | None, model: str, runtime: str) -> str |
         return effort or None
     if not isinstance(effort, dict):
         return None
-    for key in (_canon_model(model), runtime, "default"):
+    canonical = _canon_model(model)
+    if effort.get(canonical):
+        return effort[canonical]
+    # A general role/runtime default cannot overwrite an explicit model variant.
+    suffix = re.search(r"-(xhigh|high|medium|low)$", canonical)
+    if suffix:
+        return suffix.group(1)
+    for key in (runtime, "default"):
         val = effort.get(key)
         if val:
             return val

@@ -24,12 +24,17 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 STAND = Path('/tmp/orchestra-live-stand-20261117')
 SOURCE = Path('/home/kesha/orchestra/.orchestra/tasks/katya-nl-pro-probe-20261116/sandbox_home')
+PERSIST = SOURCE.parent/'acp_stand_profile'
+PROFILE_FILES = ('.config/antigravity/credential-user-scope','.gemini/config/config.json',
+    '.gemini/antigravity-cli/antigravity-oauth-token','.gemini/antigravity-cli/installation_id',
+    '.gemini/antigravity-cli/cache/onboarding.json','.gemini/antigravity-cli/cache/default_project_id.txt',
+    '.gemini/antigravity-cli/settings.json')
 PRODUCTION = Path('/home/kesha/orchestra')
-OUT = ROOT/'.orchestra/tasks/agy-acp-safe-20261117/live-stand/resumed'
+OUT = ROOT/'.orchestra/tasks/agy-acp-safe-20261117/split-config/live'
 OUT.mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(ROOT))
 REPORT = {'authorization':'one isolated live stand cycle, explicit owner Step1',
-          'started_at':datetime.now(timezone.utc).isoformat(), 'events':[], 'outcome':'PREPARING'}
+          'started_at':datetime.now(timezone.utc).isoformat(), 'events':[], 'outcome':'PREPARING', 'native_permission_requests':0, 'native_owner_responses':[]}
 SOURCE_HASHES = {}
 RPC = []
 SPAWNS = []
@@ -84,6 +89,127 @@ def nft_counter():
     return {'packets':sum(x['packets'] for x in values),'bytes':sum(x['bytes'] for x in values)}
 
 
+def source_snapshot():
+    result={}
+    for file in SOURCE.rglob('*'):
+        if file.is_symlink():raise RuntimeError('source profile contains a symlink; refusing traversal')
+        if file.is_file():
+            digest=hashlib.sha256()
+            with file.open('rb') as stream:
+                for chunk in iter(lambda:stream.read(1048576),b''):digest.update(chunk)
+            result[str(file.relative_to(SOURCE))]=digest.digest()
+    return result
+
+
+def persistent_write(path, raw):
+    from app.antigravity_auth import atomic_private_write
+    relative=path.relative_to(PERSIST)
+    current=PERSIST
+    if current.is_symlink() or not path.resolve().is_relative_to(PERSIST.resolve()):
+        raise RuntimeError('persistent profile path escape/symlink refused')
+    if PERSIST.resolve()==SOURCE.resolve() or PERSIST.resolve().is_relative_to(SOURCE.resolve()):
+        raise RuntimeError('persistent profile must be separate from immutable source')
+    for part in relative.parts[:-1]:
+        current=current/part
+        if current.is_symlink():raise RuntimeError('persistent profile parent symlink refused')
+        current.mkdir(exist_ok=True,mode=0o700);current.chmod(0o700)
+    if path.is_symlink():raise RuntimeError('persistent credential symlink refused')
+    atomic_private_write(path,raw)
+
+
+def initialize_persistent_profile():
+    if PERSIST.is_symlink():raise RuntimeError('persistent profile symlink refused')
+    if PERSIST.exists():
+        if PERSIST.stat().st_uid!=os.getuid() or PERSIST.stat().st_mode&0o777!=0o700:
+            raise RuntimeError('persistent profile must be privately owned0700')
+        if not all((PERSIST/rel).is_file() for rel in PROFILE_FILES):
+            raise RuntimeError('persistent profile is incomplete; refusing implicit reinitialization')
+        return
+    PERSIST.mkdir(mode=0o700)
+    persistent_write(PERSIST/'.gitignore',b'*\n')
+    for rel in PROFILE_FILES:persistent_write(PERSIST/rel,(SOURCE/rel).read_bytes())
+    shutil.copytree(PERSIST/'.gemini/antigravity-cli',PERSIST/'.gemini/antigravity-acp')
+    settings={'useG1Credits':False,'telemetryEnabled':False,'auth':{'type':'oauth-personal'}}
+    for kind in ('antigravity-cli','antigravity-acp'):
+        persistent_write(PERSIST/'.gemini'/kind/'settings.json',json.dumps(settings).encode())
+    config=PERSIST/'.gemini/config/config.json';value=json.loads(config.read_text())
+    value.setdefault('userSettings',{})['useAiCredits']=False;persistent_write(config,json.dumps(value).encode())
+    for path in PERSIST.rglob('*'):path.chmod(0o700 if path.is_dir() else 0o600)
+
+
+def persist_refresh_state(home):
+    raw=(home/'.gemini/antigravity-acp/antigravity-oauth-token').read_bytes()
+    if not raw:raise RuntimeError('authenticated profile token is empty; refusing save')
+    writes=0
+    for kind in ('antigravity-acp','antigravity-cli'):
+        target=PERSIST/'.gemini'/kind/'antigravity-oauth-token'
+        if target.is_symlink():raise RuntimeError('persistent token symlink refused')
+        if not target.is_file() or target.read_bytes()!=raw:
+            persistent_write(target,raw);writes+=1
+        target.chmod(0o600)
+    return {'directory':str(PERSIST),'atomic':True,'mode':'0600','files_updated':writes}
+
+
+def catalog_summary(result):
+    def ids(option):
+        values=[]
+        for row in option.get('options',[]) or []:
+            if not isinstance(row,dict):continue
+            for item in ([row] if 'value' in row else row.get('options',[]) or []):
+                if isinstance(item,dict) and isinstance(item.get('value'),str):values.append(item['value'][:256])
+        return values[:256]
+    options=[]
+    for option in result.get('configOptions',[]) or []:
+        if not isinstance(option,dict):continue
+        # Only model/thought/mode selectors have a known nonsecret value contract.
+        if option.get('category') not in {'model','thought_level','mode'} and option.get('id') not in {'model','thought_level','mode'}:continue
+        options.append({'id':option.get('id'),'category':option.get('category'),
+            'currentValue':option.get('currentValue'),'values':ids(option)})
+    models=result.get('models') or {};modes=result.get('modes') or {}
+    return {'configOptions':options,'models':{'currentModelId':models.get('currentModelId'),
+        'availableModelIds':[x['modelId'] for x in models.get('availableModels',[]) or [] if isinstance(x,dict) and isinstance(x.get('modelId'),str)]},
+        'modes':{'currentModeId':modes.get('currentModeId'),
+        'availableModeIds':[x['id'] for x in modes.get('availableModes',[]) or [] if isinstance(x,dict) and isinstance(x.get('id'),str)]}}
+
+
+def allowed_spawn_permission(request,repo):
+    from app.acp_tools import canonical_name
+    if request.get('kind')!='permission':raise RuntimeError('question/unknown native request is outside live authorization')
+    details=request.get('details') or {}
+    if canonical_name(details)!='mcp__orchestra__spawn_worker':raise RuntimeError('native request is not the authorized spawn_worker')
+    raw=details.get('rawInput') or {};arguments=raw.get('Arguments',raw) if isinstance(raw,dict) else None
+    if not isinstance(arguments,dict) or arguments.get('model') not in {'gpt-6-luna','luna'} or arguments.get('role','worker')!='worker':
+        raise RuntimeError('native spawn request model/role is not authorized')
+    if (not isinstance(arguments.get('name'),str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,49}',arguments['name'])
+            or arguments['name']=='stand-ceo' or Path(arguments.get('repo_path','')).resolve()!=Path(repo).resolve()):
+        raise RuntimeError('native spawn request target is not authorized')
+    option=next((x for x in request.get('options',[]) if x.get('kind')=='allow_once'),None)
+    if option is None:raise RuntimeError('native spawn permission has no allow-once option')
+    return option['optionId']
+
+
+async def answer_spawn_permission(client,request,repo):
+    option=allowed_spawn_permission(request,repo)
+    csrf=await client.get('/api/native-requests/csrf');csrf.raise_for_status()
+    response=await client.post('/api/native-requests/'+request['id']+'/respond',
+        headers={'X-CSRF-Token':csrf.json()['token']},json={'owner_id':request['owner_id'],
+            'binding':request['binding'],'option_id':option,'cancel':False})
+    response.raise_for_status()
+    return {'request_id':request['id'],'tool_name':'mcp__orchestra__spawn_worker','option_id':option,
+            'state':response.json().get('state')}
+
+
+def seed_stand_catalog(repo,data_dir):
+    # Normal task allocation requires a registered scope. Keep the source-only
+    # demo repo at its initial README commit; the catalog belongs to stand data.
+    project={'tag':'stand','name':'Isolated Stand','scope':str(repo),
+             'write_namespace':'stand-live','namespaces':{'stand-live':''}}
+    path=data_dir/'projects.yaml'
+    path.write_text(json.dumps({'version':1,'projects':[project]},indent=2))
+    path.chmod(0o600)
+    return path
+
+
 def prepare():
     global STAND_CREATED
     if STAND.exists():raise RuntimeError('Stand path already exists; refuse to reuse state')
@@ -91,15 +217,20 @@ def prepare():
     STAND_CREATED = True
     for folder in ('data','profile_home','demo_repo','worktrees','tasks','runtime'):(STAND/folder).mkdir(mode=0o700)
     home=STAND/'profile_home'
-    required=['.config/antigravity/credential-user-scope','.gemini/config/config.json',
-        '.gemini/antigravity-cli/antigravity-oauth-token','.gemini/antigravity-cli/installation_id',
-        '.gemini/antigravity-cli/cache/onboarding.json','.gemini/antigravity-cli/cache/default_project_id.txt',
-        '.gemini/antigravity-cli/settings.json']
-    for rel in required:
-        source=SOURCE/rel;raw=source.read_bytes();SOURCE_HASHES[rel]=hashlib.sha256(raw).digest()
+    SOURCE_HASHES.update(source_snapshot())
+    initialize_persistent_profile()
+    # This is the only authorized durable private-state exception beneath the
+    # production task folder; no profile file may enter its Git index.
+    run(['git','-C',str(PRODUCTION),'check-ignore','-q','--',str(PERSIST/'.gemini/antigravity-acp/antigravity-oauth-token')])
+    REPORT['persistent_profile_gitignored']=True
+    for rel in PROFILE_FILES:
+        raw=(PERSIST/rel).read_bytes()
         dest=home/rel;dest.parent.mkdir(parents=True,exist_ok=True,mode=0o700);dest.write_bytes(raw);dest.chmod(0o600)
     cli=home/'.gemini/antigravity-cli';acp=home/'.gemini/antigravity-acp'
     shutil.copytree(cli,acp)
+    # ACP's persisted token is authoritative even if a prior CLI mirror write failed.
+    cached=(PERSIST/'.gemini/antigravity-acp/antigravity-oauth-token').read_bytes()
+    for kind in (cli,acp):(kind/'antigravity-oauth-token').write_bytes(cached)
     settings={'useG1Credits':False,'telemetryEnabled':False,'auth':{'type':'oauth-personal'}}
     for target in (cli/'settings.json',acp/'settings.json'):
         target.write_text(json.dumps(settings));target.chmod(0o600)
@@ -108,6 +239,7 @@ def prepare():
     for path in home.rglob('*'):path.chmod(0o700 if path.is_dir() else 0o600)
     disabled=STAND/'data/disabled_providers.json';disabled.write_text('["claude","grok"]\n');disabled.chmod(0o600)
     repo=STAND/'demo_repo'
+    seed_stand_catalog(repo,STAND/'data')
     run(['git','init','--initial-branch=main',str(repo)])
     (repo/'README.md').write_text('# Isolated multiplication verification\n')
     run(['git','-C',str(repo),'add','README.md'])
@@ -135,7 +267,7 @@ def prepare():
     for key in list(os.environ):
         if any(x in key for x in ('PROXY','API_KEY','TOKEN','DASHBOARD','MULTICODE','NOTIFY_SOCKET')):os.environ.pop(key,None)
     os.environ.update(env)
-    REPORT['profile_copy']={'file_count':len(required),'source_unchanged':None,'no_credit_settings':True}
+    REPORT['profile_copy']={'file_count':len(PROFILE_FILES),'source_file_hash_count':len(SOURCE_HASHES),'source_unchanged':None,'no_credit_settings':True,'persistent_profile':str(PERSIST)}
     REPORT['quota_cache']={'observed_at':quota['observed_at'],'codex_available':isinstance(codex,dict),'probe_policy':'cache-only; no quota refresh'}
     REPORT['profile_initial_token_digest']=hashlib.sha256((acp/'antigravity-oauth-token').read_bytes()).hexdigest()
     # digest is comparison-only, never written in telemetry.
@@ -174,6 +306,7 @@ async def exercise(quota):
     import httpx,uvicorn
     from app import db,workspace,manager as manager_module,deps,models,native_requests
     from app.routes import sessions,system
+    from app.routes.native_requests import router as native_router
     from app import antigravity_acp as acp
     from app.auth import create_session,validate_session,check_internal_token
     from app.task_runtime import task_runtime_mode,production_runtime
@@ -181,6 +314,10 @@ async def exercise(quota):
     db.init_db()
     assert db.DB_PATH==STAND/'data/orchestra.db'
     assert models.list_disabled_providers()==['claude','grok']
+    from app import tm
+    with db._conn() as connection:
+        REPORT['stand_project_catalog']=tm.sync_catalog(connection)
+        assert tm.get_project_by_scope(connection,str(STAND/'demo_repo')) is not None
     workspace.WORKTREE_ROOT=STAND/'worktrees';manager_module.WORKTREE_ROOT=workspace.WORKTREE_ROOT
     system._USAGE_CACHE_FILE=STAND/'data/usage_cache.json'
     observed=datetime.fromisoformat(quota['observed_at']).timestamp() if quota.get('observed_at') else 0
@@ -199,6 +336,14 @@ async def exercise(quota):
         try:result=await original_request(owner,method,params,**kwargs)
         except BaseException as error:
             record['error']=safe(error)[:600];raise
+        record['ok']=True
+        if method in {'session/new','session/resume','session/set_config_option'}:
+            REPORT.setdefault('session_catalog',[]).append({'method':method,'summary':catalog_summary(result)})
+            save()
+        if method=='authenticate':
+            REPORT['authenticate_success']=True
+            REPORT.setdefault('auth_state_updates',[]).append(persist_refresh_state(STAND/'profile_home'))
+            save()
         if method=='initialize':
             REPORT['initialize']={'protocolVersion':result.get('protocolVersion'),
                 'authMethods':[{k:m.get(k) for k in ('id','type')} for m in result.get('authMethods',[])],
@@ -213,7 +358,7 @@ async def exercise(quota):
             finally:
                 await manager.shutdown_all()
                 await acp.shutdown_profiles()
-    app=FastAPI(lifespan=lifespan);app.include_router(sessions.router);app.include_router(system.router)
+    app=FastAPI(lifespan=lifespan);app.include_router(sessions.router);app.include_router(system.router);app.include_router(native_router)
     worker_creations=0
     @app.middleware('http')
     async def isolate_http(request:Request,call_next):
@@ -225,8 +370,10 @@ async def exercise(quota):
             body=await request.json()
             if body.get('name')!='stand-ceo':
                 worker_creations+=1
-                if worker_creations>1 or body.get('model') not in {'gpt-6-luna','luna'} or body.get('parent_name')!='stand-ceo':
-                    return JSONResponse({'error':'one authorized Luna child only'},status_code=403)
+                if (worker_creations>1 or body.get('model') not in {'gpt-6-luna','luna'} or body.get('parent_name')!='stand-ceo'
+                        or not isinstance(body.get('name'),str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,49}',body['name']) or body.get('role')!='worker'
+                        or any(body.get(key)!=str(STAND/'demo_repo') for key in ('cwd','scope','repo_path'))):
+                    return JSONResponse({'error':'one authorized Luna child in isolated demo scope only'},status_code=403)
         response=await call_next(request)
         if response.status_code>=400:REPORT.setdefault('http_errors',[]).append({'path':request.url.path,'status':response.status_code})
         return response
@@ -279,7 +426,12 @@ async def exercise(quota):
                         if any(k in (log.get('tool_name') or '').lower() for k in ('command','bash','edit','write_file')):
                             raise RuntimeError('orchestrator attempted prohibited shell/edit tool')
                 pending=native_requests.pending_for(ceo.id)
-                if pending:raise RuntimeError('native human confirmation required; stop instead of auto approving')
+                if pending:
+                    if REPORT['native_permission_requests'] or len(pending)!=1:
+                        raise RuntimeError('more than one native request; stop without another response')
+                    REPORT['native_permission_requests']=1
+                    result=await answer_spawn_permission(client,pending[0],STAND/'demo_repo')
+                    REPORT['native_owner_responses'].append(result);save()
                 children=[x for x in manager.sessions.values() if x.id!=ceo.id]
                 if len(children)>1:raise RuntimeError('more than one child created')
                 for child in children:
@@ -370,12 +522,18 @@ def main():
                 if REPORT['nft_delta']['packets']!=0:REPORT['outcome']='KILLSWITCH_COUNTER_CHANGED'
         except BaseException as error:REPORT['nft_final_error']=safe(error)
         if STAND_CREATED and STAND.exists():
-            token=STAND/'profile_home/.gemini/antigravity-acp/antigravity-oauth-token'
-            REPORT['oauth_refresh_state_changed']=token.is_file() and hashlib.sha256(token.read_bytes()).hexdigest()!=token_initial
-            REPORT.setdefault('profile_copy',{})['source_unchanged']=all(hashlib.sha256((SOURCE/rel).read_bytes()).digest()==digest for rel,digest in SOURCE_HASHES.items())
-            # Do not overwrite the source account profile or export secret refresh state.
-            REPORT['refresh_state_policy']='stand copy removed; source never overwritten; change flag only'
-            shutil.rmtree(STAND)
+            try:
+                token=STAND/'profile_home/.gemini/antigravity-acp/antigravity-oauth-token'
+                REPORT['oauth_refresh_state_changed']=token.is_file() and hashlib.sha256(token.read_bytes()).hexdigest()!=token_initial
+                REPORT.setdefault('profile_copy',{})['source_unchanged']=(source_snapshot()==SOURCE_HASHES)
+                if not REPORT['profile_copy']['source_unchanged']:REPORT['outcome']='SOURCE_PROFILE_CHANGED'
+                if REPORT.get('authenticate_success'):
+                    REPORT.setdefault('auth_state_updates',[]).append(persist_refresh_state(STAND/'profile_home'))
+                REPORT['refresh_state_policy']='authenticated refresh state atomically saved to private acp_stand_profile; temporary copy removed; source immutable'
+            except Exception as error:
+                REPORT['auth_state_cleanup_error']=safe(error);REPORT['outcome']='PRIVATE_STATE_CLEANUP_ERROR'
+            finally:
+                shutil.rmtree(STAND)
         REPORT['stand_created']=STAND_CREATED
         REPORT['stand_removed']=STAND_CREATED and not STAND.exists()
         REPORT['leftover_owned_vendor_pids']=sorted(set(vendor_pids())-BASELINE_PIDS)

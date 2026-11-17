@@ -1,0 +1,30 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+......................................................................F. [ 37%]
+........................................................................ [ 74%]
+..................................................                       [100%]
+=================================== FAILURES ===================================
+__ test_automated_inputs_denied_at_session_and_backend[agent-direct_message] ___
+tests/test_antigravity_acp.py:307: in test_automated_inputs_denied_at_session_and_backend
+    await s.send("automated", provenance=provenance)
+app/session.py:1422: in send
+    ensure_interactive_input(self.model, provenance, target_session=self)
+app/antigravity_acp.py:383: in ensure_interactive_input
+    parent = db.get_session(field(target_session, "id"))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/db.py:671: in get_session
+    row = c.execute(_SESSION_SELECT + " WHERE id = ?", (session_id,)).fetchone()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   sqlite3.OperationalError: no such table: sessions
+=============================== warnings summary ===============================
+tests/test_antigravity_live_preflight.py::test_verified_http_child_report_reaches_real_transport
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_antigravity_live_preflight.py::test_verified_http_child_report_reaches_real_transport
+  /home/kesha/orchestra-worktrees/agy-acp-safe/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_antigravity_acp.py::test_automated_inputs_denied_at_session_and_backend[agent-direct_message]
+1 failed, 193 passed, 2 warnings in 45.32s

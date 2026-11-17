@@ -1,0 +1,53 @@
+{
+  "base": "89b2f49d84c425129097a018e078dd518f9f1333",
+  "phase": "OFFLINE_CODE_READY_BEFORE_LIVE",
+  "main_suite": {
+    "passed": 291,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 2,
+    "seconds": 33.85,
+    "log": "offline-acceptance.log"
+  },
+  "last_exact_suite": {
+    "passed": 48,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 2,
+    "seconds": 10.37,
+    "log": "offline-exact-final.log"
+  },
+  "driver_suite": {
+    "passed": 11,
+    "failed": 0,
+    "seconds": 4.13,
+    "log": "offline-driver-final.log"
+  },
+  "intermediate_failures": [
+    {
+      "log": "offline-final.log",
+      "passed": 193,
+      "failed": 1,
+      "cause": "unpersisted non-orchestrator agent denial queried uninitialized DB; early orchestrator check now fails closed"
+    },
+    {
+      "log": "offline-final-2.log",
+      "passed": 194,
+      "failed": 1,
+      "cause": "fake ACK-error terminal response raced its own completion trace; trace now precedes terminal reply, assertions unchanged"
+    }
+  ],
+  "instruction_contract": "PASS",
+  "production_or_credential_access_in_tests": false,
+  "real_provider_calls_so_far_this_wave": 0,
+  "raw_log_sha256": {
+    "offline-exact-final.log": "e71da6119891ea6311c8056eca92a81d2755f284eda89859c945f0dea081b613",
+    "offline-driver-final.log": "ff8c32a2a581814ef2c6caae3690b82c2398986eb3a6b3864463bf082c683643",
+    "instructions.log": "360712bcb4fa9db1641ed2ef707e24f4f659344a87c0b18796b53f79400ce3eb",
+    "offline-core.log": "c2eca3e8f0503f4d2706677bce3d29fb0c8305cd2f02bad95b7e9b279d8648ba",
+    "offline-final-2.log": "554f758726a234fdc27a9249302fc41710ba33752173c88a9c1da10456e3f915",
+    "offline-acceptance.log": "ed9226ae5b3fda8b6bec099b26bc45ce4081c93e59a74b8e92dcf51f4f21fa71",
+    "offline-final.log": "fc0efb9d19cfed5e53610a8f0ccee7ace225f41bc37dfab29d1429c1b0e8c7e6"
+  },
+  "normalization": "trailing line whitespace/blank EOF only; raw retained locally"
+}

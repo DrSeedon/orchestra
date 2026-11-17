@@ -1,0 +1,3 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe", "credentials_in_environment": 0}
+...........                                                              [100%]
+11 passed in 4.13s

@@ -11,7 +11,9 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import signal
+import sqlite3
 import uuid
 from pathlib import Path
 
@@ -82,21 +84,57 @@ class AcpProfile:
 
     @staticmethod
     def model_state(result):
-        # Stable ACP configOptions are preferred; legacy models metadata remains
-        # supported for installed CLI versions advertising session/set_model.
-        option = next((o for o in result.get("configOptions", []) if
-                       o.get("category") == "model" or o.get("id") == "model"), None)
-        if option is not None:
-            available = set()
-            for entry in option.get("options", []):
-                for row in ([entry] if "value" in entry else entry.get("options", [])):
-                    if isinstance(row.get("value"), str):
-                        available.add(row["value"])
-            return {"config_id": option["id"], "current": option.get("currentValue"), "available": available}
+        """Keep both selector values and the peer's optional variant catalog."""
+        options = result.get("configOptions") or []
+        def select(category):
+            return next((o for o in options if isinstance(o, dict) and
+                         (o.get("category") == category or o.get("id") == category)), None)
+        def values(option):
+            result = set()
+            for entry in (option or {}).get("options", []) or []:
+                if not isinstance(entry, dict):continue
+                for row in ([entry] if "value" in entry else entry.get("options", []) or []):
+                    if isinstance(row, dict) and isinstance(row.get("value"), str):result.add(row["value"])
+            return result
+        option, thought = select("model"), select("thought_level")
         models = result.get("models") or {}
-        return {"config_id": None, "current": models.get("currentModelId"),
-                "available": {r["modelId"] for r in models.get("availableModels", [])
-                              if isinstance(r, dict) and isinstance(r.get("modelId"), str)}}
+        legacy = {r["modelId"] for r in models.get("availableModels", []) or []
+                  if isinstance(r, dict) and isinstance(r.get("modelId"), str)}
+        return {"config_id": option.get("id") if option else None,
+                "current": option.get("currentValue") if option else models.get("currentModelId"),
+                "available": values(option) if option else legacy,
+                "thought_config_id": thought.get("id") if thought else None,
+                "current_thought": thought.get("currentValue") if thought else None,
+                "thought_available": values(thought), "legacy_available": legacy,
+                "model_present": option is not None or bool(models), "thought_present": thought is not None}
+
+    @staticmethod
+    def published_models(state):
+        direct = set(state["available"])
+        legacy = set(state.get("legacy_available", ()))
+        current = state.get("current")
+        # Thought choices describe ONLY the active family. Never extrapolate its
+        # levels onto inactive families; their explicit legacy variants remain valid.
+        if current in direct and state.get("thought_config_id") and not re.search(r"-(xhigh|high|medium|low)$", current):
+            variants = {current + "-" + level for level in state["thought_available"]}
+            catalog_variants = {v for v in legacy if any(v.startswith(family + "-")
+                for family in direct if not re.search(r"-(xhigh|high|medium|low)$", family))}
+            direct.update(variants & legacy if catalog_variants else variants)
+            # A legacy variant for the active family cannot override its current
+            # thought selector's narrower offered levels in readiness projections.
+            legacy = {v for v in legacy if not v.startswith(current + "-")}
+        return direct | legacy
+
+    def remember_model_state(self, sid, result):
+        state = self.model_state(result)
+        if not state["model_present"] and state["thought_present"] and sid in self.model_states:
+            previous = self.model_states[sid]
+            state = {**previous, **{k:state[k] for k in
+                ("thought_config_id", "current_thought", "thought_available", "thought_present")}}
+        if state["current"] is not None:
+            self.model_states[sid] = state
+            self.models = set().union(*(self.published_models(s) for s in self.model_states.values()))
+        return state
 
     def _check_settings(self):
         # Never rewrite existing settings or infer that absence means no spending.
@@ -237,10 +275,7 @@ class AcpProfile:
                         sid = params.get("sessionId")
                         update = params.get("update") or {}
                         if sid in self.sessions and update.get("sessionUpdate") == "config_option_update":
-                            state = self.model_state(update)
-                            if state["current"] is not None:
-                                self.model_states[sid] = state
-                                self.models = set().union(*(s["available"] for s in self.model_states.values()))
+                            self.remember_model_state(sid, update)
                         callback = self.listeners.get(sid)
                         if callback:
                             callback(update)
@@ -347,9 +382,12 @@ def ensure_interactive_input(model, provenance, *, target_session=None, allow_ch
         return
     def field(value, name):
         return value.get(name) if isinstance(value, dict) else getattr(value, name, None)
-    if origin == "agent" and allow_child_agent and target_session is not None:
+    if origin == "agent" and allow_child_agent and field(target_session, "is_orchestrator"):
         from app import db
-        parent = db.get_session(field(target_session, "id"))
+        try:
+            parent = db.get_session(field(target_session, "id"))
+        except sqlite3.Error:
+            parent = None  # Missing durable evidence must deny, never authorize a wake.
         senders = getattr(provenance, "senders", ())
         blocked = {"system", "platform", "unknown", "cron", "timer", "dreaming", "scheduler", "limit_wake", "rate_limit_retry", "server_error_retry"}
         if (parent and parent.get("is_orchestrator") and field(target_session, "is_orchestrator")

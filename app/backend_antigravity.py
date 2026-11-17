@@ -390,7 +390,7 @@ class AntigravityBackend:
         "profile_binding":"operator epoch; fixed account; no account-change detection",
         "credential_readiness":"file-store presence only; keyring not autodetected",
         "role_priority":"first-turn user context; systemPrompt.append unverified",
-        "effort":"exact offered model variant and ACK; no nearest fallback",
+        "effort":"exact split model/thought selectors or combined variant, with ACK; no nearest fallback",
         "telegram":"primary topic durable cursor; ambiguous sends block for operator reconciliation",
     }
     def __init__(self, context):
@@ -604,6 +604,9 @@ class AntigravityBackend:
             self._segment[2].append(text)
             if target=="text":self._assistant_reply.append(text)
             self._queue.put_nowait(AgentEvent("stream" if target=="text" else "thinking_stream",self._redact(text),metadata={"item_id":self._segment[1]}))
+        elif kind=="config_option_update":
+            if self._owner is not None and self.session_id:
+                self._owner.remember_model_state(self.session_id, update)
         elif kind=="usage_update":
             self._context=current_context(update.get("used"),update.get("size"))
             cost=update.get("cost") or {}
@@ -618,6 +621,57 @@ class AntigravityBackend:
                 meta["item_id"]="acp:"+str(self.session_id)+":"+self._turn_id+":tool:"+str(meta["tool_use_id"])+":"+str(meta["acp_revision"])+":"+event
                 meta["raw_input"] = json.loads(self._redact(json.dumps(meta["raw_input"],ensure_ascii=False)))
                 self._queue.put_nowait(AgentEvent(event,self._redact(body),metadata=meta))
+
+    async def _select_model(self):
+        from app.antigravity_acp import AcpSessionError
+        state = self._owner.model_states[self.session_id]
+        suffix = re.search(r"-(xhigh|high|medium|low)$", self.model)
+        wanted = self.effort or (suffix.group(1) if suffix else None)
+        base = re.sub(r"-(?:xhigh|high|medium|low)$", "", self.model)
+        requested = base + "-" + wanted if wanted else self.model
+        split = bool(state["config_id"] and base in state["available"] and base != requested and requested not in state["available"])
+        if split:
+            if state["current"] != base:
+                selected = await self._owner.request("session/set_config_option", {
+                    "sessionId":self.session_id,"configId":state["config_id"],"value":base})
+                state = self._owner.remember_model_state(self.session_id, selected)
+                if state["current"] != base:
+                    raise AcpSessionError("ACP model family selection was not confirmed; prompt refused")
+            def validate_thought(value):
+                if value["current"] != base or base not in value["available"] or not value.get("thought_config_id") or wanted not in value["thought_available"]:
+                    raise AcpSessionError("Requested thought level is not advertised for selected family; no nearest fallback")
+                legacy = value.get("legacy_available", set())
+                variants = {v for v in legacy if any(v.startswith(family+"-") for family in value["available"]
+                    if not re.search(r"-(xhigh|high|medium|low)$", family))}
+                if variants and requested not in legacy:
+                    raise AcpSessionError("ACP model/thought combination contradicts variant catalog; prompt refused")
+            validate_thought(state)
+            if state["current_thought"] != wanted:
+                selected = await self._owner.request("session/set_config_option", {
+                    "sessionId":self.session_id,"configId":state["thought_config_id"],"value":wanted})
+                state = self._owner.remember_model_state(self.session_id, selected)
+                validate_thought(state)
+                if state["current_thought"] != wanted:
+                    raise AcpSessionError("ACP thought level selection was not confirmed; prompt refused")
+        else:
+            if requested not in state["available"]:
+                raise AcpSessionError("Requested model/effort variant is not advertised; no nearest fallback")
+            if state["current"] != requested:
+                if state["config_id"]:
+                    selected = await self._owner.request("session/set_config_option", {
+                        "sessionId":self.session_id,"configId":state["config_id"],"value":requested})
+                    state = self._owner.remember_model_state(self.session_id, selected)
+                    if state["current"] != requested or requested not in state["available"]:
+                        raise AcpSessionError("ACP model selection was not confirmed; prompt refused")
+                else:
+                    selected = await self._owner.request("session/set_model", {"sessionId":self.session_id,"modelId":requested})
+                    confirmed = self._owner.model_state(selected)
+                    if confirmed["current"] is not None and confirmed["current"] != requested:
+                        self._owner.remember_model_state(self.session_id, selected)
+                        raise AcpSessionError("ACP model selection mismatch; prompt refused")
+                    state["current"] = requested  # Legacy empty success is its advertised contract.
+        self._selected_model = requested
+        self._owner.models = set().union(*(self._owner.published_models(s) for s in self._owner.model_states.values()))
 
     async def _run(self, message):
         from app.provider_safety import verify_provider_egress, record_provider_activity
@@ -652,42 +706,10 @@ class AntigravityBackend:
                     self.session_id = session_id
                     bind_session(self._owner,session_id,self.app_session_id,resume=(method!="session/new"))
                     self._owner.sessions.add(session_id)
-                    self._owner.model_states[session_id] = self._owner.model_state(result)
+                    self._owner.remember_model_state(session_id, result)
                     if method == "session/new":
                         self._owner.cost_totals[session_id] = 0.0
-                state = self._owner.model_states[self.session_id]
-                self._owner.models.update(state["available"])
-                requested=self.model
-                if self.effort:
-                    suffix="-"+str(self.effort)
-                    exact=re.sub(r"-(?:xhigh|high|medium|low)$","",self.model)+suffix
-                    if exact not in state["available"]:
-                        raise AcpSessionError("Requested effort variant is not advertised; no nearest fallback")
-                    requested=exact
-                self._selected_model=requested
-                if state["current"] != requested:
-                    if requested not in state["available"]:
-                        raise AcpSessionError("Requested model absent from ACP catalog")
-                    if state["config_id"]:
-                        selected = await self._owner.request("session/set_config_option", {
-                            "sessionId": self.session_id, "configId": state["config_id"], "value": requested})
-                        confirmed = self._owner.model_state(selected)
-                        # The config-option contract returns updated options. Empty or
-                        # mismatched metadata is not evidence that selection succeeded.
-                        self._owner.model_states[self.session_id] = confirmed
-                        if confirmed["current"] != requested:
-                            raise AcpSessionError("ACP model selection was not confirmed; prompt refused")
-                        state = confirmed
-                    else:
-                        selected = await self._owner.request("session/set_model", {"sessionId": self.session_id, "modelId": requested})
-                        # Legacy set_model has an empty success response by contract.
-                        # Honor explicit metadata if the peer does provide it.
-                        confirmed = self._owner.model_state(selected)
-                        if confirmed["current"] is not None and confirmed["current"] != requested:
-                            self._owner.model_states[self.session_id] = confirmed
-                            raise AcpSessionError("ACP model selection mismatch; prompt refused")
-                        state["current"] = requested
-                    self._owner.models = set().union(*(v["available"] for v in self._owner.model_states.values()))
+                await self._select_model()
                 self._cost_baseline = self._owner.cost_totals.get(self.session_id)
                 blocks = [{"type": "text", "text": message}]
                 if self.system_prompt and not self._instructions_sent:

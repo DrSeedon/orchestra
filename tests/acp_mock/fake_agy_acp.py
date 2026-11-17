@@ -20,6 +20,7 @@ costs = {}
 client_requests = {}
 permission_serial = 0
 current_models = {}
+current_thoughts = {}
 
 
 def trace(method, **extra):
@@ -41,6 +42,22 @@ def update(sid, update_kind, **extra):
 
 
 def models(sid):
+    if MODE.startswith("split-"):
+        family = current_models.get(sid,"gemini-4-argon")
+        thought = current_thoughts.get(sid,"low" if family=="gemini-4-argon" else "high")
+        levels = ["low"] if family=="gemini-4-argon" else ["low","medium","high"]
+        if MODE=="split-no-level":levels=["high"]
+        options=[{"id":"model","category":"model","type":"select","currentValue":family,
+            "options":[{"value":m,"name":m} for m in ("gemini-4-argon","gemini-4-hydrogen","gpt-oss-120b-medium")]}]
+        if family!="gpt-oss-120b-medium" and MODE!="split-no-selector":
+            options.append({"id":"thought_level","category":"thought_level","type":"select","currentValue":thought,
+                "options":[{"value":level,"name":level} for level in levels]})
+        value={"sessionId":sid,"configOptions":options}
+        if MODE in {"split-legacy","split-conflict"}:
+            ids=["gemini-4-argon-low","gemini-4-hydrogen-high","gpt-oss-120b-medium"]
+            if MODE!="split-conflict":ids.append("gemini-4-hydrogen-medium")
+            value["models"]={"currentModelId":family+"-"+thought,"availableModels":[{"modelId":m} for m in ids]}
+        return value
     if MODE == "only-argon":
         return {"sessionId":sid,"models":{"currentModelId":"gemini-4-argon-medium",
             "availableModels":[{"modelId":"gemini-4-argon-medium","name":"Argon"}]}}
@@ -87,7 +104,7 @@ async def prompt(request):
         update(sid,"agent_message_chunk",content={"type":"text","text":"tool"})
         update(sid,"usage_update",used=200,size=1000)
         result(request,{"stopReason":"end_turn"});active.clear();trace("prompt_end",session=sid);return
-    if "FG_PERMISSION" in text or text.endswith("FG_QUESTION") or text.endswith("FG_NATIVE_EOF"):
+    if "FG_PERMISSION" in text or text.endswith("FG_SPAWN_PERMISSION") or text.endswith("FG_QUESTION") or text.endswith("FG_NATIVE_EOF"):
         global permission_serial
         count=2 if text.endswith("FG_PERMISSION_TWO") else 1
         waiting=[]
@@ -98,7 +115,11 @@ async def prompt(request):
             options=[{"optionId":"allow-"+str(i),"kind":"allow_once","name":"Allow once"},{"optionId":"deny-"+str(i),"kind":"reject_once","name":"Deny"}]
             if text.endswith("FG_PERMISSION_BAD"):options[1]["optionId"]=options[0]["optionId"]
             method="unknown/native_request" if text.endswith("FG_PERMISSION_UNKNOWN") else "session/request_permission"
-            emit({"id":rid,"method":method,"params":{"sessionId":sid,"toolCall":{"toolCallId":tool_id,"title":"Synthetic choice "+str(i),"rawInput":{"command":"echo synthetic"}},"options":options}})
+            tool={"toolCallId":tool_id,"title":"Synthetic choice "+str(i),"rawInput":{"command":"echo synthetic"}}
+            if text.endswith("FG_SPAWN_PERMISSION"):
+                tool.update(name="mcp__orchestra__spawn_worker",rawInput={"ServerName":"orchestra","ToolName":"spawn_worker",
+                    "Arguments":{"name":"stand-calc-worker","model":"gpt-6-luna","role":"worker","repo_path":str(HOME.parent)}})
+            emit({"id":rid,"method":method,"params":{"sessionId":sid,"toolCall":tool,"options":options}})
             if text.endswith("FG_PERMISSION_DUPLICATE") or text.endswith("FG_PERMISSION_MUTATED"):
                 emit({"id":rid,"method":method,"params":{"sessionId":sid,"toolCall":{"toolCallId":tool_id,"title":"Synthetic choice "+str(i),"rawInput":{"command":"changed" if text.endswith("FG_PERMISSION_MUTATED") else "echo synthetic"}},"options":options}})
             update(sid,"agent_thought_chunk",content={"type":"text","text":"reader remains responsive"})
@@ -148,8 +169,9 @@ async def prompt(request):
         emit({"id":request["id"], "error":payloads[text]})
         active.clear(); trace("prompt_end", session=sid); return
     if MODE == "ack-error" and text.endswith("Acknowledge briefly."):
+        active.clear(); trace("prompt_end", session=sid)
         emit({"id":request["id"], "error":{"code":-32603, "message":"Synthetic ACK refusal"}})
-        active.clear(); trace("prompt_end", session=sid); return
+        return
     if text == "BAN":
         update(sid, "agent_message_chunk", content={"type":"text", "text":"partial before ban"})
         emit({"id": request["id"], "error":{"code":403,
@@ -241,7 +263,14 @@ async def main():
             sid = request["params"]["sessionId"]
             wanted = request["params"].get("value", request["params"].get("modelId"))
             if method == "session/set_config_option":
-                if MODE == "config-unknown":
+                if MODE.startswith("split-"):
+                    if request["params"]["configId"]=="model":
+                        current_models[sid]="gemini-4-argon" if MODE=="split-family-mismatch" else wanted
+                        current_thoughts.pop(sid,None)
+                    else:
+                        current_thoughts[sid]="high" if MODE=="split-thought-mismatch" else wanted
+                    result(request, {} if MODE=="split-empty-ack" else models(sid))
+                elif MODE == "config-unknown":
                     result(request, {})
                 else:
                     current_models[sid] = "gemini-4-argon-medium" if MODE == "config-mismatch" else wanted

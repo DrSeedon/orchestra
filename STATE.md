@@ -1,26 +1,25 @@
-# Orchestra ACP — Step1 LIVE attempted, stopped before prompt
-- Updated2026-11-17; agy-acp-safe, /home/kesha/orchestra-worktrees/agy-acp-safe.
-- Base b85ca2c9f0e122727e0e4fb8615a1c0b6d623ac1; single writer, no helpers.
-- CEO cleared verified stale orphan894529; independently confirmed vendor baseline0.
-- One resumed authorized live attempt2026-11-17T08:12:47Z—08:13:02Z; no retry.
-- Private0700 stand/profile prepared,0600 files, separate DB/task store/demo repo/disabled.
--10s idle precheck PASS: vendor0/RPC0. No production lifespan/background loops.
-- Sole vendor PID2089094; initialize1/authenticate1/session-new1, all successful.
-- Native protocolVersion1; oauth-personal offered without type and selected successfully.
-- HARD STOP: local model/effort guard Requested effort variant is not advertised; no nearest fallback.
-- Prompt0, set_model0/set_config_option0, worker0. No model/account/API fallback.
-- Turn1/2, warm cache/reuse, worker unittest,45s post-turn silence NOT MEASURED.
-- nft before/after0packets0bytes, attempt delta0. NL178.93.29.64 AS215294 verified.
-- Own server/vendor/MCP PIDs0;18889 closed; temporary stand completely removed.
-- Source profile hashes unchanged. Isolated OAuth file changed; removed, no source copyback.
-- Session/new offered model/config metadata not retained; exact mismatch root cause unresolved.
-- No further native/model/quota probe after failure; new live attempt needs later decision.
-- Application code unchanged; driver only separates resumed evidence + supports nft group names.
-- After-live offline32P/0F/0skip/2warnings12.82s; instructions/AST/diff/secret check PASS.
-- Prior PhaseA84P is historical base result, not rerun as whole wave.
-- Production4e4e58dcb/3tracked dirty files/disabled[antigravity,claude,grok] unchanged.
-- No production8888/services/T3/proxy/billing/push/merge/deploy/restart/TG changes.
-- Live end-to-end/release gate RED; no native account eligibility/ban-immunity claim.
-- Report .orchestra/tasks/agy-acp-safe-20261117/live-stand-report.md.
-- Actual telemetry live-stand/resumed/{telemetry,verification,cleanup,commands}.json.
-- Previous blocked-run evidence retained. Parent owns hub stubSTATE.
+# Orchestra ACP — split config offline code ready, live pending
+- Updated2026-11-17; branch agy-acp-safe, /home/kesha/orchestra-worktrees/agy-acp-safe.
+- Base89b2f49d84c425129097a018e078dd518f9f1333; single writer/no helpers.
+- New owner authorization: one live18889 cycle after offline fixes and clean code commit.
+- resolve_effort preserves explicit model suffix over runtime/default role map fallback.
+- Exact model map key and scalar effort retain precedence.
+- ACP split family/model + active-family thought_level supported with exact ACK/no fallback.
+- Legacy combined variants/set_model and fixed single-effort IDs retained.
+- Config notifications update shared state; readiness only projects advertised active levels.
+- Secondary legacy variant catalog contradiction refuses before prompt.
+- Driver captures sanitized session/new/config catalog; native router/CSRF owner response.
+- Only exact spawn_worker, authorized Luna/demo target, allow_once, max1; all other native requests stop.
+- Dedicated private acp_stand_profile authorized; atomic refreshed token retention, source immutable.
+- Entire sandbox_home file SHA snapshot,0700/0600, local .gitignore prevents Git tracking.
+- Fresh demo scope registered through canonical project catalog/sync, no production bootstrap.
+- Offline main291P/0F/0skip/2warnings33.85s; final exact48P/0F/2warnings10.37s.
+- Driver11P/0F4.13s; instructions/AST/diff/focused credential scan PASS.
+- Two intermediate failures fixed (early durable denial; fake terminal trace race); frozen assertions intact.
+- This wave real provider calls0 so far. Persistent real profile not initialized by tests.
+- Next: clean code commit, baseline0/proxy/nft checks, exactly1 authorized driver invocation.
+- Live error/auth403/model/native-unapproved request -> immediate stop/no retry.
+- Main4e4e58dcb/disabled/services/8888 unchanged; no push/merge/deploy/restart.
+- Historical attempted live89b2f49 stopped before prompt; evidence retained separately.
+- New evidence .orchestra/tasks/agy-acp-safe-20261117/split-config/.
+- Parent owns hub stubSTATE; one final result after live cleanup and evidence commit.
