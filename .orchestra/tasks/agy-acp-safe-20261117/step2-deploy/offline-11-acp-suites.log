@@ -13,4 +13,4 @@ tests/test_antigravity_acp.py::test_loopback_http_and_real_orchestra_sse_smoke
     from websockets.server import WebSocketServerProtocol
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-224 passed, 2 warnings in 56.37s
+224 passed, 2 warnings in 54.26s

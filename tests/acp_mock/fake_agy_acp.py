@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 import time
 
-_prefix = ["acp", "--disable-telemetry"]
+_prefix = ["acp", "--disable-telemetry", "--process-per-session"]
 _suffix = ["--gemini-dir", str(Path(os.environ["HOME"]) / ".gemini"), "--app-data-dir", "antigravity-acp"]
 assert sys.argv[1:] in ([*_prefix, *_suffix], [*_prefix, "--dangerously-skip-permissions", *_suffix]), sys.argv[1:]
 TRACE = Path(os.environ["AGY_MOCK_TRACE"])
@@ -239,8 +239,6 @@ async def prompt(request):
 
 
 async def main():
-    prior_spawns = sum('"method": "spawn"' in ln for ln in TRACE.read_text().splitlines()) if TRACE.exists() else 0
-    session_prefix = "mock-session-" if prior_spawns == 0 else f"mock-p{prior_spawns + 1}-session-"
     trace("spawn", home=str(HOME), argv=sys.argv[1:])
     tasks = []
     number = 0
@@ -267,7 +265,7 @@ async def main():
                 result(request, {})
         elif method in {"session/new", "session/resume"}:
             number += 1
-            sid = request["params"].get("sessionId", session_prefix + str(1 if MODE == "collision" else number))
+            sid = request["params"].get("sessionId", "mock-session-" + str(1 if MODE == "collision" else number))
             result(request, models(sid))
         elif method in {"session/set_model", "session/set_config_option"}:
             sid = request["params"]["sessionId"]

@@ -187,7 +187,7 @@ async def test_default_auto_approve_passes_cli_flags_and_auto_selects_permission
     assert s._last_turn_ok and 'continued after native response' in s._last_text_output
     assert not native_requests.pending_for(s.id)
     spawn=next(r for r in stand.trace() if r['method']=='spawn')
-    assert '--dangerously-skip-permissions' in spawn['argv'] and '--process-per-session' not in spawn['argv']
+    assert '--process-per-session' in spawn['argv'] and '--dangerously-skip-permissions' in spawn['argv']
     replies=[r for r in stand.trace() if r['method']=='native_reply']
     assert len(replies)==1 and replies[0]['result']=={'outcome':{'outcome':'selected','optionId':expected_option}}
     # Interactive user questions (interaction_*) still reach the user even under ANTIGRAVITY_AUTO_APPROVE=1:
