@@ -1,0 +1,9 @@
+{"at": "2026-11-17T08:12:47.871525+00:00", "kind": "safety_preflight_pass", "proxy": {"ip": "178.93.29.64", "country": "NL", "org": "AS215294 Lumina broadband UAB", "city": "Amsterdam"}, "nft_before": {"packets": 0, "bytes": 0}}
+{"at": "2026-11-17T08:12:48.716767+00:00", "kind": "stand_started", "port": 18889, "background_loops": false}
+{"at": "2026-11-17T08:12:58.904534+00:00", "kind": "idle_precheck_pass", "seconds": 10, "real_vendor_processes": 0, "rpc": 0}
+{"at": "2026-11-17T08:12:58.945046+00:00", "kind": "progress", "parent_turns": 0, "children": 0, "child_turns": 0, "parent_status": "idle"}
+{"at": "2026-11-17T08:12:59.233055+00:00", "kind": "progress", "parent_turns": 0, "children": 0, "child_turns": 0, "parent_status": "running"}
+{"at": "2026-11-17T08:12:59.515544+00:00", "kind": "vendor_started", "pid": 2089094}
+{"at": "2026-11-17T08:12:59.859729+00:00", "kind": "initialized", "protocolVersion": 1}
+{"at": "2026-11-17T08:13:02.727785+00:00", "kind": "stand_shutdown", "server_stopped": true, "vendor_pids": []}
+{"at": "2026-11-17T08:13:02.729610+00:00", "kind": "fail_stop", "error": "live turn error: Antigravity ACP failure: Requested effort variant is not advertised; no nearest fallback", "error_type": "RuntimeError"}

@@ -158,3 +158,13 @@ async def test_queued_child_report_keeps_authorship_through_actual_flush(stand,r
     await asyncio.wait_for(s._listen_task,4);await s._await_log_futures()
     assert not s._pending_messages and not s._pending_acp_provenance
     assert s._last_turn_ok and sum(x['method']=='session/prompt' for x in stand.trace())==1
+
+
+@pytest.mark.parametrize("group",[977,"agy_oauth"])
+def test_live_stand_counter_accepts_numeric_or_resolved_nft_group(monkeypatch,group):
+    from scripts import verify_antigravity_live_stand as driver
+    payload={"nftables":[{"rule":{"expr":[
+        {"match":{"left":{"meta":{"key":"skgid"}},"right":group}},
+        {"counter":{"packets":0,"bytes":0}}]}}]}
+    monkeypatch.setattr(driver,"run",lambda args:json.dumps(payload))
+    assert driver.nft_counter()=={"packets":0,"bytes":0}

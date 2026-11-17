@@ -1,0 +1,9 @@
+{
+  "actual_imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app/__init__.py",
+  "syntax": "PASS",
+  "diff_whitespace": "PASS",
+  "focused_credential_scan_matches": 0,
+  "scan_limit": "high-confidence patterns + manual synthetic/redacted boundary review, not exhaustive",
+  "checked_text_files": 12,
+  "native_retry": false
+}

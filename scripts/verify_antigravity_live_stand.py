@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STAND = Path('/tmp/orchestra-live-stand-20261117')
 SOURCE = Path('/home/kesha/orchestra/.orchestra/tasks/katya-nl-pro-probe-20261116/sandbox_home')
 PRODUCTION = Path('/home/kesha/orchestra')
-OUT = ROOT/'.orchestra/tasks/agy-acp-safe-20261117/live-stand'
+OUT = ROOT/'.orchestra/tasks/agy-acp-safe-20261117/live-stand/resumed'
 OUT.mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(ROOT))
 REPORT = {'authorization':'one isolated live stand cycle, explicit owner Step1',
@@ -77,7 +77,7 @@ def nft_counter():
     data=json.loads(raw);values=[]
     for item in data['nftables']:
         rule=item.get('rule',{});expr=rule.get('expr',[])
-        if any(e.get('match',{}).get('left')=={'meta':{'key':'skgid'}} and e['match'].get('right')==977 for e in expr):
+        if any(e.get('match',{}).get('left')=={'meta':{'key':'skgid'}} and e['match'].get('right') in (977, 'agy_oauth') for e in expr):
             for e in expr:
                 if 'counter' in e:values.append(e['counter'])
     if not values:raise RuntimeError('killswitch skgid977 counter not found')

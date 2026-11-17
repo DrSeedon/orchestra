@@ -1,0 +1,66 @@
+{
+  "cwd": "/home/kesha/orchestra-worktrees/agy-acp-safe",
+  "live": {
+    "argv": [
+      "timeout",
+      "--signal=TERM",
+      "--kill-after=30",
+      "540",
+      "env",
+      "-i",
+      "HOME=/home/kesha",
+      "USER=kesha",
+      "LOGNAME=kesha",
+      "PATH=/home/kesha/.local/bin:/usr/local/bin:/usr/bin:/bin",
+      "LANG=C.UTF-8",
+      "nice",
+      "-n",
+      "10",
+      ".venv/bin/python",
+      "scripts/verify_antigravity_live_stand.py",
+      "--authorized-step1"
+    ],
+    "exit": 1,
+    "log": "live-run.log"
+  },
+  "offline_after": {
+    "argv": [
+      "bash",
+      "scripts/run_antigravity_offline.sh",
+      "tests/test_antigravity_live_preflight.py",
+      "tests/test_antigravity_acp_submission.py",
+      "-q",
+      "--tb=short",
+      "-p",
+      "no:faulthandler"
+    ],
+    "deadline_s": 90,
+    "exit": 0,
+    "log": "offline-after-live.log"
+  },
+  "instructions": {
+    "argv": [
+      "bash",
+      "scripts/run_antigravity_offline.sh",
+      "--instructions"
+    ],
+    "deadline_s": 20,
+    "exit": 0,
+    "log": "instructions.log"
+  },
+  "logs": {
+    "live-run.log": {
+      "raw_sha256": "a0c6f518e87dd066707df482cf579393fedd2915b83e26f52157b40efc820d6e",
+      "normalization": "trailing line whitespace / blank EOF only; raw retained on VPS"
+    },
+    "offline-after-live.log": {
+      "raw_sha256": "a7975d5eb41efdb4580882484652b3cc3e3930ed4eea1a5891695da2c74c62ed",
+      "normalization": "trailing line whitespace / blank EOF only; raw retained on VPS"
+    },
+    "instructions.log": {
+      "raw_sha256": "360712bcb4fa9db1641ed2ef707e24f4f659344a87c0b18796b53f79400ce3eb",
+      "normalization": "trailing line whitespace / blank EOF only; raw retained on VPS"
+    }
+  },
+  "transport": "owned exec session awaited in active turn; no unawaited command or watcher"
+}

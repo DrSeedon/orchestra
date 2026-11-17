@@ -1,0 +1,22 @@
+{
+  "actual_imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app/__init__.py",
+  "base_commit": "b85ca2c9f0e122727e0e4fb8615a1c0b6d623ac1",
+  "live_attempts": 1,
+  "live_exit": 1,
+  "expected_hard_stop": true,
+  "model_prompts": 0,
+  "worker_spawns": 0,
+  "retry_count": 0,
+  "post_turn_45s": "NOT RUN: model refusal before first prompt",
+  "token_cache_duration_metrics": "NOT AVAILABLE: no prompt/turn completed",
+  "offline_after_live": {
+    "passed": 32,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 2,
+    "seconds": 12.82
+  },
+  "instruction_contract": "PASS",
+  "cleanup": "PASS",
+  "model_catalog_diagnostic_limit": "session/new model/config catalog was not retained; exact offered variant mismatch cannot be reconstructed without another authorized native session. No such session was opened."
+}
