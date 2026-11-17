@@ -117,7 +117,8 @@ async def test_successful_transport_submission_does_not_wait_for_turn_and_duplic
 
 
 @pytest.mark.asyncio
-async def test_cancel_receipt_waiting_for_other_profile_turn_remains_known_not_submitted(stand,http_stand):
+async def test_cancel_receipt_waiting_for_other_profile_turn_remains_known_not_submitted(stand,http_stand,monkeypatch):
+    monkeypatch.setenv("ANTIGRAVITY_MAX_CONCURRENT_TURNS","1")
     s,client,_=http_stand
     other=stand.backend()
     await other.send(InjectedMessage("BLOCK",USER,"other"))

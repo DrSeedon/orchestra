@@ -350,9 +350,11 @@ def canonical_profile(profile: str = "") -> Path:
     if profile:
         from app.db import get_profile
         row = get_profile(profile)
-        if row is None or not row.get("config_dir"):
-            raise ValueError("Antigravity profile has no canonical config_dir")
-        return Path(row["config_dir"]).expanduser().resolve()
+        if row is not None and row.get("config_dir"):
+            return Path(row["config_dir"]).expanduser().resolve()
+        if profile == "personal" and (row is None or not row.get("config_dir")):
+            return Path(ANTIGRAVITY_AUTH_HOME).resolve()
+        raise ValueError("Antigravity profile has no canonical config_dir")
     return Path(ANTIGRAVITY_AUTH_HOME).resolve()
 
 
@@ -682,48 +684,65 @@ class AntigravityBackend:
     async def _run(self, message):
         from app.provider_safety import verify_provider_egress, record_provider_activity
         from app.antigravity_acp import AcpError, AcpSessionError
+        from app.native_requests import bind_session, profile_epoch
         prompt_task = None
+        held_session_lock = None
+        owns_session_lock = False
         try:
-            async with self._owner.turn_lock:
-                from app.native_requests import bind_session, profile_epoch
-                if self._owner.epoch!=profile_epoch(self.home):
-                    raise AcpSessionError("ACP profile epoch changed; explicit recovery required")
-                if self.session_id:
-                    bind_session(self._owner,self.session_id,self.app_session_id,resume=True)
-                await verify_provider_egress("antigravity")
-                await self._owner.start()
-                record_provider_activity("antigravity")
-                if self.session_id not in self._owner.sessions:
-                    params = {"cwd": str(Path(self.cwd).resolve()),
-                              "mcpServers": self._acp_mcp_servers()}
-                    method = "session/new"
+            if self.session_id:
+                cand_lock = self._owner.session_lock(self.session_id)
+                await cand_lock.acquire()
+                held_session_lock = cand_lock
+                owns_session_lock = True
+            async with self._owner.turn_semaphore:
+                async with self._owner._setup_lock:
+                    if self._owner.epoch!=profile_epoch(self.home):
+                        raise AcpSessionError("ACP profile epoch changed; explicit recovery required")
                     if self.session_id:
-                        caps = self._owner.capabilities.get("sessionCapabilities", {})
-                        if caps.get("resume") is None:
-                            raise AcpSessionError("ACP resume unsupported; explicit new session required")
-                        params["sessionId"] = self.session_id
-                        method = "session/resume"
-                    result = await self._owner.request(method, params)
-                    session_id = result.get("sessionId", self.session_id)
-                    if not isinstance(session_id, str) or not session_id:
-                        raise AcpError("ACP session response missing sessionId")
-                    if method == "session/new" and session_id in self._owner.sessions:
-                        raise AcpError("ACP new session ID collision; refusing shared conversation")
-                    self.session_id = session_id
-                    bind_session(self._owner,session_id,self.app_session_id,resume=(method!="session/new"))
-                    self._owner.sessions.add(session_id)
-                    self._owner.remember_model_state(session_id, result)
-                    if method == "session/new":
-                        self._owner.cost_totals[session_id] = 0.0
-                await self._select_model()
-                self._cost_baseline = self._owner.cost_totals.get(self.session_id)
-                blocks = [{"type": "text", "text": message}]
-                if self.system_prompt and not self._instructions_sent:
-                    # ACP v1 has no stable system-prompt method; deliver role instructions
-                    # as explicit first-turn context, never a shared agent file in HOME.
-                    blocks.insert(0, {"type": "text", "text": "[Orchestra role instructions]\n" + self.system_prompt})
-                self._owner.listeners[self.session_id] = self._update
-                self._owner.permission_handlers[self.session_id] = self
+                        bind_session(self._owner,self.session_id,self.app_session_id,resume=True)
+                    await verify_provider_egress("antigravity")
+                    await self._owner.start()
+                    record_provider_activity("antigravity")
+                    if self.session_id not in self._owner.sessions:
+                        params = {"cwd": str(Path(self.cwd).resolve()),
+                                  "mcpServers": self._acp_mcp_servers()}
+                        method = "session/new"
+                        if self.session_id:
+                            caps = self._owner.capabilities.get("sessionCapabilities", {})
+                            if caps.get("resume") is None:
+                                raise AcpSessionError("ACP resume unsupported; explicit new session required")
+                            params["sessionId"] = self.session_id
+                            method = "session/resume"
+                        result = await self._owner.request(method, params)
+                        session_id = result.get("sessionId", self.session_id)
+                        if not isinstance(session_id, str) or not session_id:
+                            raise AcpError("ACP session response missing sessionId")
+                        if method == "session/new" and session_id in self._owner.sessions:
+                            raise AcpError("ACP new session ID collision; refusing shared conversation")
+                        if not owns_session_lock:
+                            fresh_lock = self._owner.session_lock(session_id)
+                            if fresh_lock.locked():
+                                raise AcpError("ACP new session lock already held")
+                            await fresh_lock.acquire()
+                            held_session_lock = fresh_lock
+                            owns_session_lock = True
+                        elif session_id != self.session_id:
+                            raise AcpError("ACP resumed session ID mismatch")
+                        self.session_id = session_id
+                        bind_session(self._owner,session_id,self.app_session_id,resume=(method!="session/new"))
+                        self._owner.sessions.add(session_id)
+                        self._owner.remember_model_state(session_id, result)
+                        if method == "session/new":
+                            self._owner.cost_totals[session_id] = 0.0
+                    await self._select_model()
+                    self._cost_baseline = self._owner.cost_totals.get(self.session_id)
+                    blocks = [{"type": "text", "text": message}]
+                    if self.system_prompt and not self._instructions_sent:
+                        # ACP v1 has no stable system-prompt method; deliver role instructions
+                        # as explicit first-turn context, never a shared agent file in HOME.
+                        blocks.insert(0, {"type": "text", "text": "[Orchestra role instructions]\n" + self.system_prompt})
+                    self._owner.listeners[self.session_id] = self._update
+                    self._owner.permission_handlers[self.session_id] = self
                 prompt_started = time.monotonic()
                 try:
                     prompt_task = asyncio.create_task(self._owner.request("session/prompt", {
@@ -768,6 +787,8 @@ class AntigravityBackend:
             self._queue.put_nowait(AgentEvent("error", "Antigravity ACP failure: " + reason[:200]))
             self._queue.put_nowait(self._end(error="protocol", context=self._context))
         finally:
+            if owns_session_lock and held_session_lock is not None:
+                held_session_lock.release()
             if prompt_task is not None:
                 if not prompt_task.done():
                     prompt_task.cancel()

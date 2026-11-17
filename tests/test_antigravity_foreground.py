@@ -82,6 +82,7 @@ async def test_ordered_transcript_two_sessions_two_turns_and_passive_poll(stand,
 @pytest.mark.asyncio
 @pytest.mark.parametrize("decision",["allow","deny","cancel","timeout","two","question"])
 async def test_native_decision_returns_rpc_not_prompt(stand,real_session,monkeypatch,decision):
+    if decision!="question":monkeypatch.setenv("ANTIGRAVITY_AUTO_APPROVE","0")
     s=real_session
     if decision=="timeout":monkeypatch.setattr(native_requests,"TTL",.12)
     text="FG_QUESTION" if decision=="question" else "FG_PERMISSION_TWO" if decision=="two" else "FG_PERMISSION"
@@ -101,8 +102,8 @@ async def test_native_decision_returns_rpc_not_prompt(stand,real_session,monkeyp
 
 
 @pytest.mark.asyncio
-async def test_foreign_option_binding_and_stale_profile_rejected(stand,real_session):
-    s=real_session;await s.send("FG_PERMISSION",provenance=USER);row=(await pending(s))[0]
+async def test_foreign_option_binding_and_stale_profile_rejected(stand,real_session,monkeypatch):
+    monkeypatch.setenv("ANTIGRAVITY_AUTO_APPROVE","0");s=real_session;await s.send("FG_PERMISSION",provenance=USER);row=(await pending(s))[0]
     with pytest.raises(PermissionError):native_requests.resolve(row["id"],owner_id="foreign",binding=row["binding"],option_id=row["options"][0]["optionId"])
     with pytest.raises(PermissionError):native_requests.resolve(row["id"],owner_id=s.id,binding="changed",option_id=row["options"][0]["optionId"])
     with pytest.raises(ValueError):native_requests.resolve(row["id"],owner_id=s.id,binding=row["binding"],option_id="not-offered")
@@ -113,8 +114,8 @@ async def test_foreign_option_binding_and_stale_profile_rejected(stand,real_sess
 
 
 @pytest.mark.asyncio
-async def test_cancel_and_eof_retire_pending_native_requests(stand,real_session):
-    s=real_session;await s.send("FG_PERMISSION",provenance=USER);row=(await pending(s))[0]
+async def test_cancel_and_eof_retire_pending_native_requests(stand,real_session,monkeypatch):
+    monkeypatch.setenv("ANTIGRAVITY_AUTO_APPROVE","0");s=real_session;await s.send("FG_PERMISSION",provenance=USER);row=(await pending(s))[0]
     await s.interrupt();await finish(s)
     assert sum(x["method"]=="native_reply" for x in stand.trace())==1
     assert not native_requests.pending_for(s.id)
@@ -122,8 +123,8 @@ async def test_cancel_and_eof_retire_pending_native_requests(stand,real_session)
 
 
 @pytest.mark.asyncio
-async def test_native_eof_invalidates_callback_without_replay(stand,real_session):
-    s=real_session;await s.send("FG_NATIVE_EOF",provenance=USER);row=(await pending(s))[0]
+async def test_native_eof_invalidates_callback_without_replay(stand,real_session,monkeypatch):
+    monkeypatch.setenv("ANTIGRAVITY_AUTO_APPROVE","0");s=real_session;await s.send("FG_NATIVE_EOF",provenance=USER);row=(await pending(s))[0]
     await finish(s)
     assert not s._last_turn_ok and not native_requests.pending_for(s.id)
     with pytest.raises(ValueError):native_requests.resolve(row["id"],owner_id=s.id,binding=row["binding"],cancel=True)
@@ -141,8 +142,8 @@ async def test_malformed_and_unknown_native_requests_fail_closed(stand,real_sess
 
 
 @pytest.mark.asyncio
-async def test_duplicate_rpc_id_has_one_pending_card_and_one_reply(stand,real_session):
-    s=real_session;await s.send("FG_PERMISSION_DUPLICATE",provenance=USER);row=(await pending(s))[0]
+async def test_duplicate_rpc_id_has_one_pending_card_and_one_reply(stand,real_session,monkeypatch):
+    monkeypatch.setenv("ANTIGRAVITY_AUTO_APPROVE","0");s=real_session;await s.send("FG_PERMISSION_DUPLICATE",provenance=USER);row=(await pending(s))[0]
     await asyncio.sleep(.03)
     assert len(native_requests.pending_for(s.id))==1
     native_requests.resolve(row["id"],owner_id=s.id,binding=row["binding"],cancel=True)
@@ -269,8 +270,8 @@ async def test_live_thought_segment_reconnect_keeps_stable_item_identity(stand,r
 
 
 @pytest.mark.asyncio
-async def test_reused_native_rpc_id_with_changed_payload_is_not_approved(stand,real_session):
-    s=real_session;await s.send("FG_PERMISSION_MUTATED",provenance=USER);await finish(s)
+async def test_reused_native_rpc_id_with_changed_payload_is_not_approved(stand,real_session,monkeypatch):
+    monkeypatch.setenv("ANTIGRAVITY_AUTO_APPROVE","0");s=real_session;await s.send("FG_PERMISSION_MUTATED",provenance=USER);await finish(s)
     assert not s._last_turn_ok and not native_requests.pending_for(s.id)
     assert sum(x["method"]=="native_reply" for x in stand.trace())==0
     assert sum(x["method"]=="session/prompt" for x in stand.trace())==1

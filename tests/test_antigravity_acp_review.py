@@ -229,7 +229,8 @@ def test_legacy_login_refuses_before_launch_or_auth_file_reads(stand, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_permission_request_is_cancelled_without_closing_sibling_profile(stand):
+async def test_permission_request_is_cancelled_without_closing_sibling_profile(stand, monkeypatch):
+    monkeypatch.setenv("ANTIGRAVITY_AUTO_APPROVE", "0")
     b = stand.backend()
     events = await turn(b, "PERMISSION")
     assert not end(events).metadata["ok"] and end(events).metadata["stop_reason"] == "cancelled"

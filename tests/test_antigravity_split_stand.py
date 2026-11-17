@@ -53,6 +53,7 @@ def test_persistent_path_cannot_escape_to_source(tmp_path,monkeypatch):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('wire_name',[None,'mcp_orchestra_spawn_worker'])
 async def test_only_authorized_spawn_gets_one_real_owner_http_response(stand,real_session,monkeypatch,wire_name):
+    monkeypatch.setenv("ANTIGRAVITY_AUTO_APPROVE","0")
     from app.routes.native_requests import router
     from app.auth import create_session
     monkeypatch.setenv('DASHBOARD_USER','synthetic-owner');monkeypatch.setenv('DASHBOARD_PASSWORD','synthetic-private-test-only')
@@ -174,3 +175,45 @@ async def test_acp_turns_record_turn_usage_and_completed_turns_handles_codex_zer
     # Simulate Codex worker where session.total_turns stays 0 while turn_usage/status logs record completion:
     codex_stub=SimpleNamespace(id=s.id,total_turns=0)
     assert driver.completed_turns(db,codex_stub)==2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('prompt_tag,expected_option',[('FG_PERMISSION','allow-0'),('FG_ALLOW_ALWAYS_ONLY','always-0')])
+async def test_default_auto_approve_passes_cli_flags_and_auto_selects_permissions_while_keeping_questions_interactive(
+        stand,real_session,prompt_tag,expected_option):
+    from app import native_requests
+    s=real_session
+    await s.send(prompt_tag,provenance=USER);await finish(s)
+    assert s._last_turn_ok and 'continued after native response' in s._last_text_output
+    assert not native_requests.pending_for(s.id)
+    spawn=next(r for r in stand.trace() if r['method']=='spawn')
+    assert '--process-per-session' in spawn['argv'] and '--dangerously-skip-permissions' in spawn['argv']
+    replies=[r for r in stand.trace() if r['method']=='native_reply']
+    assert len(replies)==1 and replies[0]['result']=={'outcome':{'outcome':'selected','optionId':expected_option}}
+    # Interactive user questions (interaction_*) still reach the user even under ANTIGRAVITY_AUTO_APPROVE=1:
+    await s.send('FG_QUESTION',provenance=USER)
+    row=(await pending(s))[0]
+    assert row['kind']=='question'
+    native_requests.resolve(row['id'],owner_id=s.id,binding=row['binding'],option_id=row['options'][0]['optionId'])
+    await finish(s)
+    assert s._last_turn_ok
+
+
+def test_canonical_profile_resolves_default_personal_row_and_fails_closed_for_other_empty_profiles(tmp_path,monkeypatch):
+    from app import db,backend_antigravity as agy
+    auth_home=tmp_path/'default-auth-home';auth_home.mkdir()
+    custom_home=tmp_path/'custom-auth-home';custom_home.mkdir()
+    monkeypatch.setenv('ORCHESTRA_DB_PATH',str(tmp_path/'orchestra.db'))
+    monkeypatch.setattr(agy,'ANTIGRAVITY_AUTH_HOME',auth_home)
+    db.init_db()  # Seeds profiles(name='personal', config_dir='')
+    assert agy.canonical_profile('')==auth_home.resolve()
+    assert agy.canonical_profile('personal')==auth_home.resolve()
+    with db._conn() as connection:
+        connection.execute("INSERT INTO profiles(name,config_dir) VALUES('team','')")
+    with pytest.raises(ValueError,match='no canonical config_dir'):
+        agy.canonical_profile('team')
+    with pytest.raises(ValueError,match='no canonical config_dir'):
+        agy.canonical_profile('nonexistent')
+    with db._conn() as connection:
+        connection.execute("UPDATE profiles SET config_dir=? WHERE name='personal'",(str(custom_home),))
+    assert agy.canonical_profile('personal')==custom_home.resolve()

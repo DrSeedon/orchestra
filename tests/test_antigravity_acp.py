@@ -53,6 +53,7 @@ async def stand(tmp_path, monkeypatch, request):
     monkeypatch.setattr(agy, "cli_environment", lambda path: {
         "HOME": str(path), "PATH": "/usr/bin:/bin", "AGY_MOCK_TRACE": str(trace_file),
         "AGY_MOCK_MODE": os.environ.get("AGY_MOCK_MODE", "normal"),
+        "AGY_MOCK_MAX_ACTIVE": os.environ.get("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "3"),
     })
     from app import provider_safety, models
     egress = AsyncMock()
@@ -122,14 +123,40 @@ async def test_one_daemon_multiple_turns_and_instances(stand):
 
 
 @pytest.mark.asyncio
-async def test_profile_concurrency_and_event_isolation(stand):
-    a, b = stand.backend(), stand.backend(model="gemini-4-argon-medium")
-    ea, eb = await asyncio.gather(turn(a, "a"), turn(b, "b"))
-    assert [e.content for e in ea if e.type == "text"] == [a.session_id + ":a"]
-    assert [e.content for e in eb if e.type == "text"] == [b.session_id + ":b"]
-    order = [r["method"] for r in stand.trace() if r["method"] in {"prompt_start", "prompt_end"}]
+async def test_profile_concurrency_and_event_isolation(stand, monkeypatch, tmp_path):
+    # Four distinct project sessions share one AcpProfile daemon (--process-per-session)
+    # with default Semaphore(3): up to 3 run concurrently while the 4th waits for a slot.
+    sessions = []
+    for idx, model in enumerate(("gemini-4-carbon-medium", "gemini-4-argon-medium", "gemini-4-carbon-medium", "gemini-4-argon-medium")):
+        cwd_i = tmp_path / f"proj-{idx}"; cwd_i.mkdir()
+        inst = agy.AntigravityBackend(SimpleNamespace(
+            model="antigravity/" + model, cwd=str(cwd_i), system_prompt=f"role-{idx}",
+            mcp_servers={"orchestra": {"command": "/bin/false", "args": [], "env": {"ORCHESTRA_SESSION_ID": f"sess-{idx}"}}},
+            context_limit=1000, resume_session_id=None, profile=""))
+        sessions.append(inst)
+    results = await asyncio.gather(*(turn(s, f"msg-{i}") for i, s in enumerate(sessions)))
+    for i, (s, evs) in enumerate(zip(sessions, results)):
+        assert [e.content for e in evs if e.type == "text"] == [f"{s.session_id}:msg-{i}"]
+        assert all("WRONG" not in e.content for e in evs)
+    starts = [r for r in stand.trace() if r["method"] == "prompt_start"]
+    assert max(r["active_count"] for r in starts) >= 2
+    assert max(r["active_count"] for r in starts) <= 3
+    new_calls = [r["params"] for r in stand.trace() if r["method"] == "session/new"]
+    assert len({c["cwd"] for c in new_calls}) == 4
+    assert len({c["mcpServers"][0]["env"][0]["value"] for c in new_calls}) == 4
+    # Same native session resumed concurrently is strictly serialized by session_lock:
+    same_a = stand.backend(resume=sessions[0].session_id)
+    same_b = stand.backend(resume=sessions[0].session_id)
+    ra, rb = await asyncio.gather(turn(same_a, "seq-1"), turn(same_b, "seq-2"))
+    assert end(ra).metadata["ok"] and end(rb).metadata["ok"]
+    # Explicit ANTIGRAVITY_MAX_CONCURRENT_TURNS=1 still enforces strict 1-at-a-time order:
+    await acp.shutdown_profiles()
+    monkeypatch.setenv("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "1")
+    x, y = stand.backend(), stand.backend(model="gemini-4-argon-medium")
+    before_idx = len(stand.trace())
+    await asyncio.gather(turn(x, "x"), turn(y, "y"))
+    order = [r["method"] for r in stand.trace()[before_idx:] if r["method"] in {"prompt_start", "prompt_end"}]
     assert order == ["prompt_start", "prompt_end"] * 2
-    assert sum(r["method"] == "session/set_model" for r in stand.trace()) == 1
 
 
 @pytest.mark.asyncio
@@ -185,7 +212,8 @@ async def test_cancellation_is_session_scoped_and_daemon_reused(stand):
 
 
 @pytest.mark.asyncio
-async def test_cancel_queued_turn_does_not_cancel_other_session(stand):
+async def test_cancel_queued_turn_does_not_cancel_other_session(stand, monkeypatch):
+    monkeypatch.setenv("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "1")
     a, b = stand.backend(), stand.backend()
     await a.send(owner_message("BLOCK"))
     await wait_prompt(stand)

@@ -74,6 +74,7 @@ async def test_ambiguous_tg_send_is_durable_unknown_and_not_replayed(monkeypatch
 
 @pytest.mark.asyncio
 async def test_native_http_owner_csrf_option_and_idempotent_decision(stand,real_session,monkeypatch):
+    monkeypatch.setenv("ANTIGRAVITY_AUTO_APPROVE","0")
     from app.routes import native_requests as route
     from app.auth import create_session,create_csrf_token
     monkeypatch.setenv("DASHBOARD_USER","synthetic-owner");monkeypatch.setenv("DASHBOARD_PASSWORD","synthetic-test-only-password")

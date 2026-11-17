@@ -7,9 +7,9 @@ from pathlib import Path
 import sys
 import time
 
-assert sys.argv[1:] == ["acp", "--disable-telemetry", "--gemini-dir",
-                       str(Path(os.environ["HOME"]) / ".gemini"),
-                       "--app-data-dir", "antigravity-acp"]
+_prefix = ["acp", "--disable-telemetry", "--process-per-session"]
+_suffix = ["--gemini-dir", str(Path(os.environ["HOME"]) / ".gemini"), "--app-data-dir", "antigravity-acp"]
+assert sys.argv[1:] in ([*_prefix, *_suffix], [*_prefix, "--dangerously-skip-permissions", *_suffix]), sys.argv[1:]
 TRACE = Path(os.environ["AGY_MOCK_TRACE"])
 MODE = os.environ.get("AGY_MOCK_MODE", "normal")
 HOME = Path(os.environ["HOME"])
@@ -77,21 +77,23 @@ async def prompt(request):
     p = request["params"]
     sid = p["sessionId"]
     text = p["prompt"][-1]["text"]
-    assert not active, "profile-wide concurrency exceeded one prompt"
+    max_active = int(os.environ.get("AGY_MOCK_MAX_ACTIVE", "3"))
+    assert sid not in active, "same session overlapped itself"
+    assert len(active) < max_active, f"profile-wide concurrency exceeded {max_active}"
     active.add(sid)
     cancel[sid] = asyncio.Event()
-    trace("prompt_start", session=sid, text=text,
+    trace("prompt_start", session=sid, text=text, active_count=len(active),
           role=p["prompt"][0]["text"] if len(p["prompt"]) > 1 else "")
     if text.endswith("FG_LIVE_THOUGHT"):
         update(sid,"agent_thought_chunk",content={"type":"text","text":"live thought segment"})
         await cancel[sid].wait()
-        result(request,{"stopReason":"cancelled"});active.clear();trace("prompt_end",session=sid);return
+        result(request,{"stopReason":"cancelled"});active.discard(sid);trace("prompt_end",session=sid);return
     if text.endswith("FG_LATE_INPUT"):
         update(sid,"tool_call",toolCallId="late-args",name="run_command",status="in_progress",rawInput={})
         update(sid,"tool_call_update",toolCallId="late-args",rawInput={"CommandLine":"echo late synthetic"},rawOutput="A")
         update(sid,"tool_call_update",toolCallId="late-args",rawOutput="AB")
         update(sid,"tool_call_update",toolCallId="late-args",status="completed")
-        result(request,{"stopReason":"end_turn"});active.clear();trace("prompt_end",session=sid);return
+        result(request,{"stopReason":"end_turn"});active.discard(sid);trace("prompt_end",session=sid);return
     if text.endswith("FG_TRANSCRIPT"):
         update(sid,"agent_message_chunk",content={"type":"text","text":"before tool "})
         update(sid,"agent_thought_chunk",content={"type":"text","text":"checking"})
@@ -103,8 +105,8 @@ async def prompt(request):
         update(sid,"agent_message_chunk",content={"type":"text","text":"after "})
         update(sid,"agent_message_chunk",content={"type":"text","text":"tool"})
         update(sid,"usage_update",used=200,size=1000)
-        result(request,{"stopReason":"end_turn"});active.clear();trace("prompt_end",session=sid);return
-    if "FG_PERMISSION" in text or text.endswith("FG_SPAWN_PERMISSION") or text.endswith("FG_QUESTION") or text.endswith("FG_NATIVE_EOF"):
+        result(request,{"stopReason":"end_turn"});active.discard(sid);trace("prompt_end",session=sid);return
+    if "FG_PERMISSION" in text or text.endswith("FG_ALLOW_ALWAYS_ONLY") or text.endswith("FG_SPAWN_PERMISSION") or text.endswith("FG_QUESTION") or text.endswith("FG_NATIVE_EOF"):
         global permission_serial
         count=2 if text.endswith("FG_PERMISSION_TWO") else 1
         waiting=[]
@@ -112,7 +114,9 @@ async def prompt(request):
             permission_serial+=1;rid="native-"+str(permission_serial)
             future=asyncio.get_running_loop().create_future();client_requests[rid]=future;waiting.append(future)
             tool_id=("interaction_" if text.endswith("FG_QUESTION") else "native-tool-")+str(permission_serial)
-            options=[{"optionId":"allow-"+str(i),"kind":"allow_once","name":"Allow once"},{"optionId":"deny-"+str(i),"kind":"reject_once","name":"Deny"}]
+            options=([{"optionId":"always-"+str(i),"kind":"allow_always","name":"Allow always"},{"optionId":"deny-"+str(i),"kind":"reject_once","name":"Deny"}]
+                     if text.endswith("FG_ALLOW_ALWAYS_ONLY") else
+                     [{"optionId":"allow-"+str(i),"kind":"allow_once","name":"Allow once"},{"optionId":"deny-"+str(i),"kind":"reject_once","name":"Deny"}])
             if text.endswith("FG_PERMISSION_BAD"):options[1]["optionId"]=options[0]["optionId"]
             method="unknown/native_request" if text.endswith("FG_PERMISSION_UNKNOWN") else "session/request_permission"
             tool={"toolCallId":tool_id,"title":"Synthetic choice "+str(i),"rawInput":{"command":"echo synthetic"}}
@@ -130,7 +134,7 @@ async def prompt(request):
         replies=await asyncio.gather(*waiting)
         trace("native_responses",session=sid,replies=replies)
         update(sid,"agent_message_chunk",content={"type":"text","text":"continued after native response"})
-        result(request,{"stopReason":"end_turn"});active.clear();trace("prompt_end",session=sid);return
+        result(request,{"stopReason":"end_turn"});active.discard(sid);trace("prompt_end",session=sid);return
     if text == "PERMISSION":
         future = asyncio.get_running_loop().create_future()
         client_requests["permission-request"] = future
@@ -141,7 +145,7 @@ async def prompt(request):
         assert reply == {"outcome":{"outcome":"cancelled"}}
         trace("permission_denied", session=sid)
         result(request, {"stopReason":"cancelled"})
-        active.clear(); trace("prompt_end", session=sid)
+        active.discard(sid); trace("prompt_end", session=sid)
         return
     if text == "CONFIG":
         update(sid, "config_option_update", configOptions=[{"id":"choose-model", "category":"model",
@@ -151,11 +155,11 @@ async def prompt(request):
         for chunk in ("hello ", "complete ", "reply"):
             update(sid, "agent_message_chunk", content={"type":"text", "text":chunk})
         result(request, {"stopReason":"end_turn"})
-        active.clear(); trace("prompt_end", session=sid)
+        active.discard(sid); trace("prompt_end", session=sid)
         return
     if text.endswith("HTTP_RPC_MODEL"):
         emit({"id":request["id"],"error":{"code":-32602,"message":"Synthetic model refused after prompt write"}})
-        active.clear(); trace("prompt_end",session=sid); return
+        active.discard(sid); trace("prompt_end",session=sid); return
     if text.startswith("RPC_") or text.startswith("BAN_"):
         ban = "This service has been disabled in this account for violation of Terms of Service. synthetic-secret-never-persist"
         payloads = {
@@ -169,16 +173,16 @@ async def prompt(request):
             "RPC_INTERNAL": {"code":-32603, "message":"Internal error", "data":{"response":ban}},
         }
         emit({"id":request["id"], "error":payloads[text]})
-        active.clear(); trace("prompt_end", session=sid); return
+        active.discard(sid); trace("prompt_end", session=sid); return
     if MODE == "ack-error" and text.endswith("Acknowledge briefly."):
-        active.clear(); trace("prompt_end", session=sid)
+        active.discard(sid); trace("prompt_end", session=sid)
         emit({"id":request["id"], "error":{"code":-32603, "message":"Synthetic ACK refusal"}})
         return
     if text == "BAN":
         update(sid, "agent_message_chunk", content={"type":"text", "text":"partial before ban"})
         emit({"id": request["id"], "error":{"code":403,
             "message":"This service has been disabled in this account for violation of Terms of Service. synthetic-secret-never-persist"}})
-        active.clear(); return
+        active.discard(sid); return
     if text == "DIE":
         os._exit(17)
     if text == "MALFORMED":
@@ -202,20 +206,20 @@ async def prompt(request):
         update(sid, "tool_call_update", toolCallId="retry-tool", title="retry succeeded", status="completed")
     if text == "PARTIAL_CANCEL":
         result(request, {"stopReason": "cancelled"})
-        active.clear()
+        active.discard(sid)
         trace("prompt_end", session=sid)
         return
     if text in {"ERROR", "PARTIAL_ERROR", "COST_ERROR"} or MODE == "all-error":
         emit({"id": request["id"], "error": {"code": -32000,
             "message": "synthetic-secret-must-not-leak"}})
-        active.clear()
+        active.discard(sid)
         return
     if text in {"BLOCK", "IGNORE_CANCEL", "COST_BLOCK"} or text.endswith("HTTP_BLOCK"):
         if text == "IGNORE_CANCEL":
             await asyncio.Event().wait()
         else:
             await cancel[sid].wait()
-        active.remove(sid)
+        active.discard(sid)
         trace("prompt_end", session=sid)
         result(request, {"stopReason": "cancelled"})
     else:
@@ -229,13 +233,13 @@ async def prompt(request):
         if not (MODE == "ack-unknown" and text.endswith("Acknowledge briefly.")):
             update(sid, "usage_update", used=True if text == "INVALID_CONTEXT" else (700 if "INITIAL_CONTEXT" in text and not text.endswith("Acknowledge briefly.") else 200), size=1000)
         update(sid, "agent_message_chunk", content={"type": "text", "text": sid + ":" + text})
-        active.remove(sid)
+        active.discard(sid)
         trace("prompt_end", session=sid)
         result(request, {"stopReason": "end_turn"})
 
 
 async def main():
-    trace("spawn", home=str(HOME))
+    trace("spawn", home=str(HOME), argv=sys.argv[1:])
     tasks = []
     number = 0
     while line := await asyncio.to_thread(sys.stdin.readline):

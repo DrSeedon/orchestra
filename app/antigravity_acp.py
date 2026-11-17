@@ -51,6 +51,10 @@ async def shutdown_profiles():
     _owners.clear()
 
 
+def auto_approve_enabled() -> bool:
+    return os.environ.get("ANTIGRAVITY_AUTO_APPROVE", "1").strip() != "0"
+
+
 class AcpProfile:
     request_timeout = 20.0
     prompt_timeout = 600.0
@@ -64,7 +68,15 @@ class AcpProfile:
         self._client_tasks = set()
         self._client_request_ids = {}
         self.loop = asyncio.get_running_loop()
-        self.turn_lock = asyncio.Lock()
+        try:
+            max_turns = max(1, int(os.environ.get("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "3")))
+        except ValueError:
+            max_turns = 3
+        self.max_concurrent_turns = max_turns
+        self.turn_semaphore = asyncio.Semaphore(max_turns)
+        self.turn_lock = self.turn_semaphore
+        self._setup_lock = asyncio.Lock()
+        self.session_locks: dict[str, asyncio.Lock] = {}
         self._start_lock = asyncio.Lock()
         self._write_lock = asyncio.Lock()
         self.process = None
@@ -81,6 +93,12 @@ class AcpProfile:
         self.cost_totals = {}
         self.capabilities = {}
         self.failure = ""
+
+    def session_lock(self, session_id: str) -> asyncio.Lock:
+        lock = self.session_locks.get(session_id)
+        if lock is None:
+            lock = self.session_locks[session_id] = asyncio.Lock()
+        return lock
 
     @staticmethod
     def model_state(result):
@@ -166,10 +184,18 @@ class AcpProfile:
                 self._lock_fd = os.open(self.home / ".orchestra-acp.lock",
                                         os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
                 fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                self.process = await asyncio.create_subprocess_exec(
+                cmd = [
                     backend.ANTIGRAVITY_BIN, "acp", "--disable-telemetry",
+                    "--process-per-session",
+                ]
+                if auto_approve_enabled():
+                    cmd.append("--dangerously-skip-permissions")
+                cmd.extend([
                     "--gemini-dir", str(self.home / ".gemini"),
                     "--app-data-dir", "antigravity-acp",
+                ])
+                self.process = await asyncio.create_subprocess_exec(
+                    *cmd,
                     cwd=str(self.home), env=backend.cli_environment(self.home),
                     stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE, start_new_session=True,
@@ -314,9 +340,19 @@ class AcpProfile:
             if backend is None:
                 response={"outcome":{"outcome":"cancelled"}}
             else:
-                result=await native_requests.request(self,rpc_id,params,backend)
-                if isinstance(result,tuple):rid,response=result
-                else:response=result
+                parsed=native_requests.validate_payload(params)
+                if auto_approve_enabled() and parsed["kind"]=="permission":
+                    if native_requests.profile_epoch(self.home)!=self.epoch:
+                        response={"outcome":{"outcome":"cancelled"}}
+                    else:
+                        option=(next((o for o in parsed["options"] if o.get("kind")=="allow_once"),None)
+                                or next((o for o in parsed["options"] if o.get("kind")=="allow_always"),None))
+                        response=({"outcome":{"outcome":"selected","optionId":option["optionId"]}}
+                                  if option is not None else {"outcome":{"outcome":"cancelled"}})
+                else:
+                    result=await native_requests.request(self,rpc_id,params,backend)
+                    if isinstance(result,tuple):rid,response=result
+                    else:response=result
             await self._write({"jsonrpc":"2.0","id":rpc_id,"result":response})
             if rid:
                 native_requests.finish(rid,"responded")
