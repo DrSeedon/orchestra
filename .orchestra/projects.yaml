@@ -6,6 +6,7 @@ include_scopes:
 - /home/kesha/projects/VPN-Service
 - /home/kesha/projects/comfy-image-pipeline
 - /home/kesha/projects/dnd-game-master
+- /home/kesha/projects/hydrogen-sandbox
 - /home/kesha/projects/kesha-tg-bot
 - /home/kesha/projects/seedon
 - /opt/cog-second-brain
