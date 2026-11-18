@@ -231,6 +231,7 @@ def _claude_factory(context: BackendBuildContext) -> BackendLike:
 
 def _codex_factory(context: BackendBuildContext) -> BackendLike:
     from app.backend_codex import CodexBackend
+    from app.pipeline import default_codex_effort
     from app.pipeline import get_role
     from app.prompting import build_codex_skills_index
 
@@ -285,7 +286,8 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
         resume_thread_id=context.resume_session_id,
         mcp_env=mcp_env,
         mcp_servers=servers,
-        reasoning_effort=context.effort or "high",
+        reasoning_effort=context.effort or default_codex_effort(
+            context.model, role=context.role, is_orchestrator=context.is_orchestrator),
         is_orchestrator=context.is_orchestrator,
         history_import=context.history_import,
         validation_profile=context.validation_profile,
@@ -327,7 +329,8 @@ def _grok_factory(context: BackendBuildContext) -> BackendLike:
         resume_session_id=context.resume_session_id,
         mcp_env=mcp_env,
         mcp_servers=servers,
-        reasoning_effort=context.effort or "high",
+        reasoning_effort=context.effort or default_codex_effort(
+            context.model, role=context.role, is_orchestrator=context.is_orchestrator),
         is_orchestrator=context.is_orchestrator,
         validation_profile=context.validation_profile,
     )

@@ -1,16 +1,17 @@
-# Orchestra — audit correction wave, 2026-11-17
-- Owner: CTO · Orchestra; Codex Sol. Checkout agy-acp-safe, base 76255bc26.
-- Authorized: A1–A12/S2, own one-shot bg + peer direct admission, local Antigravity overlay, Sol62/Astra62 registration, controlled production deployment.
-- Keep sol alias and all live orchestrator models unchanged. Hydrogen remains local, never Hub.
-- Preserve three dirty production files byte-for-byte; baseline in .orchestra/tasks/agy-audit-fixes-20261117/baseline.json.
-- No real provider prompts/probes or Telegram calls during validation. Synthetic profiles/DB + network namespace.
-- Never restart telegram-bot-api. Deploy after focused checks; wait for active turns before controlled restart.
-- Code ready: 267 ACP checks passed / 9 superseded profile-latch cases deselected / 2 warnings.
-- 55 new audit regressions and 289 pipeline/model/quota/Hub contracts passed. Instruction contract OK.
-- Frozen old assertions retained. No full-suite/global GREEN claim.
-- Vendor limits: own writes remain non-atomic on crash; native close optional; missing quota/token telemetry stays unknown.
-- DEPLOYED code 912b2f18a to main. Orchestra PID 2492052 active; restart_cut_turns=0.
-- IPC daemons restarted only after child exit; both MemoryHigh=6G/MemoryMax=8G; Telegram PID unchanged.
-- OAuth ACP regular0600 + CLI link prepared privately, previous CLI bytes retained. Both credit flags false.
-- Hydrogen remains local antigravity/gemini-4-hydrogen-high, idle; post-restart native catalogue cold/unknown, no live canary.
-- Evidence: .orchestra/tasks/agy-audit-fixes-20261117/.
+# Orchestra — Sol/Astra 6.2 rollout, 2026-11-18
+- Authorized: switch sol/codex/astra aliases, role efforts, prompt safeguards, safe internal AGENTS symlink.
+- Worktree: /home/kesha/orchestra-worktrees/sol62-rollout-20261118; branch fix/sol62-rollout-20261118.
+- Benchmark section 4 read: Sol62 orchestrator/reviewer high, coding medium, standard tier; Astra62 high.
+- Switch the ten named live Sol orchestrators via canonical API, preserving native history.
+- Hydrogen stays local antigravity/gemini-4-hydrogen-high, untouched.
+- Production has 23 non-archived sessions, all idle initially; preserve all dirty files byte-for-byte.
+- Never restart telegram-bot-api or change provider credentials/disabled settings.
+- Verify both explicit egress guards, then one controlled production Codex turn/readiness.
+- Implemented: canonical aliases, exact per-role effort, native in-place model+effort transaction, confined symlink preflight.
+- Added terminal implementer/reviewer role configurations; existing provider/manual-only guards unchanged.
+- Validation: 418 contracts passed; 3 adapter/context checks passed; instruction contract passed.
+- Egress root cause found: Xray lacked ipwho.is/ipinfo.io residential routes. Added only both domains plus mirrored block entries, validated config, restarted with 0 active connections.
+- Both egress guards now verified 178.93.29.64 / NL / AS215294 Lumina; credentials unchanged.
+- API health before rollout: 23 sessions, 3 runtime failures (Orchestra/Seedon/Kesha); all idle, no compaction.
+- No deployment yet; existing sessions remain unchanged.
+- Evidence: .orchestra/tasks/sol62-rollout-20261118/.

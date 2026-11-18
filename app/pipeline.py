@@ -570,6 +570,13 @@ def resolve_role(pipeline: PipelineConfig, role: str) -> ResolvedRole:
     )
 
 
+def default_codex_effort(model: str, *, role: str = "", is_orchestrator: bool = False) -> str:
+    """Fallback only: explicit effort and exact manifest model keys take priority."""
+    if _canon_model(model) == "gpt-6.2-sol":
+        return "high" if is_orchestrator or role in {"orchestrator", "sub-orchestrator", "reviewer"} else "medium"
+    return "high"
+
+
 def resolve_effort(effort: EffortSpec | None, model: str, runtime: str) -> str | None:
     """Ступень эффорта под конкретную модель спавна.
 

@@ -604,13 +604,22 @@ def codex_project_doc_preflight(
 ) -> CodexProjectDocPreflight:
     """Diagnose a provably truncated root AGENTS.md without changing it or config."""
     doc = Path(worktree_path) / "AGENTS.md"
-    if not doc.exists() or not doc.is_file():
-        return CodexProjectDocPreflight(str(doc), None, None, None)
+    read_doc = doc
     if doc.is_symlink():
-        return CodexProjectDocPreflight(
-            str(doc), None, None, None,
-            diagnostic=f"Codex project-doc preflight skipped unsafe symlink: {doc}",
-        )
+        try:
+            root = Path(worktree_path).resolve(strict=True)
+            resolved = doc.resolve(strict=True)
+            resolved.relative_to(root)
+            if not resolved.is_file():
+                raise ValueError("not a regular file")
+            read_doc = resolved
+        except (OSError, RuntimeError, ValueError):
+            return CodexProjectDocPreflight(
+                str(doc), None, None, None,
+                diagnostic=f"Codex project-doc preflight skipped unsafe symlink: {doc}",
+            )
+    if not read_doc.exists() or not read_doc.is_file():
+        return CodexProjectDocPreflight(str(doc), None, None, None)
     config_root = Path(
         codex_home
         or os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
@@ -632,7 +641,7 @@ def codex_project_doc_preflight(
     if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
         return CodexProjectDocPreflight(str(doc), None, None, None)
     try:
-        content = doc.read_bytes()
+        content = read_doc.read_bytes()
     except OSError as exc:
         return CodexProjectDocPreflight(
             str(doc), None, budget, None,

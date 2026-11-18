@@ -1,0 +1,20 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/sol62-rollout-20261118/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/sol62-rollout-20261118", "credentials_in_environment": 0}
+........................................................................ [ 17%]
+......................................................................F. [ 34%]
+........................................................................ [ 51%]
+........................................................................ [ 68%]
+........................................................................ [ 86%]
+..........................................................               [100%]
+=================================== FAILURES ===================================
+__________ TestRoleIcons.test_real_default_pipeline_covers_every_role __________
+tests/test_prompting.py:622: in test_real_default_pipeline_covers_every_role
+    assert set(icons) == set(load_pipeline(DEFAULT_PIPELINE).roles)
+E   AssertionError: assert {'full-cycle'...or', 'worker'} == {'full-cycle'...cialist', ...}
+E
+E     Extra items in the right set:
+E     'implementer'
+E     'reviewer'
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/test_prompting.py::TestRoleIcons::test_real_default_pipeline_covers_every_role
+1 failed, 417 passed in 8.91s

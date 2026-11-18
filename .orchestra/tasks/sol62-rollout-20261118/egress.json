@@ -1,0 +1,20 @@
+{
+  "codex": {
+    "ok": true,
+    "mode": "verified_proxy",
+    "ip": "178.93.29.64",
+    "country": "NL",
+    "asn": 215294,
+    "org": "Lumina Broadband UAB",
+    "source": "ipwho.is"
+  },
+  "antigravity": {
+    "ok": true,
+    "mode": "verified_proxy",
+    "ip": "178.93.29.64",
+    "country": "NL",
+    "asn": 215294,
+    "org": "Lumina Broadband UAB",
+    "source": "ipwho.is"
+  }
+}

@@ -15,7 +15,14 @@ Select worker models by task fit, subject to live admission in `app/models.py`, 
 | `hubsonnet` | Routine coding, scripting and bounded collection | **Multicast projects only** |
 | `free` | Zero-cost cloud pool for bounded extraction, parsing and checks | Admitted zero-cost cloud route (`openrouter` free pool) |
 | `hubluna` | Legacy bounded Hub collection when explicitly requested | Prefer `hubsol` or `free` for new spawns |
-| `sol` / `luna` | Native local Codex routes (`luna` requires explicit `model_reason` naming a local-only constraint) | Subject to local provider & manual/local admission guards |
+| `sol` / `codex` (GPT-6.2 Sol), `astra` (GPT-6.2 Astra), `luna` | Native local Codex routes (`luna` requires explicit `model_reason` naming a local-only constraint) | Subject to local provider & manual/local admission guards |
+
+### Local 6.2 effort policy (owner decision 2026-11-18)
+- Local Sol62 orchestrator/reviewer: high, standard tier. Local coding roles
+  implementer/worker/full-cycle/specialist: medium; explicit low/high remain available.
+- Local Astra62: high. Never default to xhigh or fast.
+- sol61/gpt61sol select GPT-6.1 Sol; astra6/gpt6astra select GPT-6 Astra.
+- Local manual-only/provider/quota guards still apply; a new alias is not permission to bypass them.
 
 ### Hard routing invariants
 - **Project boundary** (owner decision, 2026-11-10): Claude routes (`hubopus`, `hubsonnet`) are restricted to Multicast scopes; personal/internal projects (`orchestra`, `Seedon`, `katya-work`, `University`, `VPN-Service`, D&D repos) use Codex/Gemini/free routes.

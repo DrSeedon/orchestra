@@ -1,0 +1,21 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/sol62-rollout-20261118/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/sol62-rollout-20261118", "credentials_in_environment": 0}
+........................................................................ [ 17%]
+......................................................................F. [ 34%]
+........................................................................ [ 51%]
+........................................................................ [ 68%]
+........................................................................ [ 86%]
+..........................................................               [100%]
+=================================== FAILURES ===================================
+__________ TestRoleIcons.test_real_default_pipeline_covers_every_role __________
+tests/test_prompting.py:623: in test_real_default_pipeline_covers_every_role
+    assert len(set(icons.values())) == len(icons)  # no two roles share an icon
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: assert 7 == 8
+E    +  where 7 = len({'⚙️', '🎨', '🎯', '👑', '🔄', '🔍', ...})
+E    +    where {'⚙️', '🎨', '🎯', '👑', '🔄', '🔍', ...} = set(dict_values(['👑', '🎯', '⚙️', '🔄', '🧾', '🎨', '⚙️', '🔍']))
+E    +      where dict_values(['👑', '🎯', '⚙️', '🔄', '🧾', '🎨', '⚙️', '🔍']) = <built-in method values of dict object at 0x711d2fe06b80>()
+E    +        where <built-in method values of dict object at 0x711d2fe06b80> = {'full-cycle': '🔄', 'implementer': '⚙️', 'orchestrator': '👑', 'reducer': '🧾', ...}.values
+E    +  and   8 = len({'full-cycle': '🔄', 'implementer': '⚙️', 'orchestrator': '👑', 'reducer': '🧾', ...})
+=========================== short test summary info ============================
+FAILED tests/test_prompting.py::TestRoleIcons::test_real_default_pipeline_covers_every_role
+1 failed, 417 passed in 8.39s

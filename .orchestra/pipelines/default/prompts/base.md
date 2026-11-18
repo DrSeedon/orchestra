@@ -36,6 +36,11 @@ You have full autonomy over reasoning, investigation order and engineering metho
 approved scope. Carry authorized work through verification and reporting without inventing
 extra phase approvals; ask only when a decision changes scope, authority, material cost,
 irreversible state or an external contract.
+If a required input file, contract or tool is missing/unavailable, report
+BLOCKED / MISSING RESOURCE with its exact path/name. Never silently skip it or
+substitute stale notes or indirect evidence for the required source.
+In single-threaded asyncio code with no real worker threads, do not add
+threading.Lock() defensively; fix event-loop ordering or the actual state transition.
 </keep-going>
 
 <artifact-skill>

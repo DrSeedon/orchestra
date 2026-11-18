@@ -5244,7 +5244,14 @@ class AgentSession:
                     },
                 },
             }
+        target_effort = self.effort
+        if runtime == "codex" and new_model in {"gpt-6.2-sol", "gpt-6.2-astra"}:
+            from app.pipeline import get_role, resolve_effort, default_codex_effort
+            rr = get_role(self.pipeline, self.role) if self.pipeline and self.role else None
+            target_effort = (resolve_effort(rr.effort, new_model, runtime) if rr else None) or default_codex_effort(
+                new_model, role=self.role, is_orchestrator=self.is_orchestrator)
         backend = self._backend
+        prior_backend_effort = getattr(backend, "reasoning_effort", None)
         if backend is not None:
             if (
                 getattr(backend, "active_turn_id", None)
@@ -5269,6 +5276,8 @@ class AgentSession:
                 retargeted = backend.retarget_model(new_model)
                 if inspect.isawaitable(retargeted):
                     await retargeted
+                if runtime == "codex" and target_effort is not None:
+                    backend.reasoning_effort = target_effort
                 backend_session_id = getattr(backend, "session_id", self.session_id)
                 if backend_session_id != self.session_id:
                     raise RuntimeError(
@@ -5286,6 +5295,7 @@ class AgentSession:
         snapshot.update({
             "model": new_model,
             "backend_type": runtime,
+            "effort": target_effort or "",
         })
         try:
             await asyncio.get_running_loop().run_in_executor(
@@ -5298,6 +5308,8 @@ class AgentSession:
                     rolled_back = backend.retarget_model(old_model)
                     if inspect.isawaitable(rolled_back):
                         await rolled_back
+                    if runtime == "codex":
+                        backend.reasoning_effort = prior_backend_effort
                 except Exception as rollback_error:
                     rollback_failed = True
                     self._handoff_recovery_required = True
@@ -5318,6 +5330,7 @@ class AgentSession:
 
         self.model = new_model
         self.backend_type = runtime
+        self.effort = target_effort
         self._hibernated = False
         self._last_context = {
             "percentage": (

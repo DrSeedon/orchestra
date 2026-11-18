@@ -1,0 +1,263 @@
+{
+  "base": "bc45acbf5c0b7d7b9814fc314b8c101036260e3a",
+  "preserve": {
+    ".orchestra/workers/Orchestra-orchestrator.md": "ed2af782763032620ec176ff907dee2321f6325253cf3f35dd34a3d74a10c6f6",
+    "scripts/video_artifact/README.md": "a2ce4af92a0d9b86e7537a695673578b33c57f9052efb7ca33930ee9a71f0f14",
+    "scripts/video_artifact/elevenlabs_tts.py": "39eefbb8cc7b388fd815921e5b7799f88c8549bf42c3dadccf12174998357dc7"
+  },
+  "sessions": [
+    {
+      "id": "206a85e3-c813-41c8-ac48-2bbebe9ec846",
+      "name": "Claude-Code-Game-Master-orchestrator",
+      "scope": "/home/kesha/projects/dnd-game-master",
+      "model": "gpt-6.1-sol",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "high",
+      "session_id": ""
+    },
+    {
+      "id": "75285d62-98bc-441c-9727-22c54bd8ab97",
+      "name": "Orchestra-orchestrator",
+      "scope": "/home/kesha/orchestra",
+      "model": "gpt-6.1-sol",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a1d8ac-33c2-7be3-b774-f16b65c7e894"
+    },
+    {
+      "id": "336d5d9c-6ca0-40ce-b5c7-76364d7d31a3",
+      "name": "University-orchestrator",
+      "scope": "/home/kesha/projects/University",
+      "model": "gpt-6.1-sol",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a1d8b3-f56a-7141-ad58-d56bca8292fa"
+    },
+    {
+      "id": "d02afa56-fe80-4da1-954d-cd65273f578f",
+      "name": "VPN-orchestrator",
+      "scope": "/home/kesha/projects/VPN-Service",
+      "model": "gpt-6.1-sol",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a1e90a-9c4d-7c01-8d6a-9115695d0b9b"
+    },
+    {
+      "id": "f972b7e4-2513-481e-9791-fb1fd880a5b7",
+      "name": "argon-lesson-moments-v535",
+      "scope": "/home/kesha/katya-work",
+      "model": "hub-gemini-4-argon",
+      "role": "worker",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "medium",
+      "session_id": "hub-dbd66b86da8f48b8"
+    },
+    {
+      "id": "f7e0d61d-5089-4c38-b027-24ea330eeeec",
+      "name": "backup-space",
+      "scope": "/home/kesha/orchestra",
+      "model": "hub-gpt-6.1-sol",
+      "role": "full-cycle",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "hub-6f291c23b34c46f8"
+    },
+    {
+      "id": "39f01dce-cc2e-4135-91df-138d40c106d3",
+      "name": "cog-second-brain-orchestrator",
+      "scope": "/opt/cog-second-brain",
+      "model": "gpt-6.1-sol",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a1e24f-9b8e-7c30-aa5a-341c88e2254c"
+    },
+    {
+      "id": "53e809d9-0503-428a-8bbd-8638cf5493bc",
+      "name": "comfy-image-orchestrator-vps",
+      "scope": "/home/kesha/projects/comfy-image-pipeline",
+      "model": "gpt-6.1-sol",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a1e8e7-9d68-7852-bb9f-9aa3b1114064"
+    },
+    {
+      "id": "f408f313-f81d-49a4-b8e6-69b0fbbca725",
+      "name": "feat-tg-proxy",
+      "scope": "/home/kesha/projects/VPN-Service",
+      "model": "gpt-6-luna",
+      "role": "full-cycle",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a12587-9e7f-7220-b4f8-6d05ff12b1fa"
+    },
+    {
+      "id": "626ea34f-d213-4ebc-81e1-b209468d31cd",
+      "name": "hydrogen-sandbox-orchestrator",
+      "scope": "/home/kesha/projects/hydrogen-sandbox",
+      "model": "antigravity/gemini-4-hydrogen-high",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "ceecb254-50aa-41c2-ad02-89c0f5052123"
+    },
+    {
+      "id": "94ad36b7-92a4-4d5d-bea8-634988b2816b",
+      "name": "ikit-film",
+      "scope": "/home/kesha/projects/University",
+      "model": "gpt-6-luna",
+      "role": "full-cycle",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "medium",
+      "session_id": ""
+    },
+    {
+      "id": "e91fa683-4ce9-4e65-9bee-1b0489c48526",
+      "name": "index-video",
+      "scope": "/home/kesha/projects/University",
+      "model": "gpt-6-luna",
+      "role": "worker",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "medium",
+      "session_id": ""
+    },
+    {
+      "id": "85f0ba7a-0d8a-401e-a909-eb57c40fb02f",
+      "name": "katya-work-orchestrator",
+      "scope": "/home/kesha/katya-work",
+      "model": "gpt-6.1-sol",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a1d87e-aa1a-79e0-9ce7-0ddec66ae90f"
+    },
+    {
+      "id": "82c118ee-4811-4ccd-aa8d-29b52de3e63d",
+      "name": "kesha-tg-bot-orchestrator",
+      "scope": "/home/kesha/projects/kesha-tg-bot",
+      "model": "gpt-6.1-sol",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a1e48e-53b2-7072-8691-f400f7ff2b24"
+    },
+    {
+      "id": "28d140a5-dcfc-4a2c-a08b-5eb27c82fc50",
+      "name": "kuzenkov",
+      "scope": "/home/kesha/projects/University",
+      "model": "gpt-6-luna",
+      "role": "full-cycle",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a129ce-bfd6-79c1-b2da-3a69ae5c2494"
+    },
+    {
+      "id": "60d1aa6c-781e-43b2-a3ff-c678f6daa1c0",
+      "name": "neuro",
+      "scope": "/home/kesha/projects/University",
+      "model": "gpt-6-luna",
+      "role": "worker",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "medium",
+      "session_id": ""
+    },
+    {
+      "id": "2eba92d6-3758-42f0-bc97-eb11c0a0bbba",
+      "name": "nn-video",
+      "scope": "/home/kesha/projects/University",
+      "model": "gpt-6-luna",
+      "role": "worker",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "medium",
+      "session_id": ""
+    },
+    {
+      "id": "08591eec-74e4-4d17-9764-a919b91ad6d6",
+      "name": "openrouter-lab-orchestrator",
+      "scope": "/home/kesha/openrouter-lab",
+      "model": "gpt-6.1-sol",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "medium",
+      "session_id": ""
+    },
+    {
+      "id": "c005c300-8f05-47f1-a97c-8b582028c9fb",
+      "name": "ovd-pixel-local",
+      "scope": "/home/kesha/projects/comfy-image-pipeline",
+      "model": "gpt-6-luna",
+      "role": "full-cycle",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a1a0e1-3ad1-7513-90a3-4fe167ccb965"
+    },
+    {
+      "id": "3769cbea-c37e-4e63-b0cc-58e59014077d",
+      "name": "potanin",
+      "scope": "/home/kesha/projects/University",
+      "model": "gpt-6-luna",
+      "role": "worker",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "medium",
+      "session_id": ""
+    },
+    {
+      "id": "09b75a6c-c93f-45ea-b2f4-6728851a1bbd",
+      "name": "seedon-orchestrator",
+      "scope": "/home/kesha/projects/seedon",
+      "model": "gpt-6.1-sol",
+      "role": "orchestrator",
+      "is_orchestrator": 1,
+      "status": "idle",
+      "effort": "high",
+      "session_id": "01a1d8a4-4eb4-7253-aa6f-48817bff9f0e"
+    },
+    {
+      "id": "bb4ac026-d52e-48cb-a07f-aeebe6fadb65",
+      "name": "seedon-sales-sol",
+      "scope": "/home/kesha/projects/seedon",
+      "model": "hub-gpt-6.1-sol",
+      "role": "worker",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "xhigh",
+      "session_id": "hub-7826156b93e0447b"
+    },
+    {
+      "id": "1f2abf0d-2c90-496f-9d38-340cd33d0ca1",
+      "name": "sentiment",
+      "scope": "/home/kesha/projects/University",
+      "model": "gpt-6-luna",
+      "role": "full-cycle",
+      "is_orchestrator": 0,
+      "status": "idle",
+      "effort": "medium",
+      "session_id": ""
+    }
+  ]
+}

@@ -630,12 +630,15 @@ class CodexBackend(JsonRpcStdioTransport):
                  resume_thread_id: str | None = None,
                  mcp_env: dict[str, str] | None = None,
                  mcp_servers: dict | None = None,
-                 reasoning_effort: str = "high",
+                 reasoning_effort: str | None = None,
                  is_orchestrator: bool = False,
                  history_import: object | None = None,
                  validation_profile: bool = False,
                  evaluation_actor_id: str = ""):
         self.model = model
+        if reasoning_effort is None:
+            from app.pipeline import default_codex_effort
+            reasoning_effort = default_codex_effort(model, is_orchestrator=is_orchestrator)
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._thread_id: str | None = resume_thread_id

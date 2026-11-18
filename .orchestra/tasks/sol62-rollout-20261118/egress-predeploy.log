@@ -1,0 +1,21 @@
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/sol62-rollout-20261118/.orchestra/tasks/sol62-rollout-20261118/live_control.py", line 65, in <module>
+    result=asyncio.run(verify());write("egress.json",result)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra-worktrees/sol62-rollout-20261118/.orchestra/tasks/sol62-rollout-20261118/live_control.py", line 60, in verify
+    identity=await verify_provider_egress(provider)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/app/provider_safety.py", line 826, in verify_provider_egress
+    _evaluate_egress_identity(identity)
+  File "/home/kesha/orchestra/app/provider_safety.py", line 659, in _evaluate_egress_identity
+    raise EgressSafetyError(
+app.provider_safety.EgressSafetyError: Blocked datacenter ASN AS51167 (Contabo GmbH) on exit IP 158.220.127.161

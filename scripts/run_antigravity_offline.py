@@ -15,7 +15,8 @@ if LOCAL_CONTRACTS:
     allowed = {"tests/test_default_pipeline.py", "tests/test_prompting.py",
                "tests/test_local_delegation_prompts.py", "tests/test_models.py",
                "tests/test_runtime_registry.py", "tests/test_quota_gate.py",
-               "tests/test_hub_orchestrator_outbox.py", "tests/test_antigravity_audit_fixes.py"}
+               "tests/test_hub_orchestrator_outbox.py", "tests/test_antigravity_audit_fixes.py",
+               "tests/test_sol62_rollout.py", "tests/test_pipeline.py", "tests/test_backend_codex.py"}
     selected = {a.split("::")[0] for a in sys.argv[1:] if a.startswith("tests/")}
     assert selected and selected <= allowed, "local contracts must name the bounded test set"
 

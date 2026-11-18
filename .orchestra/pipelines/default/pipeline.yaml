@@ -45,6 +45,8 @@ defaults:
 # Opus 5.5 у оркестраторов: medium с 23.09, снова high с 03.10 по слову владельца как замер
 # (V-683: жалобы katya-work выросли 8% → 13% после 23.09; модель и effort сменились разом).
 # Сравнение — .orchestra/tasks/V-683/complaint_rate.py через 4–5 дней. Воркеры остаются medium.
+# 18.11.2026: owner-approved section 4 of Sol62 benchmark: local Sol62 orchestrator/reviewer high,
+# coding medium; Astra62 high. Standard tier only, no xhigh default.
 # Основания значений:
 #   harness           → medium — бесплатные маршруты OpenRouter, ступень НЕ измерена ни на одном
 #                               из них; medium выбран как середина и как выключатель гейта
@@ -66,10 +68,10 @@ roles:
     kind: orchestrator
     label: Orchestrator
     order: 0
-    model: gpt-6.1-terra
+    model: gpt-6.2-sol
     # Ручной выбор Astra владельцем оставляет ступень для оркестраторского промпта;
     # агентские вызовы блокируются централизованным model gate.
-    effort: &effort_policy {gpt-6.1-terra: high, "claude-opus-5-5[1m]": xhigh, "claude-sonnet-5-5[1m]": high, claude-haiku-5-5: low, hub-gpt-6.1-sol: xhigh, hub-gemini-4-carbon: medium, hub-gemini-4-hydrogen: high, hub-gemini-4-argon: medium, hub-gpt-6-astra: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: xhigh, hub-claude-sonnet-5-5: high, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
+    effort: &effort_policy {gpt-6.2-sol: high, gpt-6.2-astra: high, gpt-6.1-terra: high, "claude-opus-5-5[1m]": xhigh, "claude-sonnet-5-5[1m]": high, claude-haiku-5-5: low, hub-gpt-6.1-sol: xhigh, hub-gemini-4-carbon: medium, hub-gemini-4-hydrogen: high, hub-gemini-4-argon: medium, hub-gpt-6-astra: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: xhigh, hub-claude-sonnet-5-5: high, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
     skills: [grill-me, orchestra-agents, laptop-access, edo-1c, vps-deploy]
     modules: [safety, code-quality, model-routing, orchestration, worker-lifecycle, knowledge]
     can_spawn: [worker, full-cycle, reducer, specialist]
@@ -84,7 +86,7 @@ roles:
     kind: orchestrator
     label: Sub-Orchestrator
     order: 1
-    model: gpt-6.1-terra
+    model: gpt-6.2-sol
     effort: *effort_policy
     skills: [orchestra-agents, laptop-access, edo-1c, vps-deploy]
     modules: [safety, code-quality, model-routing, orchestration, worker-lifecycle, knowledge]
@@ -103,7 +105,7 @@ roles:
     label: Worker
     order: 2
     model: hub-gpt-6.1-sol
-    effort: &worker_effort_policy {"claude-opus-5-5[1m]": xhigh, "claude-sonnet-5-5[1m]": high, claude-haiku-5-5: low, hub-gpt-6.1-sol: xhigh, hub-gemini-4-carbon: medium, hub-gemini-4-hydrogen: high, hub-gemini-4-argon: medium, hub-gpt-6-astra: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: xhigh, hub-claude-sonnet-5-5: high, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
+    effort: &worker_effort_policy {gpt-6.2-sol: medium, gpt-6.2-astra: high, "claude-opus-5-5[1m]": xhigh, "claude-sonnet-5-5[1m]": high, claude-haiku-5-5: low, hub-gpt-6.1-sol: xhigh, hub-gemini-4-carbon: medium, hub-gemini-4-hydrogen: high, hub-gemini-4-argon: medium, hub-gpt-6-astra: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: xhigh, hub-claude-sonnet-5-5: high, hub-claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
     skills: [laptop-access, edo-1c]
     modules: [safety, code-quality, report-format, knowledge]
     can_spawn: []
@@ -156,7 +158,7 @@ roles:
     label: Gemini Specialist
     order: 5
     model: hub-gemini-4-argon
-    effort: {hub-gemini-4-hydrogen: high, default: medium}
+    effort: {gpt-6.2-sol: medium, gpt-6.2-astra: high, hub-gemini-4-hydrogen: high, default: medium}
     skills: []
     modules: [safety, code-quality, model-routing, report-format, knowledge]
     disabled_tools: [hub_generate_image]
@@ -168,3 +170,29 @@ roles:
     description: >
       Dedicated non-spawning specialist for one bound task and project. Uses the existing
       paid Hub pool on Gemini 4 Argon at medium effort.
+  implementer:
+    kind: worker
+    label: Implementer
+    tg: {emoji: "🛠️"}
+    order: 6
+    model: hub-gpt-6.1-sol
+    effort: *worker_effort_policy
+    modules: [safety, code-quality, report-format, knowledge]
+    can_spawn: []
+    allow_unrouted_workers: false
+    when: Direct implementation of a bounded accepted specification
+    not_for: Independent merge acceptance or agent orchestration
+    description: Terminal coding role; local Sol62 defaults to medium when explicitly selected.
+  reviewer:
+    kind: worker
+    label: Reviewer
+    tg: {emoji: "🔍"}
+    order: 7
+    model: gpt-6.2-sol
+    effort: *effort_policy
+    modules: [safety, code-quality, model-routing, report-format, knowledge]
+    can_spawn: []
+    allow_unrouted_workers: false
+    when: Independent diff review and merge acceptance
+    not_for: Editing the implementation or spawning workers
+    description: Terminal manual reviewer; local Sol62 and Astra62 default to high.

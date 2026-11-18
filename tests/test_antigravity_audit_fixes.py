@@ -225,7 +225,7 @@ def test_provider_overlay_is_canonical_and_other_runtimes_unchanged():
 
 def test_new_models_manual_only_aliases_and_prices():
     from app import models,backend_codex
-    assert models.resolve_model("sol")=="gpt-6.1-sol"
+    assert models.resolve_model("sol")=="gpt-6.2-sol"
     for alias,mid,window,price in [("sol62","gpt-6.2-sol",500000,2.0),("astra62","gpt-6.2-astra",272000,8.0)]:
         assert models.resolve_model(alias)==mid
         assert models.get_model_spec(mid).context_length==window

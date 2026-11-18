@@ -38,7 +38,7 @@ def test_hub_alternative_hint_is_empty_for_other_runtimes_and_unknown_models(mod
 @pytest.mark.parametrize(
     ("alias", "expected"),
     [
-        ("sol", "gpt-6.1-sol"),
+        ("sol", "gpt-6.2-sol"),
         ("luna", "gpt-6-luna"),
         ("agy-argon", "antigravity/gemini-4-argon-medium"),
     ],
@@ -50,7 +50,7 @@ def test_resolve_model_aliases(alias: str, expected: str) -> None:
 @pytest.mark.parametrize(
     ("alias", "expected"),
     [
-        ("sol", "gpt-6.1-sol"),
+        ("sol", "gpt-6.2-sol"),
         ("luna", "gpt-6-luna"),
     ],
 )
@@ -104,7 +104,7 @@ def test_selectable_models_match_the_curated_catalog():
     assert get_model_flags("gpt-6-astra") == {"dashboard": True, "agents": False}
     assert get_model_flags("gpt-6.1-sol") == {"dashboard": True, "agents": False}
     assert resolve_model("grok") == "grok-4.6"
-    assert resolve_model("sol") == "gpt-6.1-sol"
+    assert resolve_model("sol") == "gpt-6.2-sol"
 
 
 def test_haiku_55_replaces_haiku_45_in_the_selectable_registry():
