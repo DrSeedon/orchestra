@@ -2852,19 +2852,43 @@ def voice_cost_total_usd() -> float:
 def usage_save_snapshot(five_hour_pct: float | None, seven_day_pct: float | None,
                         five_hour_resets_at: str, seven_day_resets_at: str,
                         total_cost_usd: float, active_agents: int,
-                        providers: dict | None = None) -> None:
+                        providers: dict | None = None, *,
+                        observed_at: float | None = None) -> None:
+    timestamp = (datetime.now(timezone.utc) if observed_at is None
+                 else datetime.fromtimestamp(observed_at, timezone.utc))
     with _conn() as c:
         c.execute(
             """INSERT INTO usage_snapshots
                (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
                 seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (datetime.now(timezone.utc).isoformat(),
+            (timestamp.isoformat(),
              five_hour_pct, seven_day_pct,
              five_hour_resets_at or "", seven_day_resets_at or "",
              total_cost_usd, active_agents,
              json.dumps(providers or {}, ensure_ascii=False)),
         )
+
+
+def latest_usage_snapshot(provider_ids: tuple[str, ...], *, since: float) -> tuple[float, dict] | None:
+    cutoff = datetime.fromtimestamp(since, timezone.utc).isoformat()
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT ts, provider_usage FROM usage_snapshots WHERE ts >= ? ORDER BY ts DESC, id DESC",
+            (cutoff,),
+        )
+        for row in rows:
+            try:
+                providers = json.loads(row["provider_usage"] or "{}")
+                timestamp = datetime.fromisoformat(row["ts"]).timestamp()
+            except (ValueError, TypeError):
+                continue
+            if not isinstance(providers, dict):
+                continue
+            selected = {key: providers[key] for key in provider_ids if key in providers}
+            if selected:
+                return timestamp, selected
+    return None
 
 
 def _quota_policy_history_schema(connection: sqlite3.Connection) -> None:

@@ -206,7 +206,7 @@ async def _produce(mc: MultiCodeClient, ssh: hw.HubSsh, state: hw.WorkspaceState
     state.save()
     if not state.project_id:
         raise ImageError("hub_unavailable", "hub returned no project ID")
-    instance, model = HUB_MODELS["hub-gpt-6.1-sol"]
+    instance, model = HUB_MODELS["hub-gpt-6.2-sol"]
     launched = await mc.tool_call("t3_thread_launch", {
         "title": f"image {state.ws_id}", "projectId": state.project_id,
         "runtimeMode": "full-access", "interactionMode": "default",

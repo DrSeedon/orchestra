@@ -259,7 +259,7 @@ def _unlanded_work(session, worktree_path: str) -> dict:
 class CreateSessionRequest(BaseModel):
     name: str
     cwd: str
-    model: str = "hub-gpt-6.1-sol"
+    model: str = "hub-gpt-6.2-sol"
     scope: Optional[str] = None
     system_prompt: str = ""
     use_worktree: bool = False
@@ -2102,7 +2102,10 @@ async def change_model(name: str, req: dict):
     via = req.get("via", "dashboard")
     if not new_model:
         return JSONResponse({"error": "model required"}, status_code=400)
-    new_model = resolve_model(new_model)
+    try:
+        new_model = resolve_model(new_model)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
     if new_model not in MODELS:
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
     try:

@@ -1014,3 +1014,41 @@ def test_panel_is_absent_outside_owner_mode(browser):
     assert page.locator("#quota-lines").count() == 1
     assert not page.locator("#quota-lines").is_visible()
     page.close()
+
+
+def test_antigravity_chart_renders_five_windows_and_three_weekly_thresholds(browser):
+    from datetime import timedelta
+
+    payload = _payload()
+    rule = payload["rule"]
+    rule["antigravity_default_hard_stop_pct"] = 95
+    now = datetime.fromisoformat(payload["generated_at"])
+    for pool, label, windows in (("gemini", "Gemini", (10080, 300)),
+                                ("argon", "Argon", (10080,)),
+                                ("3p", "Claude/3P", (10080, 300))):
+        rule["gated_lanes"].append("agy_" + pool)
+        for minutes in windows:
+            suffix = "_5h" if minutes == 300 else ""
+            name = f"{label} · {'5h' if suffix else '7d'}"
+            lane_id = f"agy_{pool}{suffix}"
+            lane = _lane(lane_id, name, not suffix, bool(suffix))
+            lane["headroom_pp"] = -1.0 if suffix else 15.0
+            bucket = _bucket(f"antigravity_{pool}{suffix}", name, 96 if suffix else 30, 0.5,
+                             [lane], window_minutes=minutes)
+            bucket["window"]["resets_at"] = (now + timedelta(minutes=minutes / 2)).isoformat()
+            bucket["timeline"] = {"points": [
+                {"ts": now.timestamp() - 60, "utilization": 10,
+                 "resets_at": (now + timedelta(minutes=minutes / 2)).timestamp()},
+            ]}
+            payload["buckets"].append(bucket)
+
+    page, errors = _render(browser, payload, as_json=False)
+    panel = page.locator('[data-ql-panel="antigravity"]')
+    assert panel.locator('[data-ql-point]').count() == 5
+    assert panel.locator('[data-ql-threshold]').count() == 3
+    assert panel.locator('[data-ql-timeline-history]').count() == 5
+    assert panel.locator('[data-ql-reset]').count() == 5
+    assert panel.locator('.ql-badge-blocked').count() == 2
+    assert panel.locator('[data-ql-hard-lane]').count() == 1
+    assert errors == [], errors
+    page.close()

@@ -17,7 +17,10 @@ if LOCAL_CONTRACTS:
                "tests/test_runtime_registry.py", "tests/test_quota_gate.py",
                "tests/test_hub_orchestrator_outbox.py", "tests/test_antigravity_audit_fixes.py",
                "tests/test_sol62_rollout.py", "tests/test_pipeline.py", "tests/test_backend_codex.py",
-               "tests/test_gemini_g1_routing.py"}
+               "tests/test_gemini_g1_routing.py", "tests/test_antigravity_usage.py",
+               "tests/test_quota_map_api.py", "tests/test_usage_snapshot.py",
+               "tests/test_usage_history_resolution.py", "tests/test_hub_effort.py",
+               "tests/test_backend_hub.py", "tests/test_gemini_quota_windows.py"}
     selected = {a.split("::")[0] for a in sys.argv[1:] if a.startswith("tests/")}
     assert selected and selected <= allowed, "local contracts must name the bounded test set"
 

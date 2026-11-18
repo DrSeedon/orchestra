@@ -92,8 +92,13 @@ _ENV_TOLERANCE_START_DEFAULT = 10.0
 _ENV_TOLERANCE_END_DEFAULT = 1.0
 _ENV_HARD_STOP_DEFAULT = 99.0
 # Явные потолки владельца сохраняются; прежнего резерва Sol под Luna больше нет.
+ANTIGRAVITY_LANES = {
+    "antigravity_gemini": "agy_gemini",
+    "antigravity_argon": "agy_argon",
+    "antigravity_3p": "agy_3p",
+}
 _ENV_LANE_HARD_STOP_DEFAULT = ()
-_ENV_GATED_LANES_DEFAULT = ("claude", "sol", "luna", "spark")
+_ENV_GATED_LANES_DEFAULT = ("claude", "sol", "luna", "spark", *ANTIGRAVITY_LANES.values())
 
 # Жёсткий стоп по умолчанию — для полос без своего потолка, поверх диагонали.
 HARD_STOP_PCT = _env_float_var(
@@ -175,6 +180,7 @@ class QuotaPolicy:
     claude_night_quota_share: float | None = 0.057
     # Stored in the existing policy epochs so past Codex curves remain historical.
     codex_claude_pacing: bool = True
+    antigravity_default_hard_stop_pct: float = 95.0
 
     def hard_stop_for(self, lane: str | None) -> float:
         """Жёсткий стоп конкретной полосы.
@@ -184,7 +190,8 @@ class QuotaPolicy:
         """
         if lane is None:
             return self.hard_stop_pct
-        return min(self.hard_stop_pct, self.lane_hard_stop_pct.get(lane, self.hard_stop_pct))
+        default = self.antigravity_default_hard_stop_pct if lane in ANTIGRAVITY_LANES.values() else self.hard_stop_pct
+        return min(self.hard_stop_pct, self.lane_hard_stop_pct.get(lane, default))
 
 
 def _live_quota_env() -> dict[str, object]:
@@ -372,6 +379,9 @@ LANE_LABELS = {
     "sol": "Sol",
     "luna": "Luna",
     "spark": "Spark",
+    "agy_gemini": "Gemini · 7d",
+    "agy_argon": "Argon · 7d",
+    "agy_3p": "Claude/3P · 7d",
 }
 
 # Временное снятие гейта владельцем (#V-578). Снимается ТОЛЬКО наша дополнительная
@@ -560,6 +570,7 @@ def _policy_from_snapshot(snapshot: Mapping) -> QuotaPolicy:
         claude_day_start_hour=float(snapshot.get("claude_day_start_hour", 8.0)),
         claude_night_quota_share=snapshot.get("claude_night_quota_share"),
         codex_claude_pacing=bool(snapshot.get("codex_claude_pacing", False)),
+        antigravity_default_hard_stop_pct=float(snapshot.get("antigravity_default_hard_stop_pct", 95.0)),
     )
 
 
@@ -872,6 +883,14 @@ class QuotaGateError(RuntimeError):
         }
 
 
+def quota_observation_max_age(bucket: str | None) -> float:
+    if bucket in ANTIGRAVITY_LANES:
+        from app.backend_antigravity import QUOTA_CACHE_TTL
+
+        return QUOTA_CACHE_TTL
+    return QUOTA_OBSERVATION_MAX_AGE
+
+
 def _model_target(model: str) -> tuple[str, str | None, str]:
     if not isinstance(model, str):
         raise ValueError("model must be a string")
@@ -885,6 +904,8 @@ def _model_target(model: str) -> tuple[str, str | None, str]:
     if runtime == "codex":
         return resolved, "codex_spark" if resolved == SPARK_MODEL else "codex", runtime
     if runtime == "antigravity":
+        if resolved.startswith("antigravity/gemini-4-argon-"):
+            return resolved, "antigravity_argon", runtime
         if resolved.startswith("antigravity/gemini-"):
             return resolved, "antigravity_gemini", runtime
         if resolved.startswith(("antigravity/claude-", "antigravity/gpt-oss-")):
@@ -909,6 +930,8 @@ def session_requires_quota(runtime: str, *, is_orchestrator: bool) -> bool:
 
 def lane_for_model(resolved_model: str, bucket: str | None) -> str | None:
     """Полоса одной модели — единственный владелец этого отображения."""
+    if bucket in ANTIGRAVITY_LANES:
+        return ANTIGRAVITY_LANES[bucket]
     if bucket == "codex_spark":
         return "spark"
     if resolved_model == LUNA_MODEL:
@@ -988,7 +1011,7 @@ def deciding_window(provider: object, bucket: str) -> Mapping | None:
             return float(value)
         return 0.0
 
-    if bucket in {"anthropic", "anthropic_fable"}:
+    if bucket in {"anthropic", "anthropic_fable", *ANTIGRAVITY_LANES}:
         for item in candidates:
             if item.get("window_minutes") == WEEKLY_WINDOW_MINUTES:
                 return item
@@ -1041,7 +1064,8 @@ def _exhausted_window_reset(provider: object, now: float) -> float | None:
 # Suggestions attached to a blocked Antigravity decision, never an automatic switch: the
 # other Antigravity bucket first, then the owner's 09.11.2026 Hub stack (separate pool).
 ANTIGRAVITY_ALTERNATIVES: dict[str, tuple[str, ...]] = {
-    "antigravity_gemini": ("antigravity/claude-sonnet-4-6", "hub-gemini-4-argon"),
+    "antigravity_gemini": ("antigravity/claude-sonnet-5-5-medium", "hub-gemini-4-argon"),
+    "antigravity_argon": ("antigravity/gemini-4-hydrogen-medium", "hub-gemini-4-argon"),
     "antigravity_3p": (
         "antigravity/gemini-4-argon-medium", "hub-claude-opus-5-5", "hub-claude-sonnet-5-5",
     ),
@@ -1056,13 +1080,14 @@ def evaluate_worker_admission(
     now: float | None = None,
     policy: QuotaPolicy | None = None,
     _include_alternatives: bool = True,
+    _window: str | None = None,
 ) -> QuotaDecision:
     checked_at = time.time() if now is None else float(now)
     policy = policy or quota_policy()
     override_left = gate_override_remaining(checked_at)
 
     def lane_gated(lane: str | None) -> bool:
-        return lane in policy.gated_lanes and not override_left
+        return _window != "5h" and lane in policy.gated_lanes and not override_left
 
     def lane_hard_stop(lane: str | None) -> float:
         # Снятие убирает явный потолок полосы, общий жёсткий стоп остаётся.
@@ -1110,7 +1135,7 @@ def evaluate_worker_admission(
 
     lane = lane_for_model(resolved, bucket)
     gated = lane_gated(lane)
-    hard_stop = 95.0 if runtime == "antigravity" else lane_hard_stop(lane)
+    hard_stop = lane_hard_stop(lane)
     provider = providers.get(bucket)
     label = provider.get("label") if isinstance(provider, Mapping) else None
     label = str(label or bucket)
@@ -1125,18 +1150,34 @@ def evaluate_worker_admission(
         return unknown("observation timestamp is in the future", resolved=resolved,
                        bucket=bucket, label=label, lane=lane, observed_at=observed_at,
                        reason_key="timestamp_future")
-    if age >= QUOTA_OBSERVATION_MAX_AGE:
+    max_age = quota_observation_max_age(bucket)
+    if age >= max_age:
         return unknown("observation is stale", resolved=resolved, bucket=bucket,
                        label=label, lane=lane, observed_at=observed_at,
                        reason_key="observation_stale")
 
     window = deciding_window(provider, bucket)
     if runtime == "antigravity" and isinstance(provider, Mapping):
-        candidates = [w for w in provider.get("windows", []) if isinstance(w, Mapping)
-                      and _utilization(w.get("utilization")) is not None
-                      and (parse_quota_timestamp(w.get("resets_at")) or 0) > checked_at]
-        if candidates:
-            window = max(candidates, key=lambda w: float(w["utilization"]))
+        def active(item):
+            reset = item.get("resets_at")
+            return reset is None or (parse_quota_timestamp(reset) or 0) > checked_at
+
+        if window is not None and not active(window):
+            window = None
+        short = next((item for item in provider.get("windows", [])
+                      if isinstance(item, Mapping) and item.get("window_minutes") == 300
+                      and _utilization(item.get("utilization")) is not None and active(item)), None)
+        if _window == "5h":
+            window = short
+        elif _window is None and short is not None and short["utilization"] >= hard_stop:
+            # An active 5h hard stop wins over a weekly line with an earlier release.
+            weekly_util = _utilization(window.get("utilization")) if window else None
+            weekly_reset = parse_quota_timestamp(window.get("resets_at")) if window else None
+            short_reset = parse_quota_timestamp(short.get("resets_at"))
+            if weekly_util is None or weekly_util < hard_stop or (
+                weekly_reset is not None and (short_reset is None or short_reset > weekly_reset)
+            ):
+                window, gated = short, False
     if window is None:
         return unknown("deciding window is missing", resolved=resolved, bucket=bucket,
                        label=label, lane=lane, observed_at=observed_at,
@@ -1239,7 +1280,8 @@ def evaluate_worker_admission(
     # пул не даёт ходу состояться (V-993: 21.10 override скрыл V-983 и ходы падали).
     # Подтверждённое исчерпание = окно ≥100% с ещё не наступившим сбросом.
     exhausted_reset = (
-        _exhausted_window_reset(provider, checked_at) if bucket in _CODEX_BUCKETS or runtime == "antigravity" else None
+        _exhausted_window_reset(provider, checked_at)
+        if _window is None and (bucket in _CODEX_BUCKETS or runtime == "antigravity") else None
     )
     if exhausted_reset is not None and (
         state != "blocked" or release_in_seconds is None
@@ -1268,7 +1310,7 @@ def evaluate_worker_admission(
         state=state, model=resolved, provider=bucket, provider_label=label,
         lane=lane, gated=gated, utilization=utilization, progress=progress,
         tolerance_pp=tolerance, limit_pct=limit, observed_at=observed_at,
-        valid_until=observed_at + QUOTA_OBSERVATION_MAX_AGE,
+        valid_until=observed_at + max_age,
         reset_at=reset_at_str, window_starts_at=started_at, reason=reason,
         release_status=release_status, release_in_seconds=release_in_seconds,
         hard_limit_pct=hard_stop,

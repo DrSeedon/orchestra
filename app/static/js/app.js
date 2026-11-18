@@ -2893,7 +2893,7 @@ function _showHistoryTransfer(transfer) {
 }
 
 function _modelReasonForSelection(model) {
-    if (model.startsWith('hub-') && model !== 'hub-gpt-6.1-sol') {
+    if (model.startsWith('hub-') && model !== 'hub-gpt-6.2-sol') {
         window.alert(T('Hub workers require hubsol (GPT-6.1 Sol). If Sol is unavailable, wait or report the blocker; no fallback.'));
         return null;
     }

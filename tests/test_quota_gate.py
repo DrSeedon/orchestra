@@ -100,7 +100,7 @@ def test_environment_configuration_defaults(monkeypatch):
     assert gate.TOLERANCE_START_PP == 10.0
     assert gate.TOLERANCE_END_PP == 1.0
     assert gate.HARD_STOP_PCT == 99.0
-    assert gate.GATED_LANES == frozenset({"claude", "sol", "luna", "spark"})
+    assert gate.GATED_LANES == frozenset({"claude", "sol", "luna", "spark", "agy_gemini", "agy_argon", "agy_3p"})
 
 
 def test_environment_overrides_are_honored(monkeypatch):
@@ -203,20 +203,20 @@ def test_dotenv_quota_changes_are_applied_without_module_reload(tmp_path, monkey
 
     assert quota_gate.quota_policy().gated_lanes == frozenset({"claude"})
     assert quota_gate.quota_policy().hard_stop_pct == 91.0
-    assert _decide("gpt-6.1-sol", _providers(progress=0.1, codex=90.0)).state == "available"
+    assert _decide("gpt-6.2-sol", _providers(progress=0.1, codex=90.0)).state == "available"
 
     _rewrite(env_file, "QUOTA_GATED_LANES=sol\nQUOTA_HARD_STOP_PCT=87\n")
 
     policy = quota_gate.quota_policy()
     assert policy.gated_lanes == frozenset({"sol"})
     assert policy.hard_stop_pct == 87.0
-    decision = _decide("gpt-6.1-sol", _providers(progress=0.1, codex=90.0))
+    decision = _decide("gpt-6.2-sol", _providers(progress=0.1, codex=90.0))
     assert decision.state == "blocked"
 
     _rewrite(env_file, "QUOTA_GATED_LANES=claude\nQUOTA_HARD_STOP_PCT=91\n")
     assert quota_gate.quota_policy().gated_lanes == frozenset({"claude"})
     assert quota_gate.quota_policy().hard_stop_pct == 91.0
-    assert _decide("gpt-6.1-sol", _providers(progress=0.1, codex=90.0)).state == "available"
+    assert _decide("gpt-6.2-sol", _providers(progress=0.1, codex=90.0)).state == "available"
 
 
 def _live_dotenv(monkeypatch, env_file, startup_value: str):
@@ -260,12 +260,12 @@ def test_dotenv_edit_wins_over_the_copy_systemd_put_into_the_environment(tmp_pat
     _live_dotenv(monkeypatch, env_file, startup_value="")
 
     assert quota_gate.quota_policy().gated_lanes == frozenset()
-    assert _decide("gpt-6.1-sol", _providers(progress=0.1, codex=90.0)).state == "available"
+    assert _decide("gpt-6.2-sol", _providers(progress=0.1, codex=90.0)).state == "available"
 
     _rewrite(env_file, "QUOTA_GATED_LANES=claude,sol\n")
 
     assert quota_gate.quota_policy().gated_lanes == frozenset({"claude", "sol"})
-    assert _decide("gpt-6.1-sol", _providers(progress=0.1, codex=90.0)).state == "blocked"
+    assert _decide("gpt-6.2-sol", _providers(progress=0.1, codex=90.0)).state == "blocked"
 
 
 def test_environment_value_that_differs_from_the_file_keeps_beating_it(tmp_path, monkeypatch):
@@ -617,7 +617,7 @@ def test_release_formula_depends_on_tolerance_start_offset():
 # ── обе стороны диагонали для гейтящихся полос ────────────────────────────────
 
 @pytest.mark.parametrize("model, key", [
-    ("gpt-6.1-sol", "codex"),
+    ("gpt-6.2-sol", "codex"),
     ("claude-opus-5-5[1m]", "claude"),
 ])
 @pytest.mark.parametrize("progress", [0.1, 0.5, 0.9])
@@ -645,7 +645,7 @@ def test_gated_lane_blocks_just_above_the_line_and_admits_just_below(
 def test_exactly_on_the_line_is_admitted():
     """Отказ строго ВЫШЕ линии: `>`, не `>=`. Граница принадлежит разрешению."""
     limit = line_limit(.5, "sol", window_minutes=10080, window_start_at=NOW - .5 * WEEK_SECONDS)
-    decision = _decide("gpt-6.1-sol", _providers(progress=0.5, codex=limit))
+    decision = _decide("gpt-6.2-sol", _providers(progress=0.5, codex=limit))
     assert decision.state == "available"
 
 
@@ -654,8 +654,8 @@ def test_the_same_percent_flips_verdict_as_the_window_advances():
 
     Значение взято от кривой Sol: на 2% окна порог 30.7%, на 80% — 94.6%.
     """
-    early = _decide("gpt-6.1-sol", _providers(progress=0.02, codex=40.0))
-    late = _decide("gpt-6.1-sol", _providers(progress=0.8, codex=40.0))
+    early = _decide("gpt-6.2-sol", _providers(progress=0.02, codex=40.0))
+    late = _decide("gpt-6.2-sol", _providers(progress=0.8, codex=40.0))
 
     assert early.state == "blocked"
     assert late.state == "available"
@@ -671,7 +671,7 @@ def test_luna_and_spark_follow_the_same_line_and_hard_limit(model, key):
     over_the_line = _decide(model, _providers(progress=0.1, **{key: 90.0}))
     at_hard_stop = _decide(model, _providers(progress=0.1, **{key: HARD_STOP_PCT}))
     # Sol на том же значении и в той же точке окна — заблокирован.
-    sol = _decide("gpt-6.1-sol", _providers(progress=0.1, codex=90.0))
+    sol = _decide("gpt-6.2-sol", _providers(progress=0.1, codex=90.0))
 
     assert over_the_line.state == "blocked", over_the_line.reason
     assert over_the_line.gated is True and over_the_line.limit_pct is not None
@@ -680,7 +680,7 @@ def test_luna_and_spark_follow_the_same_line_and_hard_limit(model, key):
 
 
 @pytest.mark.parametrize("model", [
-    "gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark", "claude-opus-5-5[1m]",
+    "gpt-6.2-sol", "gpt-6-luna", "gpt-5.3-codex-spark", "claude-opus-5-5[1m]",
 ])
 def test_hard_stop_applies_to_every_worker_lane(model):
     providers = _providers(progress=0.99, claude=99.4, codex=99.4, spark=99.4)
@@ -689,7 +689,7 @@ def test_hard_stop_applies_to_every_worker_lane(model):
 
 @pytest.mark.parametrize("model, utilization", [
     ("gpt-6-luna", 98.9),
-    ("gpt-6.1-sol", 94.9),
+    ("gpt-6.2-sol", 94.9),
 ])
 def test_just_under_the_hard_stop_at_the_end_of_the_window_is_admitted(model, utilization):
     """Стоп именно `>=`, и линия у сброса совпадает с ним, а не режет раньше.
@@ -707,7 +707,7 @@ def test_just_under_the_hard_stop_at_the_end_of_the_window_is_admitted(model, ut
 # жёсткий стоп, а не кривая.
 
 
-@pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-astra"])
+@pytest.mark.parametrize("model", ["gpt-6.2-sol", "gpt-6.2-astra"])
 def test_ninety_six_percent_has_no_legacy_luna_reserve(model):
     """Все местные Codex используют общий стоп 99%."""
     providers = _providers(progress=1.0, codex=96.0)
@@ -724,12 +724,12 @@ def test_ninety_six_percent_has_no_legacy_luna_reserve(model):
 def test_above_the_common_hard_stop_both_codex_lanes_are_closed():
     providers = _providers(progress=1.0, codex=99.5)
 
-    assert _decide("gpt-6.1-sol", providers).state == "blocked"
-    assert _decide("gpt-6-astra", providers).state == "blocked"
+    assert _decide("gpt-6.2-sol", providers).state == "blocked"
+    assert _decide("gpt-6.2-astra", providers).state == "blocked"
     assert _decide("gpt-6-luna", providers).state == "blocked"
 
 
-@pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"])
+@pytest.mark.parametrize("model", ["gpt-6.2-sol", "gpt-6.2-astra", "gpt-6-luna"])
 def test_below_the_lane_ceiling_nothing_changed(model):
     decision = _decide(model, _providers(progress=1.0, codex=94.9))
     assert decision.state == "available", decision.reason
@@ -767,7 +767,7 @@ def test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv(tmp_path
     assert policy.lane_hard_stop_pct == {"luna": 90.0, "sol": 80.0}
     assert policy.hard_stop_for("sol") == 80.0
     assert policy.hard_stop_for("claude") == HARD_STOP_PCT
-    assert _decide("gpt-6.1-sol", _providers(progress=1.0, codex=81.0)).state == "blocked"
+    assert _decide("gpt-6.2-sol", _providers(progress=1.0, codex=81.0)).state == "blocked"
     assert _decide("gpt-6-luna", _providers(progress=1.0, codex=81.0)).state == "available"
     assert _decide("gpt-6-luna", _providers(progress=1.0, codex=91.0)).state == "blocked"
     assert _decide("claude-opus-5-5[1m]", _providers(progress=1.0, claude=91.0)).state == "available"
@@ -777,7 +777,7 @@ def test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv(tmp_path
     os.utime(env_file, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1))
 
     assert quota_gate.quota_policy().lane_hard_stop_pct == {"sol": 97.0}
-    assert _decide("gpt-6.1-sol", _providers(progress=1.0, codex=96.0)).state == "available"
+    assert _decide("gpt-6.2-sol", _providers(progress=1.0, codex=96.0)).state == "available"
     # Полоса, исчезнувшая из переменной, возвращается к общему стопу пула.
     assert _decide("gpt-6-luna", _providers(progress=1.0, codex=91.0)).state == "available"
 
@@ -818,7 +818,7 @@ def test_spark_is_measured_by_its_own_counter_not_by_the_shared_codex_one():
     """Живой случай: Codex 100%, Spark 39%. Одним числом их мерить нельзя."""
     providers = _providers(progress=0.5, codex=100.0, spark=39.0)
 
-    assert _decide("gpt-6.1-sol", providers).state == "blocked"
+    assert _decide("gpt-6.2-sol", providers).state == "blocked"
     assert _decide("gpt-6-luna", providers).state == "blocked"
     spark = _decide("gpt-5.3-codex-spark", providers)
     assert spark.state == "available" and spark.utilization == 39.0
@@ -826,7 +826,7 @@ def test_spark_is_measured_by_its_own_counter_not_by_the_shared_codex_one():
 
 def test_window_start_is_reset_minus_window_length_for_both_pool_shapes():
     claude = _decide("claude-opus-5-5[1m]", _providers(progress=0.25, claude=10.0))
-    codex = _decide("gpt-6.1-sol", _providers(progress=0.25, codex=10.0))
+    codex = _decide("gpt-6.2-sol", _providers(progress=0.25, codex=10.0))
 
     assert claude.progress == pytest.approx(0.25)
     assert codex.progress == pytest.approx(0.25)
@@ -850,7 +850,7 @@ def test_a_reset_already_in_the_past_collapses_the_line_onto_the_hard_stop():
     window["resets_at"] = _iso(NOW - 60)
     providers = {"codex": {"label": "Codex", "windows": [window]}}
 
-    decision = _decide("gpt-6.1-sol", providers)
+    decision = _decide("gpt-6.2-sol", providers)
 
     assert decision.progress == 1.0
     assert decision.limit_pct == SOL_HARD_STOP_PCT
@@ -862,7 +862,7 @@ def test_window_without_a_parseable_reset_falls_back_to_the_hard_stop_only():
         _window("primary", CODEX_WINDOW_MINUTES, 80.0, None),
     ]}}
 
-    decision = _decide("gpt-6.1-sol", providers)
+    decision = _decide("gpt-6.2-sol", providers)
 
     assert decision.progress is None and decision.limit_pct is None
     assert decision.state == "available"
@@ -879,7 +879,7 @@ def test_missing_stale_and_future_observations_fail_open(observed_at):
     `/send` отбивал 429 — мёртвую (#227).
     """
     decision = _decide(
-        "gpt-6.1-sol", _providers(progress=0.5, codex=10.0), observed_at=observed_at,
+        "gpt-6.2-sol", _providers(progress=0.5, codex=10.0), observed_at=observed_at,
     )
 
     assert decision.state == "unknown"
@@ -893,15 +893,15 @@ def test_malformed_utilization_is_unknown_and_fails_open(utilization):
         _window("primary", CODEX_WINDOW_MINUTES, utilization, 0.5),
     ]}}
 
-    decision = _decide("gpt-6.1-sol", providers)
+    decision = _decide("gpt-6.2-sol", providers)
 
     assert decision.state == "unknown" and decision.allowed
 
 
 def test_missing_provider_and_missing_window_are_unknown_not_blocked():
-    assert _decide("gpt-6.1-sol", {}).state == "unknown"
+    assert _decide("gpt-6.2-sol", {}).state == "unknown"
     empty = {"codex": {"label": "Codex", "windows": []}}
-    assert _decide("gpt-6.1-sol", empty).state == "unknown"
+    assert _decide("gpt-6.2-sol", empty).state == "unknown"
 
 
 # ── модели вне политики ───────────────────────────────────────────────────────
@@ -922,7 +922,7 @@ def test_unknown_model_is_unknown_not_exempt(model):
 
 def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
     # 90% на середине окна: выше кривой Sol (81.3%) и ещё под её жёстким стопом (95%).
-    decision = _decide("gpt-6.1-sol", _providers(progress=0.5, codex=90.0))
+    decision = _decide("gpt-6.2-sol", _providers(progress=0.5, codex=90.0))
     with pytest.raises(quota_gate.QuotaGateError) as error:
         require_worker_admission(decision)
 
@@ -941,13 +941,13 @@ def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
 
 
 def test_a_non_blocked_decision_cannot_be_turned_into_a_refusal():
-    decision = _decide("gpt-6.1-sol", _providers(progress=0.5, codex=10.0))
+    decision = _decide("gpt-6.2-sol", _providers(progress=0.5, codex=10.0))
     with pytest.raises(ValueError):
         quota_gate.QuotaGateError(decision)
 
 
 def test_decision_serializes_every_field_the_panel_draws():
-    decision = _decide("gpt-6.1-sol", _providers(progress=0.5, codex=90.0))
+    decision = _decide("gpt-6.2-sol", _providers(progress=0.5, codex=90.0))
     payload = decision.to_dict()
 
     assert payload["state"] == "blocked" and payload["allowed"] is False
@@ -1036,14 +1036,14 @@ def test_gate_override_lifts_the_lane_ceiling_but_keeps_the_general_one(monkeypa
     policy = replace(quota_gate.quota_policy(), lane_hard_stop_pct={"sol": 95})
     monkeypatch.setattr(quota_gate, "quota_policy", lambda: policy)
     providers = _providers(codex=96.0, progress=0.9)
-    assert _decide("gpt-6.1-sol", providers).state == "blocked"
+    assert _decide("gpt-6.2-sol", providers).state == "blocked"
 
     quota_gate.set_gate_override(1800.0, now=NOW)
 
-    lifted = _decide("gpt-6.1-sol", providers)
+    lifted = _decide("gpt-6.2-sol", providers)
     assert lifted.state == "available"
     assert lifted.hard_limit_pct == HARD_STOP_PCT
-    assert _decide("gpt-6.1-sol", _providers(codex=99.4, progress=0.9)).state == "blocked"
+    assert _decide("gpt-6.2-sol", _providers(codex=99.4, progress=0.9)).state == "blocked"
 
 
 @pytest.mark.parametrize("seconds", [0.0, -1.0, 14 * 24 * 3600.0 + 1.0, float("inf")])

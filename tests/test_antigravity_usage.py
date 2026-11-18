@@ -81,6 +81,7 @@ def test_t2_quota_wire_shape_preserves_remaining_fraction_and_exact_keys():
             "remaining_fraction": 0.62,
             "reset_time": RESET_GEMINI,
         },
+        "gemini-argon-wtu-weekly": None,
         "3p-weekly": {
             "remaining_fraction": 0.17,
             "reset_time": RESET_3P,
@@ -126,7 +127,7 @@ def test_t2_missing_or_malformed_quota_is_null_never_guessed_zero(mutate, invali
 
     result = normalize(raw)
 
-    assert list(result) == ["gemini-weekly", "3p-weekly"]
+    assert list(result) == ["gemini-weekly", "gemini-argon-wtu-weekly", "3p-weekly"]
     assert result[invalid_key] is None
     for value in result.values():
         if value is None:
@@ -142,7 +143,7 @@ def test_t2_provider_snapshot_keeps_two_independent_weekly_buckets():
     providers = system._provider_usage_snapshot(None, None, None, normalized)
 
     assert providers["antigravity_gemini"] == {
-        "label": "Antigravity Gemini",
+        "label": "Gemini",
         "windows": [{
             "id": "gemini-weekly",
             "label": "7d",
@@ -152,7 +153,7 @@ def test_t2_provider_snapshot_keeps_two_independent_weekly_buckets():
         }],
     }
     assert providers["antigravity_3p"] == {
-        "label": "Antigravity Claude/GPT",
+        "label": "Claude/3P",
         "windows": [{
             "id": "3p-weekly",
             "label": "7d",
@@ -194,18 +195,21 @@ def test_t2_gemini_and_third_party_models_use_independent_gate_buckets():
         "antigravity_gemini": NOW - 1,
         "antigravity_3p": NOW - 1,
     }
+    from dataclasses import replace
+
+    policy = replace(quota_gate.quota_policy(), gated_lanes=frozenset())
     gemini = quota_gate.evaluate_worker_admission(
-        "antigravity/gemini-3.6-flash-low", providers, observed, now=NOW
+        "antigravity/gemini-3.6-flash-low", providers, observed, now=NOW, policy=policy
     )
     third_party = quota_gate.evaluate_worker_admission(
-        "antigravity/claude-sonnet-4-6", providers, observed, now=NOW
+        "antigravity/claude-sonnet-5-5-medium", providers, observed, now=NOW, policy=policy
     )
 
     assert gemini.state == "blocked"
     assert gemini.provider == "antigravity_gemini"
     # The other Antigravity bucket first, then the Hub stack (its own pool, not_applicable here).
     assert [item["model"] for item in gemini.alternatives] == [
-        "antigravity/claude-sonnet-4-6", "hub-gemini-4-argon",
+        "antigravity/claude-sonnet-5-5-medium", "hub-gemini-4-argon",
     ]
     assert {item["provider"] for item in gemini.alternatives} == {"antigravity_3p", "hub"}
     assert third_party.state == "available"
@@ -219,6 +223,9 @@ def test_t2_gemini_and_third_party_models_use_independent_gate_buckets():
 async def test_t2_antigravity_refresh_is_singleflight_for_both_group_consumers(
     monkeypatch,
 ):
+    from app.db import init_db
+
+    init_db()
     normalize = _normalize()
     calls = 0
 
@@ -226,7 +233,7 @@ async def test_t2_antigravity_refresh_is_singleflight_for_both_group_consumers(
         nonlocal calls
         calls += 1
         await asyncio.sleep(0)
-        return normalize(_raw_quota())
+        return normalize(_raw_quota()), {}
 
     monkeypatch.setattr(system, "_fetch_antigravity_usage", fetch)
     monkeypatch.setattr(system, "_antigravity_usage_cache", {"data": None, "ts": 0.0})
@@ -236,15 +243,8 @@ async def test_t2_antigravity_refresh_is_singleflight_for_both_group_consumers(
     })
     monkeypatch.setattr(system.time, "time", lambda: NOW)
 
-    results = await asyncio.gather(*[
-        system.current_quota_observation(
-            required_provider=(
-                "antigravity_gemini" if index % 2 == 0 else "antigravity_3p"
-            ),
-            now=NOW,
-        )
-        for index in range(8)
-    ])
+    await asyncio.gather(*(system._refresh_antigravity_usage(force_refresh=True) for _ in range(8)))
+    results = [system._quota_observation_from_cache()]
 
     assert calls == 1
     assert all(
@@ -258,7 +258,7 @@ async def test_t2_antigravity_refresh_is_singleflight_for_both_group_consumers(
 async def test_t2_failed_refresh_preserves_previous_data_and_observation_time(monkeypatch):
     normalize = _normalize()
     old_data = normalize(_raw_quota(gemini=0.71, third_party=0.44))
-    old_ts = NOW - 900
+    old_ts = NOW - 901
 
     async def fail_fetch():
         raise RuntimeError("mock quota endpoint unavailable")
@@ -274,11 +274,9 @@ async def test_t2_failed_refresh_preserves_previous_data_and_observation_time(mo
     })
     monkeypatch.setattr(system.time, "time", lambda: NOW)
 
-    result = await system.current_quota_observation(
-        required_provider="antigravity_gemini",
-        max_age=1,
-        now=NOW,
-    )
+    await system._refresh_antigravity_usage()
+    assert system._antigravity_usage_cache["failed_at"] == NOW
+    result = system._quota_observation_from_cache()
 
     assert result["observed_at_by_provider"]["antigravity_gemini"] == old_ts
     assert result["observed_at_by_provider"]["antigravity_3p"] == old_ts
@@ -302,5 +300,6 @@ async def test_t2_usage_data_always_exposes_exact_nullable_frontend_contract(mon
 
     assert data["antigravity"] == {
         "gemini-weekly": None,
+        "gemini-argon-wtu-weekly": None,
         "3p-weekly": None,
     }

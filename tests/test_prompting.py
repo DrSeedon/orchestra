@@ -78,7 +78,7 @@ async def test_resume_prompt_injection_respects_hub_preamble(
     tmp_path.mkdir()
     session = session_module.AgentSession(
         id="prompt-test", name="worker", scope=str(tmp_path), cwd=str(tmp_path),
-        model="hub-gpt-6.1-sol" if backend_type == "hub" else "claude-sonnet-5-5[1m]",
+        model="hub-gpt-6.2-sol" if backend_type == "hub" else "claude-sonnet-5-5[1m]",
         backend_type=backend_type, session_id="resumed-session",
         system_prompt=native_prompt, _current_prompt=native_prompt,
         _prompt_injected=prompt_injected, _template_hash="old-template",

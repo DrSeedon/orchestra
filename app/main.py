@@ -484,6 +484,9 @@ async def lifespan(app: FastAPI):
     from app.task_runtime import task_repository_path
     app.state.v576_migration = migrate_v576(database.DB_PATH, task_repository_path())
     init_db()
+    from app.routes.system import hydrate_antigravity_quota
+
+    hydrate_antigravity_quota()
     from app.quota_gate import initialize_gate_override
     initialize_gate_override()
     from app import checklists as _checklists

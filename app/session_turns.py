@@ -221,14 +221,15 @@ def _cached_quota_snapshot(
         }
         display = ((_window_label("Grok", primary, "primary"), primary),)
     elif runtime == "antigravity":
+        from app.backend_antigravity import QUOTA_BUCKETS
+        from app.quota_gate import quota_bucket_for_model
+
         cache = system._antigravity_usage_cache
         data = cache.get("data")
         if not isinstance(data, dict):
             return _unknown_quota_snapshot()
-        raw_model = model.removeprefix("antigravity/")
-        is_3p = raw_model.startswith(("claude-", "gpt-"))
-        weekly_key = "3p-weekly" if is_3p else "gemini-weekly"
-        five_h_key = "3p-5h" if is_3p else "gemini-5h"
+        pool = quota_bucket_for_model(model)
+        _, group_label, weekly_key, five_h_key = next(group for group in QUOTA_BUCKETS if group[0] == pool)
         five_h_data = cache.get("five_hour") if isinstance(cache.get("five_hour"), dict) else {}
 
         def _agy_win(bucket, minutes):
@@ -255,7 +256,6 @@ def _cached_quota_snapshot(
             "quota_seven_day_pct": seven_day,
             "quota_primary_pct": None,
         }
-        group_label = "Antigravity 3P" if is_3p else "Antigravity Gemini"
         display = tuple(
             (lbl, win)
             for lbl, win in ((f"{group_label} 5h", five_hour), (f"{group_label} 7d", seven_day))
@@ -493,6 +493,10 @@ class TurnManager:
         )
         s._turn_start = 0
         ok, sr, nt = s._cost.apply_turn_result(meta, event.usage)
+        if ok and sr == "end_turn" and s.backend_type == "antigravity" and meta.get("profile_epoch"):
+            from app.routes.system import _refresh_antigravity_usage
+
+            asyncio.create_task(_refresh_antigravity_usage(), name="antigravity-quota-after-turn")
         event_id = str(meta.get("event_id") or "")
         if ok and event_id and s.backend_type == "codex":
             from app import mailbox

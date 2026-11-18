@@ -57,6 +57,12 @@
 
   /* Поставщики и пулы квот = цвет их флагманской модели */
   --provider-google-antigravity: #a78bfa;
+  --quota-antigravity-gemini: #5eead4;
+  --quota-antigravity-gemini-5h: #99f6e4;
+  --quota-antigravity-argon: #a78bfa;
+  --quota-antigravity-argon-5h: #c4b5fd;
+  --quota-antigravity-3p: #f0abfc;
+  --quota-antigravity-3p-5h: #f5d0fe;
   --provider-gemini-web: #60a5fa;
   --provider-anthropic: var(--model-opus);
   --provider-openai: var(--model-luna);

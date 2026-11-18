@@ -1119,19 +1119,19 @@ def _provider_usage_snapshot(
             }
             if provider_id == "codex" and (usage or {}).get("raw_payload") is not None:
                 providers[provider_id]["raw_payload"] = (usage or {}).get("raw_payload")
-    for prefix, provider_id, label in (
-        ("gemini", "antigravity_gemini", "Antigravity Gemini"),
-        ("3p", "antigravity_3p", "Antigravity Claude/GPT"),
-    ):
+    from app.backend_antigravity import QUOTA_BUCKETS
+
+    for provider_id, label, weekly_key, short_key in QUOTA_BUCKETS:
         windows = []
-        for suffix, minutes, source in (("weekly",10080,antigravity), ("5h",300,antigravity_5h)):
-            key = prefix + "-" + suffix
+        for key, minutes, source in (
+            (weekly_key, 10080, antigravity), (short_key, 300, antigravity_5h),
+        ):
             bucket = (source or {}).get(key)
             fraction = bucket.get("remaining_fraction") if isinstance(bucket, dict) else None
             if (not isinstance(fraction, (int, float)) or isinstance(fraction, bool)
                     or not math.isfinite(fraction) or not 0 <= fraction <= 1):
                 continue
-            windows.append({"id": key, "label": "7d" if suffix == "weekly" else "5h",
+            windows.append({"id": key, "label": "7d" if minutes == 10080 else "5h",
                 "utilization": (1-fraction)*100, "window_minutes": minutes,
                 "resets_at": bucket.get("reset_time")})
         if windows:
@@ -1406,15 +1406,112 @@ def _get_openrouter_usage() -> dict:
     }
 
 
-async def _fetch_antigravity_usage() -> dict:
-    from app.backend_antigravity import fetch_antigravity_usage
-    return await fetch_antigravity_usage()
+def _antigravity_quota_decisions(providers, timestamps, *, now, policy):
+    from app.backend_antigravity import QUOTA_BUCKETS
+    from app.quota_gate import evaluate_worker_admission
+
+    representatives = ("agy-hydrogen", "agy-argon", "agy-opus")
+    for (bucket, label, weekly_key, short_key), model in zip(QUOTA_BUCKETS, representatives):
+        for key, window in ((weekly_key, "7d"), (short_key, "5h")):
+            if bucket == "antigravity_argon" and window == "5h" and not any(
+                item.get("id") == key for item in providers.get(bucket, {}).get("windows", [])
+            ):
+                continue
+            decision = evaluate_worker_admission(
+                model, providers, timestamps, now=now, policy=policy,
+                _include_alternatives=False, _window=window,
+            )
+            yield bucket, label, key, window, decision
 
 
-async def _refresh_antigravity_usage(*, force_refresh=False, max_age=_USAGE_CACHE_TTL) -> None:
-    # Passive even on force_refresh/background loops. Preserve observation age;
-    # reading a cache is not a new quota measurement.
-    return
+def _antigravity_headroom(decision):
+    if decision.utilization is None or decision.state == "unknown":
+        return None
+    ceiling = decision.hard_limit_pct
+    if decision.limit_pct is not None:
+        ceiling = min(ceiling, decision.limit_pct)
+    return round(ceiling - decision.utilization, 2)
+
+
+def publish_antigravity_quota(weekly, short, observed, *, generation=None) -> None:
+    from app.db import usage_save_snapshot
+
+    cache = _antigravity_usage_cache
+    if observed <= cache.get("ts", 0):
+        return
+    providers = _provider_usage_snapshot(None, None, None, weekly, short)
+    if not providers:
+        return
+    usage_save_snapshot(
+        None, None, "", "", sum(s.cost_usd for s in manager.sessions.values()),
+        sum(s.status.value == "running" for s in manager.sessions.values()),
+        providers=providers, observed_at=observed,
+    )
+    cache.update(data=weekly, five_hour=short, ts=observed, failed_at=0.0, generation=generation)
+
+
+def hydrate_antigravity_quota() -> None:
+    from app.backend_antigravity import QUOTA_BUCKETS, QUOTA_CACHE_TTL
+    from app.db import latest_usage_snapshot
+    from app.quota_gate import parse_quota_timestamp
+
+    now = time.time()
+    saved = latest_usage_snapshot(tuple(group[0] for group in QUOTA_BUCKETS), since=now - QUOTA_CACHE_TTL)
+    if saved is None:
+        return
+    observed, providers = saved
+    if not 0 <= now - observed < QUOTA_CACHE_TTL or observed <= _antigravity_usage_cache.get("ts", 0):
+        return
+    weekly, short = {}, {}
+    for group, _, weekly_key, short_key in QUOTA_BUCKETS:
+        provider = providers.get(group)
+        if not isinstance(provider, dict):
+            continue
+        for window in provider.get("windows") or []:
+            if not isinstance(window, dict):
+                continue
+            key = window.get("id")
+            util = window.get("utilization")
+            reset = window.get("resets_at")
+            if (key not in (weekly_key, short_key) or not _finite_number(util)
+                    or not 0 <= util <= 100
+                    or (reset is not None and (parse_quota_timestamp(reset) or 0) <= now)):
+                continue
+            target = weekly if key == weekly_key else short
+            target[key] = {"remaining_fraction": 1 - util / 100, "reset_time": reset}
+    if weekly or short:
+        _antigravity_usage_cache.update(data=weekly, five_hour=short, ts=observed)
+
+
+async def _fetch_antigravity_usage():
+    from app.backend_antigravity import probe_antigravity_quota
+
+    return await probe_antigravity_quota()
+
+
+async def _refresh_antigravity_usage(*, force_refresh=False) -> None:
+    from app.backend_antigravity import QUOTA_CACHE_TTL, QUOTA_FORCE_COOLDOWN
+
+    cache = _antigravity_usage_cache
+    if is_provider_disabled("antigravity"):
+        return
+    async with _quota_refresh_locks["antigravity"]:
+        if is_provider_disabled("antigravity"):
+            return
+        now = time.time()
+        ttl = QUOTA_FORCE_COOLDOWN if force_refresh else QUOTA_CACHE_TTL
+        if (now - cache.get("ts", 0.0) < ttl
+                or now - cache.get("failed_at", 0.0) < _USAGE_FAILURE_TTL
+                or now - cache.get("attempted_at", 0.0) < QUOTA_FORCE_COOLDOWN):
+            return
+        cache["attempted_at"] = now
+        try:
+            result = await _fetch_antigravity_usage()
+            if result is not None:
+                publish_antigravity_quota(*result, time.time())
+        except Exception as error:
+            cache["failed_at"] = time.time()
+            logger.warning("Antigravity quota observation unavailable (%s)", type(error).__name__)
 
 
 async def _get_usage_data(
@@ -1572,22 +1669,15 @@ async def _get_usage_data(
         anthropic_data = _latest_claude_data(anthropic_data)
     if anthropic_data is not None:
         _usage_cache["data"] = anthropic_data
-    if not required_provider or required_provider.startswith("antigravity"):
-        await _refresh_antigravity_usage(force_refresh=force_refresh)
-    agy = None if is_provider_disabled("antigravity") else _antigravity_usage_cache.get("data")
-    agy_5h = (
-        None
-        if is_provider_disabled("antigravity")
-        else _antigravity_usage_cache.get("five_hour")
-    )
-    extra_agy = (
-        {"antigravity_5h": {key: (agy_5h or {}).get(key) for key in ("gemini-5h", "3p-5h")}}
-        if isinstance(agy_5h, dict)
-        else {}
-    )
+    agy_disabled = is_provider_disabled("antigravity")
+    agy = None if agy_disabled else _antigravity_usage_cache.get("data")
+    agy_5h = None if agy_disabled else _antigravity_usage_cache.get("five_hour")
+    from app.backend_antigravity import QUOTA_KEYS
+
     return {
-        "antigravity": {key: (agy or {}).get(key) for key in ("gemini-weekly", "3p-weekly")},
-        **extra_agy,
+        "antigravity": {key: (agy or {}).get(key) for key in QUOTA_KEYS},
+        **({"antigravity_5h": agy_5h} if isinstance(agy_5h, dict) else {}),
+        "antigravity_observed_at": None if agy_disabled else _antigravity_usage_cache.get("ts"),
         "anthropic": anthropic_data,
         "anthropic_error": None if claude_disabled else _usage_cache.get("error"),
         "codex": codex_data,
@@ -1657,15 +1747,37 @@ def _quota_headroom(anthropic: dict | None) -> dict | None:
 
 
 @router.get("/api/usage")
-async def get_usage():
+async def get_usage(force_refresh: bool = False):
     if not is_owner_mode():
         return None
+    await _refresh_antigravity_usage(force_refresh=force_refresh)
     data = await _get_usage_data()
     from app.harness.gemini_web import pool_usage
-    return {**data, "gemini_web": pool_usage(manager.sessions.values()), "quota_headroom": (
-        None if "claude" in data.get("disabled_providers", [])
-        else _quota_headroom(data.get("anthropic"))
-    )}
+    from app.quota_gate import quota_policy
+
+    observation = _quota_observation_from_cache()
+    agy_status = {
+        key: {"state": decision.state, "headroom_pp": _antigravity_headroom(decision)}
+        for _, _, key, _, decision in _antigravity_quota_decisions(
+            observation["providers"], observation["observed_at_by_provider"],
+            now=time.time(), policy=quota_policy(),
+        )
+    } if not is_provider_disabled("antigravity") else {}
+    return {**data, "gemini_web": pool_usage(manager.sessions.values()),
+            "antigravity_gate": agy_status}
+
+
+@router.post("/api/usage/antigravity/refresh")
+async def refresh_antigravity_quota():
+    if not is_owner_mode():
+        raise HTTPException(status_code=404, detail="not found")
+    await _refresh_antigravity_usage(force_refresh=True)
+    observation = _quota_observation_from_cache()
+    return {
+        "observed_at": observation["observed_at_by_provider"].get("antigravity_gemini"),
+        "providers": {key: data for key, data in observation["providers"].items()
+                      if key.startswith("antigravity_")},
+    }
 
 
 @router.get("/api/usage/hub-pool")
@@ -1723,6 +1835,7 @@ def _quota_observation_from_cache() -> dict:
         "codex_spark": _codex_usage_cache.get("ts"),
         "antigravity_gemini": _antigravity_usage_cache.get("ts"),
         "antigravity_3p": _antigravity_usage_cache.get("ts"),
+        "antigravity_argon": _antigravity_usage_cache.get("ts"),
     }
     grok_ts = _grok_usage_cache.get("ts")
     if (
@@ -1754,7 +1867,7 @@ async def current_quota_observation(
     # Своего источника у `codex_spark` и `anthropic_fable` нет: оба живут в снимке семьи,
     # и по собственному имени `_get_usage_data` пропустил бы обновление вовсе.
     family = {"codex_spark": "codex", "anthropic_fable": "anthropic",
-              "antigravity_gemini": "antigravity", "antigravity_3p": "antigravity"}.get(
+              "antigravity_gemini": "antigravity", "antigravity_argon": "antigravity", "antigravity_3p": "antigravity"}.get(
         required_provider, required_provider,
     )
     if family not in _quota_refresh_locks:
@@ -1982,17 +2095,9 @@ async def _collect_usage_snapshot(*, respect_idle: bool = False) -> None:
     # В историю идут ТОЛЬКО свежие ответы. Подстановка кеша (как было раньше)
     # штампует последнее известное значение новым временем — рисует ровную
     # линию там, где провайдер на самом деле молчал.
-    # Share the readiness/dashboard observation instead of spawning a second agy probe.
-    # History must not stamp a reused observation with a new measurement time.
-    observation_started = time.time()
-    if not respect_idle or has_recent_provider_activity("antigravity", now=now):
-        await _refresh_antigravity_usage()
-    agy_cache = _antigravity_usage_cache
-    agy_data = (
-        agy_cache.get("data") if not is_provider_disabled("antigravity")
-        and agy_cache.get("ts", 0) >= observation_started else None
-    )
-    providers = _provider_usage_snapshot(anthropic_data, codex_data, grok_data, agy_data)
+    # Antigravity snapshots are persisted at observation time. This background
+    # loop stays passive for the account and never re-stamps cached values.
+    providers = _provider_usage_snapshot(anthropic_data, codex_data, grok_data)
     # Спросили, но не ответил → явная метка. Без неё «молчит» неотличимо от
     # «не настроен»: в обоих случаях ключа провайдера просто нет.
     for provider_id, label, asked, answered, error in (
@@ -2306,7 +2411,9 @@ async def build_quota_map() -> dict:
         return {"data_available": False, "error": "owner_mode_only"}
     from app.models import MODELS
     from app.quota_gate import (
+        ANTIGRAVITY_LANES,
         QUOTA_OBSERVATION_MAX_AGE,
+        quota_observation_max_age,
         LANE_LABELS,
         deciding_window,
         evaluate_worker_admission,
@@ -2340,10 +2447,13 @@ async def build_quota_map() -> dict:
     outside_policy = []
     for model_id, model_label in MODELS.items():
         spec = get_model_spec(model_id)
+        if spec.runtime == "antigravity" and not spec.default_agents:
+            continue
         if is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider):
             continue
         decision = evaluate_worker_admission(
             model_id, providers, timestamps, now=now, policy=policy,
+            _window="7d" if spec.runtime == "antigravity" else None,
         )
         item = {
             **decision.to_dict(),
@@ -2366,7 +2476,7 @@ async def build_quota_map() -> dict:
                 # по прямой, и обе живут в одном пуле Codex/Anthropic соответственно.
                 "curved": decision.lane == "claude" and decision.lane in policy.curved_lanes,
                 "limit_pct": decision.limit_pct,
-                "headroom_pp": (
+                "headroom_pp": _antigravity_headroom(decision) if decision.provider in ANTIGRAVITY_LANES else (
                     None
                     if not decision.gated
                     or decision.limit_pct is None
@@ -2437,6 +2547,14 @@ async def build_quota_map() -> dict:
             })
         return {"anthropic": {"label": "Claude", "windows": windows}} if windows else {}
 
+    def _history_window(snapshot_providers, bucket):
+        parent = bucket.removesuffix("_5h")
+        provider = snapshot_providers.get(parent)
+        if parent in ANTIGRAVITY_LANES and parent != bucket:
+            return next((window for window in (provider or {}).get("windows", [])
+                         if isinstance(window, dict) and window.get("window_minutes") == 300), None)
+        return deciding_window(provider, bucket)
+
     def _load_bucket_trace_points(current_by_bucket: dict) -> dict[str, list[dict]]:
         if not current_by_bucket:
             return {}
@@ -2500,10 +2618,7 @@ async def build_quota_map() -> dict:
         for ts, _, row in window_rows:
             snapshot_providers = _extract_provider_usage(dict(row))
             for bucket, current in current_by_bucket.items():
-                bucket_data = snapshot_providers.get(bucket)
-                if not isinstance(bucket_data, dict):
-                    continue
-                window = deciding_window(bucket_data, bucket)
+                window = _history_window(snapshot_providers, bucket)
                 if not isinstance(window, dict):
                     continue
                 reset_at = parse_quota_timestamp(window.get("resets_at"))
@@ -2559,10 +2674,10 @@ async def build_quota_map() -> dict:
             if ts is None or not start <= ts <= now:
                 continue
             snapshot_providers = _extract_provider_usage(dict(row))
-            for bucket, provider in snapshot_providers.items():
-                if not isinstance(provider, dict):
-                    continue
-                window = deciding_window(provider, bucket)
+            historical_buckets = list(snapshot_providers)
+            historical_buckets.extend(f"{key}_5h" for key in snapshot_providers if key in ANTIGRAVITY_LANES)
+            for bucket in historical_buckets:
+                window = _history_window(snapshot_providers, bucket)
                 if not isinstance(window, dict):
                     continue
                 utilization = window.get("utilization")
@@ -2637,7 +2752,7 @@ async def build_quota_map() -> dict:
             "observed_at": observed_at,
             "fresh": (
                 observed_at is not None
-                and 0 <= now - observed_at < QUOTA_OBSERVATION_MAX_AGE
+                and 0 <= now - observed_at < quota_observation_max_age(bucket)
             ),
             "data_available": gating is not None
             and isinstance(gating.get("utilization"), (int, float)),
@@ -2651,6 +2766,41 @@ async def build_quota_map() -> dict:
             ),
             "models": models_by_bucket.get(bucket, []),
         })
+
+    # Short Antigravity windows share their pool's hard stop. Model admission
+    # considers both windows, while each chart series has its own time axis.
+    if not is_provider_disabled("antigravity"):
+        for parent, label, key, window, decision in _antigravity_quota_decisions(
+            providers, timestamps, now=now, policy=policy,
+        ):
+            if window != "5h":
+                continue
+            bucket = f"{parent}_5h"
+            raw = _history_window(providers, bucket)
+            gating = _window_item(raw) if raw else None
+            reset = parse_quota_timestamp((raw or {}).get("resets_at"))
+            if reset is not None:
+                bucket_meta[bucket] = {"reset": reset, "start": reset - 5 * 3600}
+            buckets.append({
+                "bucket": bucket,
+                "history_provider": parent,
+                "label": f"{label} · 5h",
+                "observed_at": decision.observed_at,
+                "fresh": decision.state != "unknown",
+                "data_available": gating is not None,
+                "window": gating,
+                "reference_windows": [],
+                "trace": {},
+                "lanes": [{
+                    **decision.to_dict(),
+                    "lane": f"{decision.lane}_5h",
+                    "label": f"{label} · 5h",
+                    "blocked": decision.state == "blocked",
+                    "headroom_pp": _antigravity_headroom(decision),
+                    "models": [],
+                }],
+                "models": [],
+            })
 
     traces = _load_bucket_trace_points(bucket_meta)
     timelines = _load_bucket_timeline_points()

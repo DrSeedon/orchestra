@@ -23,6 +23,9 @@ const _QL_KR_HOUR_FORMAT = new Intl.DateTimeFormat(orchLocale(), {
 const _QL_PANELS = [
     {key: 'all', title: T('Pool quotas'), sub: T('single scale: window progress share, 0–100%'),
      buckets: ['codex', 'codex_spark', 'anthropic']},
+    {key: 'antigravity', title: 'Google AI Pro · Antigravity', sub: 'Gemini, Argon, Claude / 3P',
+     buckets: ['antigravity_gemini', 'antigravity_gemini_5h', 'antigravity_argon',
+         'antigravity_argon_5h', 'antigravity_3p', 'antigravity_3p_5h']},
 ];
 
 // Stable server `reason_key` -> English template (the i18n dictionary key). The server's
@@ -74,6 +77,9 @@ const _QL_LANE_MARKERS = [
 // нужен вычисленный цвет, поэтому cssToken, а не var().
 const _QL_LANE_TOKENS = {sol: '--model-sol', luna: '--model-luna', spark: '--model-spark', claude: '--provider-anthropic'};
 function _qlLaneColor(lane) {
+    if (lane.startsWith('agy_')) {
+        return cssToken(`--quota-antigravity-${lane.slice(4).replaceAll('_', '-')}`, '#e2e8f0');
+    }
     return cssToken(_QL_LANE_TOKENS[lane] || '--ink', '#e2e8f0');
 }
 
@@ -168,7 +174,9 @@ function _qlMonotoneLimitAt(t, rule, lane, windowMinutes, windowStartMs, history
 // Явные потолки владельца. Зеркало `QuotaPolicy.hard_stop_for`.
 function _qlHardStop(rule, lane) {
     const hard = Number(rule.hard_stop_pct);
-    const laneHard = Number((rule.lane_hard_stop_pct || {})[lane]);
+    const policyLane = lane.replace(/^(agy_.+)_5h$/, '$1');
+    const defaultStop = policyLane.startsWith('agy_') ? Number(rule.antigravity_default_hard_stop_pct ?? hard) : hard;
+    const laneHard = Number((rule.lane_hard_stop_pct || {})[policyLane] ?? defaultStop);
     return Number.isFinite(laneHard) ? Math.min(hard, laneHard) : hard;
 }
 
@@ -316,7 +324,7 @@ function _qlApplyWindowResetHistory(data, history) {
     for (const bucket of data.buckets) {
         bucket.timeline = bucket.timeline || {points: []};
         bucket.timeline.reset_events = _qlObservedWindowResets(
-            history, bucket.bucket, bucket.window,
+            history, bucket.history_provider || bucket.bucket, bucket.window,
         );
     }
 }
@@ -546,6 +554,14 @@ function _qlTimelineSvg(panel, rule) {
         const reset = Date.parse(window?.resets_at);
         const duration = Number(window?.window_minutes) * 60000;
         if (!Number.isFinite(reset) || !(duration > 0)) continue;
+        if (panel.key === 'antigravity') {
+            const lane = bucket.lanes?.[0]?.lane;
+            const resetTimes = [reset, ...(bucket.timeline?.reset_events || []).map(event => event.at)];
+            for (const at of new Set(resetTimes)) {
+                if (at < from || at > to) continue;
+                p.push(`<line class="ql-agy-reset" data-ql-reset="${_escHtml(bucket.bucket)}" stroke="${_qlLaneColor(lane)}" x1="${x(at)}" x2="${x(at)}" y1="${_QL_MT}" y2="${_QL_MT + _QL_PH}"><title>${_escHtml(bucket.label)} · ${new Date(at).toISOString()}</title></line>`);
+            }
+        }
         const cycles = [];
         if (Array.isArray(bucket.timeline?.reset_events)
             && bucket.timeline.reset_events.length > 0) {
@@ -588,13 +604,13 @@ function _qlTimelineSvg(panel, rule) {
                             ))}`);
                         }
                         const colorClass = lane === 'sol' ? 'ql-gated-sol' : '';
-                        p.push(`<polyline class="ql-gated ql-timeline-threshold ${colorClass}${projectionClass}" data-ql-timeline-threshold="${_escHtml(lane)}" data-ql-policy-from="${_escHtml(active.effectiveFrom)}" data-ql-window-start="${start / 1000}" data-ql-window-end="${end / 1000}" points="${coords.join(' ')}"/>`);
+                        p.push(`<polyline ${lane.startsWith('agy_') ? `style="stroke:${_qlLaneColor(lane)}"` : ''} class="ql-gated ql-timeline-threshold ${colorClass}${projectionClass}" data-ql-timeline-threshold="${_escHtml(lane)}" data-ql-policy-from="${_escHtml(active.effectiveFrom)}" data-ql-window-start="${start / 1000}" data-ql-window-end="${end / 1000}" points="${coords.join(' ')}"/>`);
                         if (segmentRight === to) {
                             const value = _qlMonotoneLimitAt(
                                 progressAt(segmentRight), segmentRule, lane, span / 60000, windowStart ?? start,
                                 _quotaLinesData?.rule_history, segmentRight,
                             );
-                            const laneName = T({sol: 'Sol', luna: 'Luna', spark: 'Spark', claude: 'Claude'}[lane] || lane);
+                            const laneName = _qlLaneLabel(lane);
                             const title = T('threshold {label}', {label: laneName});
                             timelineEdgeLabels.push({
                                 text: T('threshold {label}', {label: laneName}),
@@ -630,8 +646,9 @@ function _qlTimelineSvg(panel, rule) {
         histories.add(bucket.bucket);
         const points = bucket.timeline?.points || [];
         const current = _qlPoint(bucket);
-        const tracePoints = _qlMonotoneTimelinePoints([
-            ...points.filter(point => Number(point.ts) * 1000 >= from && Number(point.ts) * 1000 <= now),
+        const measured = points.filter(point => Number(point.ts) * 1000 >= from && Number(point.ts) * 1000 <= now);
+        const tracePoints = panel.key === 'antigravity' ? measured : _qlMonotoneTimelinePoints([
+            ...measured,
             ...(current ? [{
                 ts: now / 1000,
                 utilization: current.util,
@@ -641,7 +658,11 @@ function _qlTimelineSvg(panel, rule) {
         const coords = tracePoints.map(point => [Number(point.ts) * 1000, Number(point.utilization)])
             .filter(([ts, util]) => Number.isFinite(ts) && Number.isFinite(util) && ts >= from && ts <= now)
             .map(([ts, util]) => `${x(ts)},${y(util)}`);
-        if (coords.length > 1) p.push(`<polyline class="ql-trace ql-timeline-history ql-trace-${bucket.bucket.replace('_', '-') }" data-ql-timeline-history="${_escHtml(bucket.bucket)}" points="${coords.join(' ')}"/>`);
+        if (coords.length === 1 && panel.key === 'antigravity') {
+            const [cx, cy] = coords[0].split(',');
+            p.push(`<circle data-ql-timeline-history="${_escHtml(bucket.bucket)}" cx="${cx}" cy="${cy}" r="3" fill="${_qlLaneColor(bucket.lanes[0].lane)}"/>`);
+        }
+        if (coords.length > 1) p.push(`<polyline class="ql-trace ql-timeline-history ql-trace-${bucket.bucket.replaceAll('_', '-') }" data-ql-timeline-history="${_escHtml(bucket.bucket)}" points="${coords.join(' ')}"/>`);
     }
     const edgeLabelBands = [];
     for (const item of timelineEdgeLabels) {
@@ -655,7 +676,7 @@ function _qlChartSvg(panel, rule) {
     const p = [];
     const limitAt = (t, lane) => {
         const bucketId = {claude: 'anthropic', sol: 'codex', luna: 'codex', spark: 'codex_spark'}[lane];
-        const win = _qlBucket(bucketId)?.window;
+        const win = (_qlBucket(bucketId) || _qlLanes(panel).find(item => item.lane === lane)?.bucket)?.window;
         const minutes = Number(win?.window_minutes);
         const reset = Date.parse(win?.resets_at);
         const start = Number.isFinite(reset) && minutes > 0 ? reset - minutes * 60000 : null;
@@ -687,7 +708,8 @@ function _qlChartSvg(panel, rule) {
     const _ghost = lane => gatedLanes.includes(lane) && !(rule.override_seconds_left > 0) ? '' : ' ql-gated-off';
     for (const {lane, bucket} of _qlLanes(panel)) {
         if (!bucket?.window) continue;
-        if (!rule.codex_claude_pacing && lane !== 'claude'
+        if (lane.endsWith('_5h')) continue;
+        if (!lane.startsWith('agy_') && !rule.codex_claude_pacing && lane !== 'claude'
             && !(rule.curved_lanes || []).includes(lane)) continue;
         const points = [];
         for (let i = 0; i <= 100; i++) {
@@ -695,7 +717,7 @@ function _qlChartSvg(panel, rule) {
             points.push(`${_qlX(t)},${_qlY(limitAt(t, lane))}`);
         }
         const colorClass = lane === 'sol' ? ' ql-gated-sol' : '';
-        p.push(`<polyline class="ql-gated${colorClass}${_ghost(lane)}" data-ql-threshold="${_escHtml(lane)}" points="${points.join(' ')}"/>`);
+        p.push(`<polyline ${lane.startsWith('agy_') ? `style="stroke:${_qlLaneColor(lane)}"` : ''} class="ql-gated${colorClass}${_ghost(lane)}" data-ql-threshold="${_escHtml(lane)}" points="${points.join(' ')}"/>`);
     }
 
     const hard = Number(rule.hard_stop_pct);
@@ -704,9 +726,11 @@ function _qlChartSvg(panel, rule) {
     p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(hard) - 7}" text-anchor="end" fill="#fdba74"><title>${_escHtml(hardTitle)}</title>${T('stop {pct}%', {pct: _formatPercent(hard)})}</text>`);
     // Lane-specific line for lane with lower ceiling: one common line would lie
     // that the expensive lane runs to the last pool percent.
+    const shownStops = new Set();
     for (const lane of _qlLanes(panel)) {
         const stop = _qlHardStop(rule, lane.lane);
-        if (!(stop < hard)) continue;
+        if (!(stop < hard) || shownStops.has(stop)) continue;
+        shownStops.add(stop);
         p.push(`<line class="ql-hard" data-ql-hard-lane="${_escHtml(lane.lane)}" x1="${_qlX(0)}" y1="${_qlY(stop)}" x2="${_qlX(1)}" y2="${_qlY(stop)}"/>`);
         const laneLabel = T(lane.label || lane.lane);
         const laneStopTitle = T('{label} — hard {pct}%', {label: laneLabel, pct: _formatPercent(stop)});
@@ -741,7 +765,7 @@ function _qlChartSvg(panel, rule) {
             }
             continue;
         }
-        const traceClass = `ql-trace ql-trace-${bucket.bucket.replace('_', '-')}`;
+        const traceClass = `ql-trace ql-trace-${bucket.bucket.replaceAll('_', '-')}`;
         const tracePoints = points.map(item => `${item.x},${item.y}`).join(' ');
         p.push(`<polyline class="${traceClass}" points="${tracePoints}"/>`);
         if (point && point.progress === null) {
@@ -851,7 +875,9 @@ function _qlPanelHtml(panel) {
             || lane.release_status === 'no_data';
         const state = nodata ? 'nodata' : lane.blocked ? 'blocked' : 'open';
         const word = _qlLaneSummary(lane);
-        return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(lane.lane)}">${_escHtml(T(lane.label || lane.lane))}: <b>${word}</b>${lane.gated ? '' : T(' <i>no diagonal</i>')}</span>`;
+        const room = Number.isFinite(lane.headroom_pp) && lane.lane.startsWith('agy_')
+            ? ` · ${_formatPercent(lane.headroom_pp, 1)} pp` : '';
+        return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(lane.lane)}">${_escHtml(T(lane.label || lane.lane))}: <b>${word}</b>${room}${lane.gated ? '' : T(' <i>no diagonal</i>')}</span>`;
     }).join('');
     const reasons = _qlLanes(panel).filter(l => l.blocked && l.reason)
         .map(l => `<li><b>${_escHtml(T(l.label || l.lane))}</b> — ${_escHtml(_qlReasonText(l))}</li>`).join('');
@@ -884,7 +910,7 @@ function _qlPanelHtml(panel) {
 // Summary — same verdicts, only shorter. Common failure (error, loading, no
 // rule) gives both pools ONE text: no point printing it twice.
 function _qlSummary() {
-    const items = _QL_PANELS.map(panel => ({panel, verdict: _qlVerdict(panel)}));
+    const items = _qlVisiblePanels().map(panel => ({panel, verdict: _qlVerdict(panel)}));
     if (items.every(i => i.verdict.text === items[0].verdict.text)) {
         const verdict = items[0].verdict;
         return `<span class="ql-sum-item" data-ql-sum><span class="${_qlTone(verdict)}">${_escHtml(verdict.text)}</span></span>`;
@@ -894,11 +920,15 @@ function _qlSummary() {
     ).join('');
 }
 
+function _qlVisiblePanels() {
+    return _QL_PANELS.filter(panel => panel.key === 'all' || panel.buckets.some(_qlBucket));
+}
+
 function renderQuotaLines() {
     const root = document.getElementById('quota-lines');
     if (!root) return;
     root.hidden = _quotaLinesOwnerOnly;
-    const body = _QL_PANELS.map(_qlPanelHtml).join('');
+    const body = _qlVisiblePanels().map(_qlPanelHtml).join('');
     const gate = _qlGateState();
     const overrideOn = gate.state === 'override';
     const hourControl = gate.state === 'on'

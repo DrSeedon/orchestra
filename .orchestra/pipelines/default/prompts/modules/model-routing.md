@@ -85,7 +85,7 @@ Never silently fall back between local/Hub routes, copy forbidden projects or en
 - Local Sol62 orchestrator/reviewer: high, standard tier. Local coding roles
   implementer/worker/full-cycle/specialist: medium; explicit low/high remain available.
 - Local Astra62: high. Never default to xhigh or fast.
-- sol61/gpt61sol select GPT-6.1 Sol; astra6/gpt6astra select GPT-6 Astra.
+- Hub aliases hubsol and hubastra select GPT-6.2 Sol and GPT-6.2 Astra. Older Sol/Astra IDs and aliases are retired.
 - Local manual-only/provider/quota guards still apply; a new alias is not permission to bypass them.
 
 ### Hard routing invariants

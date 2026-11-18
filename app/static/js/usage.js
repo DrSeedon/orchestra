@@ -33,15 +33,33 @@ function _antigravityUsageBuckets() {
     const quota = _usageData?.antigravity || {};
     const quota5h = _usageData?.antigravity_5h || {};
     return [
-        ['gemini-weekly', 'gemini-5h', 'Gemini'],
-        ['3p-weekly', '3p-5h', 'Claude/GPT'],
-    ].map(([id, id5h, label]) => ({
-        id,
-        label,
-        window: _antigravityWindow(quota[id], 10080),
-        window5h: _antigravityWindow(quota5h[id5h], 300),
+        ['gemini-weekly', 'gemini-5h', 'Gemini', 'antigravity_gemini'],
+        ['gemini-argon-wtu-weekly', 'gemini-argon-wtu-5h', 'Argon', 'antigravity_argon'],
+        ['3p-weekly', '3p-5h', 'Claude/3P', 'antigravity_3p'],
+    ].map(([id, id5h, label, provider]) => ({
+        id, label, provider,
+        windows: [
+            ...(provider !== 'antigravity_argon' || quota5h[id5h] ? [{
+                key: id5h, period: '5h', sample: _antigravityWindow(quota5h[id5h], 300),
+            }] : []),
+            {key: id, period: '7d', sample: _antigravityWindow(quota[id], 10080)},
+        ],
     }));
 }
+function _antigravityGateLabel(key) {
+    const gate = _usageData?.antigravity_gate?.[key];
+    if (!gate || gate.state === 'unknown') return '';
+    const text = gate.state === 'blocked' ? T('blocked') : T('running');
+    const room = Number.isFinite(gate.headroom_pp) ? ` · ${gate.headroom_pp.toFixed(1)} pp` : '';
+    return `<span class="usage-agy-gate" data-state="${gate.state}">${text}${room}</span>`;
+}
+
+function _antigravityReset(sample) {
+    return sample?.resets_at
+        ? `<span class="usage-agy-reset" data-reset-countdown="${escHtml(sample.resets_at)}">${_resetCountdown(sample.resets_at)}</span>`
+        : '';
+}
+
 let _usageFetchPromise = null;
 let _usageLastSuccessAt = 0;
 let _usageLastFetchStartedAt = 0;
@@ -468,15 +486,14 @@ function renderUsageBar() {
     }
 
     if (!_isProviderDisabled('antigravity')) {
-        const parts = _antigravityUsageBuckets().map(({id, label, window, window5h}) => {
-            const fiveH = window5h
-                ? `5h ${Math.round(window5h.utilization)}% · `
-                : '';
-            const value = window
-                ? fiveH + _miniBar(window.utilization, _usageColor(window.utilization, null))
-                    + (window.resets_at ? ` <span data-reset-countdown="${escHtml(window.resets_at)}">${_resetCountdown(window.resets_at)}</span>` : '')
-                : T('нет данных');
-            return `<span data-antigravity-bucket="${id}">${label}: ${value}</span>`;
+        const parts = _antigravityUsageBuckets().map(({id, label, windows}) => {
+            const values = windows.map(({key, period, sample}) => {
+                if (!sample) return `<span>${period} · ${T('нет данных')}</span>`;
+                return `<span data-agy-window="${key}" title="${escHtml(_resetCountdown(sample.resets_at))}">${period} ${_miniBar(
+                    sample.utilization, _usageColor(sample.utilization, null),
+                )}${_antigravityGateLabel(key)}${_antigravityReset(sample)}</span>`;
+            }).join('');
+            return `<span class="usage-agy-bucket" data-antigravity-bucket="${id}"><b>${label}</b>${values}</span>`;
         });
         groups.push('<span class="usage-provider-group" data-usage-compact-provider="antigravity">'
             + '<span class="usage-provider-title">Antigravity</span>'
@@ -584,21 +601,19 @@ function renderUsageBar() {
                 if (!_isProviderDisabled('antigravity')) {
                     antigravityHtml = '<section data-usage-provider="antigravity" style="min-width:0">'
                         + '<div style="font-weight:700;margin-bottom:7px">Antigravity</div>';
-                    for (const {id, label, window, window5h} of _antigravityUsageBuckets()) {
-                        antigravityHtml += `<div data-antigravity-bucket="${id}">`;
-                        if (window5h) {
-                            antigravityHtml += _windowBlock(window5h, `${label} · 5h`, 'var(--accent)');
-                            if (window5h.resets_at) antigravityHtml += `<span data-reset-countdown-5h="${escHtml(window5h.resets_at)}" style="font-size:11px;color:var(--ink-dim);display:block;margin:-2px 0 4px">${_resetCountdown(window5h.resets_at)}</span>`;
+                    for (const {id, label, provider, windows} of _antigravityUsageBuckets()) {
+                        antigravityHtml += `<div class="usage-agy-details" data-antigravity-bucket="${id}"><b>${label}</b>`;
+                        for (const {key, period, sample} of windows) {
+                            const reading = sample
+                                ? _windowBlock(sample, period, `var(--quota-${provider.replaceAll('_', '-')})`)
+                                    + _antigravityReset(sample) + _antigravityGateLabel(key)
+                                : `<div>${period} · ${T('Данные лимита недоступны')}</div>`;
+                            antigravityHtml += `<div data-agy-window="${key}">${reading}</div>`;
                         }
-                        if (window) {
-                            antigravityHtml += _windowBlock(window, window5h ? `${label} · 7d` : label, 'var(--accent)');
-                            if (window.resets_at) antigravityHtml += `<span data-reset-countdown="${escHtml(window.resets_at)}">${_resetCountdown(window.resets_at)}</span>`;
-                        } else {
-                            antigravityHtml += `<div>${label}: ${T('Данные лимита недоступны')}</div>`;
-                        }
-                        antigravityHtml += '</div>';
+                        antigravityHtml += `</div>`;
                     }
-                    antigravityHtml += '<div data-usage-history="antigravity_gemini,antigravity_3p"></div></section>';
+                    antigravityHtml += '<div data-usage-history="antigravity_gemini,antigravity_argon,antigravity_3p"></div></section>';
+
                 }
 
                 const orMeta = _usageData?.openrouter || null;
@@ -878,6 +893,9 @@ function _renderSparklines(slot, providerFilter = null) {
         anthropic: [cssToken('--provider-anthropic', '#94a3b8'), cssToken('--provider-anthropic-soft', '#94a3b8')],
         codex: [cssToken('--provider-openai', '#94a3b8'), cssToken('--provider-openai-soft', '#94a3b8')],
         codex_spark: [cssToken('--model-spark', '#94a3b8'), cssToken('--model-spark-soft', '#94a3b8')],
+        antigravity_gemini: [cssToken('--quota-antigravity-gemini'), cssToken('--quota-antigravity-gemini-5h')],
+        antigravity_argon: [cssToken('--quota-antigravity-argon'), cssToken('--quota-antigravity-argon-5h')],
+        antigravity_3p: [cssToken('--quota-antigravity-3p'), cssToken('--quota-antigravity-3p-5h')],
         grok: [cssToken('--provider-x-ai', '#94a3b8'), cssToken('--ink-muted', '#94a3b8')],
     };
 

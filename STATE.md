@@ -1,17 +1,7 @@
-# Orchestra — g1-pro local routes, 2026-11-18
-- Delivered: code 3e21fd28bd472e7e6b4d2971f628157cb8471ffd merged into production main.
-- Worktree: /home/kesha/orchestra-worktrees/gemini-routing-20261118; branch feat/gemini-g1-agent-routing-20261118.
-- Exact 11 Gemini + 6 OUR local Antigravity Claude 5.5 worker routes admitted; 11 aliases verified.
-- Only exact six local Claude variants allowed across VPS projects; direct Anthropic/Hub-Claude remain Multicast-only.
-- Local Carbon, unsuffixed orchestrator and legacy routes stay closed; quotas/no-credit/cron guards preserved.
-- Passport and KB synchronized; local Claude reserved for rare hard escalation, 1–2 local workers recommended.
-- Verified direct-parent assignment/receipt binding + MCP proof; duplicate initial delivery submits once.
-- 484 tests passed, 2 dependency deprecation warnings; instruction/syntax/diff checks PASS.
-- Tested app: /home/kesha/orchestra-worktrees/gemini-routing-20261118/app; deployed app: /home/kesha/orchestra/app.
-- Idle controller 5777b13b completed successfully after all active turns finished; do not rerun deployment.
-- orchestra.service active, PID2862666; restart_cut_turns0; telegram-bot-api PID unchanged.
-- Live catalog+canonical admission17/17; aliases11/11; stale flags repairs0; runtime errors0.
-- Foreign dirty files and disabled providers preserved byte-for-byte; session models/effort/native IDs preserved.
-- Real provider prompts and catalog refresh probes for this wave:0. No every-model live-generation claim.
-- Evidence: .orchestra/tasks/gemini-routing-20261118/report.md and deployment.json.
-- Remaining general ACP/native/account limitations from earlier waves remain; no ban-immunity claim.
+# Orchestra — Wave 4, 2026-11-18
+- Isolated worktree gemini-quotas-and-hub62-20261118 from main 9834244a4.
+- Hub Sol/Astra moved to 6.2. Old IDs preserved for history and rejected for new selection.
+- Three g1-pro groups / five windows integrated in wire normalization, history, gates and dashboard.
+- Quota probe uses the existing protected IPC path and defers while ACP owns the profile.
+- Deployment requires zero active turns, preservation of foreign dirty files and no Telegram service restart.
+- Verified on-disk live legacy Hub Sol rows: backup-space, seedon-sales-sol (both idle).

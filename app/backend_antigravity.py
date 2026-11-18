@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import json
 import logging
 import math
@@ -41,8 +42,15 @@ _CLEAN_SHELL_SNIPPET = (
     "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY GRPC_PROXY "
     "http_proxy https_proxy all_proxy grpc_proxy NO_GRPC_PROXY no_grpc_proxy BASH_ENV\n"
 )
-QUOTA_KEYS = ("gemini-weekly", "3p-weekly")
+QUOTA_KEYS = ("gemini-weekly", "gemini-argon-wtu-weekly", "3p-weekly")
 FIVE_HOUR_QUOTA_KEYS = ("gemini-5h", "3p-5h")
+QUOTA_BUCKETS = (
+    ("antigravity_gemini", "Gemini", "gemini-weekly", "gemini-5h"),
+    ("antigravity_argon", "Argon", "gemini-argon-wtu-weekly", "gemini-argon-wtu-5h"),
+    ("antigravity_3p", "Claude/3P", "3p-weekly", "3p-5h"),
+)
+QUOTA_CACHE_TTL = 900.0
+QUOTA_FORCE_COOLDOWN = 60.0
 
 # Official Google AI Studio / Vertex AI API-equivalent rates per 1M tokens
 # (Nov 2026 promo through Nov 30, 2026: Carbon/Argon $2/$10, cached 95% off = $0.10;
@@ -226,8 +234,8 @@ def cli_environment(home: Path) -> dict:
     return env
 
 
-def normalize_antigravity_quota(raw: object) -> dict:
-    result = dict.fromkeys(QUOTA_KEYS)
+def _normalize_quota_windows(raw: object, keys: tuple[str, ...], window: str) -> dict:
+    result = dict.fromkeys(keys)
     if not isinstance(raw, dict) or raw.get("status") != "SUCCESS":
         return result
     command = raw.get("command")
@@ -252,7 +260,7 @@ def normalize_antigravity_quota(raw: object) -> dict:
             reset = bucket.get("reset_time")
             if (isinstance(fraction, bool) or not isinstance(fraction, (int, float))
                     or not math.isfinite(fraction) or not 0 <= fraction <= 1
-                    or bucket.get("window") != "weekly"):
+                    or bucket.get("window") != window):
                 continue
             if reset is not None:
                 try:
@@ -266,49 +274,16 @@ def normalize_antigravity_quota(raw: object) -> dict:
     return result
 
 
+def normalize_antigravity_quota(raw: object) -> dict:
+    return _normalize_quota_windows(raw, QUOTA_KEYS, "weekly")
+
+
 def normalize_antigravity_five_hour_quota(raw: object) -> dict:
-    result = dict.fromkeys(FIVE_HOUR_QUOTA_KEYS)
-    if not isinstance(raw, dict) or raw.get("status") != "SUCCESS":
-        return result
-    command = raw.get("command")
-    data = command.get("data") if isinstance(command, dict) else None
-    groups = data.get("groups") if isinstance(data, dict) else None
-    if not isinstance(groups, list):
-        return result
-    seen = set()
-    for group in groups:
-        buckets = group.get("buckets") if isinstance(group, dict) else None
-        for bucket in buckets if isinstance(buckets, list) else []:
-            if not isinstance(bucket, dict):
-                continue
-            key = bucket.get("id")
-            if not isinstance(key, str) or key not in result:
-                continue
-            if key in seen:
-                result[key] = None
-                continue
-            seen.add(key)
-            fraction = bucket.get("remaining_fraction")
-            reset = bucket.get("reset_time")
-            if (
-                isinstance(fraction, bool)
-                or not isinstance(fraction, (int, float))
-                or not math.isfinite(fraction)
-                or not 0 <= fraction <= 1
-                or bucket.get("window") != "5h"
-            ):
-                continue
-            if reset is not None:
-                try:
-                    if (
-                        not isinstance(reset, str)
-                        or datetime.fromisoformat(reset.replace("Z", "+00:00")).tzinfo is None
-                    ):
-                        continue
-                except ValueError:
-                    continue
-            result[key] = {"remaining_fraction": fraction, "reset_time": reset}
-    return result
+    argon_key = QUOTA_BUCKETS[1][3]
+    windows = _normalize_quota_windows(raw, (*FIVE_HOUR_QUOTA_KEYS, argon_key), "5h")
+    if windows[argon_key] is None:
+        del windows[argon_key]
+    return windows
 
 
 def supported_version(value: str) -> bool:
@@ -334,16 +309,86 @@ def catalog_models(raw: dict) -> set[str]:
 def _publish_quota(
     quota: dict, observed: float, generation: str, five_hour: dict | None = None
 ) -> None:
-    from app.routes import system
-    system._antigravity_usage_cache.update(
-        data=quota, five_hour=five_hour, ts=observed, generation=generation
-    )
+    from app.routes.system import publish_antigravity_quota
+
+    try:
+        publish_antigravity_quota(quota, five_hour, observed, generation=generation)
+    except (OSError, sqlite3.Error) as error:
+        logger.warning("Could not persist ACP quota observation (%s)", type(error).__name__)
 
 
 async def fetch_antigravity_usage() -> dict:
     """Return the last observation without refreshing it or its timestamp."""
     from app.routes import system
     return dict(system._antigravity_usage_cache.get("data") or dict.fromkeys(QUOTA_KEYS))
+
+
+async def probe_antigravity_quota() -> tuple[dict, dict] | None:
+    """Read one quota report using the same profile and egress guards as ACP."""
+    from app.antigravity_acp import get_profile
+    from app.models import is_provider_disabled
+    from app.provider_safety import verify_provider_egress
+
+    home = canonical_profile()
+    if is_provider_disabled("antigravity") or not _has_cached_credentials(home):
+        return None
+    owner = get_profile(home)
+    async with owner._start_lock:
+        if owner.process is not None and owner.process.returncode is None:
+            return None
+        if is_provider_disabled("antigravity"):
+            return None
+        owner._check_settings()
+        lock_fd = os.open(home / ".orchestra-acp.lock",
+                          os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return None
+            env = cli_environment(home)
+            await verify_provider_egress("antigravity", env=env)
+            # In production this is the same IPC wrapper that enforces a single
+            # vendor writer. Explicit app-data-dir keeps OAuth in the ACP store.
+            proc = await asyncio.create_subprocess_exec(
+                ANTIGRAVITY_BIN, "--print", "/quota", "--output-format", "json",
+                "--gemini-dir", str(home / ".gemini"),
+                "--app-data-dir", "antigravity-acp", "--disable-telemetry",
+                cwd=str(home), env=env, stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            try:
+                output, _ = await asyncio.wait_for(proc.communicate(), timeout=12)
+            finally:
+                if proc.returncode is None:
+                    try:
+                        os.killpg(proc.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    try:
+                        await asyncio.wait_for(proc.wait(), timeout=2)
+                    except TimeoutError:
+                        try:
+                            os.killpg(proc.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                        await proc.wait()
+            if len(output) > 1024 * 1024:
+                raise RuntimeError("Antigravity quota report exceeds size limit")
+            raw = json.loads(output)
+            if _is_account_disabled_payload(raw):
+                _trip_antigravity_circuit_breaker("Antigravity quota confirmed account-disabled/Terms-of-Service refusal")
+                raise RuntimeError("Antigravity account disabled")
+            if proc.returncode:
+                raise RuntimeError("Antigravity quota command failed")
+            weekly = normalize_antigravity_quota(raw)
+            short = normalize_antigravity_five_hour_quota(raw)
+            if not any(value is not None for value in (*weekly.values(), *short.values())):
+                raise ValueError("Antigravity quota report contains no recognized windows")
+            return weekly, short
+        finally:
+            os.close(lock_fd)
 
 
 def canonical_profile(profile: str = "") -> Path:
@@ -627,7 +672,7 @@ class AntigravityBackend:
             if isinstance(update.get("usage"), dict):
                 self._reported_usage = update["usage"]
             quota = update.get("quota")
-            if isinstance(quota, dict):
+            if isinstance(quota, dict) and self._owner.home == canonical_profile():
                 weekly = normalize_antigravity_quota(quota)
                 short = normalize_antigravity_five_hour_quota(quota)
                 if any(v is not None for v in (*weekly.values(), *short.values())):

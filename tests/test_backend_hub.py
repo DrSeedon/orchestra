@@ -13,7 +13,7 @@ from app.multicode_client import MultiCodeClient, MultiCodeError
 
 
 def _backend():
-    return hub.HubBackend("hub-gpt-6.1-sol", ".")
+    return hub.HubBackend("hub-gpt-6.2-sol", ".")
 
 
 def _stream():

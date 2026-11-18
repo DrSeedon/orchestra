@@ -41,7 +41,7 @@ def _page(browser: Browser, antigravity, *, width: int = 1440):
     page.add_script_tag(path=str(USAGE_JS))
     page.add_style_tag(path=str(STYLE_CSS))
     page.evaluate(
-        """antigravity => {
+        """({antigravity, short}) => {
             const reset = new Date(Date.now() + 4 * 86400000).toISOString();
             _usageData = {
                 anthropic: {
@@ -54,21 +54,28 @@ def _page(browser: Browser, antigravity, *, width: int = 1440):
                 grok: {
                     primary: {utilization: 10, window_minutes: 10080, resets_at: reset},
                 },
-                antigravity,
+                antigravity, antigravity_5h: short,
                 orchestra: {total_cost_usd: 5687, agents_count: 197},
             };
             renderUsageBar();
         }""",
-        antigravity,
+        {"antigravity": antigravity, "short": {
+            "gemini-5h": {"remaining_fraction": 0.85, "reset_time": "2033-05-20T04:33:20Z"},
+            "3p-5h": {"remaining_fraction": 0.6, "reset_time": "2033-05-23T04:33:20Z"},
+        } if antigravity and "gemini-argon-wtu-weekly" in antigravity else {}},
     )
     return page
 
 
-def _two_groups():
+def _three_groups():
     return {
         "gemini-weekly": {
             "remaining_fraction": 0.62,
             "reset_time": "2033-05-20T04:33:20Z",
+        },
+        "gemini-argon-wtu-weekly": {
+            "remaining_fraction": 0.52,
+            "reset_time": "2033-05-21T04:33:20Z",
         },
         "3p-weekly": {
             "remaining_fraction": 0.17,
@@ -77,8 +84,8 @@ def _two_groups():
     }
 
 
-def test_t4_two_distinct_antigravity_groups_render_in_contract_order(browser):
-    page = _page(browser, _two_groups())
+def test_five_distinct_antigravity_windows_render_in_contract_order(browser):
+    page = _page(browser, _three_groups())
 
     measured = page.evaluate(
         """() => ({
@@ -93,22 +100,28 @@ def test_t4_two_distinct_antigravity_groups_render_in_contract_order(browser):
     assert measured["providers"] == ["claude", "codex", "grok", "antigravity"]
     assert [item["id"] for item in measured["buckets"]] == [
         "gemini-weekly",
+        "gemini-argon-wtu-weekly",
         "3p-weekly",
     ]
     assert "38%" in measured["buckets"][0]["text"]
-    assert "83%" in measured["buckets"][1]["text"]
+    assert "48%" in measured["buckets"][1]["text"]
+    assert "83%" in measured["buckets"][2]["text"]
     assert measured["buckets"][0]["text"] != measured["buckets"][1]["text"]
 
     page.locator("#usage-info-btn").hover()
     detail = page.locator('[data-usage-provider="antigravity"]')
     expect(detail).to_be_visible()
     detail_buckets = detail.locator("[data-antigravity-bucket]")
-    expect(detail_buckets).to_have_count(2)
+    expect(detail_buckets).to_have_count(3)
     assert detail_buckets.evaluate_all(
         "nodes => nodes.map(node => node.dataset.antigravityBucket)"
-    ) == ["gemini-weekly", "3p-weekly"]
+    ) == ["gemini-weekly", "gemini-argon-wtu-weekly", "3p-weekly"]
     expect(detail_buckets.nth(0)).to_contain_text("38%")
-    expect(detail_buckets.nth(1)).to_contain_text("83%")
+    expect(detail_buckets.nth(1)).to_contain_text("48%")
+    expect(detail_buckets.nth(2)).to_contain_text("83%")
+    expect(detail.locator("[data-agy-window]")).to_have_count(5)
+    expect(detail.locator('[data-agy-window="gemini-5h"]')).to_contain_text("15%")
+    expect(detail.locator('[data-agy-window="3p-5h"]')).to_contain_text("40%")
     countdowns = detail_buckets.evaluate_all(
         "nodes => nodes.map(node => node.querySelector('[data-reset-countdown]')?.textContent || '')"
     )
@@ -121,8 +134,8 @@ def test_t4_two_distinct_antigravity_groups_render_in_contract_order(browser):
     "antigravity,missing_bucket",
     [
         ({"gemini-weekly": None, "3p-weekly": None}, "gemini-weekly"),
-        ({"3p-weekly": _two_groups()["3p-weekly"]}, "gemini-weekly"),
-        ({"gemini-weekly": _two_groups()["gemini-weekly"]}, "3p-weekly"),
+        ({"3p-weekly": _three_groups()["3p-weekly"]}, "gemini-weekly"),
+        ({"gemini-weekly": _three_groups()["gemini-weekly"]}, "3p-weekly"),
         (None, "gemini-weekly"),
     ],
 )
@@ -151,7 +164,7 @@ def test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero(
 
 def test_t4_antigravity_does_not_regress_desktop_usage_bar_overflow(browser):
     for width in (1280, 1440, 1680, 1920):
-        page = _page(browser, _two_groups(), width=width)
+        page = _page(browser, _three_groups(), width=width)
         measured = page.evaluate(
             """() => {
                 const bar = document.querySelector('#usage-bar');

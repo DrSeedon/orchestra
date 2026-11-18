@@ -9,7 +9,7 @@ from app.models import (
 from app.routes import sessions as sessmod
 
 
-@pytest.mark.parametrize("model", [None, "claude-opus-5-5[1m]", "gpt-6.1-sol", "sonnet", "sol"])
+@pytest.mark.parametrize("model", [None, "claude-opus-5-5[1m]", "gpt-6.2-sol", "sonnet", "sol"])
 def test_hub_alternative_hint_is_available_for_native_subscription_routes(model, monkeypatch):
     monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
 
@@ -83,11 +83,11 @@ def test_selectable_models_match_the_curated_catalog():
     expected = {
         "claude-opus-5-5[1m]", "claude-sonnet-5-5[1m]", "gpt-6-luna",
         "gpt-5.3-codex-spark", "grok-4.6", "claude-opus-4-6[1m]",
-        "claude-haiku-5-5", "claude-fable-5-1[1m]", "gpt-6-astra",
-        "gpt-6.1-sol", "gpt-6.1-terra", "gpt-6.2-sol", "gpt-6.2-astra", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
+        "claude-haiku-5-5", "claude-fable-5-1[1m]",
+        "gpt-6.1-terra", "gpt-6.2-sol", "gpt-6.2-astra", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
         "GigaChat-2-Pro", "GigaChat-3-Lightning", "GigaChat-3-Pro",
         "hub-claude-haiku-5-5", "hub-claude-sonnet-5-5", "hub-claude-opus-5-5",
-        "hub-gpt-6-luna", "hub-gpt-6.1-sol", "hub-gpt-6-astra", "hub-grok-4.7",
+        "hub-gpt-6-luna", "hub-gpt-6.2-sol", "hub-gpt-6.2-astra", "hub-grok-4.7",
         "hub-gemini-4-argon", "hub-gemini-4-carbon", "hub-gemini-4-hydrogen",
     }
     # Antigravity (05.11.2026) and Gemini Web (05.11.2026) runtimes declare their own rows.
@@ -101,8 +101,6 @@ def test_selectable_models_match_the_curated_catalog():
     retired_ids = RETIRED_SELECTABLE_MODEL_IDS
     assert retired_ids.isdisjoint(ALIASES.values())
     assert retired_ids.isdisjoint(MODELS)
-    assert get_model_flags("gpt-6-astra") == {"dashboard": True, "agents": False}
-    assert get_model_flags("gpt-6.1-sol") == {"dashboard": True, "agents": False}
     assert resolve_model("grok") == "grok-4.6"
     assert resolve_model("sol") == "gpt-6.2-sol"
 
@@ -138,7 +136,7 @@ def test_claude_cache_rates_and_prompt_tier_are_registry_data():
     assert TOKEN_PRICES["claude-haiku-5-5"]["prompt_over_threshold_multiplier"] == 5.0
 
 
-@pytest.mark.parametrize("model_id", ["gpt-6-astra", "gpt-6.1-sol", "gpt-6.1-terra"])
+@pytest.mark.parametrize("model_id", ["gpt-6.2-astra", "gpt-6.2-sol", "gpt-6.1-terra"])
 def test_astra_and_sol_are_manual_only_even_if_stored_flags_allow_agents(model_id, monkeypatch):
     monkeypatch.setattr(
         "app.models._load_model_flags",
@@ -160,7 +158,7 @@ def test_retired_models_keep_explicit_session_compatibility_without_becoming_sel
         assert model_id in registry.COMPAT_MODEL_SPECS
         assert get_model_spec(model_id).id == model_id
         assert model_id not in MODELS
-        with pytest.raises(ValueError, match="unknown model"):
+        with pytest.raises(ValueError, match="unknown model|retired"):
             resolve_model(model_id)
 
 
@@ -168,5 +166,23 @@ def test_reducer_role_uses_the_only_admitted_hub_model():
     from app.pipeline import load_pipeline
 
     role = load_pipeline("default").roles["reducer"]
-    assert role.model == "hub-gpt-6.1-sol"
-    assert resolve_model(role.model) == "hub-gpt-6.1-sol"
+    assert role.model == "hub-gpt-6.2-sol"
+    assert resolve_model(role.model) == "hub-gpt-6.2-sol"
+
+
+@pytest.mark.parametrize("model", [
+    "gpt-6.1-sol", "gpt-6-sol", "gpt-6-astra", "hub-gpt-6.1-sol", "hub-gpt-6-astra",
+    "sol61", "gpt61sol", "astra6", "gpt6astra",
+])
+def test_retired_sol_astra_cannot_be_selected_even_with_enabled_flags(model, monkeypatch):
+    from app import models
+
+    canonical = models.ALIASES.get(model, model)
+    monkeypatch.setattr(models, "_load_model_flags", lambda: {
+        canonical: {"agents": True, "dashboard": True},
+    })
+    assert models.get_model_spec(canonical).id == canonical
+    for guard in (models.resolve_model, models.ensure_spawn_allowed,
+                  models.ensure_dashboard_visible, models.validate_model_reason):
+        with pytest.raises(ValueError, match="retired"):
+            guard(model)

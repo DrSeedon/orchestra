@@ -158,6 +158,7 @@ async def test_rule_constants_travel_with_the_payload(mapped):
     ))
 
     assert payload["rule"] == {
+        "antigravity_default_hard_stop_pct": 95.0,
         "hard_stop_pct": 99.0,
         "lane_hard_stop_pct": {},
         "tolerance_start_pp": 10.0,
@@ -172,7 +173,7 @@ async def test_rule_constants_travel_with_the_payload(mapped):
         "curved_lanes": [],
         # Состав гейтящихся полос: по нему панель отличает работающее правило от
         # снятого со всех полос — без него оба состояния выглядят одинаково.
-        "gated_lanes": ["claude", "luna", "sol", "spark"],
+        "gated_lanes": ["agy_3p", "agy_argon", "agy_gemini", "claude", "luna", "sol", "spark"],
         # Остаток временного снятия (#V-578): 0 — снятия нет.
         "override_seconds_left": 0.0,
         "override_until": None,
@@ -305,6 +306,7 @@ async def test_rule_constants_reflect_environment_overrides(mapped, configured_q
     ))
 
     assert payload["rule"] == {
+        "antigravity_default_hard_stop_pct": 95.0,
         "hard_stop_pct": 92.0,
         "lane_hard_stop_pct": {"sol": 85.0},
         "tolerance_start_pp": 13.0,
@@ -688,7 +690,7 @@ async def test_stale_observation_is_marked_not_silently_trusted(mapped):
     codex = _pool(await mapped(observation), "codex")
 
     assert codex["fresh"] is False
-    assert _model(codex, "gpt-6.1-sol")["state"] == "unknown"
+    assert _model(codex, "gpt-6.2-sol")["state"] == "unknown"
 
 
 @pytest.mark.asyncio
@@ -758,7 +760,7 @@ async def test_panel_sees_the_manual_override_and_its_expiry(mapped):
             codex=[_window(300, 98.0, window_id="primary", label="5h", progress=0.3)],
         ))
         assert payload["rule"]["override_seconds_left"] > 0
-        assert payload["rule"]["gated_lanes"] == ["claude", "luna", "sol", "spark"]
+        assert payload["rule"]["gated_lanes"] == ["agy_3p", "agy_argon", "agy_gemini", "claude", "luna", "sol", "spark"]
         codex = _pool(payload, "codex")
         assert all(not lane["gated"] for lane in codex["lanes"])
     finally:

@@ -61,7 +61,11 @@ class ProviderMetadata:
 
 
 # Models that owners may select for manual orchestrator sessions but agents cannot use.
-MANUAL_ONLY_MODEL_IDS = frozenset({"gpt-6-astra", "gpt-6.1-sol", "gpt-6.1-terra", "gpt-6.2-sol", "gpt-6.2-astra"})
+RETIRED_SOL_ASTRA_IDS = frozenset({
+    "gpt-6.1-sol", "gpt-6-sol", "gpt-6-astra", "hub-gpt-6.1-sol", "hub-gpt-6-astra",
+})
+
+MANUAL_ONLY_MODEL_IDS = frozenset({ "gpt-6.1-terra", "gpt-6.2-sol", "gpt-6.2-astra"})
 RETIRED_SELECTABLE_MODEL_IDS = frozenset({
     "gpt-5.6-luna", "gpt-5.6-sol", "gpt-6-sol", "gpt-5.6-terra", "gpt-5.5",
     "grok-4.5", "claude-opus-5[1m]", "claude-sonnet-5[1m]", "claude-opus-4-6",
@@ -112,18 +116,8 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="codex", provider="openai", context_length=128000,
     ),
     ModelSpec(
-        id="gpt-6-astra", name="GPT-6 Astra",
-        runtime="codex", provider="openai", context_length=258400,
-        default_agents=False,
-    ),
-    ModelSpec(
         id="gpt-6-luna", name="GPT-6 Luna",
         runtime="codex", provider="openai", context_length=258400,
-    ),
-    ModelSpec(
-        id="gpt-6.1-sol", name="GPT-6.1 Sol",
-        runtime="codex", provider="openai", context_length=258400,
-        default_agents=False,
     ),
     ModelSpec(id="gpt-6.2-sol", name="GPT-6.2 Sol", runtime="codex", provider="openai",
               context_length=500000, price_input=2.0, price_output=10.0, default_agents=False),
@@ -159,17 +153,17 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="hub", provider="multicode", default_agents=True,
     ),
     ModelSpec(
-        id="hub-gpt-6-astra", name="Hub: GPT-6 Astra",
+        id="hub-gpt-6.2-astra", name="Hub: GPT-6.2 Astra",
         runtime="hub", provider="multicode", default_agents=True,
     ),
     ModelSpec(
         id="hub-gpt-6-luna", name="Hub: GPT-6 Luna",
         runtime="hub", provider="multicode", default_agents=True,
     ),
-    # Sol on the hub pool is not our Codex pool: the owner allowed it for agents (22.10.2026),
-    # while MANUAL_ONLY_MODEL_IDS keeps refusing the plain gpt-6.1-sol of our own subscription.
+    # Sol on the hub pool is not our Codex pool: the owner allowed it for agents (22.10.2026).
+    # The native Sol 6.2 subscription is still manual-only.
     ModelSpec(
-        id="hub-gpt-6.1-sol", name="Hub: GPT-6.1 Sol",
+        id="hub-gpt-6.2-sol", name="Hub: GPT-6.2 Sol",
         runtime="hub", provider="multicode", default_agents=True,
     ),
     # Owner 2026-11-04: Hub Argon is also admitted for ordinary workers. The live
@@ -402,8 +396,8 @@ ALIASES = {
     "hubhaiku": "hub-claude-haiku-5-5",
     "hubopus": "hub-claude-opus-5-5",
     "hubluna": "hub-gpt-6-luna",
-    "hubsol": "hub-gpt-6.1-sol",
-    "hubastra": "hub-gpt-6-astra",
+    "hubsol": "hub-gpt-6.2-sol",
+    "hubastra": "hub-gpt-6.2-astra",
     "hubargon": "hub-gemini-4-argon",
     "hubcarbon": "hub-gemini-4-carbon",
     "hubhydrogen": "hub-gemini-4-hydrogen",
@@ -693,6 +687,24 @@ MODEL_SPECS: dict[str, ModelSpec] = {}
 # Keeping them outside MODELS prevents retired models from returning to the UI
 # while making resume deterministic without any prefix inference.
 COMPAT_MODEL_SPECS: dict[str, ModelSpec] = {
+    "hub-gpt-6-astra": ModelSpec(
+        id="hub-gpt-6-astra", name="hub-gpt-6-astra (legacy)", runtime="hub", provider="multicode",
+    ),
+    "hub-gpt-6.1-sol": ModelSpec(
+        id="hub-gpt-6.1-sol", name="hub-gpt-6.1-sol (legacy)", runtime="hub", provider="multicode",
+    ),
+    "gpt-6-astra": ModelSpec(
+        id="gpt-6-astra", name="GPT-6 Astra",
+        runtime="codex", provider="openai", context_length=258400,
+        default_agents=False,
+    ),
+
+    "gpt-6.1-sol": ModelSpec(
+        id="gpt-6.1-sol", name="GPT-6.1 Sol",
+        runtime="codex", provider="openai", context_length=258400,
+        default_agents=False,
+    ),
+
     "claude-opus-5[1m]": ModelSpec(
         id="claude-opus-5[1m]", name="Opus 5 (legacy, 1M)", runtime="claude",
         provider="anthropic", context_length=1000000, price_input=5.0,
@@ -1133,13 +1145,13 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
 AGENT_HUB_ROUTE_RULE = "agent_workers_require_hub"
 LOCAL_LUNA_MODEL = "gpt-6-luna"
 HUB_SOL_ONLY_RULE = "hub_workers_require_sol"
-HUB_SOL_MODEL = "hub-gpt-6.1-sol"
+HUB_SOL_MODEL = "hub-gpt-6.2-sol"
 HUB_ARGON_MODEL = "hub-gemini-4-argon"
 HUB_CARBON_MODEL = "hub-gemini-4-carbon"
 HUB_HYDROGEN_MODEL = "hub-gemini-4-hydrogen"
 HUB_SONNET_MODEL = "hub-claude-sonnet-5-5"
 HUB_OPUS_MODEL = "hub-claude-opus-5-5"
-HUB_ASTRA_MODEL = "hub-gpt-6-astra"
+HUB_ASTRA_MODEL = "hub-gpt-6.2-astra"
 HUB_LUNA_MODEL = "hub-gpt-6-luna"
 # Owner stack 09–12.11.2026: Opus 5.5 xhigh and Sonnet 5.5 high (Multicast), Carbon medium
 # for deep reasoning/UI, Hydrogen high for fast execution, Argon medium, Sol, Astra and Luna.
@@ -1177,7 +1189,7 @@ def ensure_project_model_allowed(model: str, scope: str) -> None:
         return
     raise ValueError(
         "claude_multicast_only: Claude is allowed only in Multicast projects; "
-        "use hub-gpt-6.1-sol, hub-gpt-6-astra or hub-gpt-6-luna for this project"
+        "use hub-gpt-6.2-sol, hub-gpt-6.2-astra or hub-gpt-6-luna for this project"
     )
 
 
@@ -1210,7 +1222,7 @@ def ensure_hub_worker_allowed(
     if is_hub and model_id not in ALLOWED_HUB_WORKER_MODELS:
         raise ValueError(
             f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
-            "use hubopus, hubsonnet, hubcarbon, hubhydrogen, hubargon, hubsol or hubluna. "
+            "use hubopus, hubsonnet, hubcarbon, hubhydrogen, hubargon, hubsol, hubastra or hubluna. "
             "model_reason and catalog flags do not grant an exception. If the selected "
             "route is at capacity or unavailable, report the blocker or wait; do not "
             "automatically fall back to another model, native workers or API credits. "
@@ -1240,6 +1252,7 @@ def ensure_spawn_allowed(
     local Claude 5.5 IDs may serve event-driven workers in all VPS projects. Catalog flags and all provider/project/quota/
     provenance guards remain independent; no other native route is admitted.
     """
+    _ensure_model_not_retired(model_id)
     spec = get_model_spec(model_id)
     if is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider):
         raise ValueError(
@@ -1283,6 +1296,7 @@ def ensure_spawn_allowed(
 
 def ensure_dashboard_visible(model_id: str) -> None:
     """Hard gate for user-side actions (UI session creation, change-model from UI)."""
+    _ensure_model_not_retired(model_id)
     spec = get_model_spec(model_id)
     if is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider):
         raise ValueError(
@@ -1417,7 +1431,7 @@ def _clear_selectable_models() -> None:
 def _proxy_model_spec(raw: dict) -> ModelSpec | None:
     model_id = str(raw.get("id") or "").strip()
     # Provider refreshes must not promote these retired IDs back into selection.
-    if not model_id or model_id in RETIRED_SELECTABLE_MODEL_IDS:
+    if not model_id or model_id.lower() in (RETIRED_SELECTABLE_MODEL_IDS | RETIRED_SOL_ASTRA_IDS):
         return None
 
     reviewed = _REVIEWED_PROXY_ROUTES.get(model_id)
@@ -1615,6 +1629,7 @@ async def refresh_models() -> None:
 
 def resolve_model(model: str) -> str:
     m = model.lower().strip()
+    _ensure_model_not_retired(m)
     if m in ALIASES:
         resolved = ALIASES[m]
         if resolved in MODEL_SPECS:
@@ -1693,7 +1708,14 @@ def runtime_for_record(record: dict) -> str:
     return "unknown"
 
 
+def _ensure_model_not_retired(model: str) -> None:
+    normalized = model.lower().strip()
+    if ALIASES.get(normalized, normalized) in RETIRED_SOL_ASTRA_IDS:
+        raise ValueError(f"model {model!r} is retired; select Sol 6.2 or Astra 6.2")
+
+
 def validate_model_reason(model: str, reason: str = "", **context) -> str:
+    _ensure_model_not_retired(model)
     ensure_hub_worker_allowed(model, **context)
     try:
         local_luna = resolve_model(model) == LOCAL_LUNA_MODEL

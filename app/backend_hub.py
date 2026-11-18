@@ -40,9 +40,9 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
     "hub-claude-haiku-5-5": ("claudeAgent", "claude-haiku-5-5"),
     "hub-claude-sonnet-5-5": ("claudeAgent", "claude-sonnet-5-5"),
     "hub-claude-opus-5-5": ("claudeAgent", "claude-opus-5-5"),
-    "hub-gpt-6-astra": ("codex", "gpt-6-astra"),
+    "hub-gpt-6.2-astra": ("codex", "gpt-6.2-astra"),
     "hub-gpt-6-luna": ("codex", "gpt-6-luna"),
-    "hub-gpt-6.1-sol": ("codex", "gpt-6.1-sol"),
+    "hub-gpt-6.2-sol": ("codex", "gpt-6.2-sol"),
     "hub-gemini-4-argon": ("antigravity", "gemini-4-argon"),
     "hub-gemini-4-carbon": ("antigravity", "gemini-4-carbon"),
     "hub-gemini-4-hydrogen": ("antigravity", "gemini-4-hydrogen"),
@@ -117,7 +117,7 @@ ORCHESTRATOR_OUTBOX_SECTION = (
     '- `{{"tool":"spawn_worker","args":{{"name":"worker-slug","task":"clear self-contained brief",'
     '"model":"hub-gpt-6-luna","role":"worker","base_branch":"main",'
     '"description":"lifecycle=one-shot; short summary","model_reason":""}}}}` '
-    "(allowed worker models: `hub-gpt-6-luna` for fast tasks/tests, `hub-gpt-6.1-sol` for complex code, "
+    "(allowed worker models: `hub-gpt-6-luna` for fast tasks/tests, `hub-gpt-6.2-sol` for complex code, "
     "or `gpt-6-luna` with a non-empty `model_reason` for strictly local VPS tasks)\n"
     '- `{{"tool":"send_to_worker","args":{{"worker":"worker-slug","message":"follow-up instructions"}}}}`\n'
     '- `{{"tool":"merge_worker","args":{{"worker":"worker-slug","target_branch":"main"}}}}` '

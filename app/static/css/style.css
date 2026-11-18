@@ -1465,3 +1465,17 @@ body.panel-resizing, body.panel-resizing * { user-select: none !important; -webk
   border-radius:7px; background:var(--surface-2); color:var(--ink-strong); cursor:pointer; }
 .native-request-actions button:hover:not(:disabled) { border-color:var(--accent); background:var(--accent-soft); }
 .native-request-actions button:disabled { opacity:.55; cursor:default; }
+
+.usage-agy-bucket, .usage-agy-bucket > span { display: inline-flex; align-items: center; gap: 5px; }
+.usage-agy-bucket { flex-wrap: wrap; }
+.usage-agy-gate, .usage-agy-reset { color: var(--ink-muted); font-size: .85em; }
+.usage-agy-gate[data-state="blocked"] { color: var(--danger, #f87171); }
+.usage-agy-details { margin-bottom: 8px; }
+.usage-agy-details .usage-agy-gate { margin-inline-start: 8px; }
+.ql-agy-reset { stroke-dasharray: 3 5; opacity: .6; }
+.ql-trace-antigravity-gemini { stroke: var(--quota-antigravity-gemini); }
+.ql-trace-antigravity-argon { stroke: var(--quota-antigravity-argon); }
+.ql-trace-antigravity-3p { stroke: var(--quota-antigravity-3p); }
+.ql-trace-antigravity-gemini-5h { stroke: var(--quota-antigravity-gemini-5h); stroke-dasharray: 4 3; }
+.ql-trace-antigravity-argon-5h { stroke: var(--quota-antigravity-argon-5h); stroke-dasharray: 4 3; }
+.ql-trace-antigravity-3p-5h { stroke: var(--quota-antigravity-3p-5h); stroke-dasharray: 4 3; }
