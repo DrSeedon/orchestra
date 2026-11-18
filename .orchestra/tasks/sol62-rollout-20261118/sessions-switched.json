@@ -1,0 +1,112 @@
+[
+  {
+    "id": "75285d62-98bc-441c-9727-22c54bd8ab97",
+    "name": "Orchestra-orchestrator",
+    "old_model": "gpt-6.1-sol",
+    "new_model": "gpt-6.2-sol",
+    "effort": "high",
+    "native_id_preserved": true,
+    "history_transfer": {
+      "mode": "native_in_place"
+    }
+  },
+  {
+    "id": "09b75a6c-c93f-45ea-b2f4-6728851a1bbd",
+    "name": "seedon-orchestrator",
+    "old_model": "gpt-6.1-sol",
+    "new_model": "gpt-6.2-sol",
+    "effort": "high",
+    "native_id_preserved": true,
+    "history_transfer": {
+      "mode": "native_in_place"
+    }
+  },
+  {
+    "id": "82c118ee-4811-4ccd-aa8d-29b52de3e63d",
+    "name": "kesha-tg-bot-orchestrator",
+    "old_model": "gpt-6.1-sol",
+    "new_model": "gpt-6.2-sol",
+    "effort": "high",
+    "native_id_preserved": true,
+    "history_transfer": {
+      "mode": "native_in_place"
+    }
+  },
+  {
+    "id": "206a85e3-c813-41c8-ac48-2bbebe9ec846",
+    "name": "Claude-Code-Game-Master-orchestrator",
+    "old_model": "gpt-6.1-sol",
+    "new_model": "gpt-6.2-sol",
+    "effort": "high",
+    "native_id_preserved": true,
+    "history_transfer": {
+      "mode": "native_in_place"
+    }
+  },
+  {
+    "id": "336d5d9c-6ca0-40ce-b5c7-76364d7d31a3",
+    "name": "University-orchestrator",
+    "old_model": "gpt-6.1-sol",
+    "new_model": "gpt-6.2-sol",
+    "effort": "high",
+    "native_id_preserved": true,
+    "history_transfer": {
+      "mode": "native_in_place"
+    }
+  },
+  {
+    "id": "d02afa56-fe80-4da1-954d-cd65273f578f",
+    "name": "VPN-orchestrator",
+    "old_model": "gpt-6.1-sol",
+    "new_model": "gpt-6.2-sol",
+    "effort": "high",
+    "native_id_preserved": true,
+    "history_transfer": {
+      "mode": "native_in_place"
+    }
+  },
+  {
+    "id": "85f0ba7a-0d8a-401e-a909-eb57c40fb02f",
+    "name": "katya-work-orchestrator",
+    "old_model": "gpt-6.1-sol",
+    "new_model": "gpt-6.2-sol",
+    "effort": "high",
+    "native_id_preserved": true,
+    "history_transfer": {
+      "mode": "native_in_place"
+    }
+  },
+  {
+    "id": "53e809d9-0503-428a-8bbd-8638cf5493bc",
+    "name": "comfy-image-orchestrator-vps",
+    "old_model": "gpt-6.1-sol",
+    "new_model": "gpt-6.2-sol",
+    "effort": "high",
+    "native_id_preserved": true,
+    "history_transfer": {
+      "mode": "native_in_place"
+    }
+  },
+  {
+    "id": "39f01dce-cc2e-4135-91df-138d40c106d3",
+    "name": "cog-second-brain-orchestrator",
+    "old_model": "gpt-6.1-sol",
+    "new_model": "gpt-6.2-sol",
+    "effort": "high",
+    "native_id_preserved": true,
+    "history_transfer": {
+      "mode": "native_in_place"
+    }
+  },
+  {
+    "id": "08591eec-74e4-4d17-9764-a919b91ad6d6",
+    "name": "openrouter-lab-orchestrator",
+    "old_model": "gpt-6.1-sol",
+    "new_model": "gpt-6.2-sol",
+    "effort": "high",
+    "native_id_preserved": true,
+    "history_transfer": {
+      "mode": "native_in_place"
+    }
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Orchestra-orchestrator",
+    "status": "running",
+    "model": "gpt-6.2-sol",
+    "effort": "high",
+    "latest_usage": {
+      "id": 38167,
+      "ts": "2026-11-17T17:31:16.238838+00:00",
+      "session_id": "75285d62-98bc-441c-9727-22c54bd8ab97",
+      "model": "gpt-6.1-sol",
+      "runtime": "codex",
+      "ok": 1,
+      "stop_reason": "end_turn",
+      "input_tokens": 1196174,
+      "output_tokens": 1625,
+      "cache_read_tokens": 1182720,
+      "turn_duration_ms": 48493
+    },
+    "usage_after_ping": false
+  },
+  {
+    "name": "seedon-orchestrator",
+    "status": "running",
+    "model": "gpt-6.2-sol",
+    "effort": "high",
+    "latest_usage": {
+      "id": 38175,
+      "ts": "2026-11-17T18:44:07.928294+00:00",
+      "session_id": "09b75a6c-c93f-45ea-b2f4-6728851a1bbd",
+      "model": "gpt-6.1-sol",
+      "runtime": "codex",
+      "ok": 1,
+      "stop_reason": "end_turn",
+      "input_tokens": 1291975,
+      "output_tokens": 2922,
+      "cache_read_tokens": 1153408,
+      "turn_duration_ms": 116139
+    },
+    "usage_after_ping": false
+  },
+  {
+    "name": "kesha-tg-bot-orchestrator",
+    "status": "idle",
+    "model": "gpt-6.2-sol",
+    "effort": "high",
+    "latest_usage": {
+      "id": 38177,
+      "ts": "2026-11-18T05:03:51.680188+00:00",
+      "session_id": "82c118ee-4811-4ccd-aa8d-29b52de3e63d",
+      "model": "gpt-6.2-sol",
+      "runtime": "codex",
+      "ok": 1,
+      "stop_reason": "end_turn",
+      "input_tokens": 1019612,
+      "output_tokens": 1401,
+      "cache_read_tokens": 813696,
+      "turn_duration_ms": 72108
+    },
+    "usage_after_ping": true
+  }
+]

@@ -13,5 +13,13 @@
 - Egress root cause found: Xray lacked ipwho.is/ipinfo.io residential routes. Added only both domains plus mirrored block entries, validated config, restarted with 0 active connections.
 - Both egress guards now verified 178.93.29.64 / NL / AS215294 Lumina; credentials unchanged.
 - API health before rollout: 23 sessions, 3 runtime failures (Orchestra/Seedon/Kesha); all idle, no compaction.
-- No deployment yet; existing sessions remain unchanged.
+- DEPLOYED e8a473911; Orchestra active PID2777040, restart_cut_turns=0, Telegram PID unchanged.
+- All 10/10 named Sol orchestrators switched through native-in-place API to gpt-6.2-sol high; native IDs preserved.
+- All 23 sessions free of runtime errors after restart; own test PIDs=0.
+- Three recovery pings SUBMITTED once each; all emitted SOL62_START_OK, 0 error events.
+- Last observation: Orchestra/Seedon running catch-up; Kesha idle after successful Sol62 end_turn (72.1s).
+- Seedon live preflight: 0 unsafe-symlink warnings; all 23 original native IDs retained.
+- New explicit owner steering: send exactly one recovery ping to Orchestra/Seedon/Kesha after all ten switches.
+- Recovery pings replaced standalone canary; no extra probe turn. Unknown/finished operations were not replayed.
+- Final artifact report.md records health/status evidence; ongoing catch-up belongs to those live sessions.
 - Evidence: .orchestra/tasks/sol62-rollout-20261118/.
