@@ -17,7 +17,7 @@
 - All 10/10 named Sol orchestrators switched through native-in-place API to gpt-6.2-sol high; native IDs preserved.
 - All 23 sessions free of runtime errors after restart; own test PIDs=0.
 - Three recovery pings SUBMITTED once each; all emitted SOL62_START_OK, 0 error events.
-- Last observation: Orchestra/Seedon running catch-up; Kesha idle after successful Sol62 end_turn (72.1s).
+- Last observation: Orchestra waiting on recovery continuation, Seedon running catch-up; Kesha idle after successful Sol62 end_turn (72.1s).
 - Seedon live preflight: 0 unsafe-symlink warnings; all 23 original native IDs retained.
 - New explicit owner steering: send exactly one recovery ping to Orchestra/Seedon/Kesha after all ten switches.
 - Recovery pings replaced standalone canary; no extra probe turn. Unknown/finished operations were not replayed.

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "75285d62-98bc-441c-9727-22c54bd8ab97",
+    "name": "Orchestra-orchestrator",
+    "status": "waiting",
+    "model": "gpt-6.2-sol",
+    "effort": "high",
+    "latest_turn": {
+      "model": "gpt-6.2-sol",
+      "ok": 1,
+      "stop_reason": "end_turn",
+      "turn_duration_ms": 229768,
+      "ts": "2026-11-18T05:06:29.540247+00:00"
+    }
+  },
+  {
+    "id": "82c118ee-4811-4ccd-aa8d-29b52de3e63d",
+    "name": "kesha-tg-bot-orchestrator",
+    "status": "idle",
+    "model": "gpt-6.2-sol",
+    "effort": "high",
+    "latest_turn": {
+      "model": "gpt-6.2-sol",
+      "ok": 1,
+      "stop_reason": "end_turn",
+      "turn_duration_ms": 72108,
+      "ts": "2026-11-18T05:03:51.680188+00:00"
+    }
+  },
+  {
+    "id": "09b75a6c-c93f-45ea-b2f4-6728851a1bbd",
+    "name": "seedon-orchestrator",
+    "status": "running",
+    "model": "gpt-6.2-sol",
+    "effort": "high",
+    "latest_turn": {
+      "model": "gpt-6.1-sol",
+      "ok": 1,
+      "stop_reason": "end_turn",
+      "turn_duration_ms": 116139,
+      "ts": "2026-11-17T18:44:07.928294+00:00"
+    }
+  }
+]

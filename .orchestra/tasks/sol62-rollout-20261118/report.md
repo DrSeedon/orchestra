@@ -51,11 +51,12 @@ Hydrogen model/effort/native ID unchanged: local antigravity/gemini-4-hydrogen-h
 Exactly one durable operator-authenticated POST per affected orchestrator, after all ten changes.
 No standalone fourth canary; the Orchestra recovery start verifies live Sol62 production work.
 All three receipts SUBMITTED, all returned SOL62_START_OK, no error events:
-- Orchestra-orchestrator: running, processing missed checks/tasks.
+- Orchestra-orchestrator: waiting after starting recovery; background continuation is active.
 - seedon-orchestrator: running, processing 02:01/04:00 UTC catch-up.
 - kesha-tg-bot-orchestrator: idle after a successful gpt-6.2-sol end_turn, 72.108s;
   existing bot repair 7e69f5d was named in the ping to prevent duplicate repair.
 These are observed states, not a claim that ongoing Orchestra/Seedon catch-up already finished.
+The newest compact status/terminal slice is final-recovery-status.json.
 Later task results belong to their existing live sessions/channels.
 All 23 initial non-archived sessions checked through live API; no broken/runtime-error state.
 All 23 original native IDs retained; Seedon live unsafe-symlink warning count=0.
