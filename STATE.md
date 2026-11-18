@@ -5,3 +5,8 @@
 - Quota probe uses the existing protected IPC path and defers while ACP owns the profile.
 - Deployment requires zero active turns, preservation of foreign dirty files and no Telegram service restart.
 - Verified on-disk live legacy Hub Sol rows: backup-space, seedon-sales-sol (both idle).
+- Deployed d306ed419, PID 2991639, restart_cut_turns=0, Telegram PID preserved.
+- First print attempt rejected ACP-only flags. Corrected CLI command and verified five real windows in SQLite, three weekly thresholds and both screenshots.
+- 488 backend and eight browser tests passed, plus targeted post-fix reruns. Six VPS project instruction files updated.
+- While persistent ACP holds the profile writer, quota probing defers safely. In-band quota updates still persist.
+- Evidence: .orchestra/tasks/gemini-quotas-and-hub62-20261118/report.md. PNGs under /tmp/orchestra_gemini_quotas_ui_*.png.
