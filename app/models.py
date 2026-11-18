@@ -251,6 +251,15 @@ ANTIGRAVITY_G1_GEMINI_AGENT_MODELS = frozenset(
         "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
     )
 )
+# Owner clarification: these six routes spend OUR Antigravity third bucket,
+# not the Hub Claude pool or direct Anthropic API/CLI. No prefix-wide exemption.
+ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS = frozenset(
+    "antigravity/" + raw for raw in (
+        "claude-opus-5-5-low", "claude-opus-5-5-medium", "claude-opus-5-5-high",
+        "claude-sonnet-5-5-low", "claude-sonnet-5-5-medium", "claude-sonnet-5-5-high",
+    )
+)
+ANTIGRAVITY_G1_AGENT_MODELS = ANTIGRAVITY_G1_GEMINI_AGENT_MODELS | ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS
 ANTIGRAVITY_RAW_MODELS = (
     "gemini-4-carbon-medium", "gemini-4-carbon-high", "gemini-4-carbon-low",
     "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
@@ -323,7 +332,7 @@ SELECTABLE_MODEL_SPECS += tuple(
               runtime="antigravity", provider="google-antigravity",
               context_length=ANTIGRAVITY_CONTEXT_LENGTHS.get(raw, 128_000),
               default_dashboard=raw in ANTIGRAVITY_DISPLAY_NAMES,
-              default_agents=f"antigravity/{raw}" in ANTIGRAVITY_G1_GEMINI_AGENT_MODELS)
+              default_agents=f"antigravity/{raw}" in ANTIGRAVITY_G1_AGENT_MODELS)
     for raw in ANTIGRAVITY_RAW_MODELS
 )
 
@@ -337,6 +346,8 @@ ALIASES = {
     "agy-pro": "antigravity/gemini-3.1-pro-low",
     "agy-sonnet": "antigravity/claude-sonnet-5-5-medium",
     "agy-opus": "antigravity/claude-opus-5-5-medium",
+    "agy-opus-high": "antigravity/claude-opus-5-5-high",
+    "agy-sonnet-high": "antigravity/claude-sonnet-5-5-high",
     "agy-gptoss": "antigravity/gpt-oss-120b-medium",
     "agy-argon": "antigravity/gemini-4-argon-medium",
     "agy-argon-high": "antigravity/gemini-4-argon-high",
@@ -1151,8 +1162,10 @@ MULTICAST_PATH_TOKENS = frozenset({"multicode", "multicast", "obelisk", "polus",
 
 
 def ensure_project_model_allowed(model: str, scope: str) -> None:
-    """Claude quota is reserved for explicit Multicast project path components."""
+    """Direct/Hub Claude is Multicast-only; exact OUR Antigravity 5.5 routes are exempt."""
     model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
+    if model_id in ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS:
+        return  # Explicit owner exception for OUR local subscription bucket only.
     if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
         return
     # Catalog-only validation has no project identity; dispatch supplies its actual scope.
@@ -1223,8 +1236,8 @@ def ensure_spawn_allowed(
     route stays refused and the catalog flag, quota and role guards still apply.
     Owner decision, 2026-11-04: company records and KB, including Seedon, are
     authorized Hub inputs and do not require this native exception.
-    Owner decision, 2026-11-18: the eleven exact local g1-pro Gemini IDs may
-    serve event-driven workers. Catalog flags and all provider/project/quota/
+    Owner decision, 2026-11-18: the eleven exact local g1-pro Gemini IDs and six
+    local Claude 5.5 IDs may serve event-driven workers in all VPS projects. Catalog flags and all provider/project/quota/
     provenance guards remain independent; no other native route is admitted.
     """
     spec = get_model_spec(model_id)
@@ -1239,14 +1252,14 @@ def ensure_spawn_allowed(
     if billing == "api_credit":
         if spec.runtime != "claude":
             raise ValueError("billing='api_credit' requires a Claude model")
-    elif spec.runtime != "hub" and model_id not in FREE_POOL_MODEL_IDS and model_id not in ANTIGRAVITY_G1_GEMINI_AGENT_MODELS and not (
+    elif spec.runtime != "hub" and model_id not in FREE_POOL_MODEL_IDS and model_id not in ANTIGRAVITY_G1_AGENT_MODELS and not (
         model_id == LOCAL_LUNA_MODEL and isinstance(model_reason, str) and model_reason.strip()
     ):
         raise ValueError(
             f"{AGENT_HUB_ROUTE_RULE}: model '{model_id}' is disabled for agents on "
             "subscription routes; use hubsol, hubargon, hubsonnet or hubluna for Hub work. "
             "Native exceptions are the exact g1-pro Gemini worker allowlist "
-            "(agy-hydrogen, agy-argon, agy-flash families) and model='luna' for explicitly local "
+            "(agy-hydrogen, agy-argon, agy-flash and our local Claude 5.5 routes) and model='luna' for explicitly local "
             "work with a non-empty model_reason "
             "naming the local-processing constraint. If neither is possible (or this process "
             "predates the route and needs the owner's idle restart), report the "

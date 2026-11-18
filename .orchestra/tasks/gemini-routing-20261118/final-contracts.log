@@ -1,0 +1,37 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/gemini-routing-20261118/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/gemini-routing-20261118", "credentials_in_environment": 0}
+........................................................................ [ 15%]
+.....F.................................................................. [ 31%]
+........................................................................ [ 46%]
+........................................................................ [ 62%]
+........................................................................ [ 77%]
+........................................................................ [ 93%]
+...............................                                          [100%]
+=================================== FAILURES ===================================
+_ test_native_initial_ingress_rejects_foreign_or_unproved_assignment_before_rpc[wrong-scope] _
+tests/test_gemini_g1_routing.py:204: in test_native_initial_ingress_rejects_foreign_or_unproved_assignment_before_rpc
+    assert response.status_code==403 and not stand.trace()
+E   assert (202 == 403)
+E    +  where 202 = <Response [202 Accepted]>.status_code
+----------------------------- Captured stderr call -----------------------------
+[real-acp-r2] heartbeat started
+[real-acp-r2] antigravity turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session_hibernate.py:140 [real-acp-r2] heartbeat started
+INFO     app.session:session.py:2834 [real-acp-r2] antigravity turn started
+--------------------------- Captured stderr teardown ---------------------------
+[real-acp-r2] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:219 [real-acp-r2] heartbeat cancelled
+=============================== warnings summary ===============================
+tests/test_gemini_g1_routing.py::test_real_worker_initial_delivery_accepts_verified_parent_once
+  /home/kesha/orchestra-worktrees/gemini-routing-20261118/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_gemini_g1_routing.py::test_real_worker_initial_delivery_accepts_verified_parent_once
+  /home/kesha/orchestra-worktrees/gemini-routing-20261118/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_gemini_g1_routing.py::test_native_initial_ingress_rejects_foreign_or_unproved_assignment_before_rpc[wrong-scope]
+1 failed, 462 passed, 2 warnings in 14.86s

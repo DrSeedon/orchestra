@@ -1,0 +1,33 @@
+{
+  "code_commit": "d28c7398a66de9e33d2a2b57ec4355f396a488d8",
+  "idle_observations": [
+    {
+      "elapsed_monotonic": 1293891.562,
+      "busy": [
+        "seedon-orchestrator"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1294027.186,
+      "busy": [
+        "seedon-orchestrator",
+        "VPN-orchestrator"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1294033.585,
+      "busy": [
+        "seedon-orchestrator"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1294057.49,
+      "busy": [
+        "seedon-orchestrator",
+        "VPN-orchestrator"
+      ]
+    }
+  ],
+  "provider_prompts": 0,
+  "catalog_refresh_probes": 0
+}

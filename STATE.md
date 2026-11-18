@@ -1,9 +1,10 @@
 # Orchestra — local Gemini admission/passport, 2026-11-18
-- Authorized: exact eleven g1-pro Gemini agent defaults/admission, aliases, complete local/Hub passport.
+- Authorized scope expanded by owner: 11 local Gemini + 6 local Antigravity Claude 5.5 agent routes across all VPS projects.
+- Direct Anthropic and Hub-Claude remain Multicast-only; quotas/caps/cron guards stay intact; local Claude reserved for rare hard cases.
 - Worktree: /home/kesha/orchestra-worktrees/gemini-routing-20261118; branch feat/gemini-g1-agent-routing-20261118.
 - Found second blocker: ensure_spawn_allowed() rejects all native subscription routes except Luna even when agents flag is true.
-- Implement exact allowlist shared by spec defaults and native subscription gate; all other models unchanged.
-- Carbon, unsuffixed orchestrator and legacy routes stay closed for agents; Claude project policy retained.
+- Shared exact allowlists: 11 Gemini + 6 OUR Antigravity Claude 5.5; no direct/Hub Claude exception outside Multicast.
+- Carbon, unsuffixed orchestrator and legacy routes stay closed; only exact 6 local Claude 5.5 IDs bypass the project ban.
 - Correct stale agents=false only for explicitly requested Gemini IDs through canonical catalog API.
 - No real provider prompts/quota/catalog probes needed. Test spawn boundary with isolated DB/mocked transport.
 - Never restart telegram-bot-api; preserve production dirty files; wait for zero running/compacting sessions before restart.
@@ -12,5 +13,10 @@
 - Synthetic regression reproduced fixed g1-pro ID incorrectly becoming -high from generic role effort; exact fixed-ID fallback corrected, explicit effort/ACK retained.
 - Verified: 456 tests passed; instruction contract PASS; MCP fixture now uses real temp cwd and canonical matching delivery receipt.
 - Three MCP spawn entrypoints reach real server guard in mocked delivery tests; no real provider calls.
-- Deployment next: idle gate, source fast-forward/restart, canonical live catalog flag/admission checks.
+- Idle-only deploy R1 stopped intentionally before merge/restart after discovering parent assignment provenance blocked native workers. Production stays a3662c7bc.
+- Real AgentSession+HTTP+fake-stdio regression reproduced FAILED_BEFORE_SUBMIT. Added durable parent+receipt binding and native initial-ingress MCP proof; cron/system/foreign senders remain denied.
+- New focused delivery verification next, then one idle-only deploy R2.
 - Evidence .orchestra/tasks/gemini-routing-20261118/. No deployment yet.
+
+- Expanded final validation: 484 passed, 2 dependency deprecation warnings. Instruction contract PASS.
+- Native delegated initial task now verified over real HTTP+SessionManager+fake ACP, duplicate submits once; foreign/unproved/cron inputs denied.

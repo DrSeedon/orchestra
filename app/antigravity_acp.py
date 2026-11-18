@@ -539,6 +539,32 @@ def ensure_interactive_input(model, provenance, *, target_session=None, allow_ch
                             and job["status"] in {"triggering", "triggered", "failed", "expired"}
                             and subtype in {"completed", "success", "failed", "timeout", "expired", "triggered"}):
                         return
+                elif not parent.get("is_orchestrator") and subtype in {"initial_delivery", "direct_message", "http_send"}:
+                    # Foreground delegated worker input is not a scheduled wake.
+                    # Bind it to the durable direct parent, never a sender label.
+                    source = db.get_session(parent.get("parent_id")) if parent.get("parent_id") else None
+                    if source is None and not parent.get("parent_id") and parent.get("parent_name"):
+                        source = db.get_session_by_name(parent["parent_name"], parent["scope"])
+                    if (source and source.get("is_orchestrator") and source["id"] != parent["id"]
+                            and source["scope"] == parent["scope"] and senders == (source["name"],)
+                            and source.get("status") not in {"archived", "closed"}):
+                        ref = getattr(provenance, "ref", "")
+                        if subtype == "http_send":
+                            return  # HTTP ingress already requires the parent's MCP proof.
+                        if subtype == "direct_message" and ref:
+                            from app.message_deliveries import _row
+                            receipt = _row(ref)
+                            if (receipt and receipt["source_session_id"] == source["id"]
+                                    and receipt["target_session_id"] == parent["id"]):
+                                return
+                        if subtype == "initial_delivery" and ref:
+                            with db._conn() as connection:
+                                receipt = connection.execute(
+                                    "SELECT session_id,scope,sender FROM initial_deliveries WHERE delivery_id=?",
+                                    (ref,)).fetchone()
+                            if (receipt and receipt["session_id"] == parent["id"]
+                                    and receipt["scope"] == parent["scope"] and receipt["sender"] == source["name"]):
+                                return
                 elif parent.get("is_orchestrator") and field(target_session, "is_orchestrator"):
                     with db._conn() as connection:
                         for sender in senders:

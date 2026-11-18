@@ -4,7 +4,9 @@
 ## Локальные Gemini g1-pro и Hub: паспорт допуска 18.11.2026
 Канонический краткий паспорт: `.orchestra/pipelines/default/prompts/modules/model-routing.md`.
 В приложении один точный allowlist `ANTIGRAVITY_G1_GEMINI_AGENT_MODELS` управляет
-`default_agents` и исключением из subscription/Hub-only гейта: 11 Gemini ID, без wildcard.
+`default_agents` и исключением из subscription/Hub-only гейта: 11 Gemini ID.
+Дополнение владельца: `ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS` добавляет шесть точных local Claude 5.5;
+общий `ANTIGRAVITY_G1_AGENT_MODELS` содержит 17 маршрутов, без wildcard.
 
 | Семейство / алиасы | Уровни и назначение |
 |---|---|
@@ -13,7 +15,16 @@
 | gemini-pro-orchestrator-g1-pro | Точный доступный серверу ID для длинного контекста и оркестраторской аналитики; конфигурация должна быть подтверждена native ACK. |
 | Flash: agy-flash, agy-flash-high | medium/high; low по полному ID. Классификация, извлечение полей, короткие сводки; прежние малые задачи 3–10 с, не гарантия времени. |
 
-Все эти окна — 1 000 000 токенов. Исполнение, файлы и история остаются на VPS без
+Дополнение владельца: локальные agy-opus/agy-opus-high (claude-opus-5-5-medium/high) и
+agy-sonnet/agy-sonnet-high (claude-sonnet-5-5-medium/high), а также low по полным ID,
+разрешены во всех проектах VPS. Это НАША небольшая 3-я корзина Claude & GPT в g1-pro,
+не $600/день хаба и не прямые API-кредиты Anthropic. Opus — редкая эскалация для особо
+сложного архитектурного тупика после Sol, филигранного UI/UX и сложных текстов/КП;
+Sonnet — ограниченная сложная задача, где Opus избыточен. Не тратить эту корзину на
+рутину, массовые задания и простые фиксы. Запрет cron/timers/polling и Semaphore(3) общий.
+Окно local Claude проверяется по native metadata; guidance 400k–900k ниже относится к Gemini.
+
+Окна перечисленных Gemini — 1 000 000 токенов. Исполнение, файлы и история остаются на VPS без
 копирования в Hub; inference выполняет Google. Подходят для приватных/внутренних проектов,
 если такое внешнее Google-обрабатывание разрешено. 400k–900k документов читать через
 нативные файловые инструменты по частям с запасом под ответ: ACP frame ограничен 1 MiB.
@@ -27,14 +38,15 @@ Hydrogen/Argon/Flash делят Gemini-квоту (5h+weekly); это не ра�
 
 Carbon локально на g1-pro не доступен: agy-carbon/gemini-4-carbon-* и unsuffixed
 gemini-pro-orchestrator не спавнить. Устаревшие 3.1/3.5/3.6, Claude 4.6 и GPT-OSS также
-не допускаются. Все local Claude 5.5 сохраняют запрет не-Multicast scope.
+не допускаются. Только шесть exact local Claude 5.5 имеют разрешённое владельцем исключение из scope-бана.
+Hub-Claude и прямой Anthropic сохраняют запрет не-Multicast scope; старый local Claude 4.6 не включён.
 
 Hub-маршруты — отдельная группа, только для разрешённых проектов из hub-projects.json:
 hubcarbon — Carbon Ultra, междоменный синтез/архитектура/UI и поддерживаемый vision-ввод;
 hubhydrogen/hubargon — облачные брокерные аналоги для разрешённого кода и документов.
 При запрете Hub нельзя подменять локальный маршрут хабом или копировать туда workspace.
 Включение каталожного agents не отменяет provider/project/quota/provenance gates.
-Старые сохранённые agents=false для этих одиннадцати ID обновляются только по прямой
+Старые сохранённые agents=false для этих семнадцати ID обновляются только по прямой
 команде владельца через штатный catalog flags API; остальные флаги остаются нетронутыми.
 
 ## Действующий контракт 18.11.2026 — Sol/Astra 6.2

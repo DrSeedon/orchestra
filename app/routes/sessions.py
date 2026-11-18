@@ -663,12 +663,26 @@ async def get_session(name: str, scope: str):
 
 
 @router.post("/api/sessions/{name}/initial-deliveries", status_code=202)
-async def accept_initial_delivery(name: str, req: InitialDeliveryRequest):
+async def accept_initial_delivery(name: str, req: InitialDeliveryRequest, request: Request = None):
     found = manager.get_by_name(name, req.scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
 
     from app import initial_deliveries
+    from app.antigravity_acp import is_consumer_model
+    if is_consumer_model(found.model) and not found.is_orchestrator:
+        from app.mcp_proof import check_mcp_proof
+        source_id = request.headers.get("x-orchestra-session-id", "") if request is not None else ""
+        proof = request.headers.get("x-orchestra-mcp-proof", "") if request is not None else ""
+        source = get_session_row(source_id) if source_id else None
+        target = get_session_row(found.id)
+        direct_parent = bool(target and source and (
+            source["id"] == target.get("parent_id") if target.get("parent_id")
+            else source["name"] == target.get("parent_name")))
+        if not (direct_parent and source.get("is_orchestrator") and source.get("status") not in {"archived", "closed"}
+                and source["scope"] == req.scope and source["name"] == req.sender
+                and check_mcp_proof(source_id, proof)):
+            return JSONResponse({"error": "antigravity_parent_assignment_proof_required"}, status_code=403)
 
     try:
         quota_wait = await _preflight_or_quota_wait(found.id)

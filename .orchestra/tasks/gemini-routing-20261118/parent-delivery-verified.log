@@ -1,0 +1,19 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/gemini-routing-20261118/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/gemini-routing-20261118", "credentials_in_environment": 0}
+.                                                                        [100%]
+=============================== warnings summary ===============================
+tests/test_gemini_g1_routing.py::test_real_worker_initial_delivery_accepts_verified_parent_once
+  /home/kesha/orchestra-worktrees/gemini-routing-20261118/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_gemini_g1_routing.py::test_real_worker_initial_delivery_accepts_verified_parent_once
+  /home/kesha/orchestra-worktrees/gemini-routing-20261118/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_gemini_g1_routing.py::test_real_worker_initial_delivery_accepts_verified_parent_once
+  /home/kesha/orchestra-worktrees/gemini-routing-20261118/app/session_turns.py:1041: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.fire_auto_report()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 3 warnings in 3.70s

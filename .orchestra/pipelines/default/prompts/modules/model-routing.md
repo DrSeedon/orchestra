@@ -36,6 +36,20 @@ that Google processing is authorized. Current local Gemini windows: **1,000,000 
 | `agy-flash-high` = `antigravity/gemini-3.8-flash-high` | Slightly harder bounded extraction/synthesis while retaining the lightweight model. |
 | `antigravity/gemini-3.8-flash-low` | The simplest structured extraction/classification tasks. |
 
+### Our local Claude 5.5: rare escalation, not the Hub pool
+These Antigravity routes spend **our VPS g1-pro Claude/GPT third bucket**, not the
+Hub's daily Claude allowance or direct Anthropic API credits. All VPS projects may use them.
+
+| Route / variants | Use it for |
+|---|---|
+| `agy-opus` = `antigravity/claude-opus-5-5-medium`; `agy-opus-high` = `antigravity/claude-opus-5-5-high` | Rare escalation for exceptionally hard nontrivial work: architectural dead ends after Sol, precise UI/UX and difficult texts/commercial proposals. |
+| `agy-sonnet` = `antigravity/claude-sonnet-5-5-medium`; `agy-sonnet-high` = `antigravity/claude-sonnet-5-5-high` | Economical local Claude escalation for a bounded complex task when Opus is unnecessary. |
+| `antigravity/claude-opus-5-5-low`, `antigravity/claude-sonnet-5-5-low` | Explicit lower-effort variants within the same scarce third bucket; not a mass-processing/routine default. |
+
+**Preserve this small quota for rare difficult cases. Do not spend local Claude on routine
+fixes, bulk tasks or ordinary extraction.** Prefer Sol/Gemini for those. Context availability
+is the native advertised window; the Gemini 1M document guidance is not a universal Claude-input guarantee.
+
 **Local execution rules for every orchestrator**
 1. Use local `antigravity/*` workers for **one-shot, event-driven** tasks. Never attach cron,
    recurring timers, polling or 24/7 loops; kernel/runtime admission blocks scheduled wakes.
@@ -48,7 +62,7 @@ that Google processing is authorized. Current local Gemini windows: **1,000,000 
 4. **Local Carbon is unavailable on this g1-pro VPS**: never spawn `agy-carbon`,
    `antigravity/gemini-4-carbon-*` or unsuffixed `antigravity/gemini-pro-orchestrator`.
    Legacy 3.1/3.5/3.6 (including `agy-pro`), old Claude/GPT-OSS routes and other unlisted IDs are not agent routes.
-   Claude's non-Multicast ban still applies, including local Claude 5.5.
+   Direct Anthropic and Hub-Claude keep their non-Multicast ban. Only the six exact local Antigravity Claude 5.5 variants above are exempt.
 5. The 1M context window can accommodate very large (roughly 400k–900k-token) document work,
    subject to the remaining context and runtime limits. Read project files in bounded batches
    through native tools: the ACP JSON frame limit is **1 MiB**, not one million tokens per message.
@@ -75,7 +89,7 @@ Never silently fall back between local/Hub routes, copy forbidden projects or en
 - Local manual-only/provider/quota guards still apply; a new alias is not permission to bypass them.
 
 ### Hard routing invariants
-- **Project boundary** (owner decision, 2026-11-10): Claude routes (`hubopus`, `hubsonnet`) are restricted to Multicast scopes; personal/internal projects (`orchestra`, `Seedon`, `katya-work`, `University`, `VPN-Service`, D&D repos) use Codex/Gemini/free routes.
+- **Project boundary**: Hub-Claude (`hubopus`, `hubsonnet`, `hub-claude-*`) and direct Anthropic (`claude-*`, runtime `claude`) remain Multicast-only. Owner exception 2026-11-18: our six local `antigravity/claude-{opus,sonnet}-5-5-{low,medium,high}` routes (`agy-opus*` / `agy-sonnet*`) may serve all VPS projects, sparingly and only for rare difficult work. They retain the same no-cron/timer/polling and shared `Semaphore(3)` rules.
 - **Hub data authorization** (owner decision, 2026-11-04): all project code, internal company documents, commercial offers, tenders and KB indexes (including Seedon) are fully authorized on admitted Hub routes (`hubcarbon`, `hubhydrogen`, `hubargon`, `hubsol`, `hubsonnet`, `hubluna`). Never block Hub dispatch over internal docs or KB; exclude only credentials, tokens and `.env` secrets.
 - **Fail closed, no silent fallback**: never select disabled providers (`local`/`heretic` are permanently disabled; respect `disabled_providers.json`), invent aliases, mutate role/task metadata to evade refusal, or fall back to paid API credits without explicit task `billing="api_credit"` approval.
 </model-routing>

@@ -1,0 +1,108 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/gemini-routing-20261118/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/gemini-routing-20261118", "credentials_in_environment": 0}
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_real_worker_initial_delivery_accepts_verified_parent_once ________
+tests/test_gemini_g1_routing.py:170: in test_real_worker_initial_delivery_accepts_verified_parent_once
+    assert resource["delivery_state"]=="SUBMITTED",resource
+E   AssertionError: {'delivery_id': '6c3f1794-7d03-4f97-bd38-b34a642a2b4f', 'delivery_state': 'FAILED_BEFORE_SUBMIT', 'error': {'code': 'D...E_DELIVERY', 'message': 'Retry only this known-not-submitted delivery with the same id.', 'retryable': True, ...}, ...}
+E   assert 'FAILED_BEFORE_SUBMIT' == 'SUBMITTED'
+E
+E     - SUBMITTED
+E     + FAILED_BEFORE_SUBMIT
+----------------------------- Captured stderr call -----------------------------
+initial-delivery failure notification remains pending
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/initial_deliveries.py", line 736, in run_initial_delivery
+    await manager.send_initial_delivery(
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/manager.py", line 1185, in send_initial_delivery
+    delivery_task.result()
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/manager.py", line 1179, in deliver
+    await session.send(
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/session.py", line 1426, in send
+    ensure_interactive_input(self.model, provenance, target_session=self)
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/antigravity_acp.py", line 595, in ensure_interactive_input
+    raise ValueError("antigravity_interactive_only: user input or verified owned event required")
+ValueError: antigravity_interactive_only: user input or verified owned event required
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/initial_deliveries.py", line 763, in run_initial_delivery
+    await notify_message_delivery_failure(delivery_id, manager=manager)
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/message_deliveries.py", line 1394, in notify_message_delivery_failure
+    await task
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/message_deliveries.py", line 1379, in deliver
+    await sender_manager.send(
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/manager.py", line 1149, in send
+    raise KeyError(f"session not found: {session_id}")
+KeyError: 'session not found: gemini-parent'
+initial delivery runner failed
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/initial_deliveries.py", line 791, in _observe_runner
+    task.result()
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/initial_deliveries.py", line 736, in run_initial_delivery
+    await manager.send_initial_delivery(
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/manager.py", line 1185, in send_initial_delivery
+    delivery_task.result()
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/manager.py", line 1179, in deliver
+    await session.send(
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/session.py", line 1426, in send
+    ensure_interactive_input(self.model, provenance, target_session=self)
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/antigravity_acp.py", line 595, in ensure_interactive_input
+    raise ValueError("antigravity_interactive_only: user input or verified owned event required")
+ValueError: antigravity_interactive_only: user input or verified owned event required
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.initial_deliveries:initial_deliveries.py:765 initial-delivery failure notification remains pending
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/initial_deliveries.py", line 736, in run_initial_delivery
+    await manager.send_initial_delivery(
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/manager.py", line 1185, in send_initial_delivery
+    delivery_task.result()
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/manager.py", line 1179, in deliver
+    await session.send(
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/session.py", line 1426, in send
+    ensure_interactive_input(self.model, provenance, target_session=self)
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/antigravity_acp.py", line 595, in ensure_interactive_input
+    raise ValueError("antigravity_interactive_only: user input or verified owned event required")
+ValueError: antigravity_interactive_only: user input or verified owned event required
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/initial_deliveries.py", line 763, in run_initial_delivery
+    await notify_message_delivery_failure(delivery_id, manager=manager)
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/message_deliveries.py", line 1394, in notify_message_delivery_failure
+    await task
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/message_deliveries.py", line 1379, in deliver
+    await sender_manager.send(
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/manager.py", line 1149, in send
+    raise KeyError(f"session not found: {session_id}")
+KeyError: 'session not found: gemini-parent'
+ERROR    orchestra.initial_deliveries:initial_deliveries.py:793 initial delivery runner failed
+Traceback (most recent call last):
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/initial_deliveries.py", line 791, in _observe_runner
+    task.result()
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/initial_deliveries.py", line 736, in run_initial_delivery
+    await manager.send_initial_delivery(
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/manager.py", line 1185, in send_initial_delivery
+    delivery_task.result()
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/manager.py", line 1179, in deliver
+    await session.send(
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/session.py", line 1426, in send
+    ensure_interactive_input(self.model, provenance, target_session=self)
+  File "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app/antigravity_acp.py", line 595, in ensure_interactive_input
+    raise ValueError("antigravity_interactive_only: user input or verified owned event required")
+ValueError: antigravity_interactive_only: user input or verified owned event required
+=============================== warnings summary ===============================
+tests/test_gemini_g1_routing.py::test_real_worker_initial_delivery_accepts_verified_parent_once
+  /home/kesha/orchestra-worktrees/gemini-routing-20261118/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_gemini_g1_routing.py::test_real_worker_initial_delivery_accepts_verified_parent_once
+  /home/kesha/orchestra-worktrees/gemini-routing-20261118/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_gemini_g1_routing.py::test_real_worker_initial_delivery_accepts_verified_parent_once
+1 failed, 2 warnings in 3.55s
