@@ -348,12 +348,14 @@ async def probe_antigravity_quota() -> tuple[dict, dict] | None:
                 return None
             env = cli_environment(home)
             await verify_provider_egress("antigravity", env=env)
-            # In production this is the same IPC wrapper that enforces a single
-            # vendor writer. Explicit app-data-dir keeps OAuth in the ACP store.
+            # Print mode has no ACP-only directory/telemetry flags. It reads the
+            # legacy location, which must resolve to the same canonical token.
+            acp_token = home / ".gemini/antigravity-acp/antigravity-oauth-token"
+            cli_token = home / TOKEN_RELATIVE_PATH
+            if cli_token.resolve() != acp_token.resolve():
+                raise RuntimeError("Antigravity quota requires the shared CLI/ACP token store")
             proc = await asyncio.create_subprocess_exec(
                 ANTIGRAVITY_BIN, "--print", "/quota", "--output-format", "json",
-                "--gemini-dir", str(home / ".gemini"),
-                "--app-data-dir", "antigravity-acp", "--disable-telemetry",
                 cwd=str(home), env=env, stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
                 start_new_session=True,
@@ -376,6 +378,8 @@ async def probe_antigravity_quota() -> tuple[dict, dict] | None:
                         await proc.wait()
             if len(output) > 1024 * 1024:
                 raise RuntimeError("Antigravity quota report exceeds size limit")
+            if proc.returncode and not output.strip():
+                raise RuntimeError("Antigravity quota command returned no report")
             raw = json.loads(output)
             if _is_account_disabled_payload(raw):
                 _trip_antigravity_circuit_breaker("Antigravity quota confirmed account-disabled/Terms-of-Service refusal")

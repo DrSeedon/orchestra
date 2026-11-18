@@ -14,7 +14,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[3]
 PROD = Path("/home/kesha/orchestra")
-BASE = "9834244a4bb94235e682b6a6861dc0cee5c78489"
+BASE = "e520add5081ea02b31b97d4911aa3ac0032e32a6"
 HELPER = PROD / ".orchestra/tasks/sol62-rollout-20261118/live_control.py"
 sys.argv = [str(HELPER), "client"]
 operator = runpy.run_path(str(HELPER))

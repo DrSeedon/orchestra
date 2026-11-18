@@ -83,3 +83,43 @@ def test_argon_has_own_weekly_line_and_short_stops_do_not_gate_by_diagonal():
     timestamps["antigravity_gemini"] = now - agy.QUOTA_CACHE_TTL
     assert decision("agy-hydrogen").state == "unknown"
     assert decision("agy-hydrogen").allowed
+
+
+@pytest.mark.asyncio
+async def test_quota_uses_print_cli_contract_and_never_runs_with_active_acp(tmp_path, monkeypatch):
+    import json
+    import time
+    from types import SimpleNamespace
+
+    from app import antigravity_acp, models, provider_safety
+
+    token = tmp_path / ".gemini/antigravity-acp/antigravity-oauth-token"
+    token.parent.mkdir(parents=True)
+    token.touch()
+    link = tmp_path / agy.TOKEN_RELATIVE_PATH
+    link.parent.mkdir()
+    link.symlink_to(token)
+    owner = SimpleNamespace(_start_lock=asyncio.Lock(), _check_settings=lambda: None,
+                            process=SimpleNamespace(returncode=None))
+    proc = SimpleNamespace(returncode=0, communicate=AsyncMock(
+        return_value=(json.dumps(quota_response(time.time())).encode(), None)))
+    launch = AsyncMock(return_value=proc)
+    egress = AsyncMock()
+    monkeypatch.setattr(agy, "canonical_profile", lambda: tmp_path)
+    monkeypatch.setattr(antigravity_acp, "get_profile", lambda _: owner)
+    monkeypatch.setattr(models, "is_provider_disabled", lambda _: False)
+    monkeypatch.setattr(agy, "cli_environment", lambda _: {"HOME": str(tmp_path)})
+    monkeypatch.setattr(agy.asyncio, "create_subprocess_exec", launch)
+    monkeypatch.setattr(provider_safety, "verify_provider_egress", egress)
+
+    assert await agy.probe_antigravity_quota() is None
+    launch.assert_not_called()
+    egress.assert_not_called()
+    owner.process = None
+    weekly, short = await agy.probe_antigravity_quota()
+    assert len(weekly) + len(short) == 5
+    assert launch.call_args.args == (
+        agy.ANTIGRAVITY_BIN, "--print", "/quota", "--output-format", "json",
+    )
+    assert launch.call_args.kwargs["env"] == {"HOME": str(tmp_path)}
+    egress.assert_awaited_once()
