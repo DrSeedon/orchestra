@@ -42,6 +42,9 @@ def update(sid, update_kind, **extra):
 
 
 def models(sid):
+    if MODE == "g1-fixed":
+        return {"sessionId":sid,"models":{"currentModelId":"gemini-pro-orchestrator-g1-pro",
+            "availableModels":[{"modelId":"gemini-pro-orchestrator-g1-pro","name":"G1 Pro"}]}}
     if MODE.startswith("split-"):
         family = current_models.get(sid,"gemini-4-argon")
         thought = current_thoughts.get(sid,"low" if family=="gemini-4-argon" else "high")

@@ -1,0 +1,47 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/gemini-routing-20261118/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/gemini-routing-20261118", "credentials_in_environment": 0}
+...................................................................FFF.  [100%]
+=================================== FAILURES ===================================
+_ test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-hydrogen] _
+tests/test_gemini_g1_routing.py:104: in test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery
+    result=await m.spawn_worker(name="child",task="synthetic task",repo_path="/synthetic",model=alias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:1240: in spawn_worker
+    result = await _api(
+tests/test_gemini_g1_routing.py:96: in fake_api
+    req=CreateSessionRequest(**body)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for CreateSessionRequest
+E   cwd
+E     Value error, cwd does not exist: /synthetic [type=value_error, input_value='/synthetic', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.13/v/value_error
+_ test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-argon] _
+tests/test_gemini_g1_routing.py:104: in test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery
+    result=await m.spawn_worker(name="child",task="synthetic task",repo_path="/synthetic",model=alias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:1240: in spawn_worker
+    result = await _api(
+tests/test_gemini_g1_routing.py:96: in fake_api
+    req=CreateSessionRequest(**body)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for CreateSessionRequest
+E   cwd
+E     Value error, cwd does not exist: /synthetic [type=value_error, input_value='/synthetic', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.13/v/value_error
+_ test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-flash] _
+tests/test_gemini_g1_routing.py:104: in test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery
+    result=await m.spawn_worker(name="child",task="synthetic task",repo_path="/synthetic",model=alias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:1240: in spawn_worker
+    result = await _api(
+tests/test_gemini_g1_routing.py:96: in fake_api
+    req=CreateSessionRequest(**body)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for CreateSessionRequest
+E   cwd
+E     Value error, cwd does not exist: /synthetic [type=value_error, input_value='/synthetic', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.13/v/value_error
+=========================== short test summary info ============================
+FAILED tests/test_gemini_g1_routing.py::test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-hydrogen]
+FAILED tests/test_gemini_g1_routing.py::test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-argon]
+FAILED tests/test_gemini_g1_routing.py::test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-flash]
+3 failed, 68 passed in 5.41s

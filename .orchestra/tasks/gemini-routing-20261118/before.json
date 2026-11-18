@@ -1,0 +1,283 @@
+{
+  "head": "a3662c7bcbfbeb1d73dc461e7f5ef82a8b52906e",
+  "dirty": {
+    ".orchestra/workers/Orchestra-orchestrator.md": "ed2af782763032620ec176ff907dee2321f6325253cf3f35dd34a3d74a10c6f6",
+    "scripts/video_artifact/README.md": "a2ce4af92a0d9b86e7537a695673578b33c57f9052efb7ca33930ee9a71f0f14",
+    "scripts/video_artifact/elevenlabs_tts.py": "39eefbb8cc7b388fd815921e5b7799f88c8549bf42c3dadccf12174998357dc7"
+  },
+  "flags": {
+    "z-ai/glm-5.2:free": {
+      "agents": true,
+      "dashboard": true
+    },
+    "nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "agents": false,
+      "dashboard": true
+    },
+    "cohere/north-mini-code:free": {
+      "agents": false
+    },
+    "nvidia/nemotron-3.5-lightning:free": {
+      "agents": false
+    },
+    "gpt-6-astra": {
+      "agents": false
+    },
+    "gpt-5.6-sol": {
+      "agents": false,
+      "dashboard": true
+    },
+    "gpt-6-luna": {
+      "dashboard": true,
+      "agents": true
+    },
+    "gpt-6-sol": {
+      "dashboard": true,
+      "agents": false
+    },
+    "claude-opus-5-5[1m]": {
+      "dashboard": true,
+      "agents": true
+    },
+    "deepseek/deepseek-v4.1-flash": {
+      "dashboard": false,
+      "agents": true
+    },
+    "z-ai/glm-5.3": {
+      "dashboard": false,
+      "agents": false
+    },
+    "z-ai/glm-5.3-flash": {
+      "dashboard": false,
+      "agents": false
+    },
+    "deepseek/deepseek-v4.1-flash-1017": {
+      "agents": true,
+      "dashboard": true
+    },
+    "hub-claude-haiku-5-5": {
+      "dashboard": false,
+      "agents": false
+    },
+    "hub-claude-sonnet-5-5": {
+      "dashboard": true,
+      "agents": true
+    },
+    "hub-claude-opus-5-5": {
+      "dashboard": false,
+      "agents": false
+    },
+    "hub-grok-4.7": {
+      "dashboard": false,
+      "agents": false
+    },
+    "hub-gpt-6.1-sol": {
+      "dashboard": true,
+      "agents": true
+    },
+    "hub-gemini-4-argon": {
+      "dashboard": true,
+      "agents": true
+    },
+    "hub-gpt-6-luna": {
+      "dashboard": true,
+      "agents": true
+    },
+    "hub-claude-haiku-4-5": {
+      "dashboard": false,
+      "agents": false
+    },
+    "local/qwen3.5-35b-a3b-heretic:free": {
+      "dashboard": false,
+      "agents": false
+    }
+  },
+  "sessions": [
+    {
+      "id": "75285d62-98bc-441c-9727-22c54bd8ab97",
+      "name": "Orchestra-orchestrator",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "status": "waiting",
+      "session_id": "01a1d8ac-33c2-7be3-b774-f16b65c7e894"
+    },
+    {
+      "id": "09b75a6c-c93f-45ea-b2f4-6728851a1bbd",
+      "name": "seedon-orchestrator",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "status": "waiting",
+      "session_id": "01a1d8a4-4eb4-7253-aa6f-48817bff9f0e"
+    },
+    {
+      "id": "82c118ee-4811-4ccd-aa8d-29b52de3e63d",
+      "name": "kesha-tg-bot-orchestrator",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "status": "idle",
+      "session_id": "01a1e48e-53b2-7072-8691-f400f7ff2b24"
+    },
+    {
+      "id": "206a85e3-c813-41c8-ac48-2bbebe9ec846",
+      "name": "Claude-Code-Game-Master-orchestrator",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "status": "idle",
+      "session_id": ""
+    },
+    {
+      "id": "336d5d9c-6ca0-40ce-b5c7-76364d7d31a3",
+      "name": "University-orchestrator",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "status": "idle",
+      "session_id": "01a1d8b3-f56a-7141-ad58-d56bca8292fa"
+    },
+    {
+      "id": "d02afa56-fe80-4da1-954d-cd65273f578f",
+      "name": "VPN-orchestrator",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "status": "idle",
+      "session_id": "01a1e90a-9c4d-7c01-8d6a-9115695d0b9b"
+    },
+    {
+      "id": "85f0ba7a-0d8a-401e-a909-eb57c40fb02f",
+      "name": "katya-work-orchestrator",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "status": "waiting",
+      "session_id": "01a1d87e-aa1a-79e0-9ce7-0ddec66ae90f"
+    },
+    {
+      "id": "53e809d9-0503-428a-8bbd-8638cf5493bc",
+      "name": "comfy-image-orchestrator-vps",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "status": "idle",
+      "session_id": "01a1e8e7-9d68-7852-bb9f-9aa3b1114064"
+    },
+    {
+      "id": "39f01dce-cc2e-4135-91df-138d40c106d3",
+      "name": "cog-second-brain-orchestrator",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "status": "idle",
+      "session_id": "01a1e24f-9b8e-7c30-aa5a-341c88e2254c"
+    },
+    {
+      "id": "08591eec-74e4-4d17-9764-a919b91ad6d6",
+      "name": "openrouter-lab-orchestrator",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "status": "idle",
+      "session_id": ""
+    },
+    {
+      "id": "f408f313-f81d-49a4-b8e6-69b0fbbca725",
+      "name": "feat-tg-proxy",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "status": "idle",
+      "session_id": "01a12587-9e7f-7220-b4f8-6d05ff12b1fa"
+    },
+    {
+      "id": "1f2abf0d-2c90-496f-9d38-340cd33d0ca1",
+      "name": "sentiment",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "status": "idle",
+      "session_id": ""
+    },
+    {
+      "id": "28d140a5-dcfc-4a2c-a08b-5eb27c82fc50",
+      "name": "kuzenkov",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "status": "idle",
+      "session_id": "01a129ce-bfd6-79c1-b2da-3a69ae5c2494"
+    },
+    {
+      "id": "e91fa683-4ce9-4e65-9bee-1b0489c48526",
+      "name": "index-video",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "status": "idle",
+      "session_id": ""
+    },
+    {
+      "id": "60d1aa6c-781e-43b2-a3ff-c678f6daa1c0",
+      "name": "neuro",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "status": "idle",
+      "session_id": ""
+    },
+    {
+      "id": "2eba92d6-3758-42f0-bc97-eb11c0a0bbba",
+      "name": "nn-video",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "status": "idle",
+      "session_id": ""
+    },
+    {
+      "id": "94ad36b7-92a4-4d5d-bea8-634988b2816b",
+      "name": "ikit-film",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "status": "idle",
+      "session_id": ""
+    },
+    {
+      "id": "3769cbea-c37e-4e63-b0cc-58e59014077d",
+      "name": "potanin",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "status": "idle",
+      "session_id": ""
+    },
+    {
+      "id": "c005c300-8f05-47f1-a97c-8b582028c9fb",
+      "name": "ovd-pixel-local",
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "status": "idle",
+      "session_id": "01a1a0e1-3ad1-7513-90a3-4fe167ccb965"
+    },
+    {
+      "id": "f7e0d61d-5089-4c38-b027-24ea330eeeec",
+      "name": "backup-space",
+      "model": "hub-gpt-6.1-sol",
+      "effort": "high",
+      "status": "idle",
+      "session_id": "hub-6f291c23b34c46f8"
+    },
+    {
+      "id": "f972b7e4-2513-481e-9791-fb1fd880a5b7",
+      "name": "argon-lesson-moments-v535",
+      "model": "hub-gemini-4-argon",
+      "effort": "medium",
+      "status": "idle",
+      "session_id": "hub-dbd66b86da8f48b8"
+    },
+    {
+      "id": "bb4ac026-d52e-48cb-a07f-aeebe6fadb65",
+      "name": "seedon-sales-sol",
+      "model": "hub-gpt-6.1-sol",
+      "effort": "xhigh",
+      "status": "idle",
+      "session_id": "hub-7826156b93e0447b"
+    },
+    {
+      "id": "626ea34f-d213-4ebc-81e1-b209468d31cd",
+      "name": "hydrogen-sandbox-orchestrator",
+      "model": "antigravity/gemini-4-hydrogen-high",
+      "effort": "high",
+      "status": "idle",
+      "session_id": "ceecb254-50aa-41c2-ad02-89c0f5052123"
+    }
+  ],
+  "restart_cut_turns": 0,
+  "telegram_pid": "2786980"
+}

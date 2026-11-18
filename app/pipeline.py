@@ -590,6 +590,10 @@ def resolve_effort(effort: EffortSpec | None, model: str, runtime: str) -> str |
     canonical = _canon_model(model)
     if effort.get(canonical):
         return effort[canonical]
+    if canonical == "antigravity/gemini-pro-orchestrator-g1-pro":
+        # Fixed offered ID: generic role defaults must not invent an effort
+        # suffix. Explicit scalar/model-specific effort still requires native ACK.
+        return None
     # A general role/runtime default cannot overwrite an explicit model variant.
     suffix = re.search(r"-(xhigh|high|medium|low)$", canonical)
     if suffix:

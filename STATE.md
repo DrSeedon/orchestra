@@ -1,25 +1,16 @@
-# Orchestra — Sol/Astra 6.2 rollout, 2026-11-18
-- Authorized: switch sol/codex/astra aliases, role efforts, prompt safeguards, safe internal AGENTS symlink.
-- Worktree: /home/kesha/orchestra-worktrees/sol62-rollout-20261118; branch fix/sol62-rollout-20261118.
-- Benchmark section 4 read: Sol62 orchestrator/reviewer high, coding medium, standard tier; Astra62 high.
-- Switch the ten named live Sol orchestrators via canonical API, preserving native history.
-- Hydrogen stays local antigravity/gemini-4-hydrogen-high, untouched.
-- Production has 23 non-archived sessions, all idle initially; preserve all dirty files byte-for-byte.
-- Never restart telegram-bot-api or change provider credentials/disabled settings.
-- Verify both explicit egress guards, then one controlled production Codex turn/readiness.
-- Implemented: canonical aliases, exact per-role effort, native in-place model+effort transaction, confined symlink preflight.
-- Added terminal implementer/reviewer role configurations; existing provider/manual-only guards unchanged.
-- Validation: 418 contracts passed; 3 adapter/context checks passed; instruction contract passed.
-- Egress root cause found: Xray lacked ipwho.is/ipinfo.io residential routes. Added only both domains plus mirrored block entries, validated config, restarted with 0 active connections.
-- Both egress guards now verified 178.93.29.64 / NL / AS215294 Lumina; credentials unchanged.
-- API health before rollout: 23 sessions, 3 runtime failures (Orchestra/Seedon/Kesha); all idle, no compaction.
-- DEPLOYED e8a473911; Orchestra active PID2777040, restart_cut_turns=0, Telegram PID unchanged.
-- All 10/10 named Sol orchestrators switched through native-in-place API to gpt-6.2-sol high; native IDs preserved.
-- All 23 sessions free of runtime errors after restart; own test PIDs=0.
-- Three recovery pings SUBMITTED once each; all emitted SOL62_START_OK, 0 error events.
-- Last observation: Orchestra waiting on recovery continuation, Seedon running catch-up; Kesha idle after successful Sol62 end_turn (72.1s).
-- Seedon live preflight: 0 unsafe-symlink warnings; all 23 original native IDs retained.
-- New explicit owner steering: send exactly one recovery ping to Orchestra/Seedon/Kesha after all ten switches.
-- Recovery pings replaced standalone canary; no extra probe turn. Unknown/finished operations were not replayed.
-- Final artifact report.md records health/status evidence; ongoing catch-up belongs to those live sessions.
-- Evidence: .orchestra/tasks/sol62-rollout-20261118/.
+# Orchestra — local Gemini admission/passport, 2026-11-18
+- Authorized: exact eleven g1-pro Gemini agent defaults/admission, aliases, complete local/Hub passport.
+- Worktree: /home/kesha/orchestra-worktrees/gemini-routing-20261118; branch feat/gemini-g1-agent-routing-20261118.
+- Found second blocker: ensure_spawn_allowed() rejects all native subscription routes except Luna even when agents flag is true.
+- Implement exact allowlist shared by spec defaults and native subscription gate; all other models unchanged.
+- Carbon, unsuffixed orchestrator and legacy routes stay closed for agents; Claude project policy retained.
+- Correct stale agents=false only for explicitly requested Gemini IDs through canonical catalog API.
+- No real provider prompts/quota/catalog probes needed. Test spawn boundary with isolated DB/mocked transport.
+- Never restart telegram-bot-api; preserve production dirty files; wait for zero running/compacting sessions before restart.
+- Local model context window is not transport payload size; Google inference remains remote, no Hub copy.
+- Exact 11-ID defaults/native-route exception and seven aliases implemented; local/Hub passport and KB synchronized.
+- Synthetic regression reproduced fixed g1-pro ID incorrectly becoming -high from generic role effort; exact fixed-ID fallback corrected, explicit effort/ACK retained.
+- Verified: 456 tests passed; instruction contract PASS; MCP fixture now uses real temp cwd and canonical matching delivery receipt.
+- Three MCP spawn entrypoints reach real server guard in mocked delivery tests; no real provider calls.
+- Deployment next: idle gate, source fast-forward/restart, canonical live catalog flag/admission checks.
+- Evidence .orchestra/tasks/gemini-routing-20261118/. No deployment yet.

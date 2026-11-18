@@ -1,0 +1,11 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/gemini-routing-20261118/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/gemini-routing-20261118", "credentials_in_environment": 0}
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_fixed_g1_route_does_not_invent_high_variant_from_role_fallback ______
+tests/test_gemini_g1_routing.py:129: in test_fixed_g1_route_does_not_invent_high_variant_from_role_fallback
+    assert end(events).metadata["ok"],"Generic role high must not invent a nonexistent -high model ID"
+E   AssertionError: Generic role high must not invent a nonexistent -high model ID
+E   assert False
+=========================== short test summary info ============================
+FAILED tests/test_gemini_g1_routing.py::test_fixed_g1_route_does_not_invent_high_variant_from_role_fallback
+1 failed in 3.17s

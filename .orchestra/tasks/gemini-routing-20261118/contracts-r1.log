@@ -1,0 +1,59 @@
+{"isolation": "kernel network namespace + Python audit", "interfaces": [[1, "lo"]], "external_routes": 0, "allowed_executable": "/home/kesha/orchestra-worktrees/gemini-routing-20261118/tests/acp_mock/fake_agy_acp.py", "import_root": "/home/kesha/orchestra-worktrees/gemini-routing-20261118", "credentials_in_environment": 0}
+...................................................................FFF.. [ 15%]
+........................................................................ [ 31%]
+........................................................................ [ 47%]
+........................................................................ [ 63%]
+........................................................................ [ 78%]
+........................................................................ [ 94%]
+........................                                                 [100%]
+=================================== FAILURES ===================================
+_ test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-hydrogen] _
+app/mcp_stdio.py:1286: in spawn_worker
+    delivery = await _post_initial_delivery(name, worker_task, delivery_id, scope)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:934: in _post_initial_delivery
+    raise cause
+E   app.mcp_stdio.ApiToolError: Initial delivery API returned an invalid acceptance receipt
+
+The above exception was the direct cause of the following exception:
+tests/test_gemini_g1_routing.py:105: in test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery
+    result=await m.spawn_worker(name="child",task="synthetic task",repo_path=str(tmp_path),model=alias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:1290: in spawn_worker
+    raise _spawn_delivery_error(
+E   app.mcp_stdio.ApiToolError: Worker 'child' was created, but initial task delivery unknown: Initial delivery API returned an invalid acceptance receipt; delivery_id=af6f639d-5184-468b-af40-fb77f28396e5
+_ test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-argon] _
+app/mcp_stdio.py:1286: in spawn_worker
+    delivery = await _post_initial_delivery(name, worker_task, delivery_id, scope)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:934: in _post_initial_delivery
+    raise cause
+E   app.mcp_stdio.ApiToolError: Initial delivery API returned an invalid acceptance receipt
+
+The above exception was the direct cause of the following exception:
+tests/test_gemini_g1_routing.py:105: in test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery
+    result=await m.spawn_worker(name="child",task="synthetic task",repo_path=str(tmp_path),model=alias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:1290: in spawn_worker
+    raise _spawn_delivery_error(
+E   app.mcp_stdio.ApiToolError: Worker 'child' was created, but initial task delivery unknown: Initial delivery API returned an invalid acceptance receipt; delivery_id=4de6de9f-efb7-493a-9a37-2f3f758e08b5
+_ test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-flash] _
+app/mcp_stdio.py:1286: in spawn_worker
+    delivery = await _post_initial_delivery(name, worker_task, delivery_id, scope)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:934: in _post_initial_delivery
+    raise cause
+E   app.mcp_stdio.ApiToolError: Initial delivery API returned an invalid acceptance receipt
+
+The above exception was the direct cause of the following exception:
+tests/test_gemini_g1_routing.py:105: in test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery
+    result=await m.spawn_worker(name="child",task="synthetic task",repo_path=str(tmp_path),model=alias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:1290: in spawn_worker
+    raise _spawn_delivery_error(
+E   app.mcp_stdio.ApiToolError: Worker 'child' was created, but initial task delivery unknown: Initial delivery API returned an invalid acceptance receipt; delivery_id=90fad30b-ab3f-4b3a-a611-046dc2cb0d52
+=========================== short test summary info ============================
+FAILED tests/test_gemini_g1_routing.py::test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-hydrogen]
+FAILED tests/test_gemini_g1_routing.py::test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-argon]
+FAILED tests/test_gemini_g1_routing.py::test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery[agy-flash]
+3 failed, 453 passed in 11.27s
