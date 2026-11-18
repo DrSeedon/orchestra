@@ -1,0 +1,56 @@
+{
+  "code_commit": "3e21fd28bd472e7e6b4d2971f628157cb8471ffd",
+  "idle_observations": [
+    {
+      "elapsed_monotonic": 1295209.606,
+      "busy": [
+        "seedon-orchestrator"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1295355.506,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-frontend"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1295360.086,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1295364.619,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1295369.454,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1295476.95,
+      "busy": [
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    }
+  ],
+  "provider_prompts": 0,
+  "catalog_refresh_probes": 0
+}

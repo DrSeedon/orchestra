@@ -11,7 +11,7 @@ import time
 ROOT=Path("/home/kesha/orchestra-worktrees/gemini-routing-20261118")
 PROD=Path("/home/kesha/orchestra")
 EV=ROOT/".orchestra/tasks/gemini-routing-20261118"
-CODE="d28c7398a66de9e33d2a2b57ec4355f396a488d8"
+CODE=subprocess.check_output(["git","-C",str(ROOT),"rev-parse","HEAD"],text=True).strip()
 base=json.loads((EV/"before.json").read_text())
 helper=PROD/".orchestra/tasks/sol62-rollout-20261118/live_control.py"
 sys.argv=[str(helper),"client"]
@@ -28,7 +28,7 @@ def busy():
     return [r["name"] for r in snapshot() if r["status"]=="running" or r.get("compaction")]
 assert preserved(),"foreign dirty files changed; inspect before proceeding"
 assert cmd(["git","-C",str(PROD),"rev-parse","HEAD"])==base["head"],"production HEAD moved"
-deadline=time.monotonic()+600
+deadline=time.monotonic()+3600
 prior=None
 while True:
     active=busy()

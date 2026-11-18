@@ -1,33 +1,353 @@
 {
-  "code_commit": "d28c7398a66de9e33d2a2b57ec4355f396a488d8",
+  "code_commit": "3e21fd28bd472e7e6b4d2971f628157cb8471ffd",
   "idle_observations": [
     {
-      "elapsed_monotonic": 1293891.562,
+      "elapsed_monotonic": 1295893.577,
+      "busy": [
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296073.133,
+      "busy": [
+        "kesha-tg-bot-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296079.628,
+      "busy": [
+        "seedon-orchestrator",
+        "kesha-tg-bot-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296220.229,
+      "busy": [
+        "seedon-orchestrator",
+        "kesha-tg-bot-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296293.443,
+      "busy": [
+        "kesha-tg-bot-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296393.06,
+      "busy": [
+        "seedon-orchestrator",
+        "kesha-tg-bot-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296395.204,
+      "busy": [
+        "seedon-orchestrator",
+        "kesha-tg-bot-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296410.25,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-frontend",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296497.189,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-frontend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296624.807,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296669.933,
+      "busy": [
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296781.927,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1296950.52,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1297105.263,
+      "busy": [
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1297120.317,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-backend",
+        "pushkino-content",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1297191.838,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-backend",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1297234.896,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-frontend",
+        "pushkino-backend",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1297286.739,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-backend",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1297389.255,
+      "busy": [
+        "seedon-orchestrator",
+        "pushkino-procurement"
+      ]
+    },
+    {
+      "elapsed_monotonic": 1297803.481,
       "busy": [
         "seedon-orchestrator"
       ]
     },
     {
-      "elapsed_monotonic": 1294027.186,
+      "elapsed_monotonic": 1297820.83,
       "busy": [
-        "seedon-orchestrator",
-        "VPN-orchestrator"
+        "Orchestra-orchestrator",
+        "seedon-orchestrator"
       ]
     },
     {
-      "elapsed_monotonic": 1294033.585,
+      "elapsed_monotonic": 1297965.133,
       "busy": [
         "seedon-orchestrator"
       ]
     },
     {
-      "elapsed_monotonic": 1294057.49,
-      "busy": [
-        "seedon-orchestrator",
-        "VPN-orchestrator"
-      ]
+      "elapsed_monotonic": 1298665.069,
+      "busy": []
     }
   ],
   "provider_prompts": 0,
-  "catalog_refresh_probes": 0
+  "catalog_refresh_probes": 0,
+  "verdict": "DEPLOYED_ADMISSION_VERIFIED",
+  "old_pid": "2777040",
+  "new_pid": "2862666",
+  "restart_cut_turns": 0,
+  "telegram_pid_unchanged": true,
+  "dirty_files_preserved": true,
+  "disabled_providers_unchanged": true,
+  "sessions_unchanged": true,
+  "agents_flags_updated": [],
+  "live_catalog_allowed": [
+    {
+      "id": "antigravity/claude-opus-5-5-high",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/claude-opus-5-5-low",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/claude-opus-5-5-medium",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/claude-sonnet-5-5-high",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/claude-sonnet-5-5-low",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/claude-sonnet-5-5-medium",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-3.8-flash-high",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-3.8-flash-low",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-3.8-flash-medium",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-4-argon-high",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-4-argon-low",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-4-argon-medium",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-4-hydrogen-high",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-4-hydrogen-low",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-4-hydrogen-medium",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-4-hydrogen-xhigh",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    },
+    {
+      "id": "antigravity/gemini-pro-orchestrator-g1-pro",
+      "agents": true,
+      "context_length": 1000000,
+      "canonical_guard": "PASS"
+    }
+  ],
+  "aliases": {
+    "agy-hydrogen": "antigravity/gemini-4-hydrogen-high",
+    "agy-hydrogen-xhigh": "antigravity/gemini-4-hydrogen-xhigh",
+    "agy-hydrogen-med": "antigravity/gemini-4-hydrogen-medium",
+    "agy-argon": "antigravity/gemini-4-argon-medium",
+    "agy-argon-high": "antigravity/gemini-4-argon-high",
+    "agy-flash": "antigravity/gemini-3.8-flash-medium",
+    "agy-flash-high": "antigravity/gemini-3.8-flash-high",
+    "agy-opus": "antigravity/claude-opus-5-5-medium",
+    "agy-opus-high": "antigravity/claude-opus-5-5-high",
+    "agy-sonnet": "antigravity/claude-sonnet-5-5-medium",
+    "agy-sonnet-high": "antigravity/claude-sonnet-5-5-high"
+  },
+  "non_allowed_local_refused": [
+    "antigravity/gemini-4-carbon-medium",
+    "antigravity/gemini-4-carbon-high",
+    "antigravity/gemini-4-carbon-low",
+    "antigravity/gemini-pro-orchestrator",
+    "antigravity/gemini-pro-orchestrator-argon",
+    "antigravity/gpt-oss-120b-medium",
+    "antigravity/gemini-3.6-flash-high",
+    "antigravity/gemini-3.6-flash-medium",
+    "antigravity/gemini-3.6-flash-low",
+    "antigravity/gemini-3.5-flash-high",
+    "antigravity/gemini-3.5-flash-medium",
+    "antigravity/gemini-3.5-flash-low",
+    "antigravity/gemini-3.1-pro-high",
+    "antigravity/gemini-3.1-pro-low",
+    "antigravity/claude-sonnet-4-6",
+    "antigravity/claude-opus-4-6-thinking"
+  ],
+  "tested_app": "/home/kesha/orchestra-worktrees/gemini-routing-20261118/app",
+  "deployed_app": "/home/kesha/orchestra/app",
+  "runtime_errors_after_restart": []
 }
