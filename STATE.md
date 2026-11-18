@@ -10,3 +10,4 @@
 - 488 backend and eight browser tests passed, plus targeted post-fix reruns. Six VPS project instruction files updated.
 - While persistent ACP holds the profile writer, quota probing defers safely. In-band quota updates still persist.
 - Evidence: .orchestra/tasks/gemini-quotas-and-hub62-20261118/report.md. PNGs under /tmp/orchestra_gemini_quotas_ui_*.png.
+- Visual R2 deployed in 0eede9924: one row of three compact Antigravity chips at desktop width, all five labels above both axes, separated stop labels. 44 browser tests passed. :8888 issued all three new immutable asset URLs, with both service PIDs unchanged and restart_cut_turns=0. Both live PNGs refreshed on hub and VPS.
