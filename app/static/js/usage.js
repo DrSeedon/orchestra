@@ -60,6 +60,24 @@ function _antigravityReset(sample) {
         : '';
 }
 
+function _antigravityCompactWindow(key, period, sample) {
+    if (!sample) return `<span>${period} · ${T('нет данных')}</span>`;
+    const gate = _usageData?.antigravity_gate?.[key];
+    const countdown = _resetCountdown(sample.resets_at);
+    const shortReset = countdown.includes('d')
+        ? countdown.replace(/ \d+m$/, '').replaceAll(' ', '')
+        : countdown.replaceAll(' ', '');
+    const headroom = gate?.headroom_pp;
+    const room = period === '7d' && Number.isFinite(headroom)
+        ? `<span class="usage-agy-gate">${headroom >= 0 ? '+' : ''}${headroom.toFixed(1)}</span>`
+        : '';
+    const blocked = gate?.state === 'blocked'
+        ? `<span class="usage-agy-stop" aria-label="${escHtml(T('blocked'))}">■</span>` : '';
+    return `<span data-agy-window="${key}" title="${escHtml(countdown)}">${period} ${_miniBar(
+        sample.utilization, _usageColor(sample.utilization, null), 0, 23,
+    )}${room}${shortReset ? `<span class="usage-agy-reset">${shortReset}</span>` : ''}${blocked}</span>`;
+}
+
 let _usageFetchPromise = null;
 let _usageLastSuccessAt = 0;
 let _usageLastFetchStartedAt = 0;
@@ -261,13 +279,13 @@ function _etaToLimit(currentPct, isoStr, windowMs) {
     return `<span style="color:${color}">${T('⏳{label}', {label})}</span>`;
 }
 
-function _miniBar(pct, color, lockedPct = 0) {
+function _miniBar(pct, color, lockedPct = 0, width = 80) {
     const formatted = _formatPercent(pct);
     const locked = Math.min(Math.max(Number(lockedPct) || 0, 0), Math.max(0, 100 - Number(formatted)));
     const lock = locked > 0.05
         ? `<span data-week-lock-segment="true" style="position:absolute;right:0;top:0;width:${locked}%;height:100%;background:repeating-linear-gradient(135deg,#475569 0 2px,#1e293b 2px 4px)"></span>`
         : '';
-    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="position:relative;display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(Number(formatted), 100)}%;height:100%;border-radius:3px;background:${color}"></span>${lock}</span><span style="color:var(--ink);font-weight:600">${formatted}%</span></span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="position:relative;display:inline-block;width:${width}px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(Number(formatted), 100)}%;height:100%;border-radius:3px;background:${color}"></span>${lock}</span><span style="color:var(--ink);font-weight:600">${formatted}%</span></span>`;
 }
 
 // One source with the Telegram card: `quota_headroom` from /api/usage (_quota_headroom).
@@ -487,12 +505,9 @@ function renderUsageBar() {
 
     if (!_isProviderDisabled('antigravity')) {
         const parts = _antigravityUsageBuckets().map(({id, label, windows}) => {
-            const values = windows.map(({key, period, sample}) => {
-                if (!sample) return `<span>${period} · ${T('нет данных')}</span>`;
-                return `<span data-agy-window="${key}" title="${escHtml(_resetCountdown(sample.resets_at))}">${period} ${_miniBar(
-                    sample.utilization, _usageColor(sample.utilization, null),
-                )}${_antigravityGateLabel(key)}${_antigravityReset(sample)}</span>`;
-            }).join('');
+            const values = windows.map(({key, period, sample}) =>
+                _antigravityCompactWindow(key, period, sample),
+            ).join('<span class="usage-agy-divider" aria-hidden="true">·</span>');
             return `<span class="usage-agy-bucket" data-antigravity-bucket="${id}"><b>${label}</b>${values}</span>`;
         });
         groups.push('<span class="usage-provider-group" data-usage-compact-provider="antigravity">'

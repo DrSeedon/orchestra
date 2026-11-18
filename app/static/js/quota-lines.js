@@ -14,8 +14,8 @@ const _QL_REFRESH_MS = 120000;
 const _QL_RESET_HISTORY_HOURS = 252, _QL_RESET_HISTORY_STEP_MINUTES = 30;
 const _QL_RESET_JUMP_MS = 3600000;
 const _QL_RESET_HISTORY_CACHE_MS = 300000;
-const _QL_LABEL_STEP = 12;
-const _QL_LABEL_TOP_PAD = 8;
+const _QL_LABEL_MIN_Y = _QL_MT + 12;
+const _QL_LABEL_MAX_Y = _QL_MT + _QL_PH - 8;
 const _QL_KR_HOUR_FORMAT = new Intl.DateTimeFormat(orchLocale(), {
     timeZone: 'Asia/Krasnoyarsk', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
 });
@@ -67,12 +67,6 @@ let _quotaLinesOwnerOnly = false;
 
 const _qlX = t => _QL_ML + t * _QL_PW;
 const _qlY = p => _QL_MT + (1 - p / 100) * _QL_PH;
-const _QL_LANE_MARKERS = [
-    {dx: 12, dy: -14},
-    {dx: -12, dy: -22},
-    {dx: 12, dy: 17},
-    {dx: -12, dy: 26},
-];
 // Цвет полосы = цвет её модели/пула из дизайн-системы (design-system.css). SVG-атрибуту
 // нужен вычисленный цвет, поэтому cssToken, а не var().
 const _QL_LANE_TOKENS = {sol: '--model-sol', luna: '--model-luna', spark: '--model-spark', claude: '--provider-anthropic'};
@@ -432,20 +426,21 @@ function _qlTone(verdict) {
     return verdict.nodata ? 'ql-nodata' : verdict.blocked ? 'ql-verdict-blocked' : 'ql-verdict-open';
 }
 
-function _qlPlaceY(baseY, usedBands, step = _QL_LABEL_STEP) {
-    let y = Math.max(_QL_MT + _QL_LABEL_TOP_PAD, baseY);
-    for (let tries = 0; tries < 8; tries++) {
-        const top = y - 10;
-        const bottom = y + 30;
-        const collided = usedBands.some(([from, to]) => !(bottom < from || top > to));
-        if (!collided) {
-            usedBands.push([top, bottom]);
-            return y;
+// Coordinates are SVG baselines. Reserve the second line before placing a
+// point label, so both its title and its detail stay above the bottom axis.
+function _qlPlaceY(preferred, rows, {gap = 16, detail = 0, upward = false} = {}) {
+    const maxY = _QL_LABEL_MAX_Y - detail;
+    const start = Math.min(maxY, Math.max(_QL_LABEL_MIN_Y, preferred));
+    const free = row => rows.every(used => Math.abs(used - row) >= gap);
+    const direction = upward ? -1 : 1;
+    for (const step of [direction, -direction]) {
+        for (let row = start; row >= _QL_LABEL_MIN_Y && row <= maxY; row += step) {
+            if (!free(row)) continue;
+            rows.push(row);
+            return row;
         }
-        y += step;
     }
-    usedBands.push([y - 10, y + 30]);
-    return y;
+    return start;
 }
 
 // Точка рисуется, только когда сервер сказал, что данные есть. utilization=0 при
@@ -626,7 +621,7 @@ function _qlTimelineSvg(panel, rule) {
     }
     // Facts stop at now. Add a current sample there; the right half is policy only.
     let pointIndex = 0;
-    const usedTimelineLabelBands = {left: [], right: []};
+    const timelinePointRows = [];
     for (const lane of _qlLanes(panel)) {
         const point = _qlPoint(lane.bucket);
         if (!point) continue;
@@ -635,7 +630,7 @@ function _qlTimelineSvg(panel, rule) {
         const lowPoint = point.util < 15;
         const leftLabel = lowPoint && pointIndex % 2 === 1;
         const labelY = _qlPlaceY(y(point.util) + (lowPoint ? -12 : 4),
-            usedTimelineLabelBands[leftLabel ? 'left' : 'right'], 14);
+            timelinePointRows, {upward: lowPoint});
         p.push(`<text class="ql-timeline-point-label" data-ql-timeline-label="${_escHtml(lane.lane)}" x="${x(now) + (leftLabel ? -12 : 12)}" y="${labelY}" text-anchor="${leftLabel ? 'end' : 'start'}" fill="${color}">${_escHtml(T(lane.label || lane.lane))} ${_formatPercent(point.util)}%</text>`);
         pointIndex++;
     }
@@ -664,9 +659,9 @@ function _qlTimelineSvg(panel, rule) {
         }
         if (coords.length > 1) p.push(`<polyline class="ql-trace ql-timeline-history ql-trace-${bucket.bucket.replaceAll('_', '-') }" data-ql-timeline-history="${_escHtml(bucket.bucket)}" points="${coords.join(' ')}"/>`);
     }
-    const edgeLabelBands = [];
+    const edgeLabelRows = [];
     for (const item of timelineEdgeLabels) {
-        const labelY = _qlPlaceY(item.y, edgeLabelBands, 12);
+        const labelY = _qlPlaceY(item.y, edgeLabelRows);
         p.push(`<text class="ql-timeline-edge-label" x="${_QL_ML + _QL_PW - 4}" y="${labelY}" text-anchor="end" fill="${item.color}"><title>${_escHtml(item.title)}</title>${_escHtml(item.text)}</text>`);
     }
     return `<svg class="ql-chart" data-ql-timeline="${_escHtml(panel.key)}" viewBox="0 0 ${_QL_W} ${_QL_H}" preserveAspectRatio="xMidYMid meet">${p.join('')}</svg>`;
@@ -722,8 +717,10 @@ function _qlChartSvg(panel, rule) {
 
     const hard = Number(rule.hard_stop_pct);
     p.push(`<line class="ql-hard" x1="${_qlX(0)}" y1="${_qlY(hard)}" x2="${_qlX(1)}" y2="${_qlY(hard)}"/>`);
+    const stopLabelRows = [];
     const hardTitle = T('hard {pct}% — stop for lanes without own ceiling', {pct: _formatPercent(hard)});
-    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(hard) - 7}" text-anchor="end" fill="#fdba74"><title>${_escHtml(hardTitle)}</title>${T('stop {pct}%', {pct: _formatPercent(hard)})}</text>`);
+    const hardLabelY = _qlPlaceY(_qlY(hard) - 7, stopLabelRows);
+    p.push(`<text class="ql-axis ql-quota-label" data-ql-stop-label="common" x="${_QL_ML + _QL_PW - 4}" y="${hardLabelY}" text-anchor="end" fill="#fdba74"><title>${_escHtml(hardTitle)}</title>${T('stop {pct}%', {pct: _formatPercent(hard)})}</text>`);
     // Lane-specific line for lane with lower ceiling: one common line would lie
     // that the expensive lane runs to the last pool percent.
     const shownStops = new Set();
@@ -734,7 +731,8 @@ function _qlChartSvg(panel, rule) {
         p.push(`<line class="ql-hard" data-ql-hard-lane="${_escHtml(lane.lane)}" x1="${_qlX(0)}" y1="${_qlY(stop)}" x2="${_qlX(1)}" y2="${_qlY(stop)}"/>`);
         const laneLabel = T(lane.label || lane.lane);
         const laneStopTitle = T('{label} — hard {pct}%', {label: laneLabel, pct: _formatPercent(stop)});
-        p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74"><title>${_escHtml(laneStopTitle)}</title>${T('stop {label} {pct}%', {label: _escHtml(laneLabel), pct: _formatPercent(stop)})}</text>`);
+        const stopLabelY = _qlPlaceY(_qlY(stop) - 7, stopLabelRows);
+        p.push(`<text class="ql-axis ql-quota-label" data-ql-stop-label="${_escHtml(lane.lane)}" x="${_QL_ML + _QL_PW - 4}" y="${stopLabelY}" text-anchor="end" fill="#fdba74"><title>${_escHtml(laneStopTitle)}</title>${T('stop {label} {pct}%', {label: _escHtml(laneLabel), pct: _formatPercent(stop)})}</text>`);
     }
     p.push(`<line class="ql-orch" x1="${_qlX(0)}" y1="${_qlY(100)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
     p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe"><title>${T('orchestrator always runs — no limit')}</title>${T('orchestrator ∞')}</text>`);
@@ -748,7 +746,7 @@ function _qlChartSvg(panel, rule) {
     const lanes = _qlLanes(panel);
     const traceNotices = [];
     const traces = new Set();
-    const usedLabelBands = [];
+    const pointLabelRows = [];
     // Пути строим по pool-решению (решающее окно): один пул — одна ломаная.
     for (const bucket of byBucket) {
         if (traces.has(bucket.bucket)) continue;
@@ -786,19 +784,16 @@ function _qlChartSvg(panel, rule) {
         }
         const x = _qlX(point.progress), y = _qlY(point.util);
         p.push(`<line class="ql-cursor" x1="${x}" y1="${_QL_MT}" x2="${x}" y2="${_QL_MT + _QL_PH}"/>`);
-        const offset = _QL_LANE_MARKERS[i] || _QL_LANE_MARKERS[0];
         const right = point.progress > 0.6;
-        const dx = right ? -Math.abs(offset.dx) : offset.dx;
-        const dy = offset.dy;
+        const dx = right ? -12 : 12;
         const color = _qlLaneColor(lane.lane);
         const label = _escHtml(String(T(lane.label || lane.lane)));
         const markerClass = `ql-point-${lane.lane || 'lane'}`;
         const anchor = right ? 'end' : 'start';
-        const hardY = _qlY(hard);
-        const baseY = _qlY(point.util + 0);
-        const rawLabelY = y + dy;
-        const avoidHardY = Math.abs(baseY - hardY) < 8 || Math.abs(rawLabelY - hardY) < 28;
-        const stackedLabelY = _qlPlaceY(avoidHardY ? hardY + 22 : rawLabelY, usedLabelBands);
+        const lowPoint = point.util < 15;
+        const nearHardStop = Math.abs(y - _qlY(hard)) < 28;
+        const stackedLabelY = _qlPlaceY(nearHardStop ? y + 36 : y - 20,
+            pointLabelRows, {gap: 28, detail: 14, upward: lowPoint});
         p.push(`<circle data-ql-point="${_escHtml(lane.lane)}" class="${markerClass}" cx="${x}" cy="${y}" r="5.5" fill="none" stroke="${color}" stroke-width="2.5"/>`);
         // Use the server's lane verdict: explicit owner overrides can remove its
         // line or lower its ceiling even when the pool still has capacity.
@@ -811,8 +806,8 @@ function _qlChartSvg(panel, rule) {
             : T('pace {pct}% · limit {limit}%', {
                 pct: _formatPercent(point.progress * 100), limit: _formatPercent(laneLimit, 1),
             });
-        p.push(`<text class="ql-halo ql-point-label" data-ql-label="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY}" text-anchor="${anchor}" fill="${color}"><title>${_escHtml(labelTitle)}</title>${label} ${_formatPercent(point.util)}%${point.fresh ? '' : T(' (telemetry stale)')}</text>`);
-        p.push(`<text class="ql-axis ql-halo" data-ql-detail="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY + 14}" text-anchor="${anchor}">${detail}</text>`);
+        p.push(`<text class="ql-quota-label ql-point-label" data-ql-label="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY}" text-anchor="${anchor}" fill="${color}"><title>${_escHtml(labelTitle)}</title>${label} ${_formatPercent(point.util)}%${point.fresh ? '' : T(' (telemetry stale)')}</text>`);
+        p.push(`<text class="ql-axis ql-quota-label" data-ql-detail="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY + 14}" text-anchor="${anchor}">${detail}</text>`);
     }
 
     return {

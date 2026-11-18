@@ -55,6 +55,10 @@ def _page(browser: Browser, antigravity, *, width: int = 1440):
                     primary: {utilization: 10, window_minutes: 10080, resets_at: reset},
                 },
                 antigravity, antigravity_5h: short,
+                antigravity_gate: {
+                    "gemini-weekly": {state: "available", headroom_pp: 13.3},
+                    "gemini-5h": {state: "available", headroom_pp: 95.0},
+                },
                 orchestra: {total_cost_usd: 5687, agents_count: 197},
             };
             renderUsageBar();
@@ -191,3 +195,23 @@ def test_t4_antigravity_does_not_regress_desktop_usage_bar_overflow(browser):
         assert "$5687" not in measured["text"]
         assert "197 agents" not in measured["text"]
         page.close()
+
+
+def test_antigravity_desktop_renders_three_single_row_chips(browser):
+    page = _page(browser, _three_groups(), width=1720)
+    compact = page.locator('[data-usage-compact-provider="antigravity"]')
+    expect(compact.locator("[data-agy-window]")).to_have_count(5)
+    expect(compact).to_contain_text("+13.3")
+    expect(compact).not_to_contain_text("95.0")
+    metrics = compact.locator(".usage-agy-bucket").evaluate_all(
+        """chips => chips.map(chip => ({
+            top: chip.getBoundingClientRect().top,
+            height: chip.getBoundingClientRect().height,
+        }))"""
+    )
+    assert len({m["top"] for m in metrics}) == 1
+    assert max(m["height"] for m in metrics) < 26
+    page.locator("#usage-info-btn").hover()
+    details = page.locator('[data-usage-provider="antigravity"]')
+    expect(details).to_contain_text("95.0 pp")
+    page.close()

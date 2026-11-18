@@ -1052,3 +1052,43 @@ def test_antigravity_chart_renders_five_windows_and_three_weekly_thresholds(brow
     assert panel.locator('[data-ql-hard-lane]').count() == 1
     assert errors == [], errors
     page.close()
+
+
+def test_antigravity_zero_point_labels_fit_inside_both_plots(browser):
+    from datetime import timedelta
+
+    payload = _payload()
+    payload["rule"]["antigravity_default_hard_stop_pct"] = 95
+    now = datetime.fromisoformat(payload["generated_at"])
+    for pool, minutes in (("gemini", 10080), ("gemini_5h", 300), ("argon", 10080),
+                          ("3p", 10080), ("3p_5h", 300)):
+        lane_id = "agy_" + pool
+        weekly = minutes == 10080
+        if weekly:
+            payload["rule"]["gated_lanes"].append(lane_id)
+        bucket = _bucket("antigravity_" + pool, pool, 0, 0, [_lane(lane_id, pool, weekly, False)],
+                         window_minutes=minutes)
+        bucket["window"]["resets_at"] = (now + timedelta(minutes=minutes)).isoformat()
+        payload["buckets"].append(bucket)
+
+    page, errors = _render(browser, payload, as_json=False)
+    panel = page.locator('[data-ql-panel="antigravity"]')
+
+    def coordinates(selector):
+        return sorted(float(value) for value in panel.locator(selector).evaluate_all(
+            "nodes => nodes.map(node => node.getAttribute('y'))"
+        ))
+
+    def assert_rows(selector, count, min_gap, min_y=30):
+        rows = coordinates(selector)
+        assert len(rows) == count
+        assert min(rows) >= min_y and max(rows) <= 426 - 8
+        assert all(b - a >= min_gap for a, b in zip(rows, rows[1:]))
+
+    assert_rows("[data-ql-timeline-label]", 5, 15)
+    assert_rows("[data-ql-label]", 5, 28, min_y=426 - 0.35 * 408)
+    assert_rows("[data-ql-detail]", 5, 28)
+    assert_rows(".ql-timeline-edge-label", 4, 15)
+    assert_rows("[data-ql-stop-label]", 2, 14)
+    assert errors == []
+    page.close()
