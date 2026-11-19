@@ -39,7 +39,7 @@ Sonnet — ограниченная сложная задача, где Opus и�
 Только разовые событийные воркеры. Никаких cron/timers/polling/24x7; собственные завершения
 разовых задач и сообщения владельца/проверенных агентов остаются штатными событиями.
 Не более 1–2 локальных Gemini воркеров одновременно, при общем Semaphore(3).
-Hydrogen/Argon/Flash делят Gemini-квоту (5h+weekly); это не расход недельного пула Codex.
+Neon, Orchestrator (Neon), Hydrogen и Flash делят Gemini-квоту (5h+weekly). Argon и Orchestrator (Argon) используют отдельное недельное окно, локальные Claude/GPT используют окна 3P.
 Пропуски/старые квоты остаются unknown. Нулевого риска блокировки Google никто не гарантирует.
 
 Carbon локально на g1-pro не доступен: agy-carbon/gemini-4-carbon-* и unsuffixed

@@ -1,0 +1,25 @@
+{
+  "code": "4c22c7dde8cad42dc8ce3cef314a5a1ae1bdda17",
+  "deployed": true,
+  "restart_cut_turns": 0,
+  "orchestra_pid": "3471089",
+  "telegram_pid_preserved": true,
+  "dirty_files_preserved": 3,
+  "admitted": 22,
+  "gemini": 16,
+  "claude": 6,
+  "neon_aliases": {
+    "agy-neon": "antigravity/gemini-4-neon-high",
+    "agy-neon-high": "antigravity/gemini-4-neon-high",
+    "agy-neon-xhigh": "antigravity/gemini-4-neon-xhigh",
+    "agy-neon-medium": "antigravity/gemini-4-neon-medium",
+    "agy-neon-low": "antigravity/gemini-4-neon-low",
+    "agy-neon-orch": "antigravity/gemini-pro-orchestrator-neon"
+  },
+  "smoke": "passed",
+  "model": "antigravity/gemini-4-neon-high",
+  "exact_response": true,
+  "wall_seconds": 8.8,
+  "tool_calls": 0,
+  "smoke_worker_removed_from_active": true
+}

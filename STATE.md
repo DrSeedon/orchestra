@@ -11,3 +11,4 @@
 - While persistent ACP holds the profile writer, quota probing defers safely. In-band quota updates still persist.
 - Evidence: .orchestra/tasks/gemini-quotas-and-hub62-20261118/report.md. PNGs under /tmp/orchestra_gemini_quotas_ui_*.png.
 - Visual R2 deployed in 0eede9924: one row of three compact Antigravity chips at desktop width, all five labels above both axes, separated stop labels. 44 browser tests passed. :8888 issued all three new immutable asset URLs, with both service PIDs unchanged and restart_cut_turns=0. Both live PNGs refreshed on hub and VPS.
+- Wave 5 deployed: 4c22c7dde, 22 admitted local routes (16 Gemini / 6 Claude), 6 Neon aliases. Both services active, cuts=0, Telegram PID preserved. 507 tests passed. Neon High returned the exact smoke response in 8.8s via production ACP. Temporary worker removed. Evidence .orchestra/tasks/gemini-neon-20261119/.
