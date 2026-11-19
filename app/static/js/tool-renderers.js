@@ -2,7 +2,7 @@
 
 const TOOL_ICONS = {
     'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️', 'file': '📄',
-    'FileChange': '📝', 'Sleep': '⏱️',
+    'FileChange': '📝', 'TerminalInput': '⌨️', 'Sleep': '⏱️',
     'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
     'ViewImage': '🖼️', 'ImageGeneration': '🎨',
     'Agent': '🤖', 'Task': '🤖', 'TodoWrite': '📝', 'NotebookEdit': '📓',
@@ -17,14 +17,42 @@ const MCP_ICONS = {
     'openaiDeveloperDocs': '📚',
 };
 
+// Known Orchestra MCP tools exposed by app/mcp_stdio.py (+ kb_search).
+// Normalizing wire variants only for known tools prevents misclassifying
+// arbitrary custom tools (e.g. mcp_orchestra_run_command).
+const ORCHESTRA_MCP_TOOL_NAMES = new Set([
+    'multicode_run', 'spawn_worker', 'retry_initial_delivery', 'send_message',
+    'list_pending_deliveries', 'cancel_message_delivery', 'open_fan',
+    'list_agents', 'list_orchestrators', 'get_worker_logs', 'search_logs',
+    'get_log_context', 'compact_worker', 'temp_rule_set', 'temp_rule_list',
+    'temp_rule_update', 'temp_rule_remove', 'kill_worker', 'stop_worker',
+    'rename_worker', 'send_file', 'send_files', 'publish_artifact', 'send_chart',
+    'notify_user', 'update_progress', 'update_checklist', 'change_worker_model',
+    'merge_worker', 'resolve_merge_operation', 'bind_worker_task',
+    'switch_worker_branch', 'check_conflict', 'worker_wip', 'acquire_test_lock',
+    'release_test_lock', 'test_lock_status', 'report_bug',
+    'update_worker_description', 'set_worker_owned_dirs', 'update_worker_prompt',
+    'get_worker_info', 'task_create', 'task_update', 'task_list', 'task_get',
+    'eval_grant_issue', 'dynamic_workflow', 'bg_create', 'bg_list', 'bg_cancel',
+    'codex_review', 'set_timer', 'list_timers', 'cancel_timer', 'request_approval',
+    'list_approvals', 'cancel_approval', 'outbox_enqueue', 'outbox_list',
+    'kb_search',
+]);
+
 // Harness runtime (#369) ships its own lowercase tool names with slightly different
 // arg keys than the Claude SDK tools the chat renderer was built around. Canonicalize
 // the NAME so every existing rawName branch (icon, label, bubble, result) applies.
 const HARNESS_TOOL_ALIASES = {
-    'bash': 'Bash', 'read': 'Read', 'write': 'Write', 'edit': 'Edit',
-    'glob': 'Glob', 'grep': 'Grep', 'todo_write': 'TodoWrite', 'review': 'Review',
-    'run_command': 'Bash', 'read_file': 'Read', 'write_file': 'Write',
-    'edit_file': 'Edit', 'search_web': 'WebSearch', 'manage_task': 'Task',
+    'bash': 'Bash', 'exec_command': 'Bash', 'shell': 'Bash', 'run_command': 'Bash',
+    'read': 'Read', 'read_file': 'Read', 'view_file': 'Read',
+    'write': 'Write', 'write_file': 'Write', 'write_to_file': 'Write',
+    'edit': 'Edit', 'edit_file': 'Edit', 'replace_file_content': 'Edit', 'multi_replace_file_content': 'Edit',
+    'glob': 'Glob', 'find_by_name': 'Glob', 'list_dir': 'Glob',
+    'grep': 'Grep', 'grep_search': 'Grep',
+    'web_search': 'WebSearch', 'search_web': 'WebSearch',
+    'web_fetch': 'WebFetch', 'read_url_content': 'WebFetch',
+    'write_stdin': 'TerminalInput', 'apply_patch': 'FileChange',
+    'todo_write': 'TodoWrite', 'review': 'Review', 'manage_task': 'Task',
 };
 
 // Keep provider argument differences at one boundary, shared by cards and live clocks.
@@ -32,17 +60,33 @@ function normalizeToolInput(input) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) return input;
     const data = {...input};
     const aliases = {
-        file_path: ['Path', 'path'], offset: ['StartLine'],
-        old_string: ['Target', 'old'], new_string: ['Replacement', 'new'],
-        content: ['Content'], command: ['CommandLine'], description: ['toolSummary'],
-        timeout: ['WaitMsBeforeAsync'], run_in_background: ['IsDaemon'],
+        file_path: ['Path', 'path', 'TargetFile', 'AbsolutePath', 'File'],
+        offset: ['StartLine', 'start_line'],
+        old_string: ['Target', 'TargetContent', 'old'],
+        new_string: ['Replacement', 'ReplacementContent', 'new'],
+        content: ['Content', 'CodeContent'],
+        command: ['CommandLine', 'cmd'],
+        description: ['toolSummary'],
+        async_wait_ms: ['WaitMsBeforeAsync'],
+        run_in_background: ['IsDaemon'],
+        pattern: ['Query', 'Pattern'],
+        path: ['SearchPath', 'DirectoryPath', 'SearchDirectory'],
+        url: ['Url', 'URL'],
     };
     for (const [key, sources] of Object.entries(aliases)) {
         if (data[key] !== undefined) continue;
         const source = sources.find(source => data[source] !== undefined);
         if (source) data[key] = data[source];
     }
-    const start = data.StartLine || 1;
+    if (Array.isArray(data.ReplacementChunks) && data.ReplacementChunks.length) {
+        if (data.old_string === undefined) {
+            data.old_string = data.ReplacementChunks.map(c => c?.TargetContent ?? '').join('\n...\n');
+        }
+        if (data.new_string === undefined) {
+            data.new_string = data.ReplacementChunks.map(c => c?.ReplacementContent ?? '').join('\n...\n');
+        }
+    }
+    const start = data.StartLine || data.start_line || 1;
     if (data.limit === undefined && Number.isInteger(start) && start >= 1 &&
         Number.isInteger(data.EndLine) && data.EndLine >= start) {
         data.limit = data.EndLine - start + 1;
@@ -63,15 +107,72 @@ function normalizeToolCall(name, body) {
         input = input.Arguments;
     }
     name = canonicalToolName(name);
-    if (['Read', 'Write', 'Edit', 'Bash'].includes(name)) input = normalizeToolInput(input);
+    if (!name.startsWith('mcp__orchestra__') && input && typeof input === 'object' && !Array.isArray(input)) {
+        input = normalizeToolInput(input);
+    }
     return {name, input, body: JSON.stringify(input)};
 }
 
 function canonicalToolName(name) {
     const clean = String(name || '').trim();
+    if (!clean) return '';
     if (HARNESS_TOOL_ALIASES[clean]) return HARNESS_TOOL_ALIASES[clean];
-    if (!clean || clean.startsWith('mcp__')) return clean;
+    const lower = clean.toLowerCase();
+    if (HARNESS_TOOL_ALIASES[lower]) return HARNESS_TOOL_ALIASES[lower];
+    if (clean.startsWith('mcp__')) {
+        const dyn = clean.match(/^mcp__orchestra_[0-9a-f]{4,16}__([A-Za-z0-9_]+)$/);
+        if (dyn && ORCHESTRA_MCP_TOOL_NAMES.has(dyn[1])) return `mcp__orchestra__${dyn[1]}`;
+        return clean;
+    }
+    const wire = clean.match(/^(?:mcp_orchestra(?:_[0-9a-f]{4,16})?_|orchestra[:._])([A-Za-z0-9_]+)$/);
+    if (wire && ORCHESTRA_MCP_TOOL_NAMES.has(wire[1])) {
+        return `mcp__orchestra__${wire[1]}`;
+    }
+    if (ORCHESTRA_MCP_TOOL_NAMES.has(clean)) {
+        return `mcp__orchestra__${clean}`;
+    }
     return clean.includes('__') ? `mcp__${clean}` : clean;
+}
+
+function isAcpToolPlaceholderResult(text, toolRawName = '') {
+    const trimmed = String(text || '').trim();
+    if (!trimmed) return true;
+    if (!/^Run\s+/i.test(trimmed)) return false;
+    const rest = trimmed.slice(4).trim();
+    if (!rest) return false;
+    const m = rest.match(/^mcp_orchestra(?:_[0-9a-f]{4,16})?_([a-z0-9_]+)$/i);
+    if (m && ORCHESTRA_MCP_TOOL_NAMES.has(m[1])) return true;
+    if (toolRawName && canonicalToolName(rest) === canonicalToolName(toolRawName)) return true;
+    return false;
+}
+
+// B23: strip at most checkout root (or one worktrees/<wt>/ dir), NEVER strip project subfolders like src/.
+function displayRepoPath(path, cwd = '') {
+    const raw = String(path || '');
+    if (!raw) return '';
+    if (cwd) {
+        const cleanCwd = String(cwd).replace(/\/+$/, '');
+        if (cleanCwd && raw.startsWith(cleanCwd + '/')) {
+            return raw.slice(cleanCwd.length + 1);
+        }
+    }
+    return raw.replace(/^.*\/worktrees\/[^/]+\//, '') || raw;
+}
+
+function renderAcpDiffList(diffs) {
+    if (!Array.isArray(diffs) || !diffs.length) return null;
+    const wrap = document.createElement('div');
+    wrap.className = 'codex-file-changes';
+    for (const d of diffs) {
+        if (!d || typeof d !== 'object') continue;
+        const el = renderEditDiff(JSON.stringify({
+            file_path: d.path || '',
+            old_string: d.old_text ?? d.oldText ?? '',
+            new_string: d.new_text ?? d.newText ?? '',
+        }));
+        if (el) wrap.appendChild(el);
+    }
+    return wrap.childElementCount ? wrap : null;
 }
 
 function toolIcon(name) {
@@ -310,7 +411,7 @@ function renderEditDiff(body) {
         ? data.content.split('\n').map(l => ({type: 'add', html: _escHtml(l)}))
         : buildDiffLines(data.old_string || '', data.new_string || '');
     const fp = data.file_path || '';
-    const shortPath = fp.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || fp;
+    const shortPath = displayRepoPath(fp) || fp;
 
     const container = document.createElement('div');
     container.className = 'diff-view';
@@ -368,7 +469,7 @@ function renderCodexFileChange(body) {
         const block = document.createElement('div');
         block.className = 'diff-view';
         const fp = String(change.path || '');
-        const shortPath = fp.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || fp;
+        const shortPath = displayRepoPath(fp) || fp;
         const fileEl = document.createElement('div');
         fileEl.className = 'diff-file codex-diff-file';
 
@@ -423,7 +524,7 @@ function renderReadView(body) {
 
     const fp = data.file_path || '';
     // Strip worktree prefix — full absolute paths are too noisy for the UI
-    const shortPath = fp.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || fp;
+    const shortPath = displayRepoPath(fp) || fp;
     const offset = data.offset || 0;
     const limit = data.limit || '';
 
@@ -475,7 +576,7 @@ function renderGlobView(pattern, resultText) {
     container.appendChild(headerEl);
 
     function buildRow(path) {
-        const short = path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '');
+        const short = displayRepoPath(path);
         const ext = path.includes('.') ? path.split('.').pop().toLowerCase() : '';
         const icon = _GLOB_FILE_ICONS[ext] || '📄';
         const row = document.createElement('div');
@@ -548,7 +649,7 @@ function renderGrepResults(raw, pattern) {
             const meta = document.createElement('span');
             meta.className = 'grep-meta';
             if (p.file) {
-                const shortFile = p.file.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '');
+                const shortFile = displayRepoPath(p.file);
                 meta.textContent = `${shortFile}:${p.line}`;
                 meta.title = `${p.file}:${p.line}`;
             } else {
@@ -565,7 +666,7 @@ function renderGrepResults(raw, pattern) {
             const code = document.createElement('span');
             code.className = 'grep-code';
             code.style.color = '#38bdf8';
-            const shortFile = p.file.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '');
+            const shortFile = displayRepoPath(p.file);
             code.textContent = shortFile;
             row.append(meta, code);
         }

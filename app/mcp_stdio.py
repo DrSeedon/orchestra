@@ -1873,7 +1873,10 @@ async def list_agents() -> str:
         if runtime_error:
             st = "🔴"
         ctx = s.get('context_pct', 0)
-        ctx_str = f" | ctx:{ctx}%" if ctx else ""
+        if s.get('context_known') is False:
+            ctx_str = " | ctx:—"
+        else:
+            ctx_str = f" | ctx:{ctx}%" if ctx else ""
         cache = _cache_pill(s)
         cache_str = f" | {cache}" if cache else ""
         task = s.get('task_id', '')
@@ -1941,7 +1944,10 @@ async def list_orchestrators() -> str:
     for o in orchs:
         scope_short = o.get("scope", "").rstrip("/").split("/")[-1]
         ctx = o.get('context_pct', 0)
-        ctx_str = f" | ctx:{ctx}%" if ctx else ""
+        if o.get('context_known') is False:
+            ctx_str = " | ctx:—"
+        else:
+            ctx_str = f" | ctx:{ctx}%" if ctx else ""
         desc = o.get('description', '')
         desc_str = f' | "{desc}"' if desc else ""
         limit_mark = o.get("limit_wake")

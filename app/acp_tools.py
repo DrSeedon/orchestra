@@ -14,14 +14,78 @@ def bounded(value, depth=0):
     return value
 
 
+_ORCHESTRA_MCP_TOOLS = frozenset({
+    "multicode_run", "spawn_worker", "retry_initial_delivery", "send_message",
+    "list_pending_deliveries", "cancel_message_delivery", "open_fan",
+    "list_agents", "list_orchestrators", "get_worker_logs", "search_logs",
+    "get_log_context", "compact_worker", "temp_rule_set", "temp_rule_list",
+    "temp_rule_update", "temp_rule_remove", "kill_worker", "stop_worker",
+    "rename_worker", "send_file", "send_files", "publish_artifact",
+    "send_chart", "notify_user", "update_progress", "update_checklist",
+    "change_worker_model", "merge_worker", "resolve_merge_operation",
+    "bind_worker_task", "switch_worker_branch", "check_conflict", "worker_wip",
+    "acquire_test_lock", "release_test_lock", "test_lock_status", "report_bug",
+    "update_worker_description", "set_worker_owned_dirs", "update_worker_prompt",
+    "get_worker_info", "task_create", "task_update", "task_list", "task_get",
+    "eval_grant_issue", "dynamic_workflow", "bg_create", "bg_list", "bg_cancel",
+    "codex_review", "set_timer", "list_timers", "cancel_timer",
+    "request_approval", "list_approvals", "cancel_approval",
+    "outbox_enqueue", "outbox_list", "kb_search",
+})
+
+
+def canonical_orchestra_tool_name(name: str) -> str | None:
+    clean = str(name or "").strip()
+    if not clean:
+        return None
+    import re as _re
+    m = _re.fullmatch(
+        r"(?:mcp__orchestra(?:_[0-9a-f]{4,16})?__|mcp_orchestra(?:_[0-9a-f]{4,16})?_|orchestra(?:__|[:._]))([A-Za-z0-9_]+)",
+        clean,
+    )
+    if m and m.group(1) in _ORCHESTRA_MCP_TOOLS:
+        return f"mcp__orchestra__{m.group(1)}"
+    if clean in _ORCHESTRA_MCP_TOOLS:
+        return f"mcp__orchestra__{clean}"
+    return None
+
+
+def _normalize_orchestra_wire_name(name: str) -> str:
+    clean = str(name or "").strip()
+    if not clean:
+        return "tool"
+    canonical = canonical_orchestra_tool_name(clean)
+    return canonical if canonical is not None and (
+        clean.startswith(("mcp__", "mcp_orchestra", "orchestra"))
+    ) else clean
+
+
 def canonical_name(state):
     raw=state.get("rawInput")
     if isinstance(raw,dict) and isinstance(raw.get("ServerName"),str) and isinstance(raw.get("ToolName"),str):
-        return "mcp__"+raw["ServerName"].strip()+"__"+raw["ToolName"].strip()
-    if isinstance(state.get("name"),str) and state["name"].strip(): return state["name"].strip()
+        server = raw["ServerName"].strip()
+        tool = raw["ToolName"].strip()
+        import re as _re
+        if _re.fullmatch(r"orchestra(?:_[0-9a-f]{4,16})?", server) and tool in _ORCHESTRA_MCP_TOOLS:
+            server = "orchestra"
+        return "mcp__"+server+"__"+tool
+    if isinstance(state.get("name"),str) and state["name"].strip():
+        return _normalize_orchestra_wire_name(state["name"])
     # Title describes an invocation, never a canonical executable name.
     # Kind is a presentation category, not evidence of a programmatic name.
     return "tool"
+
+
+def extract_diffs(state):
+    diffs = []
+    for block in state.get("content") or []:
+        if isinstance(block, dict) and block.get("type") == "diff":
+            diffs.append({
+                "path": str(block.get("path") or ""),
+                "old_text": str(block.get("oldText") or ""),
+                "new_text": str(block.get("newText") or ""),
+            })
+    return diffs
 
 
 def display_content(state):
@@ -63,9 +127,14 @@ class ToolReducer:
         if name.startswith("mcp__") and isinstance(raw,dict) and "Arguments" in raw:raw=raw["Arguments"]
         body=json.dumps(raw,ensure_ascii=False) if not isinstance(raw,str) else raw
         output,unsupported=display_content(state)
+        raw_diffs = extract_diffs(state)
+        has_output = bool(str(output or "").strip())
         meta={"tool_use_id":tid,"tool_name":name,"status":state.get("status"),
+              "tool_status":state.get("status"),"has_output":has_output,
               "title":state.get("title",""),"kind":state.get("kind"),"is_error":state.get("status")=="failed",
               "unsupported":unsupported,"acp_revision":self.revisions[tid],"raw_input":deepcopy(raw)}
+        if raw_diffs:
+            meta["raw_diffs"] = raw_diffs
         result=[]
         input_key = (name, body)
         if tid not in self.started:
@@ -74,7 +143,8 @@ class ToolReducer:
             result.append(("tool_update",name+": "+body,dict(meta)))
         self.inputs[tid] = input_key
         if state.get("status") in {"completed","failed"}:
-            result.append(("tool_result",output or str(state.get("title",name)),dict(meta)))
+            # Never fabricate fake answer from display title when tool emitted no output (B07).
+            result.append(("tool_result",output if has_output else "",dict(meta)))
         elif tid in self.started:
-            result.append(("tool_stream",output or str(state.get("title",name)),{**meta,"replace":True}))
+            result.append(("tool_stream",output if has_output else str(state.get("title",name)),{**meta,"replace":True}))
         return result

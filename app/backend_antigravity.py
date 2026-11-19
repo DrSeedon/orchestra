@@ -440,7 +440,7 @@ class AntigravityBackend:
     foreground_capabilities = {
         "wire_version":1,"permissions":"native offered options","questions":"interaction_* single choice only",
         "tools":"bounded merged snapshots; textual diff/resources; nontext marked unsupported",
-        "ordered_segments":True,"mid_turn_injection":False,"automated_prompts":False,
+        "ordered_segments":True,"mid_turn_injection":True,"automated_prompts":False,
         "profile_binding":"operator epoch; fixed account; no account-change detection",
         "credential_readiness":"file-store presence only; keyring not autodetected",
         "role_priority":"first-turn user context; systemPrompt.append unverified",
@@ -480,6 +480,10 @@ class AntigravityBackend:
         self._submission = None
         self._before_submit = None
         self._stream_finished = True
+        self._steer_queue = []
+        self._steer_event = None
+        self._tool_idle_event = None
+        self._accepting_steer = False
 
     @property
     def is_alive(self):
@@ -593,15 +597,49 @@ class AntigravityBackend:
             metadata.update(model_error=error, errors=[error])
         return AgentEvent("turn_end", metadata=metadata, usage=typed)
 
+    def _has_open_tool(self) -> bool:
+        tools = getattr(self, "_tools", None)
+        if tools is None:
+            return False
+        return any(
+            state.get("status") not in {"completed", "failed"}
+            for state in tools.states.values()
+        )
+
+    def _fail_pending_steers(self, error: BaseException) -> None:
+        while self._steer_queue:
+            item = self._steer_queue.pop(0)
+            fut = item.get("future")
+            if fut is not None and not fut.done():
+                fut.set_exception(error)
+
     async def send(self, message, *, before_submit=None):
         from app.antigravity_acp import ensure_interactive_input
+        from app.session_state import DeliveryDeferred
         from app import db
         target = db.get_session(self.app_session_id) if getattr(self, "app_session_id", "") else None
         ensure_interactive_input("antigravity/" + self.model,
             message.provenance if isinstance(message, InjectedMessage) else None,
             target_session=target)
+        msg_text = message.text if isinstance(message, InjectedMessage) else str(message)
+        msg_explicit = isinstance(message, InjectedMessage) and message.provenance.origin == "user"
+        msg_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
         if self._task is not None and not self._task.done():
-            raise RuntimeError("Antigravity turn is already active")
+            if self._interrupted or not self._accepting_steer:
+                raise DeliveryDeferred("Antigravity turn is ending; delivery deferred")
+            steer_fut = asyncio.get_running_loop().create_future()
+            steer_fut.add_done_callback(lambda f: None if f.cancelled() else f.exception())
+            self._submission = steer_fut
+            self._steer_queue.append({
+                "text": msg_text,
+                "before_submit": before_submit,
+                "future": steer_fut,
+                "explicit": msg_explicit,
+                "event_id": msg_event_id,
+            })
+            if self._steer_event is not None:
+                self._steer_event.set()
+            return
         if self._owner is None:
             await self.connect()
         self._queue = asyncio.Queue()
@@ -611,6 +649,11 @@ class AntigravityBackend:
         self._cost_baseline = None
         self._reported_usage = None
         self._stream_finished = False
+        self._steer_queue = []
+        self._steer_event = asyncio.Event()
+        self._tool_idle_event = asyncio.Event()
+        self._tool_idle_event.set()
+        self._accepting_steer = False
         self._turn_id = uuid.uuid4().hex
         self._segment = None
         self._segment_index = 0
@@ -620,7 +663,7 @@ class AntigravityBackend:
         self._before_submit = before_submit
         self._submission = asyncio.get_running_loop().create_future()
         self._submission.add_done_callback(lambda f: None if f.cancelled() else f.exception())
-        self._task = asyncio.create_task(self._run(message.text, explicit=message.provenance.origin == "user", event_id=message.event_id))
+        self._task = asyncio.create_task(self._run(msg_text, explicit=msg_explicit, event_id=msg_event_id))
         self._task.add_done_callback(self._cancelled_before_run)
 
     def _settle_submission(self, error=None):
@@ -697,6 +740,11 @@ class AntigravityBackend:
                 meta["item_id"]="acp:"+str(self.session_id)+":"+self._turn_id+":tool:"+str(meta["tool_use_id"])+":"+str(meta["acp_revision"])+":"+event
                 meta["raw_input"] = json.loads(self._redact(json.dumps(meta["raw_input"],ensure_ascii=False)))
                 self._queue.put_nowait(AgentEvent(event,self._redact(body),metadata=meta))
+            if getattr(self, "_tool_idle_event", None) is not None:
+                if self._has_open_tool():
+                    self._tool_idle_event.clear()
+                else:
+                    self._tool_idle_event.set()
 
     async def _select_model(self):
         from app.antigravity_acp import AcpSessionError
@@ -861,67 +909,174 @@ class AntigravityBackend:
                             self._owner.usage_totals[session_id] = {}
                     await self._select_model()
                     self._cost_baseline = self._owner.cost_totals.get(self.session_id)
-                    blocks = [{"type": "text", "text": message}]
-                    if fresh_context:
-                        blocks.insert(0, {"type": "text", "text": fresh_context})
-                    if self.system_prompt and not self._instructions_sent:
-                        # ACP v1 has no stable system-prompt method; deliver role instructions
-                        # as explicit first-turn context, never a shared agent file in HOME.
-                        blocks.insert(0, {"type": "text", "text": "[Orchestra role instructions]\n" + self.system_prompt})
                     self._owner.listeners[self.session_id] = self._update
                     self._owner.permission_handlers[self.session_id] = self
-                prompt_started = time.monotonic()
+                    if self._steer_event is None:
+                        self._steer_event = asyncio.Event()
+                    if self._tool_idle_event is None:
+                        self._tool_idle_event = asyncio.Event()
+                        if not self._has_open_tool():
+                            self._tool_idle_event.set()
+                    self._accepting_steer = True
+                turn_started = time.monotonic()
+                turn_deltas = None
+                last_measured_terminal = None
+                last_reason = "error"
+                step_index = 0
+                current_batch = [{
+                    "text": message,
+                    "before_submit": self._before_submit,
+                    "future": self._submission,
+                }]
                 try:
-                    prompt_task = asyncio.create_task(self._owner.request("session/prompt", {
-                        "sessionId": self.session_id, "prompt": blocks},
-                        before_write=self._before_submit, on_written=self._prompt_submitted))
-                    try:
-                        result = await asyncio.shield(prompt_task)
-                    except asyncio.CancelledError:
-                        self._interrupted = True
-                        from app.native_requests import cancel_turn
-                        cancel_turn(self._owner,self._turn_id)
-                        await asyncio.sleep(0)
+                    while True:
+                        step_text = "\n\n".join(item["text"] for item in current_batch)
+                        blocks = [{"type": "text", "text": step_text}]
+                        if step_index == 0:
+                            if fresh_context:
+                                blocks.insert(0, {"type": "text", "text": fresh_context})
+                            if self.system_prompt and not self._instructions_sent:
+                                # ACP v1 has no stable system-prompt method; deliver role instructions
+                                # as explicit first-turn context, never a shared agent file in HOME.
+                                blocks.insert(0, {"type": "text", "text": "[Orchestra role instructions]\n" + self.system_prompt})
+
+                        self._reported_usage = None
+                        batch_ref = current_batch
+
+                        async def _batch_before_write(items=batch_ref):
+                            for item in items:
+                                cb = item.get("before_submit")
+                                if cb is not None:
+                                    await cb()
+
+                        def _batch_on_written(items=batch_ref):
+                            self._instructions_sent = True
+                            for item in items:
+                                fut = item.get("future")
+                                if fut is not None and not fut.done():
+                                    fut.set_result(None)
+
+                        prompt_task = asyncio.create_task(self._owner.request("session/prompt", {
+                            "sessionId": self.session_id, "prompt": blocks},
+                            before_write=_batch_before_write, on_written=_batch_on_written))
                         try:
-                            # Cancellation must also bound a write-lock/backpressure
-                            # wait; a queued cancel notification cannot hang forever.
-                            async with asyncio.timeout(2):
-                                await self._owner.notify("session/cancel", {"sessionId": self.session_id})
-                                await asyncio.shield(prompt_task)
-                        except (Exception, asyncio.CancelledError):
-                            if self._owner._write_lock.locked():
-                                # Partial framed transport write blocks ALL sessions.
-                                await self._owner.close("ACP transport write stalled; outcome unknown, no replay")
+                            if not self._steer_queue:
+                                steer_waiter = asyncio.create_task(self._steer_event.wait())
+                                try:
+                                    await asyncio.wait({prompt_task, steer_waiter}, return_when=asyncio.FIRST_COMPLETED)
+                                finally:
+                                    if not steer_waiter.done():
+                                        steer_waiter.cancel()
+                                    await asyncio.gather(steer_waiter, return_exceptions=True)
+
+                            if self._steer_queue and not prompt_task.done():
+                                # Brief grace for an open tool call to finish before issuing session/cancel.
+                                if self._has_open_tool() and self._tool_idle_event is not None:
+                                    tool_waiter = asyncio.create_task(self._tool_idle_event.wait())
+                                    try:
+                                        await asyncio.wait({prompt_task, tool_waiter}, timeout=3.0, return_when=asyncio.FIRST_COMPLETED)
+                                    finally:
+                                        if not tool_waiter.done():
+                                            tool_waiter.cancel()
+                                        await asyncio.gather(tool_waiter, return_exceptions=True)
+
+                            if not prompt_task.done():
+                                self._flush_segment()
+                                from app.native_requests import cancel_turn
+                                cancel_turn(self._owner, self._turn_id)
+                                await asyncio.sleep(0)
+                                try:
+                                    async with asyncio.timeout(5):
+                                        await self._owner.notify("session/cancel", {"sessionId": self.session_id})
+                                        result = await asyncio.shield(prompt_task)
+                                except Exception:
+                                    if self._owner._write_lock.locked():
+                                        await self._owner.close("ACP transport write stalled; outcome unknown, no replay")
+                                    else:
+                                        self._owner.uncertain_sessions.add(self.session_id)
+                                    raise
                             else:
-                                self._owner.uncertain_sessions.add(self.session_id)
-                                # A slow model cancel alone must not kill siblings.
-                        raise
+                                result = await asyncio.shield(prompt_task)
+                        except asyncio.CancelledError:
+                            self._interrupted = True
+                            self._accepting_steer = False
+                            from app.native_requests import cancel_turn
+                            cancel_turn(self._owner, self._turn_id)
+                            await asyncio.sleep(0)
+                            if not prompt_task.done():
+                                try:
+                                    # Cancellation must also bound a write-lock/backpressure
+                                    # wait; a queued cancel notification cannot hang forever.
+                                    async with asyncio.timeout(2):
+                                        await self._owner.notify("session/cancel", {"sessionId": self.session_id})
+                                        await asyncio.shield(prompt_task)
+                                except (Exception, asyncio.CancelledError):
+                                    if self._owner._write_lock.locked():
+                                        # Partial framed transport write blocks ALL sessions.
+                                        await self._owner.close("ACP transport write stalled; outcome unknown, no replay")
+                                    else:
+                                        self._owner.uncertain_sessions.add(self.session_id)
+                                        # A slow model cancel alone must not kill siblings.
+                            for item in batch_ref:
+                                fut = item.get("future")
+                                if fut is not None and not fut.done():
+                                    fut.set_exception(AcpError("ACP submission cancelled"))
+                            raise
+                        except Exception as step_exc:
+                            err = step_exc if isinstance(step_exc, AcpError) else AcpError("ACP submission failed")
+                            for item in batch_ref:
+                                fut = item.get("future")
+                                if fut is not None and not fut.done():
+                                    fut.set_exception(err)
+                            raise
+
+                        last_reason = result.get("stopReason", "error")
+                        counters = result.get("usage", getattr(self, "_reported_usage", None))
+                        measured_terminal = {**result, "usage": counters} if isinstance(counters, dict) else None
+                        if measured_terminal is not None:
+                            last_measured_terminal = measured_terminal
+                            baseline = self._owner.usage_totals.get(self.session_id)
+                            self._baseline_key = self._conversation_key()
+                            self._cumulative = dict(baseline or {})
+                            measured = self._turn_deltas(measured_terminal)
+                            self._owner.usage_totals[self.session_id] = dict(self._cumulative)
+                            if baseline is not None:
+                                if turn_deltas is None:
+                                    turn_deltas = dict(measured)
+                                else:
+                                    for k, v in measured.items():
+                                        turn_deltas[k] = turn_deltas.get(k, 0) + v
+
+                        if self._steer_queue:
+                            self._flush_segment()
+                            current_batch = list(self._steer_queue)
+                            self._steer_queue.clear()
+                            self._steer_event.clear()
+                            step_index += 1
+                            continue
+                        self._accepting_steer = False
+                        break
                 finally:
+                    self._accepting_steer = False
                     self._owner.listeners.pop(self.session_id, None)
                     self._owner.permission_handlers.pop(self.session_id,None)
                     from app.native_requests import cancel_turn
                     cancel_turn(self._owner,self._turn_id)
-                reason = result.get("stopReason", "error")
-                counters = result.get("usage", getattr(self, "_reported_usage", None))
-                measured_terminal = {**result, "usage": counters} if isinstance(counters, dict) else None
-                deltas = None
-                if measured_terminal is not None:
-                    baseline = self._owner.usage_totals.get(self.session_id)
-                    self._baseline_key = self._conversation_key()
-                    self._cumulative = dict(baseline or {})
-                    measured = self._turn_deltas(measured_terminal)
-                    self._owner.usage_totals[self.session_id] = dict(self._cumulative)
-                    if baseline is not None:
-                        deltas = measured  # Unknown resumed totals establish only a baseline.
-                self._queue.put_nowait(self._end(ok=reason == "end_turn", reason=reason,
-                    usage=deltas, terminal=measured_terminal,
-                    error=None if reason == "end_turn" else reason, context=self._context,
-                    duration_ms=round((time.monotonic() - prompt_started) * 1000)))
+                self._queue.put_nowait(self._end(ok=last_reason == "end_turn", reason=last_reason,
+                    usage=turn_deltas, terminal=last_measured_terminal,
+                    error=None if last_reason == "end_turn" else last_reason, context=self._context,
+                    duration_ms=round((time.monotonic() - turn_started) * 1000)))
         except asyncio.CancelledError:
-            self._settle_submission(AcpError("ACP submission cancelled"))
+            self._accepting_steer = False
+            cancel_err = AcpError("ACP submission cancelled")
+            self._settle_submission(cancel_err)
+            self._fail_pending_steers(cancel_err)
             self._queue.put_nowait(self._end(reason="interrupt", error="interrupted", context=self._context))
         except Exception as exc:
-            self._settle_submission(exc if isinstance(exc, AcpError) else AcpError("ACP submission failed"))
+            self._accepting_steer = False
+            acp_err = exc if isinstance(exc, AcpError) else AcpError("ACP submission failed")
+            self._settle_submission(acp_err)
+            self._fail_pending_steers(acp_err)
             # Raw server error bodies and stderr can contain OAuth material.
             # Only bounded, locally authored errors reach the event stream.
             # Only the transport reader/writer or definite ban owns profile close.
@@ -930,6 +1085,7 @@ class AntigravityBackend:
             self._queue.put_nowait(AgentEvent("error", "Antigravity ACP failure: " + reason[:280]))
             self._queue.put_nowait(self._end(error="protocol", context=self._context))
         finally:
+            self._accepting_steer = False
             if owns_session_lock and held_session_lock is not None:
                 held_session_lock.release()
             if prompt_task is not None:

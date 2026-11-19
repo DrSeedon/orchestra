@@ -86,7 +86,7 @@ async def test_native_http_owner_csrf_option_and_idempotent_decision(stand,real_
         assert (await client.post(url,json=body)).status_code==403
         client.cookies.set("session",create_session("synthetic-owner"))
         caps=await client.get("/api/native-requests/capabilities")
-        assert caps.status_code==200 and caps.json()["wire_version"]==1 and caps.json()["mid_turn_injection"] is False
+        assert caps.status_code==200 and caps.json()["wire_version"]==1 and caps.json()["mid_turn_injection"] is True
         assert (await client.post(url,json=body)).status_code==403
         headers={"X-CSRF-Token":create_csrf_token("synthetic-owner")}
         assert (await client.post(url,json={**body,"owner_id":"foreign"},headers=headers)).status_code==403

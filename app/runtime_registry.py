@@ -384,7 +384,7 @@ BUILTIN_RUNTIMES = ("claude", "codex", "grok", "harness", "hub", "antigravity")
 register_runtime(RuntimeDefinition(
     id="antigravity",
     capabilities=RuntimeCapabilities(
-        event_stream="per_turn", mid_turn_inject=False, reconnect=False,
+        event_stream="per_turn", mid_turn_inject=True, reconnect=False,
         hibernate=False, process_liveness=True, resume_across_models=False,
         subagents=False, model_retarget=True, automated_prompts=False,
     ),

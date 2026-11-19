@@ -336,20 +336,37 @@ class TurnManager:
         call_id = str(event.metadata.get("tool_use_id") or "")
         if not call_id:
             return
-        if event.type == "tool_use" and tool_name in {"send_message", "mcp__orchestra__send_message"}:
-            try:
-                args = json.loads(event.content.partition(":")[2])
-            except (TypeError, ValueError):
+        from app.acp_tools import canonical_orchestra_tool_name
+        raw_name = tool_name
+        parsed_args = None
+        if event.type in {"tool_use", "tool_update"}:
+            raw_in = event.metadata.get("raw_input")
+            if isinstance(raw_in, dict):
+                parsed_args = raw_in
+            else:
+                arg_text = event.content.split(": ", 1)[1] if ": " in event.content else event.content.partition(":")[2]
+                try:
+                    parsed_args = json.loads(arg_text)
+                except (TypeError, ValueError):
+                    parsed_args = None
+            if raw_name in {"use_tool", "call_mcp_tool"} and isinstance(parsed_args, dict):
+                inner_name = parsed_args.get("tool_name") or parsed_args.get("ToolName") or ""
+                if inner_name:
+                    raw_name = str(inner_name)
+                    parsed_args = parsed_args.get("tool_input") or parsed_args.get("Arguments") or parsed_args
+        canonical_tool = canonical_orchestra_tool_name(raw_name)
+        if event.type in {"tool_use", "tool_update"} and canonical_tool == "mcp__orchestra__send_message":
+            if not isinstance(parsed_args, dict):
                 return
-            if not isinstance(args, dict):
-                return
-            target = args.get("to")
+            target = parsed_args.get("to")
             parent = s.parent_name or s.parent_id or s.last_task_sender
             if target and target in {parent, s.parent_id}:
                 s._report_calls[call_id] = s._turn_gen
         elif event.type == "tool_result":
             generation = s._report_calls.pop(call_id, None)
             if generation is None or generation != s._turn_gen or event.metadata.get("is_error"):
+                return
+            if canonical_tool is not None and canonical_tool != "mcp__orchestra__send_message":
                 return
             result = event.content.strip()
             try:
@@ -1065,8 +1082,62 @@ class TurnManager:
         строки остаются в ящике и выдадутся в конце следующего хода.
         """
         from app import mailbox
+        from app.antigravity_acp import ensure_interactive_input, is_consumer_model
         from app.errtext import err_text
         s = self.s
+        model = getattr(s, "model", "")
+        provenance_override = None
+        remaining_ids: list[int] = []
+        if is_consumer_model(model):
+            allowed: list[dict] = []
+            rejected: list[dict] = []
+            for item in queued:
+                try:
+                    ensure_interactive_input(model, item["provenance"], target_session=s)
+                    allowed.append(item)
+                except ValueError:
+                    rejected.append(item)
+            if rejected:
+                mailbox.quarantine([m["id"] for m in rejected])
+                s._log(
+                    "status",
+                    f"mailbox: {len(rejected)} сообщение(й) отклонены политикой "
+                    "Antigravity и сняты с повторной выдачи",
+                )
+            if not allowed:
+                self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
+                return
+            queued = allowed
+            if len(queued) == 1:
+                provenance_override = queued[0]["provenance"]
+            else:
+                candidate_prov = _mailbox_provenance(queued)
+                try:
+                    ensure_interactive_input(model, candidate_prov, target_session=s)
+                except ValueError:
+                    first_origin = queued[0]["provenance"].origin
+                    compat = [queued[0]]
+                    rest = []
+                    for item in queued[1:]:
+                        if item["provenance"].origin == first_origin and not rest:
+                            compat.append(item)
+                        else:
+                            rest.append(item)
+                    if len(compat) > 1:
+                        try:
+                            compat_prov = _mailbox_provenance(compat)
+                            ensure_interactive_input(model, compat_prov, target_session=s)
+                            provenance_override = compat_prov
+                        except ValueError:
+                            compat = queued[:1]
+                            rest = queued[1:]
+                            provenance_override = compat[0]["provenance"]
+                    else:
+                        provenance_override = compat[0]["provenance"]
+                    queued = compat
+                    remaining_ids = [m["id"] for m in rest]
+                    mailbox.release_claim(remaining_ids)
+
         ids = [m["id"] for m in queued]
         render = _render_mailbox
 
@@ -1086,7 +1157,7 @@ class TurnManager:
                     f"mailbox: re-sending {repeated} message(s) from the interrupted "
                     "turn; they are shown above",
                 )
-            provenance = _mailbox_provenance(queued)
+            provenance = provenance_override or _mailbox_provenance(queued)
             # Rows stay claimed, not delivered, until the text is really submitted:
             # an in-memory queue would lose them with the process.
             extra = {"require_submit": True}
@@ -1103,30 +1174,50 @@ class TurnManager:
             self._defer_mailbox(ids, deferred)
             return
         except Exception as exc:
+            if isinstance(exc, ValueError) and "antigravity_interactive_only" in str(exc):
+                mailbox.quarantine(ids)
+                s._log(
+                    "status",
+                    f"mailbox: {len(ids)} сообщение(й) отклонены политикой "
+                    "Antigravity и сняты с повторной выдачи",
+                )
+                self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
+                return
             # Возвращаем строки в ящик и ДОИГРЫВАЕМ обычный хвост простоя. Без этого
             # сессия оставалась бы без авто-отчёта и без гибернации, а сообщения —
             # без следующего конца хода, который мог бы их выдать: `wake=False`
             # будущего пробуждения не создаёт по построению.
-            mailbox.release_claim(ids)
-            s._log("error", f"mailbox: выдача не удалась, {len(queued)} возвращены "
-                            f"в ящик: {err_text(exc)}")
-            # Эскалация: продолжить ход не вышло, поэтому доставляем обычным путём —
-            # он загружает сессию и будит её. Без этого следующего конца хода может
-            # не случиться никогда, и сообщения залягут (F3 ревью реализации).
+            s._log("error", f"mailbox: выдача не удалась, пробуем эскалацию "
+                            f"для {len(queued)}: {err_text(exc)}")
+            # Эскалация с удержанием аренды (B12): освобождаем claim только если эскалация не удалась.
             try:
                 from app.deps import manager as _mgr
-                route = await _mgr.send(s.id, text, provenance=provenance, **extra)
+                esc_extra = {**extra, "delivery_id": f"mailbox:{ids[0]}:{ids[-1]}"} if "delivery_id" not in extra else extra
+                route = await _mgr.send(s.id, text, provenance=provenance, **esc_extra)
             except DeliveryDeferred as deferred:
                 self._defer_mailbox(ids, deferred)
                 return
             except Exception as esc:
-                s._log("error", f"mailbox: эскалация тоже не удалась, {len(queued)} "
-                                f"ждут в ящике: {err_text(esc)}")
+                if isinstance(esc, ValueError) and "antigravity_interactive_only" in str(esc):
+                    mailbox.quarantine(ids)
+                    s._log(
+                        "status",
+                        f"mailbox: {len(ids)} сообщение(й) отклонены политикой "
+                        "Antigravity и сняты с повторной выдачи",
+                    )
+                else:
+                    mailbox.release_claim(ids)
+                    s._log("error", f"mailbox: эскалация тоже не удалась, {len(queued)} "
+                                    f"ждут в ящике: {err_text(esc)}")
                 self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
                 return
             self.complete_mailbox(queued, route)
+            if remaining_ids:
+                s._spawn_bg(self._deliver_mailbox_when_free())
             return
         self.complete_mailbox(queued, route)
+        if remaining_ids:
+            s._spawn_bg(self._deliver_mailbox_when_free())
 
     def _defer_mailbox(self, ids: list[int], reason: BaseException) -> None:
         """Return the rows to the mailbox and deliver them once the session is free."""

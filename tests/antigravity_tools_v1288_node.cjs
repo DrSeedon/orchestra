@@ -13,6 +13,13 @@ class Element {
             add: (...values) => { this.className += ' ' + values.join(' '); },
             remove: value => { this.className = this.className.split(' ').filter(c => c !== value).join(' '); },
             contains: value => this.className.split(' ').includes(value),
+            toggle: (value, force) => {
+                const has = this.classList.contains(value);
+                const next = force !== undefined ? Boolean(force) : !has;
+                if (next && !has) this.classList.add(value);
+                else if (!next && has) this.classList.remove(value);
+                return next;
+            },
         };
     }
     set textContent(text) { this.replaceChildren(); this._text = String(text); }
@@ -91,6 +98,7 @@ for (const file of ['tool-renderers.js', 'live-activity.js', 'chat.js']) {
     vm.runInThisContext(source, {filename: file});
 }
 vm.runInThisContext(fs.readFileSync(path.join(root, 'app/static/css/vendor/diff_match_patch.js'), 'utf8'));
+const _origAddChatEntry = global.addChatEntry;
 
 function call(name, input, compact = false, id = 'tool-1') {
     const content = input === undefined ? name : `${name}: ${JSON.stringify(input)}`;
@@ -103,7 +111,7 @@ function result(card, text, error = false) {
     else _renderFullToolResult(text, null, {tool_use_id: card.dataset.toolUseId, tool_is_error: error}, null,
         new Element('div'), div => chat.appendChild(div), false);
 }
-function reset() { chat.replaceChildren(); }
+function reset() { chat.replaceChildren(); if (typeof _acpSegments !== 'undefined') _acpSegments.clear(); if (typeof _renderedLogIds !== 'undefined') _renderedLogIds.clear(); if (typeof _codexLiveThoughts !== 'undefined') _codexLiveThoughts.clear(); }
 function preamble(body, newline = '\n') {
     return ['Created At: 2026-11-13T10:00:00Z', 'Completed At: 2026-11-13T10:00:01Z', body].join(newline);
 }
@@ -125,8 +133,9 @@ const scenarios = {
         }
         assert.equal(normalizeToolInput({Path: 'old', file_path: 'new', limit: 2, EndLine: 5}).file_path, 'new');
         assert.equal(normalizeToolInput({limit: 2, EndLine: 5}).limit, 2);
-        assert.equal(liveToolTimeoutMs('run_command', {WaitMsBeforeAsync: 10000}), 10000);
-        assert.equal(liveToolTimeoutMs('run_command', {WaitMsBeforeAsync: 999999}), 600000);
+        assert.equal(liveToolTimeoutMs('run_command', {WaitMsBeforeAsync: 10000}), 0);
+        assert.equal(liveToolTimeoutMs('run_command', {timeout: 10000}), 10000);
+        assert.equal(liveToolTimeoutMs('run_command', {timeout: 999999}), 600000);
         assert.equal(liveToolTimeoutMs('run_command', {IsDaemon: true}), 0);
         assert.equal(liveToolTimeoutMs('Bash', {}), 120000);
         assert.equal(liveToolTimeoutMs('Read', {timeout: 1000}), 0);
@@ -238,6 +247,7 @@ const scenarios = {
         compact.click();
         assert.equal(expanded[1].payload.tool_is_error, true);
         assert.equal(expanded[1].content, 'denied');
+        global.addChatEntry = _origAddChatEntry;
     },
     legacy() {
         for (const [name, args] of [['Read', {file_path: 'a.py'}], ['read', {path: 'a.py'}],
@@ -254,6 +264,147 @@ const scenarios = {
         result(edit, '<tool_use_error>legacy refusal</tool_use_error>');
         assert(edit.textContent.includes('⚠️ legacy refusal'));
         assert.equal(canonicalToolName('orchestra__notify_user'), 'mcp__orchestra__notify_user');
+    },
+    universal_wave7() {
+        // 1. Canonicalize all Orchestra wire forms while leaving unknown/foreign tools untouched.
+        assert.equal(canonicalToolName('mcp_orchestra_0eaef74b_list_agents'), 'mcp__orchestra__list_agents');
+        assert.equal(canonicalToolName('mcp_orchestra_bg_list'), 'mcp__orchestra__bg_list');
+        assert.equal(canonicalToolName('mcp_orchestra_worker_wip'), 'mcp__orchestra__worker_wip');
+        assert.equal(canonicalToolName('orchestra:set_timer'), 'mcp__orchestra__set_timer');
+        assert.equal(canonicalToolName('orchestra.search_logs'), 'mcp__orchestra__search_logs');
+        assert.equal(canonicalToolName('mcp_unknown_tool'), 'mcp_unknown_tool');
+        assert.equal(canonicalToolName('mcp_orchestra_run_command'), 'mcp_orchestra_run_command');
+        assert.equal(canonicalToolName('mcp_orchestra_spawn_worker_extra'), 'mcp_orchestra_spawn_worker_extra');
+
+        // Every Orchestra MCP tool name has an explicit title in ORCHESTRA_TOOL_TITLES.
+        const allTools = [
+            'multicode_run', 'spawn_worker', 'retry_initial_delivery', 'send_message',
+            'list_pending_deliveries', 'cancel_message_delivery', 'open_fan',
+            'list_agents', 'list_orchestrators', 'get_worker_logs', 'search_logs',
+            'get_log_context', 'compact_worker', 'temp_rule_set', 'temp_rule_list',
+            'temp_rule_update', 'temp_rule_remove', 'kill_worker', 'stop_worker',
+            'rename_worker', 'send_file', 'send_files', 'publish_artifact', 'send_chart',
+            'notify_user', 'update_progress', 'update_checklist', 'change_worker_model',
+            'merge_worker', 'resolve_merge_operation', 'bind_worker_task',
+            'switch_worker_branch', 'check_conflict', 'worker_wip', 'acquire_test_lock',
+            'release_test_lock', 'test_lock_status', 'report_bug',
+            'update_worker_description', 'set_worker_owned_dirs', 'update_worker_prompt',
+            'get_worker_info', 'task_create', 'task_update', 'task_list', 'task_get',
+            'eval_grant_issue', 'dynamic_workflow', 'bg_create', 'bg_list', 'bg_cancel',
+            'codex_review', 'set_timer', 'list_timers', 'cancel_timer', 'request_approval',
+            'list_approvals', 'cancel_approval', 'outbox_enqueue', 'outbox_list', 'kb_search',
+        ];
+        for (const t of allTools) {
+            assert.equal(typeof ORCHESTRA_TOOL_TITLES[t], 'string', `missing title for ${t}`);
+            assert.equal(toolIcon(`mcp_orchestra_1234abcd_${t}`), '🎼', `wrong icon for ${t}`);
+        }
+
+        // 2. Extended native aliases (Antigravity / Codex / Gemini).
+        for (const [raw, canonical] of Object.entries({
+            grep_search: 'Grep', find_by_name: 'Glob', list_dir: 'Glob',
+            view_file: 'Read', replace_file_content: 'Edit', multi_replace_file_content: 'Edit',
+            write_to_file: 'Write', exec_command: 'Bash', shell: 'Bash', read_url_content: 'WebFetch',
+        })) {
+            assert.equal(canonicalToolName(raw), canonical, `alias ${raw}`);
+        }
+        const multiDiff = normalizeToolCall('multi_replace_file_content', {
+            TargetFile: 'app/x.py',
+            ReplacementChunks: [{TargetContent: 'old1', ReplacementContent: 'new1'}],
+        }).input;
+        assert.equal(multiDiff.file_path, 'app/x.py');
+        assert.equal(multiDiff.old_string, 'old1');
+        assert.equal(multiDiff.new_string, 'new1');
+
+        reset();
+        const dirCard = call('list_dir', {DirectoryPath: '/app/static'});
+        assert(dirCard.textContent.includes('/app/static'));
+        assert(!dirCard.textContent.includes('Glob: ?'));
+
+        // 3. ACP placeholder "Run mcp_orchestra_..." never shows red ❌ error.
+        reset();
+        const bgCard = call('mcp_orchestra_0eaef74b_bg_list', {});
+        result(bgCard, 'Run mcp_orchestra_0eaef74b_bg_list', false);
+        assert(!bgCard.textContent.includes('❌'), `unexpected red X: ${bgCard.textContent}`);
+        assert(bgCard.textContent.includes('✅'));
+
+        // 4. Live ACP thinking_stream & Codex thinking_stream render collapsed cards (NEVER .chat-bot).
+        global.HIDE_THINKING = false;
+        global._replayingHistory = false;
+        global.streamBubble = null;
+        global.streamContent = '';
+        global.streamPending = '';
+        global._streamDeferredFinal = null;
+        global._streamFlush = () => {};
+        global.removeWaitingIndicator = () => {};
+        global._stampChatLogNode = (n, p) => { if (n && p?.id != null) n.dataset.chatLogId = String(p.id); };
+        global._chatAtBottom = () => false;
+        global._markChatHasNewBelow = () => {};
+        global.selectedAgent = 'a';
+        global.agentColors = {};
+        global.scrollAfterLoad = true;
+        global.addCopyBtn = () => {};
+        global.orchLocale = () => 'en-US';
+        global._tagChatTimelineNode = () => {};
+        global._recomputeChatTimelineFinals = () => {};
+        global._syncChatTimelineControls = () => {};
+        global._scheduleChatReadCapture = () => {};
+        global._rateLimitAgent = null;
+        global._hideRateLimitBanner = () => {};
+        global.getSelection = () => null;
+        global._trimChatNodes = () => {};
+        global._findLastBefore = (c, s, a) => { const n = _nodesBefore(c, s, a); return n.at(-1) || null; };
+        global._nodesBefore = (c, s, a) => { const all = c.querySelectorAll(s); if (!a) return all; const ch = [...c.children]; const ai = ch.indexOf(a); return ai < 0 ? all : all.filter(x => ch.indexOf(x) < ai); };
+
+        reset();
+        addChatEntry('thinking_stream', 'step 1 ', '2026-11-19T10:00:00Z', null, {item_id: 'acp:s1:t1:1'});
+        addChatEntry('thinking_stream', 'step 2', '2026-11-19T10:00:00Z', null, {item_id: 'acp:s1:t1:1'});
+        assert.equal(chat.querySelectorAll('.chat-bot').length, 0);
+        const liveCard = chat.querySelector('.codex-thinking-card');
+        assert(liveCard, 'live ACP thinking card missing');
+        assert.equal(liveCard.querySelector('.codex-activity-body').style.display, 'none');
+        assert(liveCard.querySelector('.codex-thinking-preview').textContent.includes('step 1 step 2'));
+        addChatEntry('thinking', 'step 1 step 2', '2026-11-19T10:00:00Z', null, {item_id: 'acp:s1:t1:1'});
+        assert(!liveCard.classList.contains('codex-thinking-live'));
+        assert.equal(liveCard.querySelector('.codex-activity-body').style.display, 'none');
+        liveCard.querySelector('.codex-activity-header').click();
+        assert.equal(liveCard.querySelector('.codex-activity-body').style.display, 'block');
+
+        // Non-ACP thinking_stream (Codex) is also collapsed by default with preview.
+        reset();
+        addChatEntry('thinking_stream', 'checking files', '2026-11-19T10:00:00Z', null, {activity: 'reasoning', item_id: 'c1'});
+        const codexLive = chat.querySelector('.codex-thinking-card');
+        assert(codexLive && codexLive.querySelector('.codex-live-thinking-body').style.display === 'none');
+        assert(codexLive.querySelector('.codex-thinking-preview').textContent.includes('checking files'));
+
+        // 5. SILENT_TURN with acp: item_id is completely hidden, while whitespace variant stays visible.
+        reset();
+        addChatEntry('stream', '[[ORCHESTRA:SILENT_TURN]]', '2026-11-19T10:00:00Z', null, {item_id: 'acp:s1:t1:2'});
+        addChatEntry('text', '[[ORCHESTRA:SILENT_TURN]]', '2026-11-19T10:00:00Z', null, {item_id: 'acp:s1:t1:2'});
+        assert.equal(chat.querySelectorAll('.chat-bot').length, 0);
+        addChatEntry('text', ' [[ORCHESTRA:SILENT_TURN]]', '2026-11-19T10:00:00Z', null, {item_id: 'acp:s1:t1:3'});
+        assert.equal(chat.querySelectorAll('.chat-bot').length, 1);
+
+        // 6. B14 truncated run_command parses exit code after prologue.
+        const parsedBash = _parseBashResult("The tool's output was truncated.\nYou can find file:///tmp/out.txt\nCreated At: 2026\nCompleted At: 2026\nCommand exited with code 2.\n\nboom");
+        assert.equal(parsedBash.exitCode, 2);
+        assert.equal(parsedBash.truncated, true);
+        assert.equal(parsedBash.text.trim(), 'boom');
+
+        // 7. B23 worktree path preserves src/ subdir.
+        assert.equal(displayRepoPath('/repo/worktrees/feat-x/src/main.py'), 'src/main.py');
+
+        // 8. B25 two consecutive distinct turns with identical text "OK" BOTH render.
+        reset();
+        addChatEntry('stream', 'OK', '2026-11-19T10:01:00Z', null, {});
+        addChatEntry('text', 'OK', '2026-11-19T10:01:00Z', null, {id: 7001});
+        addChatEntry('text', 'OK', '2026-11-19T10:02:00Z', null, {id: 7002});
+        assert.equal(chat.querySelectorAll('.chat-bot').length, 2);
+
+        // 9. B26 write_stdin maps to TerminalInput, not Bash.
+        reset();
+        const term = call('write_stdin', {session_id: 9, chars: 'ls\n'});
+        assert.equal(term.dataset.toolRawName, 'TerminalInput');
+        assert.equal(term.dataset.isBash, undefined);
     },
 };
 

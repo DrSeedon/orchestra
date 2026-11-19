@@ -1960,12 +1960,16 @@ class CodexBackend(JsonRpcStdioTransport):
             "item/plan/delta",
         ):
             activity = "plan" if method == "item/plan/delta" else "reasoning"
+            part = "plan" if method == "item/plan/delta" else ("summary" if method == "item/reasoning/summaryTextDelta" else "raw")
+            base_item = str(params.get("itemId", "") or "")
+            scoped_id = f"{base_item}:{part}" if base_item else part
             return [AgentEvent(
                 "thinking_stream",
                 params.get("delta", ""),
                 metadata={
                     "activity": activity,
-                    "item_id": params.get("itemId", ""),
+                    "thinking_part": part,
+                    "item_id": scoped_id,
                 },
             )]
 
@@ -2220,10 +2224,10 @@ class CodexBackend(JsonRpcStdioTransport):
             parts = item.get("summary") or item.get("content") or []
             text = "\n".join(str(part) for part in parts if part)
             if text:
-                events.append(AgentEvent("thinking", text))
+                events.append(AgentEvent("thinking", text, metadata={"activity": "reasoning", "item_id": item_id}))
         elif item_type == "plan":
             if item.get("text"):
-                events.append(AgentEvent("thinking", item["text"]))
+                events.append(AgentEvent("thinking", item["text"], metadata={"activity": "plan", "item_id": item_id}))
         elif item_type == "commandExecution":
             if unseen:
                 events.extend(self._item_started(item))

@@ -20,6 +20,7 @@ class MessageProvenance:
     senders: tuple[str, ...]
     subtype: str = ""
     ref: str = ""
+    orig_subtype: str = ""
 
     def __post_init__(self) -> None:
         if self.origin not in MESSAGE_ORIGINS:
@@ -42,7 +43,7 @@ class MessageProvenance:
         if not normalized:
             raise ValueError("message senders must not be empty")
         object.__setattr__(self, "senders", tuple(normalized))
-        for field_name in ("subtype", "ref"):
+        for field_name in ("subtype", "ref", "orig_subtype"):
             value = getattr(self, field_name)
             if not isinstance(value, str):
                 raise ValueError(f"message {field_name} must be a string")
@@ -56,6 +57,8 @@ class MessageProvenance:
             value["subtype"] = self.subtype
         if self.ref:
             value["ref"] = self.ref
+        if self.orig_subtype:
+            value["orig_subtype"] = self.orig_subtype
         return value
 
     def to_storage(self) -> tuple[str, str]:
@@ -75,7 +78,7 @@ class MessageProvenance:
             raise ValueError("message origin_detail must be valid JSON") from error
         if not isinstance(value, dict):
             raise ValueError("message origin_detail must be an object")
-        extra = set(value) - {"senders", "subtype", "ref"}
+        extra = set(value) - {"senders", "subtype", "ref", "orig_subtype"}
         if extra:
             raise ValueError(f"unknown message origin_detail keys: {sorted(extra)!r}")
         senders = value.get("senders")
@@ -86,6 +89,7 @@ class MessageProvenance:
             senders=senders,
             subtype=value.get("subtype", ""),
             ref=value.get("ref", ""),
+            orig_subtype=value.get("orig_subtype", ""),
         )
 
 

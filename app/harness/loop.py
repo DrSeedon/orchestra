@@ -386,6 +386,8 @@ class AgentLoop:
         async for ev in gen:
             if ev.kind == "text_delta":
                 text_parts.append(ev.text)
+                if ev.text:
+                    yield AgentEvent("stream", ev.text)
             elif ev.kind == "tool_call_done":
                 tool_calls.append({
                     "id": ev.tool_id,
@@ -419,7 +421,13 @@ class AgentLoop:
         name = fn.get("name", "")
         raw_args = fn.get("arguments", "") or "{}"
         call_id = tc.get("id", "")
-        metadata = {"tool_name": name, "short_name": _short(name), "tool_use_id": call_id}
+        is_builtin_owner = (
+            (name == builtin.REVIEW_TOOL_NAME and self.allow_review and self.review_ctx is not None and not self.mcp.has_tool(name))
+            or (name == builtin.TODO_TOOL_NAME and self.todo_store is not None and not self.mcp.has_tool(name))
+            or (name in builtin.BUILTIN_NAMES)
+        )
+        canonical_name = name if is_builtin_owner else self.mcp.display_name(name)
+        metadata = {"tool_name": canonical_name, "short_name": _short(canonical_name), "tool_use_id": call_id}
 
         # Parse arguments here (plan B4) — invalid JSON → tool error, never a crash.
         try:
@@ -440,7 +448,7 @@ class AgentLoop:
             arg_summary = str(args)
         # V-636: bare "task_create" missed the dashboard's Russian cards for Orchestra tools
         # and showed raw JSON fields; the card is keyed by the Claude-style mcp__ name.
-        yield AgentEvent("tool_use", f"{self.mcp.display_name(name)}: {arg_summary}",
+        yield AgentEvent("tool_use", f"{canonical_name}: {arg_summary}",
                          metadata=metadata)
 
         # Reviewer sub-loop is READ-ONLY (#126): reject any non-read tool (incl. a hallucinated
@@ -609,10 +617,18 @@ class AgentLoop:
                 if ev.type == "text":
                     text_parts.append(ev.content)
                 # surface the reviewer's activity live, nested under the accordion by subagent_id
-                if ev.type in ("text", "tool_use", "tool_result"):
-                    yield AgentEvent("subagent_stream",
-                                     f"subagent_id={sub_id} | {ev.content[:300]}",
-                                     metadata={"subagent_id": sub_id, "event_type": ev.type})
+                if ev.type in ("stream", "text", "tool_use", "tool_result", "thinking", "thinking_stream"):
+                    yield AgentEvent(
+                        "subagent_stream",
+                        f"subagent_id={sub_id} | {ev.content[:300]}",
+                        metadata={
+                            "subagent_id": sub_id,
+                            "event_type": ev.type,
+                            "item_id": ev.metadata.get("item_id") or ev.metadata.get("tool_use_id") or "",
+                            "tool_use_id": ev.metadata.get("tool_use_id") or "",
+                            "tool_name": ev.metadata.get("tool_name") or "",
+                        },
+                    )
             status = "aborted" if self._abort() else ("completed" if sub.ok else "failed")
         except Exception as e:
             logger.error(f"[review] sub-loop failed: {e}")
@@ -628,7 +644,12 @@ class AgentLoop:
             yield AgentEvent("subagent_end",
                              f"subagent_id={sub_id} | status={status} | {review_text[:160]}",
                              metadata={"subagent_id": sub_id})
-            yield AgentEvent("tool_result", review_text)
+            yield AgentEvent("tool_result", review_text, metadata={
+                "tool_use_id": sub_id,
+                "tool_name": builtin.REVIEW_TOOL_NAME,
+                "short_name": _short(builtin.REVIEW_TOOL_NAME),
+                "is_error": status != "completed",
+            })
             self._append_tool_result(sub_id, review_text)
 
     # ── context management (plan B6) ──

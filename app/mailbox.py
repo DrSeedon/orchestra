@@ -177,6 +177,19 @@ def mark_delivered(ids: list[int]) -> None:
         )
 
 
+def quarantine(ids: list[int]) -> None:
+    """Retire policy-rejected rows so they never re-enter auto-claim loops."""
+    if not ids:
+        return
+    placeholders = ", ".join("?" for _ in ids)
+    with db._conn() as connection:
+        connection.execute(
+            f"UPDATE mailbox SET delivered_at = ?, claimed_at = NULL "
+            f"WHERE id IN ({placeholders}) AND delivered_at IS NULL",
+            (time.time(), *ids),
+        )
+
+
 def mark_codex_steer_submitted(message_id: int) -> None:
     with db._conn() as connection:
         connection.execute(

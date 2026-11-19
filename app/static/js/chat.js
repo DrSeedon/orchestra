@@ -2,6 +2,10 @@
 // Optimistic UI: show message immediately, debounce actual send so rapid
 // follow-up messages get batched. The server echoes back via SSE which
 // replaces the bubble with the canonical version.
+const SILENT_TURN_MARKER = '[[ORCHESTRA:SILENT_TURN]]';
+function _isSilentTurnMarker(type, content) {
+    return type === 'text' && content === SILENT_TURN_MARKER;
+}
 let pendingUserMsgs = [];
 let pendingBubble = null;
 let uiDebounceTimer = null;
@@ -1270,6 +1274,8 @@ let _streamDeferredFinal = null;
 // `turn ended` status before the matching `text` row; if we already finalized the stream,
 // a second identical `text` must not paint a second bubble.
 let _lastFinalizedStreamText = '';
+let _lastFinalizedStreamHasLogId = false;
+const _renderedLogIds = new Set();
 let _streamPacer = new LivePacer();  // paces bursty upstream text (live-activity.js)
 const _STREAM_PARSE_INTERVAL = 50;  // ms between marked.parse calls
 
@@ -1288,7 +1294,8 @@ function _finalizeStreamBubble(finalText, ts) {
     streamBubble.dataset.chatTimelineType = 'text';
     if (typeof _recomputeChatTimelineFinals === 'function') _recomputeChatTimelineFinals();
     if (typeof _syncChatTimelineControls === 'function') _syncChatTimelineControls();
-    _lastFinalizedStreamText = finalText || '';
+    _lastFinalizedStreamText = _lastFinalizedStreamHasLogId ? '' : (finalText || '');
+    _lastFinalizedStreamHasLogId = false;
     streamBubble = null;
     streamContent = '';
     streamPending = '';
@@ -1327,6 +1334,11 @@ function _streamRenderTick() {
     // Resync the pacer when streamPending was filled without a push (a reset or a direct
     // assignment); otherwise its target stays below the backlog and the RAF loop never drains it.
     const total = streamContent.length + streamPending.length;
+    if (typeof SILENT_TURN_MARKER === 'string' && SILENT_TURN_MARKER.startsWith(streamContent + streamPending)) {
+        streamBubble.style.display = 'none';
+    } else {
+        streamBubble.style.display = '';
+    }
     if (_streamPacer.target < total) _streamPacer.push(total, performance.now());
     const chunkSize = Math.max(0, _streamPacer.step(performance.now()) - streamContent.length);
     const chunk = streamPending.slice(0, chunkSize);
@@ -1553,7 +1565,7 @@ function buildCompactToolLine(type, content, ts, payload) {
             else if (rawName === 'mcp__orchestra__bg_list') preview = `📊 ${T('BG Jobs')}`;
             else if (rawName === 'mcp__orchestra__bg_cancel') preview = `⏹ ${T('Cancel job')} ${(parsed.job_id||'').slice(0,8)}`;
             else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') { let _d = '?'; try { _d = new URL(parsed.url).hostname; } catch {} preview = `🌐 ${_d}`; }
-            else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? T(' ({n} lines)', {n: parsed.limit}) : '');
+            else if (parsed.file_path) preview = displayRepoPath(parsed.file_path) + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? T(' ({n} lines)', {n: parsed.limit}) : '');
             else if (parsed.command) preview = parsed.command;
             else if (parsed.pattern) preview = parsed.pattern;
             else if (parsed.path) preview = parsed.path;
@@ -1567,7 +1579,27 @@ function buildCompactToolLine(type, content, ts, payload) {
         }
 
         const isOrch = rawName.startsWith('mcp__orchestra__');
-        if (isOrch) {
+        if (payload?.trunc && payload?.id) {
+        const fullBtn = document.createElement('button');
+        fullBtn.type = 'button';
+        fullBtn.className = 'text-xs mt-1';
+        fullBtn.style.cssText = 'color:var(--accent-alt);background:transparent;border:0;padding:0;cursor:pointer';
+        fullBtn.textContent = T('▼ Load full call');
+        fullBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const r = await fetch(`/api/logs/${encodeURIComponent(payload.id)}`);
+                if (!r.ok) return;
+                const fullRow = await r.json();
+                const rep = document.createElement('div');
+                rep.className = div.className;
+                _renderFullToolCall(fullRow.content || content, {...payload, ...fullRow, trunc: 0, projection: null}, rep);
+                div.replaceWith(rep);
+            } catch {}
+        });
+        div.appendChild(fullBtn);
+    }
+    if (isOrch) {
             icon = '🎼';
             try { preview = _orchestraCompactPreview(rawName, JSON.parse(body)); }
             catch { preview = _orchestraToolTitle(rawName); }
@@ -1689,7 +1721,12 @@ function _findLastBefore(parent, selector, anchor) {
 // Точный поиск для них означал бы «Результат без вызова» на КАЖДОЙ старой строке.
 function _toolForResult(chat, payload, anchor, compact) {
     const toolUseId = payload?.tool_use_id;
-    if (!toolUseId) return _findLastBefore(chat, compact ? '[data-compact-tool]' : '[data-last-tool]', anchor);
+    if (!toolUseId) {
+        const sel = compact ? '[data-compact-tool]' : '[data-last-tool]';
+        const candidates = _nodesBefore(chat, sel, anchor);
+        if (candidates.length > 1) return null;
+        return candidates[candidates.length - 1] || null;
+    }
     // Идентификатор уникален, поэтому ищем по всему чату, а не назад от якоря: страница
     // истории разрезает параллельный блок, и вызов приезжает ПОЗЖЕ своего результата;
     // у Codex вызов и вовсе попадает в журнал после него.
@@ -1725,6 +1762,7 @@ const HIDE_THINKING = document.body.dataset.hideThinking === 'true';
 // lines by parent tool id, then move them into the task-id card once it exists.
 const _pendingSubagentLogs = new Map();
 function appendSubagentLog(subId, evType, content, payload) {
+    if (HIDE_THINKING && (evType === 'thinking' || evType === 'thinking_stream')) return;
     const chat = $('#chat');
     const host = chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`);
     if (!host) {
@@ -1739,26 +1777,27 @@ function appendSubagentLog(subId, evType, content, payload) {
     }
     const body = host.querySelector('.sa-body');
     if (!body) return;
+    const itemId = (payload && (payload.item_id || payload.tool_use_id)) || '';
     if (evType === 'thinking_stream' || evType === 'tool_input_stream') {
-        // One growing line per live block; its persisted event (subagent_event) replaces it.
-        const key = `${evType}:${(payload && payload.item_id) || ''}`;
+        const key = `${evType}:${itemId}`;
         let live = [...body.querySelectorAll('.sa-live')].find(el => el.dataset.liveKey === key);
         if (!live) {
             live = document.createElement('div');
             live.className = 'sa-live';
             live.dataset.liveKey = key;
             live.dataset.liveType = evType;
+            if (itemId) live.dataset.itemId = itemId;
             live._decoder = evType === 'tool_input_stream' ? new LiveArgsDecoder() : null;
             live._text = '';
             body.appendChild(live);
         }
         if (live._decoder) live._decoder.feed(content);
+        else if (payload && payload.replace) live._text = content;
         else live._text += content;
         const name = (payload && payload.tool_name) || '';
         const text = live._decoder ? live._decoder.text : live._text;
         live.textContent = `${live._decoder ? `✍ ${name}` : '💭'} ${text.slice(-600)}`;
     } else if (evType === 'stream') {
-        // Coalesce contiguous stream text into one line (typewriter feel)
         let last = body.lastElementChild;
         if (last && last.classList.contains('sa-stream')) {
             last.textContent += content;
@@ -1770,7 +1809,15 @@ function appendSubagentLog(subId, evType, content, payload) {
         }
     } else {
         const settled = evType === 'tool_use' ? 'tool_input_stream' : evType === 'thinking' ? 'thinking_stream' : '';
-        if (settled) body.querySelectorAll(`.sa-live[data-live-type="${settled}"]`).forEach(el => el.remove());
+        if (settled) {
+            const scopeSel = itemId
+                ? `.sa-live[data-live-type="${settled}"][data-item-id="${CSS.escape(itemId)}"]`
+                : `.sa-live[data-live-type="${settled}"]`;
+            body.querySelectorAll(scopeSel).forEach(el => el.remove());
+        }
+        if (evType === 'text') {
+            body.querySelectorAll('.sa-stream').forEach(el => el.remove());
+        }
         const line = document.createElement('div');
         const icon = evType === 'tool_use' ? '🔧' : evType === 'tool_result' ? '↳' : evType === 'thinking' ? '💭' : '';
         line.style.cssText = 'margin-top:2px;color:' + (evType === 'tool_use' ? '#c4b5fd' : '#94a3b8');
@@ -1793,6 +1840,7 @@ function _flushPendingSubagentLogs(sourceId, targetId) {
 
 let _codexThinkingLive = null;
 let _codexThinkingKey = '';
+const _codexLiveThoughts = new Map();
 let _codexTurnDiffBubble = null;
 const _pendingCodexToolUpdates = new Map();
 
@@ -1818,6 +1866,8 @@ function resetChatTransientState() {
     streamPending = '';
     _streamDeferredFinal = null;
     _lastFinalizedStreamText = '';
+    _lastFinalizedStreamHasLogId = false;
+    _renderedLogIds.clear();
     _acpSegments.clear();
     _pendingAcpToolInputs.clear();
     _resetCodexActivityState();
@@ -1825,12 +1875,30 @@ function resetChatTransientState() {
     applyCompactionState(selectedAgent, null);
 }
 
-function _removeCodexThinkingLive(activity) {
-    if (!_codexThinkingLive) return;
-    if (activity && _codexThinkingLive.dataset.activity !== activity) return;
-    _codexThinkingLive.remove();
-    _codexThinkingLive = null;
-    _codexThinkingKey = '';
+function _removeCodexThinkingLive(activity, itemId = '') {
+    if (itemId) {
+        for (const [k, node] of [..._codexLiveThoughts.entries()]) {
+            if ((!activity || node.dataset.activity === activity) && (node.dataset.baseItemId === itemId || k.includes(itemId))) {
+                node.remove();
+                _codexLiveThoughts.delete(k);
+                if (_codexThinkingLive === node) { _codexThinkingLive = null; _codexThinkingKey = ''; }
+            }
+        }
+        return;
+    }
+    if (!activity) {
+        for (const node of _codexLiveThoughts.values()) node.remove();
+        _codexLiveThoughts.clear();
+        if (_codexThinkingLive) { _codexThinkingLive.remove(); _codexThinkingLive = null; _codexThinkingKey = ''; }
+        return;
+    }
+    for (const [k, node] of [..._codexLiveThoughts.entries()]) {
+        if (node.dataset.activity === activity) {
+            node.remove();
+            _codexLiveThoughts.delete(k);
+            if (_codexThinkingLive === node) { _codexThinkingLive = null; _codexThinkingKey = ''; }
+        }
+    }
 }
 
 function _codexToolHost(chat, payload, anchor) {
@@ -1954,23 +2022,57 @@ async function _restoreImageGenerationResult(host, payload) {
     }
 }
 
-function _renderCodexThinking(content, label) {
-    const card = document.createElement('div');
-    card.className = 'codex-activity-card codex-thinking-card';
-    const header = document.createElement('button');
-    header.className = 'codex-activity-header';
-    header.innerHTML = `<span class="codex-activity-caret">▶</span><span>${label || T('Reasoning')}</span>`;
-    const body = document.createElement('div');
-    body.className = 'codex-activity-body markdown-body';
+function _reasoningPreview(content) {
+    const clean = String(content || '')
+        .replace(/```[\s\S]*?```/g, ' ')
+        .replace(/[#>*_`~\[\]()]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!clean) return '';
+    return clean.length > 92 ? clean.slice(0, 92) + '…' : clean;
+}
+
+function _syncThinkingCard(card, content, label, {live = false} = {}) {
+    const expanded = card.dataset.expanded === '1';
+    card.className = 'codex-activity-card codex-thinking-card' + (live ? ' codex-thinking-live' : '');
+    let header = card.querySelector('.codex-activity-header');
+    let body = card.querySelector('.codex-activity-body');
+    if (!header || !body) {
+        header = document.createElement('button');
+        header.className = 'codex-activity-header';
+        const caret = document.createElement('span');
+        caret.className = 'codex-activity-caret';
+        const titleEl = document.createElement('span');
+        titleEl.className = 'codex-thinking-title';
+        const previewEl = document.createElement('span');
+        previewEl.className = 'codex-thinking-preview';
+        header.append(caret, titleEl, previewEl);
+        body = document.createElement('div');
+        body.className = 'codex-activity-body markdown-body';
+        header.addEventListener('click', () => {
+            const nextExpanded = card.dataset.expanded !== '1';
+            card.dataset.expanded = nextExpanded ? '1' : '0';
+            body.style.display = nextExpanded ? 'block' : 'none';
+            caret.textContent = nextExpanded ? '▼' : '▶';
+        });
+        card.replaceChildren(header, body);
+    }
+    const caret = header.querySelector('.codex-activity-caret');
+    const titleEl = header.querySelector('.codex-thinking-title');
+    const previewEl = header.querySelector('.codex-thinking-preview');
+    if (caret) caret.textContent = expanded ? '▼' : '▶';
+    if (titleEl) titleEl.textContent = label || T('Reasoning');
+    const preview = _reasoningPreview(content);
+    if (previewEl) previewEl.textContent = preview ? `· ${preview}` : '';
     body.innerHTML = DOMPurify.sanitize(marked.parse(content || ''));
-    body.style.display = 'none';
-    header.addEventListener('click', () => {
-        const expanded = body.style.display !== 'none';
-        body.style.display = expanded ? 'none' : 'block';
-        header.querySelector('.codex-activity-caret').textContent = expanded ? '▶' : '▼';
-    });
-    card.append(header, body);
+    body.style.display = expanded ? 'block' : 'none';
     return card;
+}
+
+function _renderCodexThinking(content, label, opts = {}) {
+    const card = document.createElement('div');
+    card.dataset.expanded = '0';
+    return _syncThinkingCard(card, content, label, opts);
 }
 
 function _renderCodexPlan(content) {
@@ -2180,6 +2282,14 @@ const ORCHESTRA_TOOL_TITLES = {
     task_create: 'Create task', task_update: 'Update task', task_list: 'List tasks', task_get: 'Read task',
     dynamic_workflow: 'Start workflow', bg_create: 'Schedule background job',
     bg_list: 'List background jobs', bg_cancel: 'Cancel background job',
+    multicode_run: 'MultiCode command', list_pending_deliveries: 'Pending deliveries',
+    search_logs: 'Search logs', get_log_context: 'Log context',
+    bind_worker_task: 'Bind worker task', eval_grant_issue: 'Issue eval grant',
+    codex_review: 'Codex review', set_timer: 'Set timer',
+    list_timers: 'List timers', cancel_timer: 'Cancel timer',
+    request_approval: 'Request approval', list_approvals: 'List approvals',
+    cancel_approval: 'Cancel approval', outbox_enqueue: 'Enqueue outbox message',
+    outbox_list: 'Outbox queue', kb_search: 'Knowledge search',
 };
 
 const ORCHESTRA_FIELD_LABELS = {
@@ -2402,6 +2512,11 @@ function _appendOrchestraCallDetails(card, rawName, data, {includeFields = false
 }
 
 function _orchestraResultSummary(content, isError = false) {
+    if (!String(content || '').trim() || (typeof isAcpToolPlaceholderResult === 'function' && isAcpToolPlaceholderResult(content))) {
+        return isError
+            ? {icon: '❌', text: T('Error (no details)')}
+            : {icon: '✅', text: T('Completed without output')};
+    }
     let result;
     try { result = JSON.parse(content); } catch { result = null; }
     const status = result?.operation_state || result?.status || result?.state || '';
@@ -2421,7 +2536,10 @@ function _orchestraResultSummary(content, isError = false) {
         return {icon: partial ? '⏳' : '✅', text: detail || (Array.isArray(result) ? T('{count} items', {count: result.length}) : T('Done'))};
     }
     const text = String(content || '').trim().replace(/\s+/g, ' ');
-    return {icon: /\b(error|failed|refused)\b/i.test(text) ? '❌' : '✅', text: text.slice(0, 110) || 'Done'};
+    if (!isError && typeof isAcpToolPlaceholderResult === 'function' && isAcpToolPlaceholderResult(text)) {
+        return {icon: '✅', text: T('Done')};
+    }
+    return {icon: /\b(error|failed|refused)\b/i.test(text) ? '❌' : '✅', text: text.slice(0, 110) || T('Done')};
 }
 
 function _agentResultSummary(content) {
@@ -2548,24 +2666,45 @@ function _renderSendChartResult(card, content, ts) {
 }
 
 function _stripAntigravityTimestamps(text) {
-    return text.replace(/\r\n/g, '\n')
-        .replace(/^(?:(?:Created At|Completed At):[^\n]*(?:\n|$)){1,2}\n?/, '');
+    let clean = String(text || '').replace(/\r\n/g, '\n');
+    let truncated = false;
+    const truncProlog = clean.match(/^The tool's output was truncated[^\n]*(?:\n|$)(?:You can find[^\n]*(?:\n|$))?\n?/i);
+    if (truncProlog) {
+        truncated = true;
+        clean = clean.slice(truncProlog[0].length);
+    }
+    clean = clean.replace(/^(?:(?:Created At|Completed At):[^\n]*(?:\n|$)){1,2}\n?/, '');
+    return Object.assign(clean, {truncated});
 }
 
 function _parseBashResult(content) {
-    const text = _stripAntigravityTimestamps(content);
-    const match = text.match(/^exit_code=(-?\d+)[ \t]*\n?/) ||
-        text.match(/^Command exited with code (-?\d+)\.\n+Command output:[ \t]*\n?/);
-    return {text: match ? text.slice(match[0].length) : text,
-        exitCode: match ? Number(match[1]) : null};
+    let clean = String(content || '').replace(/\r\n/g, '\n');
+    let truncated = false;
+    const truncProlog = clean.match(/^The tool's output was truncated[^\n]*(?:\n|$)(?:You can find[^\n]*(?:\n|$))?\n?/i);
+    if (truncProlog) {
+        truncated = true;
+        clean = clean.slice(truncProlog[0].length);
+    }
+    clean = clean.replace(/^(?:(?:Created At|Completed At):[^\n]*(?:\n|$)){1,2}\n?/, '');
+    const match = clean.match(/^exit_code=(-?\d+)[ \t]*\n?/) ||
+        clean.match(/^Command exited with code (-?\d+)\.\n+(?:Command output:[ \t]*\n?)?/);
+    const body = match ? clean.slice(match[0].length) : clean;
+    return {text: body, exitCode: match ? Number(match[1]) : null, truncated};
 }
 
 function _parseReadResult(content) {
-    let text = _stripAntigravityTimestamps(content);
+    let text = String(content || '').replace(/\r\n/g, '\n');
+    const truncProlog = text.match(/^The tool's output was truncated[^\n]*(?:\n|$)(?:You can find[^\n]*(?:\n|$))?\n?/i);
+    const truncated = Boolean(truncProlog);
+    if (truncProlog) text = text.slice(truncProlog[0].length);
+    text = text.replace(/^(?:(?:Created At|Completed At):[^\n]*(?:\n|$)){1,2}\n?/, '');
+    if (typeof isAcpToolPlaceholderResult === 'function' && isAcpToolPlaceholderResult(text, 'Read')) {
+        return {text: '', stat: T('Completed without output'), truncated};
+    }
     const stat = /^\d+ lines?, \d+ bytes?$/.test(text.trim()) ? text.trim() : '';
     const showing = text.match(/^Showing lines \d+[-–]\d+ of \d+\n/);
     if (showing) text = text.slice(showing[0].length).replace(/^\s*\d+: ?/gm, '');
-    return {text, stat};
+    return {text, stat, truncated};
 }
 
 function _updateCompactToolResult(card, content, isBase64Image, isError = false) {
@@ -2597,6 +2736,11 @@ function _updateCompactToolResult(card, content, isBase64Image, isError = false)
         return;
     }
 
+    if (typeof isAcpToolPlaceholderResult === 'function' && isAcpToolPlaceholderResult(content, rawName)) {
+        resultSpan.textContent = isError ? '❌' : '✅';
+        resultSpan.style.color = isError ? '#ef4444' : '#22c55e';
+        return;
+    }
     if (rawName === 'Bash') {
         const result = _parseBashResult(content);
         resultSpan.textContent = result.exitCode === null ? '📎 ' + result.text.slice(0, 40)
@@ -2605,8 +2749,10 @@ function _updateCompactToolResult(card, content, isBase64Image, isError = false)
     } else if (isTask) {
         let parsed = null;
         try { parsed = JSON.parse(content); } catch {}
-        if (!parsed || parsed.error) {
+        if (parsed?.error || (!parsed && /^\s*(?:error|failed|exception)[:\s]/i.test(clean))) {
             resultSpan.textContent = '❌';
+        } else if (!parsed) {
+            resultSpan.textContent = clean.trim() ? `✅ ${clean.trim().slice(0, 40)}` : '✅';
         } else if (rawName === 'mcp__orchestra__task_create') {
             const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
             resultSpan.textContent = T('✅ task #{number} created', {number});
@@ -2688,7 +2834,7 @@ function _updateCompactToolResult(card, content, isBase64Image, isError = false)
             const colon = card.dataset.toolContent.indexOf(':');
             const args = colon > 0 ? card.dataset.toolContent.slice(colon + 1).trim() : '';
             const filePath = normalizeToolCall(rawName, args).input?.file_path;
-            if (filePath) readShort = filePath.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || filePath;
+            if (filePath) readShort = displayRepoPath(filePath) || filePath;
         } catch {}
         resultSpan.textContent = '📖 ' + (_parseReadResult(content).stat || readShort);
     } else {
@@ -3296,9 +3442,12 @@ function _renderFullToolCall(content, payload, div) {
         content = pendingInput.content; payload = {...payload, ...pendingInput.payload};
     }
     const colonIdx = content.indexOf(':');
+    const rawArgSource = (payload?.raw_input && typeof payload.raw_input === 'object' && !Array.isArray(payload.raw_input) && (payload?.trunc || payload?.projection))
+        ? payload.raw_input
+        : (colonIdx > 0 ? content.slice(colonIdx + 1).trim() : content);
     const {name: rawName, body} = normalizeToolCall(
         payload?.tool_name || (colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.trim()),
-        colonIdx > 0 ? content.slice(colonIdx + 1).trim() : content);
+        rawArgSource);
     // V-636: the harness logs a file change as a pseudo-call "file: add <path>"; the Write/Edit
     // card above already shows the content, so this is one localized line, not an English card.
     if (rawName === 'file' && /^(add|update) /.test(body)) {
@@ -3681,7 +3830,7 @@ function _renderFullToolCall(content, payload, div) {
     if (isGlob) {
         try {
             const d = JSON.parse(body);
-            header.textContent = T('🔎 Glob: {pattern}', {pattern: d.pattern || '?'});
+            header.textContent = T('🔎 Glob: {pattern}', {pattern: d.pattern || d.path || '?'});
             header.style.color = '#38bdf8';
             if (d.path) {
                 const pathEl = document.createElement('div');
@@ -3697,6 +3846,21 @@ function _renderFullToolCall(content, payload, div) {
             const d = JSON.parse(body);
             header.textContent = T('⚡ Skill: {skill}', {skill: d.skill || '?'});
             header.style.color = '#eab308';
+        } catch {}
+    }
+    const isTerminalInput = rawName === 'TerminalInput';
+    if (isTerminalInput) {
+        try {
+            const d = JSON.parse(body);
+            const sid = d.session_id != null ? String(d.session_id) : '?';
+            header.textContent = sid !== '?' ? T('Terminal input · session {id}', {id: sid}) : T('Terminal input');
+            header.style.color = '#38bdf8';
+            if (d.chars) {
+                const pre = document.createElement('pre');
+                pre.style.cssText = 'margin:4px 0 0;padding:6px 8px;font-size:11px;overflow-x:auto;background:#0d1117;border-radius:4px';
+                pre.textContent = d.chars;
+                div.appendChild(pre);
+            }
         } catch {}
     }
     const isBashTool = rawName === 'Bash';
@@ -3913,7 +4077,7 @@ function _renderFullToolCall(content, payload, div) {
         try {
             const d = JSON.parse(body);
             const grepPath = d.path || d.glob || '';
-            const shortGrepPath = grepPath.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || grepPath;
+            const shortGrepPath = displayRepoPath(grepPath) || grepPath;
             header.textContent = T('🔎 Grep: {pattern}{path}', {pattern: d.pattern || '', path: shortGrepPath ? ' in ' + shortGrepPath : ''});
             header.style.color = '#38bdf8';
             div.dataset.isGrep = '1';
@@ -3961,7 +4125,7 @@ function _renderFullToolCall(content, payload, div) {
                !isToolSearchCall && !isBugReport && !isWebFetch &&
                !isSendFile && !isSendFiles && !isSendChart && !isOrchSimple && !isGlob && !isSkill &&
                !isOrch && !isFileChangeTool && !isViewImageTool &&
-               !isImageGenerationTool && !isSleepTool && !isTodoWrite && !isReviewTool) {
+               !isImageGenerationTool && !isSleepTool && !isTodoWrite && !isReviewTool && !isTerminalInput) {
         let _inputJsonRendered = false;
         if (body) {
             try {
@@ -4345,8 +4509,30 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             let parsed = null;
             try { parsed = JSON.parse(content); } catch {}
             const tn = lastTool.dataset.toolRawName;
-            if (!parsed || parsed.error) {
+            const flagErr = payload?.tool_is_error === true || payload?.tool_is_error === 1;
+            if (typeof isAcpToolPlaceholderResult === 'function' && isAcpToolPlaceholderResult(content, tn)) {
+                if (hdr) {
+                    hdr.textContent = flagErr ? `❌ ${T('Error (no details)')}` : `✅ ${T('Completed without output')}`;
+                    hdr.style.color = flagErr ? '#ef4444' : '#22c55e';
+                }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            const textErr = !parsed && /^\s*(?:error|failed|exception)[:\s]/i.test(clean);
+            if (flagErr || parsed?.error || textErr) {
                 if (hdr) { hdr.textContent = `❌ ${parsed?.error || clean.slice(0, 80)}`; hdr.style.color = '#ef4444'; }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (!parsed) {
+                if (hdr) { hdr.textContent = T('✅ Done'); hdr.style.color = '#22c55e'; }
+                if (clean.trim()) {
+                    const plainEl = document.createElement('div');
+                    plainEl.className = 'text-xs';
+                    plainEl.style.cssText = 'margin-top:4px;color:var(--ink-body);white-space:pre-wrap;overflow-wrap:anywhere';
+                    plainEl.textContent = clean.slice(0, 300) + (clean.length > 300 ? '…' : '');
+                    lastTool.appendChild(plainEl);
+                }
                 addTimestamp(lastTool, ts);
                 return;
             }
@@ -4493,9 +4679,13 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 const _row = (label, val, color) => { if (val != null && val !== '') grid.innerHTML += `<span style="color:var(--ink-dim)">${label}</span><span style="color:${color||'#cbd5e1'}">${DOMPurify.sanitize(String(val))}</span>`; };
                 _row(T('Role'), parsed.is_orchestrator ? `🎯 ${T('orchestrator')}` : `⚙️ ${T('worker')}`);
                 _row(T('Branch'), parsed.branch, '#818cf8');
-                const ctxPct = parsed.context_pct || 0;
-                const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
-                _row(T('Context'), `${ctxPct}%`, ctxColor);
+                if (parsed.context_known === false) {
+                    _row(T('Context'), '—', 'var(--ink-dim)');
+                } else {
+                    const ctxPct = parsed.context_pct || 0;
+                    const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
+                    _row(T('Context'), `${ctxPct}%`, ctxColor);
+                }
                 _row(T('Cost'), `${MODEL_COST_CURRENCY}${parsed.cost_usd ?? 0}`, '#22c55e');
                 if (parsed.task_id) _row(T('Task'), `#${parsed.task_id}`, '#a78bfa');
                 if (parsed.total_turns) _row(T('Turns'), parsed.total_turns);
@@ -4641,14 +4831,17 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         let ctxRaw = '', taskId = '', desc = '';
                         for (let pi = 3; pi < parts.length; pi++) {
                             const p = parts[pi];
-                            if (p.match(/ctx:\d+%/)) ctxRaw = p;
+                            if (p.match(/ctx:(?:\d+%|—|unknown)/)) ctxRaw = p;
                             else if (p.startsWith('"')) desc = p.replace(/^"|"$/g, '');
                             else if (p && !p.startsWith('$')) taskId = p;
                         }
                         const nameClean = nameRaw.replace(/\*\*/g, '').replace(/^[^\w]*/, '').trim();
                         const icon = nameRaw.match(/[🎯⚙️🔧]/)?.[0] || '⚙️';
-                        const ctxPct = parseInt(ctxRaw.match(/(\d+)%/)?.[1] || '0');
-                        const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
+                        const ctxMatch = ctxRaw.match(/(\d+)%/);
+                        const ctxUnknown = ctxRaw.includes('—') || ctxRaw.includes('unknown') || (!ctxMatch && ctxRaw === '');
+                        const ctxPct = ctxMatch ? parseInt(ctxMatch[1]) : 0;
+                        const ctxColor = ctxUnknown ? 'var(--ink-dim)' : (ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e');
+                        const ctxDisplay = ctxUnknown ? '—' : `${ctxPct}%`;
                         const isRunning = status.includes('running');
                         const row = document.createElement('div');
                         row.style.cssText = `padding:4px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${isRunning ? '#22c55e' : '#334155'}`;
@@ -4657,7 +4850,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         let h = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--ink);font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(T(status.trim()))}</span></div>`;
                         h += `<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:var(--ink-dim)"><span>${DOMPurify.sanitize(model)}</span>`;
                         if (taskId) h += `<span style="color:var(--accent-violet);font-weight:600">#${DOMPurify.sanitize(taskId.replace(/^[A-Z]+-/, ''))}</span>`;
-                        h += `<span style="display:inline-flex;align-items:center;gap:3px">${T('ctx:')}<span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
+                        h += `<span style="display:inline-flex;align-items:center;gap:3px">${T('ctx:')}<span style="color:${ctxColor}">${ctxDisplay}</span></span></div>`;
                         if (desc) h += `<div style="font-size:10px;color:var(--ink-dim);font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(desc)}</div>`;
                         row.innerHTML = h;
                         container.appendChild(row);
@@ -4846,7 +5039,14 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         if (isWebSearch) {
             const wsEl = renderWebSearchResults(content);
             if (wsEl) {
-                const sep = document.createElement('div');
+                if (result.truncated) {
+                const badge = document.createElement('div');
+                badge.className = 'text-xs';
+                badge.style.cssText = 'margin-top:4px;color:#f59e0b';
+                badge.textContent = '⚠ ' + T('Output truncated');
+                lastTool.appendChild(badge);
+            }
+            const sep = document.createElement('div');
                 sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
                 sep.appendChild(wsEl);
                 lastTool.appendChild(sep);
@@ -5008,6 +5208,10 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             }
             addTimestamp(lastTool, ts);
             return;
+        }
+        if (Array.isArray(payload?.raw_input?.diffs) && payload.raw_input.diffs.length && typeof renderAcpDiffList === 'function') {
+            const diffList = renderAcpDiffList(payload.raw_input.diffs);
+            if (diffList) lastTool.appendChild(diffList);
         }
         let _resultJsonParsed = null;
         try { _resultJsonParsed = JSON.parse(content); } catch {}
@@ -5363,7 +5567,8 @@ function _firstLiveAcpSegment(chat) {
 function _renderAcpSegment(type, content, ts, anchor, payload) {
     const id = String(payload?.item_id || payload?.event_id || '');
     if (!id.startsWith('acp:') || !['stream','text','thinking_stream','thinking'].includes(type)) return false;
-    if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return true;
+    const isThought = type === 'thinking' || type === 'thinking_stream';
+    if (HIDE_THINKING && isThought) return true;
     const chat = $('#chat');
     const follow = typeof _chatAtBottom === 'function' && _chatAtBottom(chat);
     const live = type === 'stream' || type === 'thinking_stream';
@@ -5377,22 +5582,36 @@ function _renderAcpSegment(type, content, ts, anchor, payload) {
         }
     }
     if (segment?.final && live) return true; // stale reconnect partial after its durable row
+    const nextContent = live && segment && !payload?.replace ? segment.content + content : content;
+    if (isThought && !String(nextContent || '').trim()) {
+        if (!live && segment) { segment.node.remove(); _acpSegments.delete(id); }
+        return true;
+    }
     if (!segment) {
         const node = document.createElement('div');
         node.dataset.segmentId = id;
-        node.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot markdown-body';
+        if (isThought) {
+            node.dataset.expanded = '0';
+            node.className = 'codex-activity-card codex-thinking-card' + (live ? ' codex-thinking-live' : '');
+        } else {
+            node.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot markdown-body';
+        }
         segment = {node, content:'', final:false}; _acpSegments.set(id, segment);
         const before = anchor || (!live && _firstLiveAcpSegment(chat));
         if (before) chat.insertBefore(node, before); else chat.appendChild(node);
     }
-    segment.content = live && !payload?.replace ? segment.content + content : content;
+    segment.content = nextContent;
     segment.node.dataset.acpSegmentLive = live ? '1' : '0';
-    segment.node.classList.toggle('streaming', live);
-    if (type === 'thinking') {
-        const thought = _renderCodexThinking(segment.content, T('◇ Reasoning'));
-        segment.node.className = thought.className;
-        segment.node.replaceChildren(...thought.childNodes);
+    if (isThought) {
+        _syncThinkingCard(segment.node, segment.content, live ? T('◇ Reasoning live') : T('◇ Reasoning'), {live});
+        segment.node.classList.toggle('streaming', live);
     } else {
+        segment.node.classList.toggle('streaming', live);
+        if (live && typeof SILENT_TURN_MARKER === 'string' && SILENT_TURN_MARKER.startsWith(segment.content)) {
+            segment.node.style.display = 'none';
+        } else {
+            segment.node.style.display = '';
+        }
         segment.node.innerHTML = DOMPurify.sanitize(marked.parse(segment.content));
     }
     if (typeof _tagChatTimelineNode === 'function') _tagChatTimelineNode(segment.node, type, ts);
@@ -5448,6 +5667,31 @@ function renderNativeRequestCard(content) {
 }
 
 function addChatEntry(type, content, ts, anchor, payload) {
+    const _logId = payload && payload.id;
+    if (_logId != null && _renderedLogIds.has(_logId)) return;
+    if (_logId != null) _renderedLogIds.add(_logId);
+    if (_isSilentTurnMarker(type, content)) {
+        const segId = payload && payload.item_id;
+        if (segId) {
+            const seg = _acpSegments.get(segId);
+            if (seg) { seg.node.remove(); _acpSegments.delete(segId); }
+            const domSeg = document.querySelector(`[data-segment-id="${CSS.escape(segId)}"]`);
+            if (domSeg) domSeg.remove();
+        }
+        // The marker already streamed into a live bubble; without this it stays with a cursor.
+        if (streamBubble) {
+            _streamFlush();
+            streamBubble.remove();
+            streamBubble = null;
+            streamContent = '';
+            streamPending = '';
+            _streamDeferredFinal = null;
+            if (typeof _recomputeChatTimelineFinals === 'function') _recomputeChatTimelineFinals();
+        }
+        return;
+    }
+    if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return;
+    if (type === 'thinking' && !String(content || '').trim()) return;
     if (_renderAcpSegment(type, content, ts, anchor, payload)) return;
     if (type === 'tool_update') { _updateAcpToolInput(content, payload); return; }
     if (type === 'native_request_closed') {
@@ -5464,20 +5708,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
     if (type === 'provider_limit') return; // Runtime telemetry; the status/error row carries the user notice.
     if (type === 'done_gate_verdict') return; // V-614 (removed 30.09): old rows stay in logs, never render them.
     if (type === 'error' && /^compact attempt \d+\/\d+ failed:/.test(content || '')) return;
-    if (_isSilentTurnMarker(type, content)) {
-        // The marker already streamed into a live bubble; without this it stays with a cursor.
-        if (streamBubble) {
-            _streamFlush();
-            streamBubble.remove();
-            streamBubble = null;
-            streamContent = '';
-            streamPending = '';
-            _streamDeferredFinal = null;
-            if (typeof _recomputeChatTimelineFinals === 'function') _recomputeChatTimelineFinals();
-        }
-        return;
-    }
-    if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return;
     // Live sub-agent output → nest inside the sub-agent accordion, not the main flow
     if ((type === 'subagent_stream' || type === 'subagent_event') && payload && payload.subagent_id) {
         appendSubagentLog(payload.subagent_id, payload.event_type || 'stream', content, payload);
@@ -5529,32 +5759,71 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
     if (type === 'thinking_stream') {
         const activity = (payload && payload.activity) || 'reasoning';
-        const key = `${activity}:${(payload && payload.item_id) || ''}`;
-        if (!_codexThinkingLive || _codexThinkingKey !== key) {
-            _removeCodexThinkingLive();
-            _codexThinkingLive = document.createElement('div');
-            _codexThinkingLive.className = 'codex-activity-card codex-thinking-live';
-            _codexThinkingLive.dataset.activity = activity;
-            const label = document.createElement('div');
-            label.className = 'codex-live-label';
-            label.textContent = activity === 'plan'
+        const part = (payload && payload.thinking_part) || '';
+        const itemId = (payload && payload.item_id) || '';
+        const baseItemId = itemId.replace(/:(summary|raw|plan)$/, '');
+        const key = `${activity}:${part}:${itemId}`;
+        const collapsible = activity !== 'waiting';
+        let liveCard = _codexLiveThoughts.get(key);
+        if (!liveCard || !liveCard.isConnected) {
+            liveCard = document.createElement('div');
+            liveCard.className = 'codex-activity-card codex-thinking-card codex-thinking-live';
+            liveCard.dataset.activity = activity;
+            if (part) liveCard.dataset.thinkingPart = part;
+            if (baseItemId) liveCard.dataset.baseItemId = baseItemId;
+            liveCard.dataset.expanded = collapsible ? '0' : '1';
+            const baseLabel = activity === 'plan'
                 ? T('▦ Planning live')
                 : activity === 'waiting'
                     ? T('⌁ Codex still working')
-                    : T('◇ Reasoning live');
-            const body = document.createElement('div');
-            body.className = 'codex-live-thinking-body';
-            _codexThinkingLive.append(label, body);
+                    : (part === 'summary' ? T('◇ Reasoning summary') : T('◇ Reasoning live'));
+            if (collapsible) {
+                const header = document.createElement('button');
+                header.className = 'codex-activity-header';
+                const caret = document.createElement('span');
+                caret.className = 'codex-activity-caret';
+                caret.textContent = '▶';
+                const titleEl = document.createElement('span');
+                titleEl.className = 'codex-live-label codex-thinking-title';
+                titleEl.textContent = baseLabel;
+                const previewEl = document.createElement('span');
+                previewEl.className = 'codex-thinking-preview';
+                header.append(caret, titleEl, previewEl);
+                const body = document.createElement('div');
+                body.className = 'codex-live-thinking-body codex-activity-body';
+                body.style.display = 'none';
+                const cardRef = liveCard;
+                header.addEventListener('click', () => {
+                    const nextExpanded = cardRef.dataset.expanded !== '1';
+                    cardRef.dataset.expanded = nextExpanded ? '1' : '0';
+                    body.style.display = nextExpanded ? 'block' : 'none';
+                    caret.textContent = nextExpanded ? '▼' : '▶';
+                });
+                liveCard.append(header, body);
+            } else {
+                const label = document.createElement('div');
+                label.className = 'codex-live-label';
+                label.textContent = baseLabel;
+                const body = document.createElement('div');
+                body.className = 'codex-live-thinking-body';
+                liveCard.append(label, body);
+            }
+            _codexLiveThoughts.set(key, liveCard);
+            _codexThinkingLive = liveCard;
             _codexThinkingKey = key;
-            _insert(_codexThinkingLive);
+            _insert(liveCard);
         }
-        const body = _codexThinkingLive.querySelector('.codex-live-thinking-body');
+        const body = liveCard.querySelector('.codex-live-thinking-body');
         body.textContent = activity === 'waiting' || (payload && payload.replace)
             ? content
             : (body.textContent + content).slice(-30_000);
-        // Claude with thinking display omitted streams only a token estimate.
+        const previewEl = liveCard.querySelector('.codex-thinking-preview');
+        if (previewEl) {
+            const preview = _reasoningPreview(body.textContent);
+            previewEl.textContent = preview ? `· ${preview}` : '';
+        }
         if (payload && payload.estimated_tokens) {
-            _codexThinkingLive.querySelector('.codex-live-label').textContent =
+            liveCard.querySelector('.codex-live-label').textContent =
                 T('◇ Reasoning live · ~{n} tokens', {n: Number(payload.estimated_tokens).toLocaleString(orchLocale())});
         }
         return;
@@ -5632,26 +5901,26 @@ function addChatEntry(type, content, ts, anchor, payload) {
     if (type === 'text') {
         _removeCodexThinkingLive('reasoning');
         if (streamBubble) {
+            _lastFinalizedStreamHasLogId = Boolean(payload && payload.id != null);
             _stampChatLogNode(streamBubble, payload);
             _completeStreamBubble(content, ts);
             _scheduleChatReadCapture();
             return;
         }
-        // Stream already closed (e.g. status `turn ended` raced ahead of this row) with
-        // the same body — skip the second paint. History reload has no streamBubble and
-        // content differs from any prior live finalize, so it still creates a bubble.
-        if (content && content === _lastFinalizedStreamText) {
+        if (content && content === _lastFinalizedStreamText && !(payload && payload.id != null)) {
             _lastFinalizedStreamText = '';
             _scheduleChatReadCapture();
             return;
         }
-        // No live stream (history, or runtime that only emits final text) → fall through
-        // to the normal chat-bot bubble renderer below.
+        _lastFinalizedStreamText = '';
     }
 
     if (type === 'thinking') {
-        _removeCodexThinkingLive('reasoning');
-        const card = _renderCodexThinking(content, T('◇ Reasoning'));
+        const thActivity = (payload && payload.activity) || 'reasoning';
+        const thItemId = (payload && payload.item_id) || '';
+        _removeCodexThinkingLive(thActivity, thItemId);
+        if (!thActivity || thActivity === 'reasoning') _removeCodexThinkingLive('reasoning', thItemId);
+        const card = _renderCodexThinking(content, thActivity === 'plan' ? T('▦ Plan') : T('◇ Reasoning'));
         addTimestamp(card, ts);
         _insert(card);
         return;

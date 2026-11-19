@@ -1847,6 +1847,34 @@ def _cap_content(row: dict, cap: int) -> dict:
             encoded = json.dumps(event, ensure_ascii=False).encode()
             row["content"] = encoded.decode()
             return row
+    if row.get("type") in {"tool", "tool_update"}:
+        src_text = row.get("content") or ""
+        head, sep, tail = src_text.partition(":")
+        raw_obj = row.get("raw_input") if isinstance(row.get("raw_input"), dict) else None
+        if raw_obj is None and sep and tail.strip().startswith("{"):
+            try:
+                parsed = json.loads(tail)
+                if isinstance(parsed, dict):
+                    raw_obj = parsed
+            except (json.JSONDecodeError, TypeError):
+                raw_obj = None
+        if isinstance(raw_obj, dict):
+            projected = {}
+            for k, v in raw_obj.items():
+                if isinstance(v, str) and len(v) > 256:
+                    projected[k] = v[:256] + "…"
+                else:
+                    projected[k] = v
+            encoded_obj = json.dumps(projected, ensure_ascii=False, separators=(",", ":"))
+            if len(encoded_obj.encode()) > max(128, cap - 64):
+                projected = {k: (v[:48] + "…" if isinstance(v, str) and len(v) > 48 else v) for k, v in list(raw_obj.items())[:8]}
+                encoded_obj = json.dumps(projected, ensure_ascii=False, separators=(",", ":"))
+            prefix = f"{head}: " if sep else ""
+            row["content"] = prefix + encoded_obj
+            row["raw_input"] = projected
+            row["projection"] = "tool_args"
+            row["trunc"] = len(raw)
+            return row
     row["content"] = raw[:cap].decode(errors="ignore")
     row["trunc"] = len(raw)  # исходная длина в байтах — её показывает кнопка «загрузить целиком»
     return row

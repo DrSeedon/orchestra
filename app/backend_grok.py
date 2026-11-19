@@ -1197,12 +1197,19 @@ class GrokBackend(JsonRpcStdioTransport):
             # produced 50+ reasoning cards per turn. One thinking card lands at turn_end.
             events = self._flush_message()
             tool_id = str(update.get("toolCallId") or update.get("id") or "")
+            raw_input = update.get("rawInput") or {}
             name = str(update.get("title") or update.get("kind") or "tool")
+            if name in {"use_tool", "call_mcp_tool"} and isinstance(raw_input, dict):
+                inner_name = raw_input.get("tool_name") or raw_input.get("ToolName")
+                if isinstance(inner_name, str) and inner_name.strip():
+                    name = inner_name.strip()
+                    raw_input = raw_input.get("tool_input") or raw_input.get("Arguments") or raw_input
             self._tool_names[tool_id] = name
             events.append(AgentEvent(
                 "tool_use",
-                f"{name}: {json.dumps(bounded_tool_arguments(update.get('rawInput') or {}), ensure_ascii=False)}",
-                metadata={"tool_name": name, "short_name": name, "tool_use_id": tool_id},
+                f"{name}: {json.dumps(bounded_tool_arguments(raw_input), ensure_ascii=False)}",
+                metadata={"tool_name": name, "short_name": name, "tool_use_id": tool_id,
+                          "raw_input": raw_input if isinstance(raw_input, dict) else None},
             ))
             return events
 
@@ -1221,12 +1228,26 @@ class GrokBackend(JsonRpcStdioTransport):
         tool_id = str(update.get("toolCallId") or update.get("id") or "")
         status = update.get("status")
         title = update.get("title")
+        raw_input = update.get("rawInput")
+        terminal = status in ("completed", "failed", "cancelled", "interrupted")
+        emitted_updates = []
         if title and tool_id:
-            # Grok routes MCP tools through a search_tool/use_tool meta-layer; the concrete
-            # name (e.g. orchestra__list_agents) arrives on the update, not the initial call.
-            self._tool_names[tool_id] = str(title)
-        if status not in ("completed", "failed"):
-            return []
+            resolved = str(title)
+            if resolved in {"use_tool", "call_mcp_tool"} and isinstance(raw_input, dict):
+                resolved = str(raw_input.get("tool_name") or raw_input.get("ToolName") or resolved)
+                raw_input = raw_input.get("tool_input") or raw_input.get("Arguments") or raw_input
+            prev = self._tool_names.get(tool_id)
+            self._tool_names[tool_id] = resolved
+            if not terminal and (prev != resolved or isinstance(raw_input, dict)):
+                args_obj = raw_input if isinstance(raw_input, dict) else {}
+                emitted_updates.append(AgentEvent(
+                    "tool_update",
+                    f"{resolved}: {json.dumps(bounded_tool_arguments(args_obj), ensure_ascii=False)}",
+                    metadata={"tool_use_id": tool_id, "tool_name": resolved, "short_name": resolved,
+                              "raw_input": args_obj if args_obj else None},
+                ))
+        if not terminal:
+            return emitted_updates
         name = self._tool_names.get(tool_id, "tool")
         policy_refusal = self._shell_policy_violations.pop(tool_id, None)
         content = update.get("content")
@@ -1244,11 +1265,12 @@ class GrokBackend(JsonRpcStdioTransport):
             text = json.dumps({"status": status}, ensure_ascii=False)
         if policy_refusal:
             text = f"{policy_refusal}\n{text}"
-        return [AgentEvent("tool_result", text[:20_000], metadata={
+        emitted_updates.append(AgentEvent("tool_result", text[:20_000], metadata={
             "tool_use_id": tool_id,
             "tool_name": name,
-            "is_error": status == "failed",
-        })]
+            "is_error": status in ("failed", "cancelled", "interrupted"),
+        }))
+        return emitted_updates
 
     def _mcp_status(self, params: dict) -> list[AgentEvent]:
         name = params.get("name") or "unknown"

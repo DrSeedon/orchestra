@@ -173,7 +173,7 @@ def run_frontend(scenario="all", mutations=None):
     )
 
 
-@pytest.mark.parametrize("scenario", ["aliases", "mcp", "bash", "read", "edit", "legacy"])
+@pytest.mark.parametrize("scenario", ["aliases", "mcp", "bash", "read", "edit", "legacy", "universal_wave7"])
 def test_frontend_production_renderers(scenario):
     result = run_frontend(scenario)
     assert result.returncode == 0, result.stdout + result.stderr

@@ -657,7 +657,8 @@ class SessionManager:
                              planned_initial_turn: bool = False,
                              initial_task_title: str = "",
                              model_policy_override_reason: str = "",
-                             model_reason: str = "") -> AgentSession:
+                             model_reason: str = "", standalone: bool = False,
+                             effort_override: str | None = None) -> AgentSession:
         normalized_scope = scope.rstrip("/")
         key = (normalized_scope, name)
         lock = self._spawn_locks.setdefault(key, asyncio.Lock())
@@ -709,6 +710,13 @@ class SessionManager:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
+        if standalone and (parent_name or parent_id):
+            raise ValueError("standalone sessions cannot have a parent")
+        if effort_override is not None and (
+            not standalone or backend_for_model(model) != "codex"
+            or effort_override not in {"low", "medium", "high", "xhigh"}
+        ):
+            raise ValueError("effort override is only available for standalone Codex sessions")
         from app.models import validate_model_reason
 
         route_context = dict(role=role, pipeline=pipeline or DEFAULT_PIPELINE, scope=scope, task_id=task_id)
@@ -764,7 +772,7 @@ class SessionManager:
         # Work areas describe expected edits; separate worktrees may overlap.
         owned_dirs = parse_owned_dirs(owned_dirs)
 
-        if not parent_name and not is_orch:
+        if not standalone and not parent_name and not is_orch:
             parent_name = self._find_orchestrator_name(scope) or ""
             if parent_name and not explicit_pipeline:
                 # Доразрешили родителя авто-поиском — воркер наследует его пайплайн.
@@ -852,7 +860,7 @@ class SessionManager:
         bt = backend_for_model(model)
         _rr_effort = get_role(pipeline, role)
         raw_effort = getattr(_rr_effort, "effort", None) if _rr_effort else None
-        effort = resolve_effort(raw_effort, model, bt)
+        effort = effort_override or resolve_effort(raw_effort, model, bt)
         session_id = str(uuid.uuid4())
         session = AgentSession(
             id=session_id, name=name, scope=scope, cwd=cwd, model=model,

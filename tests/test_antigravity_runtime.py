@@ -83,7 +83,7 @@ def test_t1_namespaced_model_surface_and_runtime_capabilities_are_exact():
 
     assert runtime.capabilities.to_dict() == {
         "event_stream": "per_turn",
-        "mid_turn_inject": False,
+        "mid_turn_inject": True,
         "reconnect": False,
         "hibernate": False,
         "process_liveness": True,

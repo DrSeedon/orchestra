@@ -747,7 +747,12 @@ class HubBackend:
                     text = reply or f"(hub thread ended with status {status} without a reply)"
                     if not reply and status in {"failed", "cancelled", "rolled_back"}:
                         text += f"\n{evidence.description()}"
-                    yield AgentEvent("text", f"{text}\n\n{sync}".strip())
+                    for outbox_ev in getattr(self, "_pending_outbox_events", []):
+                        yield outbox_ev
+                    self._pending_outbox_events = []
+                    yield AgentEvent("text", text)
+                    if sync and sync.strip():
+                        yield AgentEvent("status", sync.strip())
                     limit = self._watch_limit or evidence.limit or _provider_limit(reply, failed=status == "failed")
                     if limit:
                         raise HubProviderLimit(limit)
@@ -1274,6 +1279,24 @@ class HubBackend:
                     # A lost response may already have accepted the report. Retry
                     # its saved delivery_id through the existing durable API owner.
                     raise hw.HubWorkspaceError("hub outbox delivery pending: " + "; ".join(ran.dropped))
+                ev_idx = len(pending.get("done", [])) + len(pending.get("dropped", []))
+                canonical_outbox = f"mcp__orchestra__{entry['tool']}"
+                out_tid = f"hub_outbox:{state.ws_id}:{ev_idx}:{entry['tool']}"
+                ev_list = getattr(self, "_pending_outbox_events", None)
+                if ev_list is None:
+                    ev_list = []
+                    self._pending_outbox_events = ev_list
+                ev_list.append(AgentEvent(
+                    "tool_use",
+                    f"{canonical_outbox}: {json.dumps(entry.get('args') or {}, ensure_ascii=False)}",
+                    metadata={"tool_use_id": out_tid, "tool_name": canonical_outbox, "short_name": entry["tool"]},
+                ))
+                out_msg = "; ".join(ran.done or ran.dropped) or ("ok" if not ran.dropped else "dropped")
+                ev_list.append(AgentEvent(
+                    "tool_result",
+                    out_msg,
+                    metadata={"tool_use_id": out_tid, "tool_name": canonical_outbox, "is_error": bool(ran.dropped)},
+                ))
                 pending["done"].extend(ran.done)
                 pending["dropped"].extend(ran.dropped)
                 pending["entries"].pop(0)

@@ -436,12 +436,7 @@ let _chatTimelineHeightRaf = 0;
 const CHAT_MARKER_MIN_PX = 3;
 
 const NOTIFY_USER_TOOL = 'mcp__orchestra__notify_user';
-const SILENT_TURN_MARKER = '[[ORCHESTRA:SILENT_TURN]]';
 const FINAL_AGENT_TEXT_MIN_LENGTH = 200;  // ≈200 visible chars: useful turn summary, not short chatter
-
-function _isSilentTurnMarker(type, content) {
-    return type === 'text' && content === SILENT_TURN_MARKER;
-}
 
 // Оркестратор зовёт юзера ТОЛЬКО этим вызовом (#241), поэтому таких строк мало и они
 // и есть «свежее», ради которого юзер иначе пролистывал бы весь поток.
@@ -3518,7 +3513,7 @@ function createAgentItem(s) {
     }
 
     const pct = s.context_pct || 0;
-    if (pct > 0) {
+    if (s.context_known !== false && pct > 0) {
         const bar = document.createElement('div');
         bar.className = 'w-full h-1 bg-slate-800 rounded-full mt-1';
         const fill = document.createElement('div');

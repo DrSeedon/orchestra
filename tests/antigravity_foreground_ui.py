@@ -66,7 +66,10 @@ with sync_playwright() as p:
             addChatEntry('thinking_stream','D live',null,null,{item_id:'acp:ui:D'});
             addChatEntry('thinking','C final',null,null,{event_id:'acp:ui:C'});
             let d=chat.querySelector('[data-segment-id="acp:ui:D"]');
-            require(d.textContent.trim()==='D live' && d.classList.contains('streaming'),'thinking C destroyed D');
+            require(d && d.classList.contains('codex-thinking-card') && !d.classList.contains('chat-bot'),'thinking_stream leaked into chat-bot');
+            require(d.classList.contains('streaming'),'thinking C destroyed D');
+            require(d.querySelector('.codex-activity-body').style.display==='none','thinking_stream not collapsed');
+            require(d.querySelector('.codex-activity-body').textContent.trim()==='D live','thinking body mismatch');
             addChatEntry('thinking','D final',null,null,{event_id:'acp:ui:D'});
             // A durable node remains the identity source after bounded cache eviction.
             _acpSegments.delete('acp:ui:A');

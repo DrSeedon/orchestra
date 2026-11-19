@@ -584,7 +584,9 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 @keyframes cursor-blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
 .codex-activity-card { position: relative; margin: 3px 0; padding: 8px 10px; border: 1px solid rgba(56,189,248,0.16); border-left: 3px solid var(--accent-alt); border-radius: 7px; background: linear-gradient(110deg, rgba(8,47,73,0.22), rgba(15,23,42,0.72)); color: var(--ink-body); font-size: 11px; overflow: hidden; }
 .codex-activity-header { display: flex; align-items: center; gap: 7px; width: 100%; padding: 0; border: 0; background: transparent; color: #7dd3fc; font-size: 11px; font-weight: 600; text-align: left; cursor: pointer; }
-.codex-activity-caret { width: 10px; color: var(--ink-ghost); }
+.codex-activity-caret { width: 10px; flex-shrink: 0; color: var(--ink-ghost); }
+.codex-thinking-title { flex-shrink: 0; }
+.codex-thinking-preview { margin-left: 4px; color: var(--ink-dim); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .codex-activity-body { margin-top: 7px; padding: 7px 9px; border-top: 1px solid rgba(56,189,248,0.12); color: var(--ink-muted); font-size: 11px; max-height: 320px; overflow-y: auto; }
 .codex-thinking-live { border-left-color: var(--accent); background: linear-gradient(110deg, rgba(49,46,129,0.18), rgba(15,23,42,0.72)); }
 .codex-live-label { color: var(--accent-mute); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }

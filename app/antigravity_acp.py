@@ -303,14 +303,16 @@ class AcpProfile:
     async def notify(self, method, params):
         await self._write({"jsonrpc": "2.0", "method": method, "params": params})
 
-    async def request(self, method, params, *, timeout=None, before_write=None, on_written=None):
+    async def request(self, method, params, *, timeout=None, before_write=None, on_written=None,
+                      prompt_deadline=None):
         self._next_id += 1
         request_id = self._next_id
         future = self.loop.create_future()
         self._pending[request_id] = future
         sid = params.get("sessionId")
         prompt = method == "session/prompt" and isinstance(sid, str)
-        hard_deadline = self.loop.time() + self.prompt_max_timeout
+        hard_deadline = (prompt_deadline if prompt_deadline is not None
+                         else self.loop.time() + self.prompt_max_timeout)
         started = False
 
         def mark_started():
@@ -643,7 +645,8 @@ def ensure_interactive_input(model, provenance, *, target_session=None, allow_ch
                     with db._conn() as connection:
                         for sender in senders:
                             source_id = None
-                            if subtype == "direct_message" and len(senders) == 1 and getattr(provenance, "ref", ""):
+                            if (subtype in {"direct_message", "direct_message_recovery", "codex_turn_end_hold"}
+                                    and len(senders) == 1 and getattr(provenance, "ref", "")):
                                 from app.message_deliveries import _row
                                 receipt = _row(provenance.ref)
                                 if (receipt and receipt["target_session_id"] == parent["id"]
@@ -659,7 +662,7 @@ def ensure_interactive_input(model, provenance, *, target_session=None, allow_ch
                             direct_child = child and (child["parent_id"] == parent["id"] or child["parent_name"] == parent["name"])
                             peer = (child and (child.get("is_orchestrator") or child.get("role") == "orchestrator")
                                     and child.get("status") not in {"archived", "closed"}
-                                    and subtype in {"direct_message", "http_send"})
+                                    and subtype in {"direct_message", "http_send", "direct_message_recovery", "codex_turn_end_hold"})
                             if not child or child["id"] == parent["id"] or not (direct_child or peer):
                                 break
                         else:

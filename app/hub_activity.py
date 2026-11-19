@@ -93,8 +93,11 @@ class HubActivityStream:
             return self._tool(item_id, stage, done, failed, "Bash",
                               head.removeprefix("$ ").strip(), output)
         if kind == "file_change":
-            path = text.split("\n", 1)[0].strip()
-            events = self._tool(item_id, stage, done, failed, "Edit", path, "applied")
+            lines = text.split("\n", 1)
+            path = lines[0].strip()
+            hunk = item.get("diff") or (lines[1].strip() if len(lines) > 1 else "")
+            fc_output = str(hunk) if hunk else "изменён файл"
+            events = self._tool(item_id, stage, done, failed, "Edit", path, fc_output, raw_input={"file_path": path})
             if done and not failed and stage < 2:
                 events.insert(len(events) - 1, AgentEvent("file_change", f"update {path}"))
             return events
@@ -104,23 +107,57 @@ class HubActivityStream:
             except ValueError:
                 data = {}
             name = str(data.get("toolName") or item.get("title") or "tool")
+            raw_in = data.get("input") if isinstance(data.get("input"), dict) else None
             args = json.dumps(data.get("input"), ensure_ascii=False) if data.get("input") else ""
             out = data.get("output")
             output = out if isinstance(out, str) else json.dumps(out, ensure_ascii=False) if out else ""
-            return self._tool(item_id, stage, done, failed, name, args, output)
+            return self._tool(item_id, stage, done, failed, name, args, output, raw_input=raw_in)
         return []
 
+    def _safe_summary(self, summary: str, limit: int = 300) -> tuple[str, int | None]:
+        src_len = len(summary.encode())
+        if len(summary) <= limit:
+            return summary, None
+        try:
+            obj = json.loads(summary)
+        except ValueError:
+            return summary[:limit], src_len
+        if isinstance(obj, dict):
+            projected = {}
+            for k, v in obj.items():
+                if isinstance(v, str) and len(v) > 80:
+                    projected[k] = v[:80] + "…"
+                else:
+                    projected[k] = v
+            encoded = json.dumps(projected, ensure_ascii=False, separators=(",", ":"))
+            if len(encoded) <= limit:
+                return encoded, src_len
+            return json.dumps({k: ("…" if isinstance(v, str) else v) for k, v in list(projected.items())[:4]}, ensure_ascii=False)[:limit], src_len
+        return summary[:limit], src_len
+
     def _tool(self, item_id: str, stage: int, done: bool, failed: bool, name: str,
-              summary: str, output: str) -> list[AgentEvent]:
+              summary: str, output: str, *, raw_input: dict | None = None) -> list[AgentEvent]:
         events: list[AgentEvent] = []
+        bounded_summary, src_bytes = self._safe_summary(summary, 300)
+        call_meta = _meta(name, item_id)
+        if raw_input is not None:
+            call_meta["raw_input"] = raw_input
+        if src_bytes is not None:
+            call_meta["source_bytes"] = src_bytes
         if stage == 0:
             events.extend(self._flush())
-            events.append(AgentEvent("tool_use", f"{name}: {summary[:300]}", metadata=_meta(name, item_id)))
+            events.append(AgentEvent("tool_use", f"{name}: {bounded_summary}", metadata=call_meta))
             self._stage[item_id] = stage = 1
+        elif not done and raw_input is not None:
+            events.append(AgentEvent("tool_update", f"{name}: {bounded_summary}", metadata=call_meta))
         if done and stage == 1:
             if failed and (not output.strip() or output.strip() == "applied"):
                 output = f"{name} completion failed; no successful result"
-            events.append(AgentEvent("tool_result", (output or "(no output)")[:RESULT_LIMIT],
-                                     metadata=_meta(name, item_id, is_error=failed)))
+            res_text = output or "(no output)"
+            res_meta = _meta(name, item_id, is_error=failed)
+            if len(res_text) > RESULT_LIMIT:
+                res_meta["trunc"] = len(res_text.encode())
+                res_text = res_text[:RESULT_LIMIT]
+            events.append(AgentEvent("tool_result", res_text, metadata=res_meta))
             self._stage[item_id] = 2
         return events

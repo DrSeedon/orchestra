@@ -270,6 +270,8 @@ class CreateSessionRequest(BaseModel):
     description: str = ""
     base_branch: str = ""
     parent_name: str = ""
+    standalone: bool = False
+    effort: Literal["low", "medium", "high", "xhigh"] | None = None
     mcp_servers: dict = {}
     pipeline: str = ""
     profile: str = ""
@@ -561,6 +563,8 @@ async def create_session(req: CreateSessionRequest):
             description=req.description,
             base_branch=req.base_branch,
             parent_name=req.parent_name,
+            **({"standalone": True} if req.standalone else {}),
+            **({"effort_override": req.effort} if req.effort is not None else {}),
             mcp_servers=req.mcp_servers,
             disabled_tools=req.disabled_tools,
             pipeline=req.pipeline,
@@ -913,10 +917,24 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
             # знает только сервер, и он обязан сказать её ДО первой строки истории.
             yield f"data: {json.dumps(with_status({'type': '__session', 'session_id': session_id}))}\n\n"
             # initial history first (one-shot) — preserves load-more behavior
+            owner_mode = is_owner_mode()
+
+            def _hidden_for_client(entry: dict) -> bool:
+                if owner_mode:
+                    return False
+                t = entry.get("type")
+                if t in {"thinking", "thinking_stream"}:
+                    return True
+                if t in {"subagent_stream", "subagent_event"} and entry.get("event_type") in {"thinking", "thinking_stream"}:
+                    return True
+                return False
+
             if after_id == 0:
                 for log in get_logs_before(session_id, before_id=2**31 - 1, limit=limit):
-                    yield f"data: {json.dumps(with_status(log))}\n\n"
                     last_id = log["id"]
+                    if _hidden_for_client(log):
+                        continue
+                    yield f"data: {json.dumps(with_status(log))}\n\n"
             while True:
                 if await request.is_disconnected():
                     return
@@ -935,14 +953,18 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
                     batch.append(payload)
                 drained = len(batch)
                 for payload in coalesce(batch):
+                    if _hidden_for_client(payload):
+                        continue
                     yield f"data: {json.dumps(with_status(payload))}\n\n"
                 if closing:
                     return
                 # 2) DB-persisted logs (finals + all other log types)
                 logs = get_logs_forward(session_id, after_id=last_id, limit=5000, conn=c)
                 for log in logs:
-                    yield f"data: {json.dumps(with_status(log))}\n\n"
                     last_id = log["id"]
+                    if _hidden_for_client(log):
+                        continue
+                    yield f"data: {json.dumps(with_status(log))}\n\n"
                 # 3) short poll while active (partials follow quickly), back off when idle
                 await asyncio.sleep(0.1 if (logs or drained) else 0.5)
         finally:
@@ -1359,6 +1381,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 senders=("user",) if operator else (("dashboard",) if req.channel == "dashboard" else ("unknown",)),
                 subtype="dashboard" if req.channel == "dashboard" else "http_send",
             )
+        from app.antigravity_acp import ensure_interactive_input
         if req.after_turn and req.channel == "dashboard":
             # The second dashboard mode queues only an active turn.  An idle target
             # follows the existing immediate path below, so this flag never changes
@@ -1374,6 +1397,10 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 getattr(getattr(target, "status", ""), "value", getattr(target, "status", ""))
             ) in {"running", "waiting"}
             if busy:
+                try:
+                    ensure_interactive_input(getattr(target, "model", ""), provenance, target_session=target)
+                except ValueError as error:
+                    return JSONResponse({"error": str(error), "queued": False}, status_code=403)
                 from app import mailbox
                 queue_id = mailbox.enqueue(
                     recipient=name,
@@ -1418,6 +1445,10 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     req.sender and durable_target and not durable_target.get("task_id")
                 )
                 if not taskless_assignment:
+                    try:
+                        ensure_interactive_input(getattr(target, "model", ""), provenance, target_session=target)
+                    except ValueError as error:
+                        return JSONResponse({"error": str(error), "queued": False}, status_code=403)
                     from app import mailbox
                     mailbox.enqueue(
                         recipient=name,
@@ -3960,6 +3991,7 @@ async def session_wip(name: str, scope: str = "", base_ref: str = ""):
         result = branch_wip_status(worktree_path, base_ref=base_ref)
         d = found.to_dict()
         result["context_pct"] = d.get("context_pct", 0)
+        result["context_known"] = d.get("context_known", True)
         result["status"] = d.get("status", "unknown")
         from app.work_review import assignment, summarize_review
         if assignment(scope, str(d.get("id") or ""), str(d.get("task_id") or "")) is not None:

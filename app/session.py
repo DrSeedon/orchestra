@@ -1628,12 +1628,24 @@ class AgentSession:
                         if hold == "flush":
                             await self._turns.steer_turn_end_holds(backend, hold_reason)
                         injected, fact_keys = self._attach_pending_facts(message)
-                        await delivery.before_submit()
                         mark_running_steer = getattr(delivery, "mark_running_steer", None)
-                        if callable(mark_running_steer):
-                            mark_running_steer()
-                        dispatch_started = True
-                        await backend.send(injected)
+                        if self.backend_type == "antigravity":
+                            steer_payload = InjectedMessage(injected, provenance, message_event_id)
+                            await backend.send(steer_payload, before_submit=delivery.before_submit)
+                            if callable(mark_running_steer):
+                                mark_running_steer()
+                            self._lifecycle_lock.release()
+                            try:
+                                await backend.wait_for_submission()
+                            finally:
+                                await self._lifecycle_lock.acquire()
+                            dispatch_started = delivery.dispatched
+                        else:
+                            await delivery.before_submit()
+                            if callable(mark_running_steer):
+                                mark_running_steer()
+                            dispatch_started = True
+                            await backend.send(injected)
                         provider_ref = getattr(backend, "active_turn_id", None)
                         await delivery.mark_submitted(
                             provider_ref=(
@@ -1645,6 +1657,8 @@ class AgentSession:
                         self._ack_pending_facts(fact_keys)
                         if self.backend_type == "codex":
                             self._log("status", "message steered into active Codex turn")
+                        elif self.backend_type == "antigravity":
+                            self._log("status", "message steered into active Antigravity turn")
                         return
                     except asyncio.CancelledError as error:
                         if dispatch_started:
@@ -1690,7 +1704,9 @@ class AgentSession:
                             if provenance.origin == "agent" else message,
                             provenance=MessageProvenance(
                                 origin=provenance.origin, senders=provenance.senders,
-                                subtype="codex_turn_end_hold", ref=provenance.subtype,
+                                subtype="codex_turn_end_hold",
+                                ref=provenance.ref,
+                                orig_subtype=provenance.subtype,
                             ),
                         )
                     except Exception as error:
@@ -1730,7 +1746,16 @@ class AgentSession:
                                 ref=turn_id,
                             ),
                         )
-                    await backend.send(injected)
+                    if self.backend_type == "antigravity":
+                        steer_payload = InjectedMessage(injected, provenance, message_event_id)
+                        await backend.send(steer_payload)
+                        self._lifecycle_lock.release()
+                        try:
+                            await backend.wait_for_submission()
+                        finally:
+                            await self._lifecycle_lock.acquire()
+                    else:
+                        await backend.send(injected)
                     if mailbox_id is not None:
                         from app import mailbox
 
@@ -1738,6 +1763,8 @@ class AgentSession:
                     self._ack_pending_facts(fact_keys)
                     if self.backend_type == "codex":
                         self._log("status", "message steered into active Codex turn")
+                    elif self.backend_type == "antigravity":
+                        self._log("status", "message steered into active Antigravity turn")
                     return (
                         "steer", turn_id if isinstance(turn_id, str) and turn_id else None,
                         mailbox_id is not None,
@@ -3022,8 +3049,7 @@ class AgentSession:
             broker.end_live(self.id, "tool_stream", str(meta.get("tool_use_id") or ""))
 
     def _handle_event(self, event: AgentEvent) -> None:
-        if self.backend_type == "antigravity":
-            self._acp_log_event_id = event.metadata.get("item_id", "")
+        acp_event_id = event.metadata.get("item_id", "") if self.backend_type == "antigravity" else ""
         if event.type in {"native_request","native_request_closed"}:
             self._log(event.type,event.content,event_id=event.metadata.get("item_id",""))
             return
@@ -3036,10 +3062,17 @@ class AgentSession:
             return
         if event.type == "subagent_stream":
             # Live sub-agent output → broker only (ephemeral, like main stream).
-            # subagent_id lets the UI nest it under the right sub-agent block.
+            # Preserve internal event_type and identity so UI keeps thinking/tool/text distinct (B05/B18).
             from app.live_broker import broker
-            broker.publish(self.id, {"type": "subagent_stream", "content": event.content,
-                                     "subagent_id": event.metadata.get("subagent_id", "")})
+            payload = {
+                "type": "subagent_stream",
+                "content": event.content,
+                "subagent_id": event.metadata.get("subagent_id", ""),
+            }
+            for key in ("event_type", "item_id", "tool_use_id", "tool_name", "replace"):
+                if event.metadata.get(key):
+                    payload[key] = event.metadata[key]
+            broker.publish(self.id, payload)
             return
         if event.type in ("thinking_stream", "tool_input_stream", "tool_stream",
                           "tool_patch", "turn_diff"):
@@ -3092,14 +3125,18 @@ class AgentSession:
         sub_id = event.metadata.get("subagent_id")
         if sub_id and event.type in ("tool_use", "tool_result", "text", "thinking"):
             from app.live_broker import broker
-            broker.publish(self.id, {"type": "subagent_event", "event_type": event.type,
-                                     "content": event.content[:2000], "subagent_id": sub_id})
+            payload = {"type": "subagent_event", "event_type": event.type,
+                       "content": event.content[:2000], "subagent_id": sub_id}
+            for key in ("item_id", "tool_use_id", "tool_name", "replace"):
+                if event.metadata.get(key):
+                    payload[key] = event.metadata[key]
+            broker.publish(self.id, payload)
             return
         self._turns.track_parent_report(event, tool_name_for_log)
         if event.type == "text":
             from app.live_broker import broker
             broker.clear_accum(self.id)
-            self._log("text", event.content)
+            self._log("text", event.content, event_id=acp_event_id)
             self._turn_logs.append(event.content)
             self._last_text_output = event.content
         elif event.type == "provider_limit":
@@ -3112,12 +3149,13 @@ class AgentSession:
                 self._session_limit_hit = True
                 self._log("error", "⏳ subscription limit — ждём сброса квоты. НЕ ретраим")
         elif event.type == "thinking":
-            self._log("thinking", event.content)
+            self._log("thinking", event.content, event_id=acp_event_id)
         elif event.type == "tool_use":
             self.total_tool_calls += 1
             self._log(
                 "tool",
                 event.content,
+                event_id=acp_event_id,
                 tool_use_id=tool_use_id or None,
                 tool_name=tool_name_for_log or None,
                 tool_raw_input=event.metadata.get("raw_input"),
@@ -3126,7 +3164,7 @@ class AgentSession:
             short = event.content[:80]
             self._turn_logs.append(f"[tool] {short}")
         elif event.type == "tool_update":
-            self._log("tool_update", event.content, tool_use_id=tool_use_id or None,
+            self._log("tool_update", event.content, event_id=acp_event_id, tool_use_id=tool_use_id or None,
                       tool_name=tool_name_for_log or None, tool_raw_input=event.metadata.get("raw_input"))
         elif event.type == "policy_violation":
             self._policy_violation_messages.add(event.content)
@@ -3153,12 +3191,16 @@ class AgentSession:
                     "tool_name": tool_name_for_log,
                     "message": event.content,
                 }, ensure_ascii=False))
+            raw_res_meta = event.metadata.get("raw_input")
+            if event.metadata.get("raw_diffs"):
+                raw_res_meta = {"diffs": event.metadata["raw_diffs"]}
             self._log(
                 "tool_result",
                 event.content,
+                event_id=acp_event_id,
                 tool_use_id=tool_use_id or None,
                 tool_name=tool_name_for_log or None,
-                tool_raw_input=event.metadata.get("raw_input"),
+                tool_raw_input=raw_res_meta,
                 tool_is_error=bool(event.metadata.get("is_error")),
             )
         elif event.type == "file_change":
@@ -3416,8 +3458,21 @@ class AgentSession:
                     raise ValueError("antigravity_interactive_only: pending provenance missing")
                 for item in acp_inputs:
                     ensure_interactive_input(self.model, item, target_session=self)
-                acp_provenance = (MessageProvenance("user", ("owner",)) if owner_initiated else
-                    MessageProvenance("agent", tuple(dict.fromkeys(sender for item in acp_inputs for sender in item.senders)), "child_reports"))
+                if owner_initiated:
+                    acp_provenance = MessageProvenance("user", ("owner",))
+                elif len(acp_inputs) == 1:
+                    acp_provenance = acp_inputs[0]
+                else:
+                    candidate = MessageProvenance(
+                        "agent",
+                        tuple(dict.fromkeys(sender for item in acp_inputs for sender in item.senders)),
+                        "child_reports",
+                    )
+                    try:
+                        ensure_interactive_input(self.model, candidate, target_session=self)
+                        acp_provenance = candidate
+                    except ValueError:
+                        acp_provenance = acp_inputs[0]
             if len(msgs) == 1:
                 combined = msgs[0]
             else:
@@ -5475,9 +5530,7 @@ class AgentSession:
         tool_is_error: bool | None = None,
         tool_raw_input=None,
     ) -> None:
-        # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
-        if self.backend_type == "antigravity" and not event_id:
-            event_id = self._acp_log_event_id
+        # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns (B22: no stale item_id)
         args = (self.id, datetime.now(timezone.utc), type, content, event_id)
         if tool_use_id is None and tool_name is None and tool_is_error is None and tool_raw_input is None:
             operation = partial(add_log, *args, provenance=provenance)
@@ -5583,6 +5636,7 @@ class AgentSession:
             "color": self.color, "created_at": self.created_at.isoformat(),
             "finished_at": None,
             "context_pct": self._last_context.get("percentage", 0),
+            "context_known": bool(self._last_context.get("known") is True),
             "context_tokens": self._last_context.get("total_tokens", 0),
             "progress_pct": self.progress_pct,
             "progress_status": self.progress_status,
@@ -5689,6 +5743,7 @@ class AgentSession:
             "color": self.color,
             "created_at": self.created_at.isoformat(),
             "context_pct": self._last_context.get("percentage", 0),
+            "context_known": bool(self._last_context.get("known") is True),
             "progress_pct": self.progress_pct,
             "progress_status": self.progress_status,
             "compaction": self.compaction_state(),

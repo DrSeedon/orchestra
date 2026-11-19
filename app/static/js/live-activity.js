@@ -135,6 +135,7 @@ function liveToolTimeoutMs(rawName, input) {
     }
     if (rawName === 'Bash' || rawName === 'BashTool') {
         if (input.run_in_background) return 0;
+        if (input.timeout === undefined && input.async_wait_ms !== undefined) return 0;
         const asked = Number(input.timeout);
         return Number.isFinite(asked) && asked > 0 ? Math.min(asked, 600000) : 120000;
     }
