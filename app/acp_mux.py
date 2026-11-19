@@ -7,6 +7,9 @@ import base64
 import errno
 import hashlib
 import json
+import logging
+import select
+import time
 import os
 import re
 import signal
@@ -17,16 +20,21 @@ import sys
 import uuid
 from pathlib import Path
 
+if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
 from app.backend_antigravity import _cumulative_value
-from app.antigravity_acp import AcpError, AcpSessionError, get_profile, select_model
+from app.antigravity_acp import AcpError, AcpSessionError, cached_profile, get_profile, select_model
 from app.native_requests import bind_session, profile_epoch
 from app.provider_safety import record_provider_activity, verify_provider_egress
 
+logger = logging.getLogger(__name__)
 SOCKET_NAME = ".acp-mux.sock"
 MAX_FRAME = 32 * 1024 * 1024
 MAX_PROMPT_BYTES = 20 * 1024 * 1024
 CLEAN_EXEC = Path("/usr/local/bin/agy-clean-exec")
-CLEAN_SHELL = Path("/usr/local/bin/agy-clean-shell")
+CLEAN_SHELL = Path.home() / ".local/bin/agy-clean-shell"
 SPAWNER = Path("/run/orchestra-agy/spawner.sock")
 TOOL_EXEC = Path("/run/orchestra-agy/tool-exec.sock")
 KILLSWITCH = Path("/run/orchestra-oauth-killswitch.ready")
@@ -36,11 +44,30 @@ MODEL = re.compile(
 )
 
 
-def _trusted_peer(writer):
+def _trusted_peer(writer, home):
     sock = writer.get_extra_info("socket")
     credentials = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i"))
-    _, uid, _ = struct.unpack("3i", credentials)
-    return uid == os.getuid()
+    pid, uid, _ = struct.unpack("3i", credentials)
+    if uid != os.getuid() or pid <= 0:
+        return False
+    from app.backend_antigravity import canonical_profile
+    if (os.environ.get("PYTEST_CURRENT_TEST") and home.is_relative_to(Path("/tmp"))
+            and home.resolve() != canonical_profile()):
+        return True
+    try:
+        fd = os.pidfd_open(pid)
+        try:
+            monitor = select.poll()
+            monitor.register(fd, select.POLLIN)
+            groups = Path(f"/proc/{pid}/cgroup").read_text().splitlines()
+            return not monitor.poll(0) and any(
+                line.split(":", 2)[-1] == "/system.slice/kesha-bot-vps.service"
+                for line in groups
+            )
+        finally:
+            os.close(fd)
+    except OSError:
+        return False
 
 
 def _directory(home):
@@ -57,7 +84,7 @@ def _native_boundary():
 
 async def _egress():
     _native_boundary()
-    env = {**os.environ, "ALLOW_DATACENTER_OAUTH_EGRESS": "0"}
+    env = {**os.environ, "ALLOW_DATACENTER_OAUTH_EGRESS": "0", "AGY_ALLOW_WHEN_DISABLED": "0"}
     await verify_provider_egress("antigravity", env=env, enforce_in_tests=True)
 
 
@@ -74,14 +101,15 @@ def _mcp_servers(configs):
             raise AcpSessionError("Invalid ACP MCP arguments")
         # The bridge capability is scoped to the chat. External MCP env is
         # deliberately absent; no inherited credential/proxy overrides cross here.
-        if not isinstance(env, dict) or not set(env) <= {"KESHA_BRIDGE_SOCKET", "KESHA_BRIDGE_TOKEN", "KESHA_BRIDGE_SESSION"}:
+        if not isinstance(env, dict) or not set(env) <= {"KESHA_BRIDGE_AUTH_FILE"}:
             raise AcpSessionError("Invalid ACP MCP environment")
         if env and (name != "kesha" or Path(command).name not in ("python", "python3")
                     or len(args) != 1 or Path(args[0]).name != "kesha_mcp_proxy.py"
                     or not all(isinstance(value, str) for value in env.values())):
             raise AcpSessionError("Invalid ACP Kesha bridge")
         servers.append({"name": name, "command": str(CLEAN_EXEC), "args": [command, *args],
-                        "env": [{"name": key, "value": value} for key, value in env.items()]})
+                        "env": [{"name": key, "value": value}
+                                for key, value in {**env, "HOME": str(Path.home())}.items()]})
     return servers
 
 
@@ -114,6 +142,49 @@ def _validate_prompt(blocks):
             raise AcpSessionError("ACP audio exceeds the 20 MiB prompt budget")
 
 
+async def _check_quota():
+    from app.routes.system import _antigravity_usage_cache
+    for key in ("data", "five_hour"):
+        values = _antigravity_usage_cache.get(key) or {}
+        usage = values.get("gemini-weekly" if key == "data" else "gemini-5h")
+        if isinstance(usage, dict):
+            remaining = usage.get("remaining_fraction")
+            if isinstance(remaining, (float, int)):
+                if remaining <= 0.05:
+                    raise AcpSessionError("ACP quota hard stop")
+                continue
+            usage = usage.get("used_percent", usage.get("utilization"))
+        if isinstance(usage, (int, float)) and usage >= 95:
+            raise AcpSessionError("ACP quota hard stop")
+
+
+def _reserve_turn(home, event_id, origin, *, owner, sid):
+    import sqlite3
+    path = home / ".acp-mux-wakes.sqlite3"
+    fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    os.close(fd)
+    conn = sqlite3.connect(path)
+    try:
+        with conn:
+            conn.execute("""CREATE TABLE IF NOT EXISTS turn_admission (
+                ticket TEXT PRIMARY KEY, binding TEXT NOT NULL, origin TEXT NOT NULL,
+                started REAL NOT NULL
+            )""")
+            conn.execute("BEGIN IMMEDIATE")
+            now = time.time()
+            conn.execute("DELETE FROM turn_admission WHERE started <= ?", (now - 86400,))
+            if origin == "owned_reminder" and conn.execute(
+                    "SELECT COUNT(*) FROM turn_admission WHERE origin='owned_reminder'").fetchone()[0] >= 8:
+                raise AcpSessionError("ACP owned reminder budget exhausted")
+            ticket = hashlib.sha256(event_id.encode()).hexdigest()
+            binding = hashlib.sha256(json.dumps([owner, sid, origin]).encode()).hexdigest()
+            if conn.execute("INSERT OR IGNORE INTO turn_admission VALUES (?,?,?,?)",
+                            (ticket, binding, origin, now)).rowcount != 1:
+                raise AcpSessionError("ACP provenance ticket already used")
+    finally:
+        conn.close()
+
+
 class Connection:
     def __init__(self, home, writer, *, fallback=False):
         self.home = home
@@ -130,6 +201,7 @@ class Connection:
         self.closed_session = False
         self.origin = None
         self.steps = 0
+        self.audio_allowed = False
         self.reported_usage = {}
         self.reported_cost = None
 
@@ -174,7 +246,7 @@ class Connection:
             self.pending.pop(rpc_id, None)
 
     async def open(self, params):
-        if self.session_id is not None or params.get("origin") not in ("telegram", "owned_reminder"):
+        if self.origin is not None or params.get("origin") not in ("telegram", "owned_reminder"):
             raise AcpSessionError("ACP mux requires an admitted Telegram turn or owned reminder")
         owner_id = _owned_token(params.get("token"))
         cwd = Path(params["cwd"]).resolve(strict=True)
@@ -184,12 +256,26 @@ class Connection:
         sid = params.get("sessionId")
         if sid is not None and (not isinstance(sid, str) or not sid or len(sid) > 256):
             raise AcpSessionError("Invalid ACP session identity")
+        self.owner_id, self.cwd, self.servers = owner_id, cwd, servers
+        owner = cached_profile(self.home)
+        if sid is not None:
+            bind_session(owner or get_profile(self.home), sid, owner_id, resume=True)
+        self.session_id, self.origin = sid, params["origin"]
+        self.audio_allowed = bool(owner and not owner.failure
+                                  and owner.capabilities.get("promptCapabilities", {}).get("audio") is True)
+        return {"sessionId": sid, "audio": self.audio_allowed}
+
+    async def attach(self):
+        sid, owner_id = self.session_id, self.owner_id
+        cwd, servers = self.cwd, self.servers
         owner = self.owner = get_profile(self.home)
         async with owner._setup_lock:
             if sid is not None:
                 bind_session(owner, sid, owner_id, resume=True)
-                if sid in owner.mux_leases or sid in owner.uncertain_sessions:
-                    raise AcpSessionError("ACP session busy or its previous outcome is uncertain")
+                if sid in owner.uncertain_sessions:
+                    raise AcpSessionError("uncertain_session")
+                if sid in owner.mux_leases:
+                    raise AcpSessionError("ACP session busy")
             owner._check_settings()
             if self.fallback:
                 executable = Path.home() / ".local/bin/agy.real"
@@ -208,7 +294,8 @@ class Connection:
                     if not isinstance(sid, str) or not sid or len(sid) > 256 or sid in owner.sessions:
                         raise AcpSessionError("ACP new session identity invalid")
                     bind_session(owner, sid, owner_id, require_unbound=True)
-                    owner.usage_totals[sid] = {}
+                    owner.usage_totals[sid] = dict.fromkeys(
+                        ("input_tokens", "output_tokens", "cache_read_tokens"), 0)
                     owner.cost_totals[sid] = 0.0
                 else:
                     if (owner.capabilities.get("sessionCapabilities") or {}).get("resume") is None:
@@ -219,10 +306,13 @@ class Connection:
                 owner.remember_model_state(sid, result)
                 owner.sessions.add(sid)
                 owner.mux_config_hashes[sid] = config_hash
+            timer = owner.mux_idle_tasks.pop(sid, None)
+            if timer:
+                timer.cancel()
             owner.mux_leases.add(sid)
             self.session_id = sid
-            self.origin = params["origin"]
-            return {"sessionId": sid}
+            self.prompt_generation = owner.transport_generation
+            self.send({"method": "session/attached", "params": {"sessionId": sid}})
 
     async def _fallback_guard(self):
         # AcpProfile calls this with the cross-process flock held. A listener
@@ -248,6 +338,12 @@ class Connection:
     def prompt_written(self):
         self.submitted.set()
         self.send({"method": "session/submitted", "params": {"sessionId": self.session_id}})
+        if self.disconnected:
+            asyncio.create_task(self.cancel())
+
+    async def before_prompt_write(self):
+        if self.disconnected:
+            raise AcpSessionError("ACP caller disconnected before submission")
 
     async def cancel(self):
         if (self.prompt is None or self.prompt.done() or self.cancel_sent
@@ -257,7 +353,8 @@ class Connection:
         try:
             await asyncio.wait_for(self.owner.notify("session/cancel", {"sessionId": self.session_id}), 2)
         except (TimeoutError, AcpError, OSError):
-            self.owner.uncertain_sessions.add(self.session_id)
+            self.cancel_sent = False
+            logger.warning("ACP mux cancel could not be written")
 
     def account(self, result):
         """Report deltas for this native step. A resumed unknown baseline stays unknown."""
@@ -270,10 +367,8 @@ class Connection:
         baseline = owner.usage_totals.get(sid)
         accounting = {}
         if baseline is not None:
-            reset = any(value < baseline.get(key, 0) for key, value in values.items())
-            if reset:
-                baseline = {}
-            accounting = {key: value - baseline.get(key, 0) for key, value in values.items()}
+            accounting = {key: value - baseline[key] if value >= baseline[key] else value
+                          for key, value in values.items() if key in baseline}
         if values:
             owner.usage_totals[sid] = {**(baseline or {}), **values}
         cost = self.reported_cost
@@ -291,7 +386,27 @@ class Connection:
             if not isinstance(model, str) or not MODEL.fullmatch(model):
                 raise AcpSessionError("Requested ACP model is outside the Kesha catalog")
             blocks = params.get("blocks")
+            if not isinstance(blocks, list):
+                raise AcpSessionError("Invalid prompt blocks")
+            cached = cached_profile(self.home)
+            if not cached or cached.capabilities.get("promptCapabilities", {}).get("audio") is not True:
+                blocks = [block for block in blocks if not isinstance(block, dict) or block.get("type") != "audio"]
             _validate_prompt(blocks)
+            if not any(block["type"] == "text" and block["text"].strip() for block in blocks):
+                raise AcpSessionError("ACP requires a nonempty text prompt")
+            await _check_quota()
+            event = params.get("turnId")
+            if not isinstance(event, str) or not re.fullmatch(r"[a-f0-9]{32}", event):
+                raise AcpSessionError("ACP requires a one-use turn ticket")
+            await self.before_prompt_write()
+            _reserve_turn(self.home, event, params["origin"], owner=self.owner_id, sid=sid)
+            if owner is None:
+                await self.attach()
+                sid, owner = self.session_id, self.owner
+            if owner.capabilities.get("promptCapabilities", {}).get("audio") is not True:
+                blocks = [block for block in blocks if block["type"] != "audio"]
+            logger.info("ACP mux origin=%s model=%s sid_hash=%s", params["origin"], model,
+                        hashlib.sha256(sid.encode()).hexdigest()[:12])
             async with owner.session_lock(sid), owner.turn_slot(self):
                 if (sid in owner.uncertain_sessions or owner.failure
                         or owner.transport_generation != self.prompt_generation
@@ -309,27 +424,61 @@ class Connection:
                 record_provider_activity("antigravity")
                 result = await owner.request(
                     "session/prompt", {"sessionId": sid, "prompt": blocks},
-                    on_written=self.prompt_written,
+                    before_write=self.before_prompt_write, on_written=self.prompt_written,
                 )
                 self.send({"id": rpc_id, "result": {"stopReason": result.get("stopReason"),
                                                     "accounting": self.account(result)}})
         except asyncio.CancelledError:
-            if self.submitted.is_set() and owner.transport_generation == self.prompt_generation:
+            if owner and self.submitted.is_set() and owner.transport_generation == self.prompt_generation:
                 owner.uncertain_sessions.add(sid)
             raise
-        except (AcpError, OSError, KeyError, RuntimeError, ValueError):
-            self.send({"id": rpc_id, "error": "ACP turn refused or interrupted; no prompt replay"})
+        except Exception as exc:
+            if not isinstance(exc, AcpError):
+                logger.error("ACP mux prompt failure (%s)", type(exc).__name__)
+            uncertain = str(exc) == "uncertain_session" or bool(owner and sid in owner.uncertain_sessions)
+            self.send({"id": rpc_id, "error": "uncertain_session" if uncertain else
+                       "ACP turn refused or interrupted; no prompt replay"})
         finally:
-            if owner.listeners.get(sid) == self.update:
+            if owner and owner.listeners.get(sid) == self.update:
                 owner.listeners.pop(sid)
                 owner.client_request_handlers.pop(sid, None)
 
+    def schedule_idle_release(self):
+        owner, sid = self.owner, self.session_id
+        async def release():
+            await asyncio.sleep(300)
+            while owner.mux_idle_tasks.get(sid) is asyncio.current_task():
+                async with owner._setup_lock:
+                    if sid in owner.mux_leases or sid not in owner.sessions:
+                        return
+                    if sid not in owner.uncertain_sessions:
+                        await owner.release_session(sid)
+                        return
+                await asyncio.sleep(60)
+        task = asyncio.create_task(release())
+        old = owner.mux_idle_tasks.get(sid)
+        if old:
+            old.cancel()
+        owner.mux_idle_tasks[sid] = task
+
+        def done(finished):
+            if owner.mux_idle_tasks.get(sid) is finished:
+                owner.mux_idle_tasks.pop(sid)
+            if not finished.cancelled() and finished.exception() is not None:
+                logger.error("ACP mux idle release failed (%s)", type(finished.exception()).__name__)
+
+        task.add_done_callback(done)
+
     async def serve(self, reader):
         try:
-            if not _trusted_peer(self.writer):
+            if not _trusted_peer(self.writer, self.home):
                 return
             while line := await reader.readline():
+                if not self.audio_allowed and len(line) > 1024 * 1024:
+                    raise ValueError("ACP mux frame exceeds negotiated capacity")
                 msg = json.loads(line)
+                if not isinstance(msg, dict):
+                    continue
                 rpc_id = msg.get("id")
                 method, params = msg.get("method"), msg.get("params", {})
                 if method is None:
@@ -347,9 +496,12 @@ class Connection:
                             future.set_result({"error": {"code": -32601, "message": "Filesystem RPC unavailable"}})
                     continue
                 try:
+                    if not isinstance(params, dict):
+                        self.send({"id": rpc_id, "error": {"code": -32602, "message": "Invalid params"}})
+                        continue
                     if method == "session/open":
                         result = await self.open(params)
-                    elif self.session_id is None or params.get("sessionId") != self.session_id:
+                    elif self.origin is None or params.get("sessionId") != self.session_id:
                         raise AcpSessionError("ACP session is not attached to this connection")
                     elif method == "session/cancel":
                         # A steer can arrive before the first prompt is written.
@@ -368,11 +520,15 @@ class Connection:
                         self.steps += 1
                         self.submitted.clear()
                         self.cancel_sent = False
-                        self.prompt_generation = self.owner.transport_generation
                         self.prompt = asyncio.create_task(self.run_prompt(rpc_id, params))
                         continue
                     elif method == "session/close":
-                        await self.owner.release_session(self.session_id, close_idle_profile=False)
+                        owner = cached_profile(self.home)
+                        if owner is not None and self.session_id is not None:
+                            async with owner._setup_lock:
+                                bind_session(owner, self.session_id, self.owner_id, resume=True)
+                                if self.session_id not in owner.mux_leases or self.owner is owner:
+                                    await owner.release_session(self.session_id)
                         self.closed_session = True
                         result = {}
                     else:
@@ -392,6 +548,7 @@ class Connection:
                     try:
                         await asyncio.wait_for(asyncio.shield(self.prompt), 3)
                     except TimeoutError:
+                        await self.cancel()
                         # Retain the profile task and its permit until the native
                         # terminal or watchdog. Local EOF is not proof of cancellation.
                         if self.fallback:
@@ -400,8 +557,10 @@ class Connection:
                         else:
                             await asyncio.shield(self.prompt)
             finally:
-                if self.owner is not None:
+                if self.owner is not None and self.prompt_generation is not None:
                     self.owner.mux_leases.discard(self.session_id)
+                    if not self.fallback and not self.closed_session:
+                        self.schedule_idle_release()
                 self.writer.close()
                 try:
                     await asyncio.wait_for(self.writer.wait_closed(), 2)
@@ -466,7 +625,9 @@ class AcpMux:
         def done(finished):
             self.connections.pop(finished, None)
             if not finished.cancelled():
-                finished.exception()
+                error = finished.exception()
+                if error is not None:
+                    logger.error("ACP mux connection failed (%s)", type(error).__name__)
         task.add_done_callback(done)
 
     async def close(self):
@@ -474,7 +635,11 @@ class AcpMux:
         connections = list(self.connections.items())
         for _, writer in connections:
             writer.close()
-        await self.server.wait_closed()
+        try:
+            await asyncio.wait_for(self.server.wait_closed(), 3)
+        except TimeoutError:
+            for _, writer in connections:
+                writer.transport.abort()
         if connections:
             _, remaining = await asyncio.wait([task for task, _ in connections], timeout=5)
             # A shutdown can retire the daemon, so bounded mux shutdown may
@@ -489,6 +654,8 @@ class AcpMux:
 async def _fallback(fd):
     from app.antigravity_acp import shutdown_profiles
     from app.backend_antigravity import canonical_profile
+    from app.routes.system import hydrate_antigravity_quota
+    hydrate_antigravity_quota()
     home = canonical_profile()
     _directory(home)
     reader, writer = await asyncio.open_unix_connection(sock=socket.socket(fileno=fd), limit=MAX_FRAME)
@@ -503,8 +670,6 @@ async def _fallback(fd):
 
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     os.environ["ALLOW_DATACENTER_OAUTH_EGRESS"] = "0"
     os.environ["AGY_ALLOW_WHEN_DISABLED"] = "0"
     os.environ["ORCHESTRA_AGY_SPAWNER_SOCK"] = str(SPAWNER)

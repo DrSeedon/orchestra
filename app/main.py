@@ -591,8 +591,12 @@ async def lifespan(app: FastAPI):
                 home = canonical_profile()
                 if home.is_dir():
                     listener = AcpMux(home)
-                    await listener.start()
-                    mux = listener
+                    try:
+                        await listener.start()
+                    except Exception as exc:
+                        logger.error("Could not start ACP mux (%s)", type(exc).__name__)
+                    else:
+                        mux = listener
             if _fdstore.notify_ready():
                 logger.info("systemd readiness published after application startup gates")
             yield

@@ -88,6 +88,7 @@ class AcpProfile:
         self.client_request_handlers = {}
         self.mux_leases = set()
         self.mux_config_hashes = {}
+        self.mux_idle_tasks = {}
         self._client_tasks = set()
         self._client_request_ids = OrderedDict()
         self._client_responses = {}
@@ -117,6 +118,7 @@ class AcpProfile:
         self._cleanup_task = None
         self._next_id = 0
         self._pending = {}
+        self._late_prompts = {}
         self.listeners = {}
         self.sessions = set()
         self.models = set()
@@ -237,6 +239,7 @@ class AcpProfile:
                 self.cost_totals.clear()
                 self.usage_totals.clear()
                 self.uncertain_sessions.clear()
+                self._late_prompts.clear()
                 self.recovery_cleanup_needed = False
                 self._client_request_ids.clear()
                 self._client_responses.clear()
@@ -255,6 +258,16 @@ class AcpProfile:
                 from app.antigravity_auth import prepare_acp_token_store
                 prepare_acp_token_store(self.home)
                 # One Go tokenSource/mutex, not independently refreshing subprocesses.
+                from app.provider_safety import verify_provider_egress
+                env = backend.cli_environment(self.home)
+                if not os.environ.get("PYTEST_CURRENT_TEST"):
+                    launcher = Path.home() / ".local/bin/agy.real"
+                    if launcher.resolve() != Path("/usr/local/libexec/orchestra-agy-ipc.py"):
+                        raise AcpError("ACP IPC launcher unavailable")
+                    env.update(ALLOW_DATACENTER_OAUTH_EGRESS="0", AGY_ALLOW_WHEN_DISABLED="0",
+                               ORCHESTRA_AGY_SPAWNER_SOCK="/run/orchestra-agy/spawner.sock")
+                    await verify_provider_egress("antigravity", env=env, enforce_in_tests=True)
+                    executable = str(launcher)
                 cmd = [executable or backend.ANTIGRAVITY_BIN, "acp", "--disable-telemetry"]
                 if auto_approve_enabled():
                     cmd.append("--dangerously-skip-permissions")
@@ -264,7 +277,7 @@ class AcpProfile:
                 ])
                 self.process = await asyncio.create_subprocess_exec(
                     *cmd,
-                    cwd=str(self.home), env=backend.cli_environment(self.home),
+                    cwd=str(self.home), env=env,
                     stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE, start_new_session=True,
                     limit=1024 * 1024,
@@ -293,13 +306,14 @@ class AcpProfile:
     async def _write(self, message, *, before_write=None, on_written=None, on_started=None):
         if self.failure or self.process is None or self.process.returncode is not None:
             raise AcpError(self.failure or "ACP daemon unavailable")
-        payload = (json.dumps(message, ensure_ascii=False) + "\n").encode()
         ceiling = 1024 * 1024
-        if message.get("method") == "session/prompt" and any(
+        if (self.capabilities.get("promptCapabilities", {}).get("audio") is True
+                and message.get("method") == "session/prompt" and any(
             block.get("type") == "audio" for block in message.get("params", {}).get("prompt", ())
             if isinstance(block, dict)
-        ):
+        )):
             ceiling = 32 * 1024 * 1024
+        payload = (json.dumps(message, ensure_ascii=False) + "\n").encode()
         if len(payload) > ceiling:
             raise AcpSessionError("ACP message exceeds frame limit")
         async with self._write_lock:
@@ -366,6 +380,8 @@ class AcpProfile:
                 pass
             except (TimeoutError, AcpError, OSError):
                 self.uncertain_sessions.add(sid)
+                if not future.done() and not self.failure:
+                    self._late_prompts[request_id] = sid
                 raise AcpSessionError("ACP prompt timed out; cancellation unconfirmed") from None
             raise AcpSessionError("ACP prompt timed out; terminal response received after deadline") from None
         except (BrokenPipeError, ConnectionResetError, OSError):
@@ -410,7 +426,9 @@ class AcpProfile:
                         # requests fail closed; unknown client methods are bounded errors.
                         reply = {"jsonrpc": "2.0", "id": message["id"]}
                         if not isinstance(params, dict):
-                            raise AcpError("Invalid ACP client RPC parameters")
+                            reply["error"] = {"code": -32602, "message": "Invalid params"}
+                            await self._write(reply)
+                            continue
                         if method == "session/request_permission":
                             identity = json.dumps(message["id"],sort_keys=True)
                             digest=hashlib.sha256(json.dumps(params,sort_keys=True).encode()).hexdigest()
@@ -447,6 +465,22 @@ class AcpProfile:
                         if callback:
                             callback(update)
                 else:
+                    late = self._late_prompts.get(message.get("id"))
+                    if late is not None and ("error" in message or isinstance(message.get("result"), dict)):
+                        self._late_prompts.pop(message.get("id"))
+                        if "error" in message:
+                            from app import backend_antigravity as backend
+                            if backend._is_account_disabled_payload(message["error"]):
+                                self._permanent_failure = True
+                                reason = "ACP confirmed account-disabled/Terms-of-Service refusal"
+                                backend._trip_antigravity_circuit_breaker(reason)
+                                await self.close(reason)
+                                return
+                        self.uncertain_sessions.discard(late)
+                        if late in self._quarantined_slots:
+                            self._quarantined_slots.remove(late)
+                            self.turn_semaphore.release()
+                        continue
                     future = self._pending.get(message.get("id"))
                     if future is None or future.done():
                         continue
@@ -587,6 +621,10 @@ class AcpProfile:
 
     async def close(self, reason):
         self.failure = self.failure or reason
+        for task in tuple(self.mux_idle_tasks.values()):
+            if task is not asyncio.current_task():
+                task.cancel()
+        self.mux_idle_tasks.clear()
         for future in list(self._pending.values()):
             if not future.done():
                 future.set_exception(AcpError(self.failure))

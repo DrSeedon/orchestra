@@ -62,6 +62,8 @@ async def test_mux_audio_shared_slot_updates_cancel_and_reconnect(home, monkeypa
     monkeypatch.setattr(acp_mux, "_egress", noop)
     monkeypatch.setattr(owner, "_check_settings", lambda: None)
     monkeypatch.setattr(owner, "start", noop)
+    monkeypatch.setattr(acp_mux, "cached_profile", lambda _: owner)
+    owner.capabilities = {"promptCapabilities": {"audio": True}}
     cancelled = asyncio.Event()
     calls = []
 
@@ -99,12 +101,14 @@ async def test_mux_audio_shared_slot_updates_cancel_and_reconnect(home, monkeypa
         reader, writer = await asyncio.open_unix_connection(mux.path)
         open_params = {"origin": "telegram", "cwd": str(home), "token": "ab" * 32}
         send(writer, 1, "session/open", **open_params)
-        assert (await message(reader))["result"] == {"sessionId": "kesha-native"}
+        assert (await message(reader))["result"] == {"sessionId": None, "audio": True}
+        assert calls == []
         send(writer, 2, "session/prompt", sessionId="wrong", model="gemini-4-neon-high", blocks=[])
         assert "error" in await message(reader)
-        send(writer, 3, "session/prompt", sessionId="kesha-native", model="gemini-4-neon-high", origin="telegram",
-             blocks=[{"type": "audio", "mimeType": "audio/ogg",
+        send(writer, 3, "session/prompt", sessionId=None, model="gemini-4-neon-high", origin="telegram", turnId="a" * 32,
+             blocks=[{"type": "text", "text": "listen"}, {"type": "audio", "mimeType": "audio/ogg",
                       "data": base64.b64encode(b"OggS" + b"a" * (1024 * 1024)).decode()}])
+        assert (await message(reader))["method"] == "session/attached"
         assert (await message(reader))["method"] == "session/submitted"
         assert (await message(reader))["params"]["update"]["sessionUpdate"] == "usage_update"
         native = await message(reader)
@@ -125,8 +129,10 @@ async def test_mux_audio_shared_slot_updates_cancel_and_reconnect(home, monkeypa
         send(writer, 5, "session/open", **{**open_params, "token": "cd" * 32}, sessionId="kesha-native")
         assert "error" in await message(reader)
         send(writer, 6, "session/open", **open_params, sessionId="kesha-native")
-        assert (await message(reader))["result"] == {"sessionId": "kesha-native"}
+        assert (await message(reader))["result"] == {"sessionId": "kesha-native", "audio": True}
         assert calls == ["session/new", "session/prompt"]
+        send(writer, 7, "session/close", sessionId="kesha-native")
+        assert (await message(reader))["result"] == {}
         writer.close()
         await writer.wait_closed()
     finally:
@@ -155,3 +161,88 @@ async def test_lock_contention_never_runs_fallback_preflight_or_spawn(home, monk
         with pytest.raises(AcpError):
             await owner.start(before_spawn=prohibited, executable="unused")
         assert not called
+
+
+@pytest.mark.asyncio
+async def test_running_as_same_uid_does_not_authorize_foreign_cgroup(home, monkeypatch):
+    from app.backend_antigravity import canonical_profile
+    # Use the production-profile authentication policy on a temporary listener.
+    monkeypatch.setattr(acp_mux, "_trusted_peer",
+                        lambda writer, _: real_check(writer, canonical_profile()))
+    mux = acp_mux.AcpMux(home)
+    await mux.start()
+    try:
+        reader, writer = await asyncio.open_unix_connection(mux.path)
+        assert await asyncio.wait_for(reader.read(), 2) == b""
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        await mux.close()
+
+
+real_check = acp_mux._trusted_peer
+
+
+def test_mux_owned_reminder_budget_is_durable(home):
+    for index in range(8):
+        acp_mux._reserve_turn(home, f"{index:032x}", "owned_reminder", owner="owner", sid=None)
+    with pytest.raises(acp_mux.AcpSessionError, match="budget"):
+        acp_mux._reserve_turn(home, "f" * 32, "owned_reminder", owner="owner", sid=None)
+    with pytest.raises(acp_mux.AcpSessionError, match="already used"):
+        acp_mux._reserve_turn(home, "0" * 32, "telegram", owner="different", sid=None)
+
+
+@pytest.mark.asyncio
+async def test_mux_quota_hard_stop_uses_both_account_windows(monkeypatch):
+    from app.routes import system
+    for key, bucket in (("data", "gemini-weekly"), ("five_hour", "gemini-5h")):
+        monkeypatch.setattr(system, "_antigravity_usage_cache",
+                            {key: {bucket: {"remaining_fraction": 0.05}}})
+        with pytest.raises(acp_mux.AcpSessionError, match="hard stop"):
+            await acp_mux._check_quota()
+
+
+@pytest.mark.asyncio
+async def test_disconnect_during_drain_cancels_after_submission(home, monkeypatch):
+    from types import SimpleNamespace
+    from app.antigravity_acp import AcpSessionError
+
+    owner = AcpProfile(home)
+    conn = acp_mux.Connection(home, None)
+    conn.owner = owner
+    conn.session_id = "stand-native"
+    conn.prompt_generation = owner.transport_generation
+    monkeypatch.setattr(conn, "send", lambda _: None)
+    cancel = asyncio.Event()
+
+    async def notify(method, params):
+        assert (method, params["sessionId"]) == ("session/cancel", conn.session_id)
+        cancel.set()
+
+    monkeypatch.setattr(owner, "notify", notify)
+    drain_entered = asyncio.Event()
+    release_drain = asyncio.Event()
+
+    async def drain():
+        drain_entered.set()
+        await release_drain.wait()
+
+    writes = []
+    owner.process = SimpleNamespace(
+        returncode=None, stdin=SimpleNamespace(write=writes.append, drain=drain))
+    conn.prompt = asyncio.create_task(owner._write(
+        {"method": "session/prompt"},
+        before_write=conn.before_prompt_write, on_written=conn.prompt_written))
+    await asyncio.wait_for(drain_entered.wait(), 1)
+    # Keep the native request active while _write returns, as the real RPC does.
+    write_task, conn.prompt = conn.prompt, asyncio.create_task(cancel.wait())
+    conn.disconnected = True
+    await conn.cancel()
+    assert not cancel.is_set()
+    release_drain.set()
+    await asyncio.wait_for(write_task, 1)
+    await asyncio.wait_for(conn.prompt, 1)
+    assert conn.cancel_sent and len(writes) == 1
+    with pytest.raises(AcpSessionError, match="disconnected"):
+        await owner._write({"method": "session/prompt"}, before_write=conn.before_prompt_write)
+    assert len(writes) == 1
