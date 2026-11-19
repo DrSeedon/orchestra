@@ -85,6 +85,9 @@ class AcpProfile:
         self.epoch = profile_epoch(home)
         self.transport_generation = uuid.uuid4().hex
         self.permission_handlers = {}
+        self.client_request_handlers = {}
+        self.mux_leases = set()
+        self.mux_config_hashes = {}
         self._client_tasks = set()
         self._client_request_ids = OrderedDict()
         self._client_responses = {}
@@ -213,7 +216,7 @@ class AcpProfile:
         if cli.get("useG1Credits") is not False or config.get("userSettings", {}).get("useAiCredits") is not False:
             raise AcpError("ACP profile credit settings must both be false")
 
-    async def start(self):
+    async def start(self, *, before_spawn=None, executable=None):
         from app import backend_antigravity as backend
         async with self._start_lock:
             if self._permanent_failure:
@@ -230,6 +233,7 @@ class AcpProfile:
                 self.sessions.clear()
                 self.models.clear()
                 self.model_states.clear()
+                self.mux_config_hashes.clear()
                 self.cost_totals.clear()
                 self.usage_totals.clear()
                 self.uncertain_sessions.clear()
@@ -246,10 +250,12 @@ class AcpProfile:
                 self._lock_fd = os.open(self.home / ".orchestra-acp.lock",
                                         os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
                 fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if before_spawn is not None:
+                    await before_spawn()
                 from app.antigravity_auth import prepare_acp_token_store
                 prepare_acp_token_store(self.home)
                 # One Go tokenSource/mutex, not independently refreshing subprocesses.
-                cmd = [backend.ANTIGRAVITY_BIN, "acp", "--disable-telemetry"]
+                cmd = [executable or backend.ANTIGRAVITY_BIN, "acp", "--disable-telemetry"]
                 if auto_approve_enabled():
                     cmd.append("--dangerously-skip-permissions")
                 cmd.extend([
@@ -288,8 +294,14 @@ class AcpProfile:
         if self.failure or self.process is None or self.process.returncode is not None:
             raise AcpError(self.failure or "ACP daemon unavailable")
         payload = (json.dumps(message, ensure_ascii=False) + "\n").encode()
-        if len(payload) > 1024 * 1024:
-            raise AcpSessionError("ACP message exceeds 1 MiB limit")
+        ceiling = 1024 * 1024
+        if message.get("method") == "session/prompt" and any(
+            block.get("type") == "audio" for block in message.get("params", {}).get("prompt", ())
+            if isinstance(block, dict)
+        ):
+            ceiling = 32 * 1024 * 1024
+        if len(payload) > ceiling:
+            raise AcpSessionError("ACP message exceeds frame limit")
         async with self._write_lock:
             if before_write is not None:
                 await before_write()
@@ -397,6 +409,8 @@ class AcpProfile:
                         # No filesystem/terminal capability advertised. Permission
                         # requests fail closed; unknown client methods are bounded errors.
                         reply = {"jsonrpc": "2.0", "id": message["id"]}
+                        if not isinstance(params, dict):
+                            raise AcpError("Invalid ACP client RPC parameters")
                         if method == "session/request_permission":
                             identity = json.dumps(message["id"],sort_keys=True)
                             digest=hashlib.sha256(json.dumps(params,sort_keys=True).encode()).hexdigest()
@@ -416,8 +430,13 @@ class AcpProfile:
                             self._client_tasks.add(task)
                             task.add_done_callback(self._client_tasks.discard)
                             continue
-                        else:
-                            reply["error"] = {"code": -32601, "message": "Client method unsupported"}
+                        relay = self.client_request_handlers.get(params.get("sessionId"))
+                        if method in ("fs/read_text_file", "fs/write_text_file") and relay and len(self._client_tasks) < 16:
+                            task = asyncio.create_task(self._relay_fs(relay, message))
+                            self._client_tasks.add(task)
+                            task.add_done_callback(self._client_tasks.discard)
+                            continue
+                        reply["error"] = {"code": -32601, "message": "Client method unsupported"}
                         await self._write(reply)
                     elif method == "session/update":
                         sid = params.get("sessionId")
@@ -459,12 +478,30 @@ class AcpProfile:
         except Exception:
             await self.close("ACP stream ended/invalid; operator recovery required")
 
+    async def _relay_fs(self, relay, message):
+        try:
+            response = await relay(message["method"], message["params"])
+            await self._write({"jsonrpc": "2.0", "id": message["id"], **response})
+        except (AcpError, OSError):
+            pass
+
     async def _permission(self,rpc_id,params):
         from app import native_requests
         rid=None
         try:
             backend=self.permission_handlers.get(params.get("sessionId"))
-            if backend is None:
+            relay = self.client_request_handlers.get(params.get("sessionId"))
+            if relay is not None:
+                parsed = native_requests.validate_payload(params)
+                answer = await relay("session/request_permission", params)
+                outcome = (answer.get("result") or {}).get("outcome") or {}
+                allowed = {o["optionId"] for o in parsed["options"] if o["kind"] == "allow_once"}
+                response = {"outcome": {"outcome": "cancelled"}}
+                if (parsed["kind"] == "permission" and auto_approve_enabled()
+                        and native_requests.profile_epoch(self.home) == self.epoch
+                        and outcome.get("optionId") in allowed):
+                    response = {"outcome": {"outcome": "selected", "optionId": outcome["optionId"]}}
+            elif backend is None:
                 response={"outcome":{"outcome":"cancelled"}}
             else:
                 parsed=native_requests.validate_payload(params)
@@ -512,7 +549,7 @@ class AcpProfile:
             self._client_request_ids.pop(key)
             self._client_responses.pop(key, None)
 
-    async def release_session(self, sid):
+    async def release_session(self, sid, *, close_idle_profile=True):
         if sid not in self.sessions:
             return
         try:
@@ -532,12 +569,14 @@ class AcpProfile:
             self.listeners.pop(sid, None)
             self.permission_handlers.pop(sid, None)
             self.model_states.pop(sid, None)
+            self.mux_config_hashes.pop(sid, None)
             self.session_locks.pop(sid, None)
             self.cost_totals.pop(sid, None)
             self.usage_totals.pop(sid, None)
-            self.uncertain_sessions.discard(sid)
+            if sid not in self._quarantined_slots:
+                self.uncertain_sessions.discard(sid)
             self.models = set().union(*(self.published_models(v) for v in self.model_states.values()))
-            if not self.sessions and self.process is not None:
+            if close_idle_profile and not self.sessions and self.process is not None:
                 await self.close("ACP last owned session released")
 
     async def _drain_stderr(self):
@@ -583,6 +622,59 @@ class AcpProfile:
             for _ in self._quarantined_slots:
                 self.turn_semaphore.release()
             self._quarantined_slots.clear()
+
+
+async def select_model(owner, sid, model, effort=None):
+    state = owner.model_states[sid]
+    suffix = re.search(r"-(xhigh|high|medium|low)$", model)
+    wanted = effort or (suffix.group(1) if suffix else None)
+    base = re.sub(r"-(?:xhigh|high|medium|low)$", "", model)
+    requested = base + "-" + wanted if wanted else model
+    split = bool(state["config_id"] and base in state["available"] and base != requested and requested not in state["available"])
+    if split:
+        if state["current"] != base:
+            selected = await owner.request("session/set_config_option", {
+                "sessionId":sid,"configId":state["config_id"],"value":base})
+            state = owner.remember_model_state(sid, selected)
+            if state["current"] != base:
+                raise AcpSessionError("ACP model family selection was not confirmed; prompt refused")
+        def validate_thought(value):
+            if value["current"] != base or base not in value["available"] or not value.get("thought_config_id") or wanted not in value["thought_available"]:
+                raise AcpSessionError("Requested thought level is not advertised for selected family; no nearest fallback")
+            legacy = value.get("legacy_available", set())
+            variants = {v for v in legacy if any(v.startswith(family+"-") for family in value["available"]
+                if not re.search(r"-(xhigh|high|medium|low)$", family))}
+            if variants and requested not in legacy:
+                raise AcpSessionError("ACP model/thought combination contradicts variant catalog; prompt refused")
+        validate_thought(state)
+        if state["current_thought"] != wanted:
+            selected = await owner.request("session/set_config_option", {
+                "sessionId":sid,"configId":state["thought_config_id"],"value":wanted})
+            state = owner.remember_model_state(sid, selected)
+            validate_thought(state)
+            if state["current_thought"] != wanted:
+                raise AcpSessionError("ACP thought level selection was not confirmed; prompt refused")
+    else:
+        if requested not in state["available"]:
+            offered = ",".join(sorted(str(m)[:64] for m in state["available"])[:12])
+            raise AcpSessionError(f"Requested model/effort variant is not advertised; no nearest fallback (offered={offered})")
+        if state["current"] != requested:
+            if state["config_id"]:
+                selected = await owner.request("session/set_config_option", {
+                    "sessionId":sid,"configId":state["config_id"],"value":requested})
+                state = owner.remember_model_state(sid, selected)
+                if state["current"] != requested or requested not in state["available"]:
+                    raise AcpSessionError("ACP model selection was not confirmed; prompt refused")
+            else:
+                selected = await owner.request("session/set_model", {"sessionId":sid,"modelId":requested})
+                confirmed = owner.model_state(selected)
+                if confirmed["current"] is not None and confirmed["current"] != requested:
+                    owner.remember_model_state(sid, selected)
+                    raise AcpSessionError("ACP model selection mismatch; prompt refused")
+                state["current"] = requested  # Legacy empty success is its advertised contract.
+
+    owner.models = set().union(*(owner.published_models(s) for s in owner.model_states.values()))
+    return requested
 
 
 def ensure_interactive_input(model, provenance, *, target_session=None, allow_child_agent=True):

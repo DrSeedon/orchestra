@@ -582,11 +582,23 @@ async def lifespan(app: FastAPI):
         always_on_tasks = [
             start_scheduler(manager), start_outbox_dispatcher(manager), start_dreaming_loop(manager),
         ]
-        if _fdstore.notify_ready():
-            logger.info("systemd readiness published after application startup gates")
+        from app.acp_mux import AcpMux
+        from app.backend_antigravity import canonical_profile
+
+        mux = None
         try:
+            if "pytest" not in _sys.modules:
+                home = canonical_profile()
+                if home.is_dir():
+                    listener = AcpMux(home)
+                    await listener.start()
+                    mux = listener
+            if _fdstore.notify_ready():
+                logger.info("systemd readiness published after application startup gates")
             yield
         finally:
+            if mux is not None:
+                await mux.close()
             for task in always_on_tasks:
                 task.cancel()
             await asyncio.gather(*always_on_tasks, return_exceptions=True)

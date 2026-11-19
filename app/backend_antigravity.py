@@ -747,56 +747,8 @@ class AntigravityBackend:
                     self._tool_idle_event.set()
 
     async def _select_model(self):
-        from app.antigravity_acp import AcpSessionError
-        state = self._owner.model_states[self.session_id]
-        suffix = re.search(r"-(xhigh|high|medium|low)$", self.model)
-        wanted = self.effort or (suffix.group(1) if suffix else None)
-        base = re.sub(r"-(?:xhigh|high|medium|low)$", "", self.model)
-        requested = base + "-" + wanted if wanted else self.model
-        split = bool(state["config_id"] and base in state["available"] and base != requested and requested not in state["available"])
-        if split:
-            if state["current"] != base:
-                selected = await self._owner.request("session/set_config_option", {
-                    "sessionId":self.session_id,"configId":state["config_id"],"value":base})
-                state = self._owner.remember_model_state(self.session_id, selected)
-                if state["current"] != base:
-                    raise AcpSessionError("ACP model family selection was not confirmed; prompt refused")
-            def validate_thought(value):
-                if value["current"] != base or base not in value["available"] or not value.get("thought_config_id") or wanted not in value["thought_available"]:
-                    raise AcpSessionError("Requested thought level is not advertised for selected family; no nearest fallback")
-                legacy = value.get("legacy_available", set())
-                variants = {v for v in legacy if any(v.startswith(family+"-") for family in value["available"]
-                    if not re.search(r"-(xhigh|high|medium|low)$", family))}
-                if variants and requested not in legacy:
-                    raise AcpSessionError("ACP model/thought combination contradicts variant catalog; prompt refused")
-            validate_thought(state)
-            if state["current_thought"] != wanted:
-                selected = await self._owner.request("session/set_config_option", {
-                    "sessionId":self.session_id,"configId":state["thought_config_id"],"value":wanted})
-                state = self._owner.remember_model_state(self.session_id, selected)
-                validate_thought(state)
-                if state["current_thought"] != wanted:
-                    raise AcpSessionError("ACP thought level selection was not confirmed; prompt refused")
-        else:
-            if requested not in state["available"]:
-                offered = ",".join(sorted(str(m)[:64] for m in state["available"])[:12])
-                raise AcpSessionError(f"Requested model/effort variant is not advertised; no nearest fallback (offered={offered})")
-            if state["current"] != requested:
-                if state["config_id"]:
-                    selected = await self._owner.request("session/set_config_option", {
-                        "sessionId":self.session_id,"configId":state["config_id"],"value":requested})
-                    state = self._owner.remember_model_state(self.session_id, selected)
-                    if state["current"] != requested or requested not in state["available"]:
-                        raise AcpSessionError("ACP model selection was not confirmed; prompt refused")
-                else:
-                    selected = await self._owner.request("session/set_model", {"sessionId":self.session_id,"modelId":requested})
-                    confirmed = self._owner.model_state(selected)
-                    if confirmed["current"] is not None and confirmed["current"] != requested:
-                        self._owner.remember_model_state(self.session_id, selected)
-                        raise AcpSessionError("ACP model selection mismatch; prompt refused")
-                    state["current"] = requested  # Legacy empty success is its advertised contract.
-        self._selected_model = requested
-        self._owner.models = set().union(*(self._owner.published_models(s) for s in self._owner.model_states.values()))
+        from app.antigravity_acp import select_model
+        self._selected_model = await select_model(self._owner, self.session_id, self.model, self.effort)
 
     def _recovery_context(self, message, event_id) -> str:
         from app.db import get_logs

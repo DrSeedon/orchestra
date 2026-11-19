@@ -37,14 +37,15 @@ def profile_epoch(home):
         return c.execute("SELECT epoch FROM acp_profile_epochs WHERE profile_key=?",(key,)).fetchone()[0]
 
 
-def bind_session(owner,native_id,app_id,resume=False):
+def bind_session(owner,native_id,app_id,resume=False,*,require_unbound=False):
     schema()
     if profile_epoch(owner.home)!=owner.epoch:raise ValueError("ACP profile epoch changed; explicit new profile required")
     if not app_id:return  # Backend-only synthetic clients have no UI callbacks.
     key=profile_key(owner.home)
     with db._conn() as c:
+        c.execute("BEGIN IMMEDIATE")
         row=c.execute("SELECT * FROM acp_session_bindings WHERE profile_key=? AND native_id=?",(key,native_id)).fetchone()
-        if row and (row["epoch"]!=owner.epoch or row["owner_id"]!=app_id):raise ValueError("Stale or foreign ACP session binding")
+        if row and (require_unbound or row["epoch"]!=owner.epoch or row["owner_id"]!=app_id):raise ValueError("Stale or foreign ACP session binding")
         if resume and row is None:raise ValueError("Unbound ACP resume requires explicit new session")
         c.execute("INSERT OR IGNORE INTO acp_session_bindings VALUES (?,?,?,?)",(key,native_id,app_id,owner.epoch))
 
