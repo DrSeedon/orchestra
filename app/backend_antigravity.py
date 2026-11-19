@@ -23,6 +23,7 @@ from app.antigravity_auth import (
     private_directory,
 )
 from app.events import AgentEvent, InjectedMessage
+from app.models import ANTIGRAVITY_NEON_RAW_MODELS, ANTIGRAVITY_NEON_TOKEN_PRICES
 from app.usage_contract import (
     AggregateUsage, KnownContext, TurnUsage, UnknownContext, current_context,
 )
@@ -57,6 +58,7 @@ QUOTA_FORCE_COOLDOWN = 60.0
 # Hydrogen $1.50/$7.50, cached $0.075). Note: agy usage.output_tokens already includes
 # thinking_tokens, and usage.input_tokens excludes cache_read_tokens.
 ANTIGRAVITY_TOKEN_PRICES: dict[str, dict[str, float]] = {
+    **{raw: ANTIGRAVITY_NEON_TOKEN_PRICES for raw in ANTIGRAVITY_NEON_RAW_MODELS},
     "gemini-4-carbon-high": {"input": 2.0, "cached": 0.10, "output": 10.0},
     "gemini-4-carbon-medium": {"input": 2.0, "cached": 0.10, "output": 10.0},
     "gemini-4-carbon-low": {"input": 2.0, "cached": 0.10, "output": 10.0},

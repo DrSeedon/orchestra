@@ -904,7 +904,10 @@ def _model_target(model: str) -> tuple[str, str | None, str]:
     if runtime == "codex":
         return resolved, "codex_spark" if resolved == SPARK_MODEL else "codex", runtime
     if runtime == "antigravity":
-        if resolved.startswith("antigravity/gemini-4-argon-"):
+        if resolved.startswith("antigravity/gemini-4-argon-") or resolved in {
+            "antigravity/gemini-pro-orchestrator-g1-pro",
+            "antigravity/gemini-pro-orchestrator-argon",
+        }:
             return resolved, "antigravity_argon", runtime
         if resolved.startswith("antigravity/gemini-"):
             return resolved, "antigravity_gemini", runtime
@@ -1065,7 +1068,7 @@ def _exhausted_window_reset(provider: object, now: float) -> float | None:
 # other Antigravity bucket first, then the owner's 09.11.2026 Hub stack (separate pool).
 ANTIGRAVITY_ALTERNATIVES: dict[str, tuple[str, ...]] = {
     "antigravity_gemini": ("antigravity/claude-sonnet-5-5-medium", "hub-gemini-4-argon"),
-    "antigravity_argon": ("antigravity/gemini-4-hydrogen-medium", "hub-gemini-4-argon"),
+    "antigravity_argon": ("antigravity/gemini-4-neon-high", "hub-gemini-4-argon"),
     "antigravity_3p": (
         "antigravity/gemini-4-argon-medium", "hub-claude-opus-5-5", "hub-claude-sonnet-5-5",
     ),

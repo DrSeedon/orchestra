@@ -236,8 +236,16 @@ SELECTABLE_MODEL_SPECS += tuple(
 # _rebuild_derived_views() below is the only writer at import time.
 # Owner 2026-11-18: exact local g1-pro Gemini worker routes. A shared source
 # owns catalog defaults AND the native subscription dispatch exception.
+ANTIGRAVITY_NEON_RAW_MODELS = (
+    "gemini-4-neon-xhigh", "gemini-4-neon-high",
+    "gemini-4-neon-medium", "gemini-4-neon-low",
+    "gemini-pro-orchestrator-neon",
+)
+ANTIGRAVITY_NEON_TOKEN_PRICES = {"input": 3.0, "cached": 0.15, "output": 15.0}
+
 ANTIGRAVITY_G1_GEMINI_AGENT_MODELS = frozenset(
     "antigravity/" + raw for raw in (
+        *ANTIGRAVITY_NEON_RAW_MODELS,
         "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-high",
         "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
         "gemini-4-argon-high", "gemini-4-argon-medium", "gemini-4-argon-low",
@@ -255,6 +263,7 @@ ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS = frozenset(
 )
 ANTIGRAVITY_G1_AGENT_MODELS = ANTIGRAVITY_G1_GEMINI_AGENT_MODELS | ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS
 ANTIGRAVITY_RAW_MODELS = (
+    *ANTIGRAVITY_NEON_RAW_MODELS,
     "gemini-4-carbon-medium", "gemini-4-carbon-high", "gemini-4-carbon-low",
     "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
     "gemini-4-argon-medium", "gemini-4-argon-high", "gemini-4-argon-low",
@@ -269,6 +278,11 @@ ANTIGRAVITY_RAW_MODELS = (
     "claude-opus-4-6-thinking",
 )
 ANTIGRAVITY_DISPLAY_NAMES = {
+    "gemini-4-neon-xhigh": "Antigravity: Gemini 4 Neon (XHigh)",
+    "gemini-4-neon-high": "Antigravity: Gemini 4 Neon (High)",
+    "gemini-4-neon-medium": "Antigravity: Gemini 4 Neon (Medium)",
+    "gemini-4-neon-low": "Antigravity: Gemini 4 Neon (Low)",
+    "gemini-pro-orchestrator-neon": "Antigravity: Orchestrator (Neon)",
     "gemini-4-carbon-medium": "Antigravity: Gemini 4 Carbon (Medium)",
     "gemini-4-carbon-high": "Antigravity: Gemini 4 Carbon (High)",
     "gemini-4-carbon-low": "Antigravity: Gemini 4 Carbon (Low)",
@@ -279,7 +293,7 @@ ANTIGRAVITY_DISPLAY_NAMES = {
     "gemini-4-argon-medium": "Antigravity: Gemini 4 Argon (Medium)",
     "gemini-4-argon-high": "Antigravity: Gemini 4 Argon (High)",
     "gemini-4-argon-low": "Antigravity: Gemini 4 Argon (Low)",
-    "gemini-pro-orchestrator-g1-pro": "Antigravity: Orchestrator (G1 Pro)",
+    "gemini-pro-orchestrator-g1-pro": "Antigravity: Orchestrator (Argon · G1 Pro)",
     "gemini-pro-orchestrator": "Antigravity: Orchestrator (Carbon)",
     "gemini-pro-orchestrator-argon": "Antigravity: Orchestrator (Argon)",
     "gemini-3.8-flash-high": "Antigravity: Gemini 3.8 Flash (High)",
@@ -296,6 +310,7 @@ ANTIGRAVITY_DISPLAY_NAMES = {
 # 128 000 is the conservative default; these routes serve long contexts (owner 09–13.11.2026)
 # and a too-small window compacted them several times earlier than needed.
 ANTIGRAVITY_CONTEXT_LENGTHS = {
+    **dict.fromkeys(ANTIGRAVITY_NEON_RAW_MODELS, 1_000_000),
     "gemini-4-carbon-high": 1_000_000,
     "gemini-4-carbon-medium": 1_000_000,
     "gemini-4-carbon-low": 1_000_000,
@@ -325,6 +340,8 @@ SELECTABLE_MODEL_SPECS += tuple(
               name=ANTIGRAVITY_DISPLAY_NAMES.get(raw, f"Antigravity {raw}"),
               runtime="antigravity", provider="google-antigravity",
               context_length=ANTIGRAVITY_CONTEXT_LENGTHS.get(raw, 128_000),
+              price_input=ANTIGRAVITY_NEON_TOKEN_PRICES["input"] if raw in ANTIGRAVITY_NEON_RAW_MODELS else None,
+              price_output=ANTIGRAVITY_NEON_TOKEN_PRICES["output"] if raw in ANTIGRAVITY_NEON_RAW_MODELS else None,
               default_dashboard=raw in ANTIGRAVITY_DISPLAY_NAMES,
               default_agents=f"antigravity/{raw}" in ANTIGRAVITY_G1_AGENT_MODELS)
     for raw in ANTIGRAVITY_RAW_MODELS
@@ -347,6 +364,12 @@ ALIASES = {
     "agy-argon-high": "antigravity/gemini-4-argon-high",
     "agy-flash-high": "antigravity/gemini-3.8-flash-high",
     "agy-carbon": "antigravity/gemini-4-carbon-medium",
+    "agy-neon": "antigravity/gemini-4-neon-high",
+    "agy-neon-high": "antigravity/gemini-4-neon-high",
+    "agy-neon-xhigh": "antigravity/gemini-4-neon-xhigh",
+    "agy-neon-medium": "antigravity/gemini-4-neon-medium",
+    "agy-neon-low": "antigravity/gemini-4-neon-low",
+    "agy-neon-orch": "antigravity/gemini-pro-orchestrator-neon",
     "agy-hydrogen": "antigravity/gemini-4-hydrogen-high",
     "agy-hydrogen-xhigh": "antigravity/gemini-4-hydrogen-xhigh",
     "agy-hydrogen-med": "antigravity/gemini-4-hydrogen-medium",
@@ -1248,7 +1271,7 @@ def ensure_spawn_allowed(
     route stays refused and the catalog flag, quota and role guards still apply.
     Owner decision, 2026-11-04: company records and KB, including Seedon, are
     authorized Hub inputs and do not require this native exception.
-    Owner decision, 2026-11-18: the eleven exact local g1-pro Gemini IDs and six
+    Owner decision, 2026-11-18: the sixteen exact local g1-pro Gemini IDs and six
     local Claude 5.5 IDs may serve event-driven workers in all VPS projects. Catalog flags and all provider/project/quota/
     provenance guards remain independent; no other native route is admitted.
     """
@@ -1272,7 +1295,7 @@ def ensure_spawn_allowed(
             f"{AGENT_HUB_ROUTE_RULE}: model '{model_id}' is disabled for agents on "
             "subscription routes; use hubsol, hubargon, hubsonnet or hubluna for Hub work. "
             "Native exceptions are the exact g1-pro Gemini worker allowlist "
-            "(agy-hydrogen, agy-argon, agy-flash and our local Claude 5.5 routes) and model='luna' for explicitly local "
+            "(agy-neon, agy-hydrogen, agy-argon, agy-flash and our local Claude 5.5 routes) and model='luna' for explicitly local "
             "work with a non-empty model_reason "
             "naming the local-processing constraint. If neither is possible (or this process "
             "predates the route and needs the owner's idle restart), report the "

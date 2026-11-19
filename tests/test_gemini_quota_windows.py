@@ -123,3 +123,28 @@ async def test_quota_uses_print_cli_contract_and_never_runs_with_active_acp(tmp_
     )
     assert launch.call_args.kwargs["env"] == {"HOME": str(tmp_path)}
     egress.assert_awaited_once()
+
+
+@pytest.mark.parametrize("model, bucket", [
+    ("agy-neon", "antigravity_gemini"),
+    ("agy-neon-low", "antigravity_gemini"),
+    ("agy-neon-medium", "antigravity_gemini"),
+    ("agy-neon-xhigh", "antigravity_gemini"),
+    ("agy-neon-orch", "antigravity_gemini"),
+    ("antigravity/gemini-pro-orchestrator-g1-pro", "antigravity_argon"),
+    ("antigravity/gemini-pro-orchestrator-argon", "antigravity_argon"),
+])
+def test_neon_and_argon_orchestrator_g1_quota_mapping(model, bucket):
+    assert quota_gate.quota_bucket_for_model(model) == bucket
+
+
+def test_neon_cost_and_fixed_orchestrator_effort():
+    from app.models import get_model_spec, resolve_model
+    from app.pipeline import resolve_effort
+
+    for raw in agy.ANTIGRAVITY_NEON_RAW_MODELS:
+        spec = get_model_spec("antigravity/" + raw)
+        assert (spec.context_length, spec.price_input, spec.price_output) == (1_000_000, 3, 15)
+        assert agy._antigravity_cost(raw, 1_000_000, 1_000_000, 1_000_000) == pytest.approx(18.15)
+    assert resolve_effort({"default": "high"}, resolve_model("agy-neon-orch"), "antigravity") is None
+    assert quota_gate.ANTIGRAVITY_ALTERNATIVES["antigravity_argon"][0] == resolve_model("agy-neon")

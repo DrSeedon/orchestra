@@ -21,9 +21,16 @@ Select worker models by task fit, subject to live admission in `app/models.py`, 
 These routes execute and retain files/history on the VPS; **no Hub workspace copy**.
 Inference still goes to Google. They are appropriate for private/internal projects when
 that Google processing is authorized. Current local Gemini windows: **1,000,000 tokens**.
+Google's launch reports Neon at #1 Coding Agent Index (58.6), #3 Intelligence Index (~61, XHigh),
+90.5% SEC-bench Pro, and 76% AutoBaxBench Hard for Neon for Cyber. See the knowledge base
+for sources and rates. These external results do not establish a local Hydrogen comparison.
 
 | Route / variants | Use it for |
 |---|---|
+| `agy-neon` / `agy-neon-high` | Primary local route for difficult multi-file engineering, reviewing Sol diffs, defensive security review and long-context code work. |
+| `agy-neon-xhigh` | Exceptional bugs, architecture and defensive security audits. Uses the shared Gemini pool, leaving Argon and Claude/3P capacity available. |
+| `agy-neon-medium` / `agy-neon-low` | Bounded coding and analysis when Hydrogen is too lightweight and maximum effort is unnecessary. |
+| `agy-neon-orch` = `antigravity/gemini-pro-orchestrator-neon` | Neon orchestrator profile. Select the exact offered ID without adding an effort suffix. |
 | `agy-hydrogen` = `antigravity/gemini-4-hydrogen-high` | Fast agentic workhorse: large document/spec/tender/log batches, codebase research, scripting and bounded local changes. Uses Gemini quota, not the Codex weekly pool. |
 | `agy-hydrogen-med` = `antigravity/gemini-4-hydrogen-medium` | The same long-context work when the task and acceptance criteria are clear; a lighter default than high. |
 | `agy-hydrogen-xhigh` = `antigravity/gemini-4-hydrogen-xhigh` | Exceptionally tangled multi-file analysis; use explicitly rather than by default. |
@@ -57,7 +64,8 @@ is the native advertised window; the Gemini 1M document guidance is not a univer
    orchestrator messages keep their existing event-driven contract.
 2. Launch at most **1–2 local workers together**. The shared profile has `Semaphore(3)`;
    leave room for the owner's interactive session. This does not guarantee vendor internal-call limits.
-3. Hydrogen, Argon and Flash share the local **Gemini quota**. Flash does not create extra quota.
+3. Neon, Orchestrator (Neon), Hydrogen and 3.8 Flash share **Gemini Models** (`gemini-weekly` / `gemini-5h`).
+   Argon and Orchestrator (Argon) use `gemini-argon-wtu-weekly`. Local Claude 5.5 uses `3p-weekly` / `3p-5h`.
    Respect fresh 5h/weekly observations; unknown/stale observations are not invented capacity.
 4. **Local Carbon is unavailable on this g1-pro VPS**: never spawn `agy-carbon`,
    `antigravity/gemini-4-carbon-*` or unsuffixed `antigravity/gemini-pro-orchestrator`.

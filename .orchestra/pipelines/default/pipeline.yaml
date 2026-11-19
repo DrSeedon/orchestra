@@ -153,6 +153,8 @@ roles:
     description: >
       Cheap fan-out report collector. Receives child reports, preserves every report,
       and sends one combined handoff to the parent without selecting or interpreting it.
+  # Local g1-pro Neon is an explicit route: agy-neon for difficult coding/reviews,
+  # agy-neon-xhigh for exceptional cases, agy-neon-orch for the fixed native ID.
   specialist:
     kind: worker
     label: Gemini Specialist

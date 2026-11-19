@@ -1,3 +1,7 @@
+> **2026-11-19 — local Neon.** Use `agy-neon` (High) for tough coding, independent diff review and defensive security work. Escalate to XHigh for the hardest bugs and architecture. Low/Medium are bounded alternatives. `agy-neon-orch` selects the exact Neon orchestrator ID. 1M context. API equivalents per million tokens: $3 input, $0.15 cached, $15 output.
+> Neon and its orchestrator share Gemini 5h/7d with Hydrogen and 3.8 Flash. Argon and Orchestrator (Argon) use Argon 7d. Local Claude 5.5 uses its own 3P 5h/7d.
+> External launch benchmarks: #1 Coding Agent Index (58.6); #3 Intelligence Index (~61 at XHigh); 90.5% SEC-bench Pro; 76% AutoBaxBench Hard for Neon for Cyber. These are published benchmark scores, not Orchestra measurements. [Google launch](https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-neon/) · [DeepMind model card](https://deepmind.google/models/model-cards/gemini-4-neon/).
+
 > **Политика с 2026-11-18.** Для новых запусков и переключений Sol/Astra действуют только GPT-6.2 Sol и GPT-6.2 Astra, включая Hub (hubsol / hubastra). Старые ID и алиасы ниже сохранены как история.
 
 # Исследования учёта токенов и подписочного расхода

@@ -10,6 +10,7 @@ from tests.test_antigravity_acp_r2 import real_session
 from tests.test_antigravity_acp_submission import http_stand
 
 RAW={
+ "gemini-4-neon-xhigh","gemini-4-neon-high","gemini-4-neon-medium","gemini-4-neon-low","gemini-pro-orchestrator-neon",
  "gemini-4-hydrogen-xhigh","gemini-4-hydrogen-high","gemini-4-hydrogen-medium","gemini-4-hydrogen-low",
  "gemini-4-argon-high","gemini-4-argon-medium","gemini-4-argon-low","gemini-pro-orchestrator-g1-pro",
  "gemini-3.8-flash-high","gemini-3.8-flash-medium","gemini-3.8-flash-low"}
@@ -18,6 +19,8 @@ CLAUDE_RAW={"claude-"+family+"-5-5-"+level for family in ("opus","sonnet") for l
 CLAUDE_ALLOWED={"antigravity/"+raw for raw in CLAUDE_RAW}
 ALLOWED=GEMINI_ALLOWED|CLAUDE_ALLOWED
 ALIASES={
+ "agy-neon":"gemini-4-neon-high","agy-neon-high":"gemini-4-neon-high","agy-neon-xhigh":"gemini-4-neon-xhigh",
+ "agy-neon-medium":"gemini-4-neon-medium","agy-neon-low":"gemini-4-neon-low","agy-neon-orch":"gemini-pro-orchestrator-neon",
  "agy-hydrogen":"gemini-4-hydrogen-high","agy-hydrogen-xhigh":"gemini-4-hydrogen-xhigh",
  "agy-hydrogen-med":"gemini-4-hydrogen-medium","agy-argon":"gemini-4-argon-medium",
  "agy-argon-high":"gemini-4-argon-high","agy-flash":"gemini-3.8-flash-medium","agy-flash-high":"gemini-3.8-flash-high",
@@ -32,7 +35,7 @@ def catalog(tmp_path,monkeypatch):
 def test_default_agent_exception_is_exactly_the_owner_list(catalog):
     assert models.ANTIGRAVITY_G1_GEMINI_AGENT_MODELS==GEMINI_ALLOWED
     assert models.ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS==CLAUDE_ALLOWED
-    assert models.ANTIGRAVITY_G1_AGENT_MODELS==ALLOWED and len(ALLOWED)==17
+    assert models.ANTIGRAVITY_G1_AGENT_MODELS==ALLOWED and len(ALLOWED)==22
     for mid in ("antigravity/"+raw for raw in models.ANTIGRAVITY_RAW_MODELS):
         assert models.get_model_spec(mid).default_agents is (mid in ALLOWED)
 
@@ -99,7 +102,7 @@ def test_new_agent_flag_does_not_admit_scheduled_wakes(catalog,subtype):
         ensure_interactive_input(mid,MessageProvenance("platform",("Orchestra",),subtype))
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("alias",["agy-hydrogen","agy-argon","agy-flash","agy-opus","agy-sonnet"])
+@pytest.mark.parametrize("alias",["agy-neon","agy-neon-orch","agy-hydrogen","agy-argon","agy-flash","agy-opus","agy-sonnet"])
 async def test_actual_mcp_spawn_reaches_canonical_server_admission_before_mock_delivery(catalog,monkeypatch,tmp_path,alias):
     from app import mcp_stdio as m
     from app.routes.sessions import CreateSessionRequest
