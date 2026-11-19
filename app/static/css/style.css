@@ -1502,3 +1502,17 @@ body.panel-resizing, body.panel-resizing * { user-select: none !important; -webk
 .ql-trace-antigravity-gemini-5h { stroke: var(--quota-antigravity-gemini-5h); stroke-dasharray: 4 3; }
 .ql-trace-antigravity-argon-5h { stroke: var(--quota-antigravity-argon-5h); stroke-dasharray: 4 3; }
 .ql-trace-antigravity-3p-5h { stroke: var(--quota-antigravity-3p-5h); stroke-dasharray: 4 3; }
+
+.chat-native-voice {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 6px;
+  padding: 8px 10px; border-radius: 10px;
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  background: rgba(15, 23, 42, 0.45);
+}
+.chat-native-voice-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: var(--ink-body);
+}
+.chat-native-voice-audio {
+  width: min(100%, 340px); height: 32px;
+}

@@ -1749,3 +1749,23 @@ def validate_model_reason(model: str, reason: str = "", **context) -> str:
         # it, while manual selection keeps working without a reason.
         return reason.strip() if isinstance(reason, str) else ""
     return ""
+
+
+def supports_native_audio_input(target: object) -> bool:
+    """Return True only for Antigravity Gemini models that listen to .ogg natively."""
+    if target is None:
+        return False
+    if isinstance(target, str):
+        raw = target
+    elif isinstance(target, Mapping):
+        raw = str(target.get("model") or "")
+    else:
+        raw = str(getattr(target, "model", "") or "")
+    m = raw.lower().strip()
+    if not m:
+        return False
+    try:
+        resolved = resolve_model(m)
+    except ValueError:
+        resolved = ALIASES.get(m, m)
+    return resolved.startswith("antigravity/gemini-")

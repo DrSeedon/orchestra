@@ -937,6 +937,11 @@ class AntigravityBackend:
                     while True:
                         step_text = "\n\n".join(item["text"] for item in current_batch)
                         blocks = [{"type": "text", "text": step_text}]
+                        prompt_caps = (getattr(self._owner, "capabilities", None) or {}).get("promptCapabilities") or {}
+                        if prompt_caps.get("audio") and self.model.startswith("gemini-"):
+                            from app.native_voice import build_inline_audio_blocks
+                            uploads_dir = Path(__file__).resolve().parent.parent / "data" / "uploads"
+                            blocks.extend(build_inline_audio_blocks(step_text, uploads_dir))
                         if step_index == 0:
                             if fresh_context:
                                 blocks.insert(0, {"type": "text", "text": fresh_context})

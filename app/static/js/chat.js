@@ -477,8 +477,13 @@ async function _sendVoiceBlob(blob, mimeType) {
             xhr.send(body);
         });
         _voiceXhr = null;
-        _voiceSetState('transcribing');
-        _voiceDraftPanel('transcribing', T('Transcribing…'));
+        if (result.native_audio) {
+            _voiceSetState('sending');
+            _voiceDraftPanel('sending', T('Sending native audio…'));
+        } else {
+            _voiceSetState('transcribing');
+            _voiceDraftPanel('transcribing', T('Transcribing…'));
+        }
         _voiceSetProgress(100);
         if (!result.text?.trim()) throw new Error(T('Speech was not recognized.'));
         const appended = _appendVoiceTranscript(result.text);
@@ -1074,6 +1079,71 @@ function clearPastePreview() {
     if (el) el.remove();
 }
 
+
+
+function _nativeVoiceAudioSrc(absPath) {
+    if (!absPath) return '';
+    const uploadsMatch = absPath.match(/\/data\/uploads\/([^\s/?#]+)/);
+    if (uploadsMatch) return `/uploads/${encodeURIComponent(uploadsMatch[1])}`;
+    return `/api/files/raw?path=${encodeURIComponent(absPath)}`;
+}
+
+function _extractNativeVoiceBadges(text) {
+    if (!text || (text.indexOf('[voice:') === -1 && text.indexOf('[video_note:') === -1 && text.indexOf('[audio:') === -1)) {
+        return {cleanText: text, items: []};
+    }
+    const items = [];
+    let cleanText = text;
+    const tagRe = /\[(voice|video_note|audio):\s*([^\]\n]+?)\]/g;
+    cleanText = cleanText.replace(tagRe, (full, kind, inner) => {
+        const isNative = inner.indexOf('(без Deepgram)') !== -1 || inner.indexOf('прослушай аудиофайл сам') !== -1;
+        if (!isNative) return full;
+        let audioPath = '';
+        let label = '';
+        if (kind === 'video_note') {
+            const am = inner.match(/\|\s*audio:\s*(\/[^\s|]+\.ogg)/i);
+            if (am) audioPath = am[1];
+            const dm = inner.match(/\((\d+s)\)/);
+            label = `🎬🎤 ${T('Video note')}${dm ? ` (${dm[1]})` : ''}`;
+        } else if (kind === 'audio') {
+            const pm = inner.match(/^(\/[^\s|]+)/);
+            if (pm) audioPath = pm[1];
+            const nm = inner.match(/\|\s*([^\s—]+(?:\s+[^\s—]+)*?)\s*(?:\(\d+s\))?\s*—/);
+            const fname = nm ? nm[1].trim() : (audioPath ? audioPath.split('/').pop() : 'Audio');
+            const dm = inner.match(/\((\d+s)\)/);
+            label = `🎵 ${fname}${dm ? ` (${dm[1]})` : ''}`;
+        } else {
+            const pm = inner.match(/^(\/[^\s]+)/);
+            if (pm) audioPath = pm[1];
+            const dm = inner.match(/\((\d+s)\)/);
+            label = `🎤 ${T('Voice message')}${dm ? ` (${dm[1]})` : ''}`;
+        }
+        items.push({kind, audioPath, label});
+        return '';
+    }).replace(/\n{3,}/g, '\n\n').trim();
+    return {cleanText, items};
+}
+
+function _renderNativeVoiceBadges(container, items) {
+    if (!items || !items.length) return;
+    for (const item of items) {
+        const card = document.createElement('div');
+        card.className = 'chat-native-voice';
+        const badge = document.createElement('div');
+        badge.className = 'chat-native-voice-badge';
+        badge.textContent = item.label;
+        card.appendChild(badge);
+        if (item.audioPath) {
+            const audio = document.createElement('audio');
+            audio.className = 'chat-native-voice-audio';
+            audio.controls = true;
+            audio.preload = 'none';
+            audio.src = _nativeVoiceAudioSrc(item.audioPath);
+            card.appendChild(audio);
+        }
+        container.appendChild(card);
+    }
+}
 
 function renderImages(el, content) {
     const re = /(\/\S+\.(png|jpe?g|gif|webp|svg|mp4|webm|mov))/gi;
@@ -5998,8 +6068,12 @@ function addChatEntry(type, content, ts, anchor, payload) {
         if (origin === 'user' || dashboardMessage) {
             if (dashboardMessage) div.setAttribute('aria-label', T('Message from dashboard'));
             div.className += ' markdown-body';
-            div.innerHTML = DOMPurify.sanitize(marked.parse(displayContent));
-            renderImages(div, displayContent);
+            const voiceParsed = _extractNativeVoiceBadges(displayContent);
+            div.innerHTML = voiceParsed.cleanText
+                ? DOMPurify.sanitize(marked.parse(voiceParsed.cleanText))
+                : '';
+            _renderNativeVoiceBadges(div, voiceParsed.items);
+            renderImages(div, voiceParsed.cleanText || displayContent);
         } else {
             const originLabels = {
                 agent: T('Agent'),

@@ -43,6 +43,8 @@ from app.user_message_display import (
     add_user_message_time_prefix,
     user_message_display_content,
 )
+from app.models import supports_native_audio_input
+from app.native_voice import format_native_voice_tag
 from app.transcription import transcribe_audio as _transcribe_audio
 from app.upload_limits import (
     MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, photo_geometry_valid, send_as_photo,
@@ -4378,10 +4380,16 @@ async def handle_voice(msg: types.Message):
     t_total = time.monotonic()
 
     token = await _register_media(msg, session)
-    path = await _download_file(msg.voice.file_id, _media_name("voice", ".oga", msg), msg.voice.file_unique_id)
+    path = await _download_file(msg.voice.file_id, _media_name("voice", ".ogg", msg), msg.voice.file_unique_id)
     tag = _sender_tag(msg)
     if not path:
         await _resolve_media(token, f"{tag}{_forward_meta(msg)}[voice: file too large]")
+        return
+    if supports_native_audio_input(session):
+        total_ms = (time.monotonic() - t_total) * 1000
+        logger.info(f"handle_voice native_audio=True total={total_ms:.0f}ms duration={msg.voice.duration}s")
+        voice_tag = format_native_voice_tag(path, getattr(msg.voice, "duration", None), source="voice")
+        await _resolve_media(token, f"{tag}{_forward_meta(msg)}{voice_tag}")
         return
     text, err = await _transcribe_audio(
         path,
@@ -4411,13 +4419,21 @@ async def handle_video_note(msg: types.Message):
     if not path:
         await _resolve_media(token, f"{tag}{_forward_meta(msg)}[video_note: file too large]")
         return
-    audio_path = path.replace(".mp4", ".oga")
+    audio_path = path.replace(".mp4", ".ogg") if path.endswith(".mp4") else str(Path(path).with_suffix(".ogg"))
     p = await asyncio.create_subprocess_exec(
         "ffmpeg", "-i", path, "-vn", "-acodec", "libopus", "-y", audio_path,
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
     )
     await p.communicate()
     if p.returncode == 0:
+        if supports_native_audio_input(session):
+            logger.info(f"handle_video_note native_audio=True duration={getattr(msg.video_note, 'duration', None)}s")
+            vnote_tag = format_native_voice_tag(
+                audio_path, getattr(msg.video_note, "duration", None),
+                source="video_note", companion_video=path,
+            )
+            await _resolve_media(token, f"{tag}{_forward_meta(msg)}{vnote_tag}")
+            return
         text, err = await _transcribe_audio(
             audio_path,
             msg.video_note.file_unique_id,
@@ -4480,7 +4496,10 @@ async def handle_audio(msg: types.Message):
     name = msg.audio.file_name or _media_name("audio", ".mp3", msg)
     path = await _download_file(msg.audio.file_id, name, msg.audio.file_unique_id)
     caption = f"\n{msg.caption}" if msg.caption else ""
-    tag = f"[audio: {path} | {name}]" if path else f"[audio: too large | {name}]"
+    if path and supports_native_audio_input(session):
+        tag = format_native_voice_tag(path, getattr(msg.audio, "duration", None), source="audio", filename=name)
+    else:
+        tag = f"[audio: {path} | {name}]" if path else f"[audio: too large | {name}]"
     await _send_to_agent(msg, session, f"{_forward_meta(msg)}{tag}{caption}")
 
 

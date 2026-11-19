@@ -12,6 +12,8 @@ from fastapi import APIRouter, Form, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.events import MessageProvenance
+from app.models import supports_native_audio_input
+from app.native_voice import convert_to_ogg_opus, format_native_voice_tag
 from app.charts import CHART_DIR
 from app.routes.errors import keyed_auth_required
 from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
@@ -119,6 +121,7 @@ async def _process_dashboard_voice(row: dict) -> None:
     voice_id = row["voice_id"]
     logger.info("voice %s background transcription started", voice_id)
     await asyncio.to_thread(dashboard_voice_mark_running, voice_id)
+    keep_audio_file = False
     try:
         path = Path(row["path"])
         duration = await _audio_duration_seconds(str(path))
@@ -126,21 +129,31 @@ async def _process_dashboard_voice(row: dict) -> None:
             raise ValueError("audio duration is invalid")
         if duration > VOICE_MAX_SECONDS:
             raise ValueError("recording is too long (max 5 minutes)")
-        text, error = await transcribe_audio(
-            str(path),
-            f"dashboard-{voice_id}",
-            session_name=row["session_name"],
-            scope=row["scope"],
-            content_type=row["content_type"],
-        )
-        if error:
-            raise RuntimeError(error)
-        text = text.strip()
-        if not text:
-            raise ValueError("speech was not recognized")
         session = await manager.ensure_loaded_by_id(row["session_id"])
         if not session:
             raise RuntimeError(f"target session {row['session_id']} is unavailable")
+        if supports_native_audio_input(session):
+            ogg_path = UPLOADS_DIR / f"dashboard-voice-{voice_id}.ogg"
+            if path.suffix.lower() != ".ogg":
+                await convert_to_ogg_opus(path, ogg_path)
+                path.unlink(missing_ok=True)
+            else:
+                ogg_path = path
+            text = format_native_voice_tag(ogg_path, duration, source="dashboard")
+            keep_audio_file = True
+        else:
+            text, error = await transcribe_audio(
+                str(path),
+                f"dashboard-{voice_id}",
+                session_name=row["session_name"],
+                scope=row["scope"],
+                content_type=row["content_type"],
+            )
+            if error:
+                raise RuntimeError(error)
+            text = text.strip()
+            if not text:
+                raise ValueError("speech was not recognized")
         provenance = MessageProvenance(
             origin="user", senders=("user",),
             subtype="dashboard_voice", ref=voice_id,
@@ -154,10 +167,14 @@ async def _process_dashboard_voice(row: dict) -> None:
         await _report_voice_failure(row, detail)
         return
     await asyncio.to_thread(dashboard_voice_mark_sent, voice_id)
-    try:
-        Path(row["path"]).unlink()
-    except OSError as error:
-        logger.warning("voice %s sent but audio cleanup failed: %s: %s", voice_id, type(error).__name__, error)
+    if keep_audio_file:
+        from app.tg_bridge import _cleanup_uploads
+        await asyncio.to_thread(_cleanup_uploads)
+    else:
+        try:
+            Path(row["path"]).unlink()
+        except OSError as error:
+            logger.warning("voice %s sent but audio cleanup failed: %s: %s", voice_id, type(error).__name__, error)
 
 
 def _schedule_dashboard_voice(row: dict) -> None:
@@ -259,6 +276,33 @@ async def transcribe_upload(
             return JSONResponse({"error": "audio duration is invalid"}, status_code=400)
         if duration > VOICE_MAX_SECONDS:
             return JSONResponse({"error": "recording is too long (max 5 minutes)"}, status_code=413)
+
+        from app.deps import manager
+        target = None
+        if session_name and scope and getattr(manager, "get_by_name", None):
+            import sqlite3
+            try:
+                target = manager.get_by_name(session_name, scope)
+            except sqlite3.OperationalError:
+                target = None
+        if supports_native_audio_input(target):
+            UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+            voice_id = uuid.uuid4().hex
+            ogg_path = UPLOADS_DIR / f"dashboard-voice-{voice_id}.ogg"
+            if suffix.lower() == ".ogg":
+                await asyncio.to_thread(ogg_path.write_bytes, content)
+            else:
+                await convert_to_ogg_opus(temp_path, ogg_path)
+            from app.tg_bridge import _cleanup_uploads
+            await asyncio.to_thread(_cleanup_uploads)
+            text = format_native_voice_tag(ogg_path, duration, source="dashboard")
+            return {
+                "text": text,
+                "native_audio": True,
+                "path": str(ogg_path),
+                "url": f"/uploads/{ogg_path.name}",
+                "duration": int(round(duration)),
+            }
 
         from app.transcription import transcribe_audio
         digest = hashlib.sha256(content).hexdigest()
