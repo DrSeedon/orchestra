@@ -227,17 +227,67 @@ async def test_cancel_queued_turn_does_not_cancel_other_session(stand, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_prompt_timeout_latches_and_shutdown_cleans_owned_pid(stand):
+async def test_timeout_with_cancel_ack_keeps_profile_and_releases_slot(stand):
     b = stand.backend()
     await b.connect()
-    b._owner.prompt_timeout = 0.10
+    b._owner.prompt_idle_timeout = 0.12
     assert not end(await turn(b, "BLOCK")).metadata["ok"]
-    pid = b._owner.process.pid
-    assert b._owner.process.returncode is not None
-    with pytest.raises(ProcessLookupError):
-        os.kill(pid, 0)
-    assert not end(await turn(stand.backend(), "no restart")).metadata["ok"]
-    assert sum(r["method"] == "spawn" for r in stand.trace()) == 1
+    assert not b._owner.uncertain_sessions
+    assert end(await turn(b, "new prompt")).metadata["ok"]
+    methods = Counter(row["method"] for row in stand.trace())
+    assert methods["spawn"] == 1 and methods["session/cancel"] == 1 and methods["session/prompt"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("hard_limit, ok", [(1.2, True), (.33, False)])
+async def test_watchdog_renews_from_session_activity_but_respects_absolute_cap(stand, hard_limit, ok):
+    b = stand.backend()
+    await b.connect()
+    b._owner.prompt_idle_timeout = .22
+    b._owner.prompt_max_timeout = hard_limit
+    result = end(await turn(b, "WATCHDOG_ACTIVE"))
+    assert result.metadata["ok"] is ok
+    assert sum(row["method"] == "session/cancel" for row in stand.trace()) == (0 if ok else 1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("refused", [False, True])
+async def test_explicit_turn_recovers_uncertain_session_without_replay(stand, monkeypatch, refused):
+    if refused:
+        monkeypatch.setenv("AGY_MOCK_MODE", "resume-refusal")
+    monkeypatch.setenv("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "1")
+    b = stand.backend()
+    await b.connect()
+    b._owner.prompt_idle_timeout = .12
+    b._owner.prompt_cancel_timeout = .1
+    assert not end(await turn(b, "IGNORE_CANCEL")).metadata["ok"]
+    old_id, old_pid = b.session_id, b._owner.process.pid
+    assert old_id in b._owner.uncertain_sessions
+    assert end(await turn(b, "new explicit follow-up")).metadata["ok"]
+    methods = Counter(row["method"] for row in stand.trace())
+    assert old_pid != b._owner.process.pid
+    assert (b.session_id != old_id) is refused
+    assert methods["session/prompt"] == 2 and methods["session/resume"] == 1
+    assert methods["session/new"] == (2 if refused else 1)
+    assert not b._owner._quarantined_slots
+
+
+@pytest.mark.asyncio
+async def test_uncertain_session_uses_new_id_while_sibling_is_active(stand):
+    recovering, sibling = stand.backend(), stand.backend()
+    await recovering.connect()
+    recovering._owner.prompt_idle_timeout = .13
+    recovering._owner.prompt_cancel_timeout = .10
+    assert not end(await turn(recovering, "IGNORE_CANCEL")).metadata["ok"]
+    old_id = recovering.session_id
+    recovering._owner.prompt_idle_timeout = 2
+    await sibling.send(owner_message("BLOCK"))
+    await wait_prompt(stand, 2)
+    assert end(await turn(recovering, "new explicit follow-up")).metadata["ok"]
+    assert recovering.session_id != old_id
+    assert sibling.is_alive and sibling.session_id in recovering._owner.listeners
+    assert sum(row["method"] == "spawn" for row in stand.trace()) == 1
+    await sibling.interrupt()
 
 
 @pytest.mark.asyncio
@@ -617,3 +667,14 @@ async def test_owner_session_submission_delivers_trusted_backend_provenance(stan
     await s._listen_task
     assert end(events).metadata["ok"]
     assert sum(r["method"] == "session/prompt" for r in stand.trace()) == 1
+
+
+@pytest.mark.asyncio
+async def test_other_session_updates_cannot_extend_idle_watchdog(stand):
+    b = stand.backend()
+    await b.connect()
+    b._owner.prompt_idle_timeout = .18
+    b._owner.prompt_max_timeout = 1.5
+    assert not end(await turn(b, "WATCHDOG_OTHER_SESSION")).metadata["ok"]
+    assert sum(row["method"] == "session/cancel" for row in stand.trace()) == 1
+    assert not b._owner.uncertain_sessions

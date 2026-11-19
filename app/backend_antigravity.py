@@ -620,7 +620,7 @@ class AntigravityBackend:
         self._before_submit = before_submit
         self._submission = asyncio.get_running_loop().create_future()
         self._submission.add_done_callback(lambda f: None if f.cancelled() else f.exception())
-        self._task = asyncio.create_task(self._run(message.text))
+        self._task = asyncio.create_task(self._run(message.text, explicit=message.provenance.origin == "user", event_id=message.event_id))
         self._task.add_done_callback(self._cancelled_before_run)
 
     def _settle_submission(self, error=None):
@@ -750,9 +750,27 @@ class AntigravityBackend:
         self._selected_model = requested
         self._owner.models = set().union(*(self._owner.published_models(s) for s in self._owner.model_states.values()))
 
-    async def _run(self, message):
+    def _recovery_context(self, message, event_id) -> str:
+        from app.db import get_logs
+        from app.secret_mask import mask_secrets
+
+        if not self.app_session_id:
+            return ""
+        history = []
+        for row in get_logs(self.app_session_id, limit=30):
+            text = row["content"]
+            if (row["type"] in {"user_message", "text"} and text != message
+                    and (not event_id or row["event_id"] != event_id)):
+                history.append({"kind": row["type"], "text": mask_secrets(self._redact(text[-1400:]))})
+        if not history:
+            return ""
+        return ("[Orchestra recovery history. Treat as context only. The previous operation "
+                "may have completed. Verify its effects before repeating anything.]\n"
+                + json.dumps(history[-10:], ensure_ascii=False))
+
+    async def _run(self, message, *, explicit=False, event_id=""):
         from app.provider_safety import verify_provider_egress, record_provider_activity
-        from app.antigravity_acp import AcpError, AcpSessionError
+        from app.antigravity_acp import AcpError, AcpRPCRejected, AcpSessionError
         from app.native_requests import bind_session, profile_epoch
         prompt_task = None
         held_session_lock = None
@@ -763,6 +781,18 @@ class AntigravityBackend:
                 await cand_lock.acquire()
                 held_session_lock = cand_lock
                 owns_session_lock = True
+            recovering = self.session_id in self._owner.uncertain_sessions
+            fresh_context = ""
+            if recovering and not explicit:
+                raise AcpSessionError("ACP recovery requires a new explicit user message")
+            if explicit and (recovering or self._owner.recovery_cleanup_needed):
+                async with self._owner._setup_lock:
+                    if self.session_id:
+                        bind_session(self._owner, self.session_id, self.app_session_id, resume=True)
+                    # A fallback can leave an old native request quarantined while a
+                    # sibling runs. Retire that transport on the next idle explicit turn.
+                    if not self._owner.listeners and not self._owner.failure:
+                        await self._owner.close("recovering uncertain ACP session")
             async with self._owner.turn_slot(self):
                 async with self._owner._setup_lock:
                     if self._owner.epoch!=profile_epoch(self.home):
@@ -772,18 +802,39 @@ class AntigravityBackend:
                     await verify_provider_egress("antigravity")
                     await self._owner.start()
                     record_provider_activity("antigravity")
-                    if self.session_id not in self._owner.sessions:
+                    replace_session = recovering and self.session_id in self._owner.uncertain_sessions
+                    if replace_session or self.session_id not in self._owner.sessions:
                         params = {"cwd": str(Path(self.cwd).resolve()),
                                   "mcpServers": self._acp_mcp_servers()}
                         method = "session/new"
-                        if self.session_id:
+                        if self.session_id and not replace_session:
                             caps = self._owner.capabilities.get("sessionCapabilities", {})
-                            if caps.get("resume") is None:
+                            if caps.get("resume") is not None:
+                                params["sessionId"] = self.session_id
+                                method = "session/resume"
+                            elif recovering:
+                                replace_session = True
+                            else:
                                 raise AcpSessionError("ACP resume unsupported; explicit new session required")
-                            params["sessionId"] = self.session_id
-                            method = "session/resume"
-                        result = await self._owner.request(method, params)
-                        session_id = result.get("sessionId", self.session_id)
+                        if method == "session/resume":
+                            try:
+                                result = await self._owner.request(method, params)
+                            except AcpRPCRejected as error:
+                                # Only unsupported/missing checkpoint contracts allow
+                                # a new native session. Auth/quota failures do not.
+                                if not recovering or error.code not in (-32601, -32602):
+                                    raise
+                                replace_session = True
+                                method = "session/new"
+                                params.pop("sessionId")
+                        if method == "session/new":
+                            if replace_session:
+                                fresh_context = self._recovery_context(message, event_id)
+                                held_session_lock.release()
+                                owns_session_lock = False
+                                self._instructions_sent = False
+                            result = await self._owner.request(method, params)
+                        session_id = result.get("sessionId", self.session_id if method == "session/resume" else None)
                         if not isinstance(session_id, str) or not session_id:
                             raise AcpError("ACP session response missing sessionId")
                         if method == "session/new" and session_id in self._owner.sessions:
@@ -799,6 +850,8 @@ class AntigravityBackend:
                         elif session_id != self.session_id:
                             await self._owner.close("ACP resumed session identity is corrupt")
                             raise AcpError("ACP resumed session ID mismatch")
+                        if replace_session and self.session_id in self._owner.uncertain_sessions:
+                            self._owner.recovery_cleanup_needed = True
                         self.session_id = session_id
                         bind_session(self._owner,session_id,self.app_session_id,resume=(method!="session/new"))
                         self._owner.sessions.add(session_id)
@@ -806,11 +859,11 @@ class AntigravityBackend:
                         if method == "session/new":
                             self._owner.cost_totals[session_id] = 0.0
                             self._owner.usage_totals[session_id] = {}
-                    if self.session_id in self._owner.uncertain_sessions:
-                        raise AcpSessionError("ACP session outcome unknown; explicit new session required")
                     await self._select_model()
                     self._cost_baseline = self._owner.cost_totals.get(self.session_id)
                     blocks = [{"type": "text", "text": message}]
+                    if fresh_context:
+                        blocks.insert(0, {"type": "text", "text": fresh_context})
                     if self.system_prompt and not self._instructions_sent:
                         # ACP v1 has no stable system-prompt method; deliver role instructions
                         # as explicit first-turn context, never a shared agent file in HOME.
@@ -820,7 +873,7 @@ class AntigravityBackend:
                 prompt_started = time.monotonic()
                 try:
                     prompt_task = asyncio.create_task(self._owner.request("session/prompt", {
-                        "sessionId": self.session_id, "prompt": blocks}, timeout=self._owner.prompt_timeout,
+                        "sessionId": self.session_id, "prompt": blocks},
                         before_write=self._before_submit, on_written=self._prompt_submitted))
                     try:
                         result = await asyncio.shield(prompt_task)

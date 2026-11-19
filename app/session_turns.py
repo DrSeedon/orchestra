@@ -653,7 +653,9 @@ class TurnManager:
         ctx_s = f"ctx:{live_pct}%" if live_pct else ""
         def _fc(v):
             return f"{v:.4f}" if v < 0.01 and v > 0 else f"{v:.2f}"
-        if cost_unaccounted:
+        if cost_unaccounted and s.backend_type == "antigravity":
+            cost_summary = "стоимость хода недоступна: ACP не подтвердил дельту"
+        elif cost_unaccounted:
             cost_summary = f"cost unaccounted for {s.model}"
         else:
             cost_summary = (

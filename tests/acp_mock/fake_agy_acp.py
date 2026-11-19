@@ -235,6 +235,20 @@ async def prompt(request):
             "message": "synthetic-secret-must-not-leak"}})
         active.discard(sid)
         return
+    if text in {"WATCHDOG_ACTIVE", "WATCHDOG_OTHER_SESSION"}:
+        observed_sid = sid if text == "WATCHDOG_ACTIVE" else "other-session"
+        for index in range(10):
+            update(observed_sid, "agent_thought_chunk", content={"type": "text", "text": str(index)})
+            try:
+                await asyncio.wait_for(cancel[sid].wait(), .055)
+            except TimeoutError:
+                continue
+            result(request, {"stopReason": "cancelled"})
+            active.discard(sid)
+            return
+        result(request, {"stopReason": "end_turn"})
+        active.discard(sid)
+        return
     if text in {"BLOCK", "IGNORE_CANCEL", "COST_BLOCK"} or text.endswith("HTTP_BLOCK"):
         if text == "IGNORE_CANCEL":
             await asyncio.Event().wait()
@@ -286,6 +300,9 @@ async def main():
                 result(request, {})
         elif method in {"session/new", "session/resume"}:
             number += 1
+            if MODE == "resume-refusal" and method == "session/resume":
+                emit({"id": request["id"], "error": {"code": -32602, "message": "no checkpoint"}})
+                continue
             sid = request["params"].get("sessionId", "mock-session-" + str(1 if MODE == "collision" else number))
             result(request, models(sid))
         elif method in {"session/set_model", "session/set_config_option"}:

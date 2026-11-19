@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 import fcntl
 import hashlib
 import json
+import math
 import os
 import re
 import signal
@@ -27,6 +28,22 @@ class AcpError(RuntimeError):
 
 class AcpSessionError(AcpError):
     """Refused operation, with no corruption of the shared profile transport."""
+
+
+class AcpRPCRejected(AcpSessionError):
+    """A definitive negative response, distinct from an ambiguous transport loss."""
+
+    def __init__(self, code=None):
+        super().__init__("ACP RPC rejected; operator recovery required")
+        self.code = code
+
+
+def _timeout_seconds(name: str, default: float) -> float:
+    try:
+        seconds = float(os.environ.get(name, default))
+    except ValueError:
+        return default
+    return seconds if math.isfinite(seconds) and seconds > 0 else default
 
 
 _owners: dict[Path, "AcpProfile"] = {}
@@ -60,7 +77,7 @@ def auto_approve_enabled() -> bool:
 
 class AcpProfile:
     request_timeout = 20.0
-    prompt_timeout = 600.0
+    prompt_cancel_timeout = 2.5
 
     def __init__(self, home: Path):
         self.home = home
@@ -74,7 +91,11 @@ class AcpProfile:
         self._permanent_failure = False
         self.uncertain_sessions = set()
         self._quarantined_slots = set()
+        self.recovery_cleanup_needed = False
         self.loop = asyncio.get_running_loop()
+        self.prompt_idle_timeout = _timeout_seconds("ANTIGRAVITY_PROMPT_IDLE_TIMEOUT", 600)
+        self.prompt_max_timeout = _timeout_seconds("ANTIGRAVITY_PROMPT_MAX_TIMEOUT", 3600)
+        self._prompt_deadlines: dict[str, tuple[asyncio.Timeout, float]] = {}
         try:
             max_turns = min(3, max(1, int(os.environ.get("ANTIGRAVITY_MAX_CONCURRENT_TURNS", "3"))))
         except ValueError:
@@ -115,7 +136,7 @@ class AcpProfile:
             yield
         finally:
             sid = backend.session_id
-            if sid in self.uncertain_sessions and not self.failure:
+            if sid in self.uncertain_sessions and sid not in self._quarantined_slots and not self.failure:
                 self._quarantined_slots.add(sid)
             else:
                 self.turn_semaphore.release()
@@ -212,6 +233,7 @@ class AcpProfile:
                 self.cost_totals.clear()
                 self.usage_totals.clear()
                 self.uncertain_sessions.clear()
+                self.recovery_cleanup_needed = False
                 self._client_request_ids.clear()
                 self._client_responses.clear()
             if self.process is not None:
@@ -262,7 +284,7 @@ class AcpProfile:
                 await self.close(reason)
                 raise AcpError(reason) from None
 
-    async def _write(self, message, *, before_write=None, on_written=None):
+    async def _write(self, message, *, before_write=None, on_written=None, on_started=None):
         if self.failure or self.process is None or self.process.returncode is not None:
             raise AcpError(self.failure or "ACP daemon unavailable")
         payload = (json.dumps(message, ensure_ascii=False) + "\n").encode()
@@ -271,6 +293,8 @@ class AcpProfile:
         async with self._write_lock:
             if before_write is not None:
                 await before_write()
+            if on_started is not None:
+                on_started()
             self.process.stdin.write(payload)
             await self.process.stdin.drain()
             if on_written is not None:
@@ -284,30 +308,74 @@ class AcpProfile:
         request_id = self._next_id
         future = self.loop.create_future()
         self._pending[request_id] = future
+        sid = params.get("sessionId")
+        prompt = method == "session/prompt" and isinstance(sid, str)
+        hard_deadline = self.loop.time() + self.prompt_max_timeout
+        started = False
+
+        def mark_started():
+            nonlocal started
+            started = True
+
         try:
-            async with asyncio.timeout(self.request_timeout if timeout is None else timeout):
+            duration = self.request_timeout if timeout is None else timeout
+            async with asyncio.timeout(duration):
                 await self._write({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params},
-                                  before_write=before_write, on_written=on_written)
+                                  before_write=before_write, on_written=on_written, on_started=mark_started)
+                if not prompt:
+                    return await asyncio.shield(future)
+            async with asyncio.timeout_at(min(hard_deadline, self.loop.time() + self.prompt_idle_timeout)) as watchdog:
+                self._prompt_deadlines[sid] = (watchdog, hard_deadline)
                 return await asyncio.shield(future)
         except AcpSessionError:
+            raise
+        except AcpError:
+            if prompt and started and not self._permanent_failure:
+                self.uncertain_sessions.add(sid)
             raise
         except asyncio.CancelledError:
             # The backend shields submitted prompts and sends protocol cancellation.
             raise
         except TimeoutError:
-            sid = params.get("sessionId")
-            if sid:
+            if not prompt or not started:
+                raise AcpSessionError("ACP request timed out before prompt submission" if prompt
+                                      else "ACP setup request timed out") from None
+            self._prompt_deadlines.pop(sid, None)
+            # Keep the original response future registered while cancelling.
+            # A late success/negative RPC is terminal and releases the slot.
+            try:
+                async with asyncio.timeout(self.prompt_cancel_timeout):
+                    if not future.done():
+                        await self.notify("session/cancel", {"sessionId": sid})
+                    await asyncio.shield(future)
+            except AcpRPCRejected:
+                pass
+            except (TimeoutError, AcpError, OSError):
                 self.uncertain_sessions.add(sid)
-            raise AcpSessionError("ACP session timed out; outcome unknown, explicit recovery required") from None
+                raise AcpSessionError("ACP prompt timed out; cancellation unconfirmed") from None
+            raise AcpSessionError("ACP prompt timed out; terminal response received after deadline") from None
         except (BrokenPipeError, ConnectionResetError, OSError):
+            if prompt and started:
+                self.uncertain_sessions.add(sid)
             await self.close("ACP transport write failed; outcome unknown, no replay")
             raise AcpError(self.failure) from None
         finally:
+            if prompt:
+                self._prompt_deadlines.pop(sid, None)
             self._pending.pop(request_id, None)
             if not future.done():
                 future.cancel()
             elif not future.cancelled():
                 future.exception()  # retrieve exceptions when timeout raced EOF
+
+    def _note_prompt_activity(self, sid):
+        if not isinstance(sid, str):
+            return
+        active = self._prompt_deadlines.get(sid)
+        if active is not None:
+            watchdog, hard_deadline = active
+            if not watchdog.expired():
+                watchdog.reschedule(min(hard_deadline, self.loop.time() + self.prompt_idle_timeout))
 
     async def _read(self):
         try:
@@ -321,6 +389,8 @@ class AcpProfile:
                         raise AcpError("Invalid ACP RPC identity")
                 if "method" in message:
                     method, params = message["method"], message.get("params") or {}
+                    if isinstance(params, dict) and method.startswith("session/"):
+                        self._note_prompt_activity(params.get("sessionId"))
                     if "id" in message:
                         # No filesystem/terminal capability advertised. Permission
                         # requests fail closed; unknown client methods are bounded errors.
@@ -368,8 +438,12 @@ class AcpProfile:
                         if banned:
                             self._permanent_failure = True
                             backend._trip_antigravity_circuit_breaker("ACP confirmed account-disabled/Terms-of-Service refusal")
-                        refusal = AcpError if banned else AcpSessionError
-                        future.set_exception(refusal("ACP RPC rejected; operator recovery required"))
+                        if banned:
+                            refusal = AcpError("ACP RPC rejected; operator recovery required")
+                        else:
+                            code = error.get("code") if isinstance(error, dict) else None
+                            refusal = AcpRPCRejected(code)
+                        future.set_exception(refusal)
                         if banned:
                             await self.close("ACP confirmed account-disabled/Terms-of-Service refusal")
                             return
