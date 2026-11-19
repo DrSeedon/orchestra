@@ -689,6 +689,8 @@ class SessionManager:
                 initial_task_title=initial_task_title,
                 model_policy_override_reason=model_policy_override_reason,
                 model_reason=model_reason,
+                standalone=standalone,
+                effort_override=effort_override,
             )
 
     async def _create_session_locked(self, name: str, scope: str, cwd: str, model: str,
@@ -706,7 +708,9 @@ class SessionManager:
                              planned_initial_turn: bool = False,
                              initial_task_title: str = "",
                              model_policy_override_reason: str = "",
-                             model_reason: str = "") -> AgentSession:
+                             model_reason: str = "",
+                             standalone: bool = False,
+                             effort_override: str | None = None) -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)

@@ -226,3 +226,21 @@ def test_b17_hub_stream_separation():
     src = Path(backend_hub.__file__).read_text()
     assert 'AgentEvent("text", text)' in src
     assert 'AgentEvent("status", sync.strip())' in src
+
+
+@pytest.mark.asyncio
+async def test_manager_create_session_forwards_standalone_and_effort(tmp_path, monkeypatch):
+    from app import db, manager as mgr_mod
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "mgr.db")
+    db.init_db()
+    m = mgr_mod.SessionManager()
+    s = await m.create_session(
+        name="standalone-codex-check",
+        scope=str(tmp_path),
+        cwd=str(tmp_path),
+        model="gpt-6.2-sol",
+        standalone=True,
+        effort_override="high",
+    )
+    assert s.effort == "high"
+    assert s.parent_name == ""
