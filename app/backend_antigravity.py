@@ -653,7 +653,7 @@ class AntigravityBackend:
         self._steer_event = asyncio.Event()
         self._tool_idle_event = asyncio.Event()
         self._tool_idle_event.set()
-        self._accepting_steer = False
+        self._accepting_steer = True
         self._turn_id = uuid.uuid4().hex
         self._segment = None
         self._segment_index = 0
@@ -928,6 +928,11 @@ class AntigravityBackend:
                     "before_submit": self._before_submit,
                     "future": self._submission,
                 }]
+                if self._steer_queue:
+                    current_batch.extend(self._steer_queue)
+                    self._steer_queue.clear()
+                    if self._steer_event is not None:
+                        self._steer_event.clear()
                 try:
                     while True:
                         step_text = "\n\n".join(item["text"] for item in current_batch)
