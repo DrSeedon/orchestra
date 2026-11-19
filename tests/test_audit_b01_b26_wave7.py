@@ -244,3 +244,60 @@ async def test_manager_create_session_forwards_standalone_and_effort(tmp_path, m
     )
     assert s.effort == "high"
     assert s.parent_name == ""
+
+
+@pytest.mark.asyncio
+async def test_stream_session_logs_owner_mode_filter(tmp_path, monkeypatch):
+    from app import auth, db
+    from app.routes import sessions as sessions_route
+    from app.session import AgentSession
+    from datetime import datetime, timezone
+
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "sse.db")
+    db.init_db()
+    s = AgentSession(
+        id="sse-owner-check",
+        name="sse-owner-check",
+        scope=str(tmp_path),
+        cwd=str(tmp_path),
+        model="gpt-6.2-sol",
+        backend_type="codex",
+        system_prompt="SYSTEM",
+        created_at=datetime.now(timezone.utc),
+    )
+    s._persist()
+    await s._persist_task
+    now = datetime.now(timezone.utc)
+    db.add_log(s.id, now, "thinking", "internal thought")
+    db.add_log(s.id, now, "thinking_stream", "live thought")
+    db.add_log(s.id, now, "text", "visible answer")
+
+    monkeypatch.setattr(sessions_route, "manager", SimpleNamespace(
+        get_session_id=lambda n, sc: s.id,
+        get=lambda sid: s,
+    ))
+
+    class _FakeReq:
+        def __init__(self):
+            self.calls = 0
+        async def is_disconnected(self):
+            self.calls += 1
+            return self.calls >= 1
+
+    async def _collect(owner_flag: bool):
+        monkeypatch.setattr(auth, "is_owner_mode", lambda: owner_flag)
+        monkeypatch.setattr(sessions_route, "is_owner_mode", lambda: owner_flag)
+        resp = await sessions_route.stream_session_logs("sse-owner-check", str(tmp_path), _FakeReq(), after_id=0)
+        chunks = []
+        async for chunk in resp.body_iterator:
+            chunks.append(chunk if isinstance(chunk, str) else chunk.decode())
+        return [json.loads(c.removeprefix("data: ").strip()) for c in chunks if c.startswith("data: ")]
+
+    owner_events = await _collect(True)
+    assert any(ev.get("type") == "thinking" for ev in owner_events)
+    assert any(ev.get("type") == "text" and ev.get("content") == "visible answer" for ev in owner_events)
+
+    client_events = await _collect(False)
+    assert not any(ev.get("type") in {"thinking", "thinking_stream"} for ev in client_events)
+    assert not any(ev.get("type") in {"thinking", "thinking_stream"} for ev in client_events)
+    assert any(ev.get("type") == "text" and ev.get("content") == "visible answer" for ev in client_events)

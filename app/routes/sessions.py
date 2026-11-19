@@ -38,6 +38,7 @@ from app.db import (
     parse_log_kinds,
     search_logs,
 )
+from app.auth import is_owner_mode
 from app.deps import manager
 from app.backend_codex import CodexWriterConflictError
 from app.errtext import err_text
