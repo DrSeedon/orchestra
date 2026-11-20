@@ -38,6 +38,16 @@ class AcpRPCRejected(AcpSessionError):
         self.code = code
 
 
+class AcpQuotaCooldownError(AcpRPCRejected):
+    """Temporary Antigravity quota exhaustion; trips local cooldown without retries."""
+
+    def __init__(self, code=None, *, message: str, until_ts: float | None = None, reset_seconds: int | None = None):
+        AcpSessionError.__init__(self, message)
+        self.code = code
+        self.until_ts = until_ts
+        self.reset_seconds = reset_seconds
+
+
 def _timeout_seconds(name: str, default: float) -> float:
     try:
         seconds = float(os.environ.get(name, default))
@@ -470,12 +480,20 @@ class AcpProfile:
                         self._late_prompts.pop(message.get("id"))
                         if "error" in message:
                             from app import backend_antigravity as backend
+                            from app.provider_safety import parse_antigravity_quota_cooldown, trip_antigravity_cooldown
                             if backend._is_account_disabled_payload(message["error"]):
                                 self._permanent_failure = True
                                 reason = "ACP confirmed account-disabled/Terms-of-Service refusal"
                                 backend._trip_antigravity_circuit_breaker(reason)
                                 await self.close(reason)
                                 return
+                            raw_err = (
+                                message["error"] if isinstance(message["error"], str)
+                                else json.dumps(message["error"], ensure_ascii=False)
+                            )
+                            is_quota, until_ts, _ = parse_antigravity_quota_cooldown(raw_err)
+                            if is_quota:
+                                trip_antigravity_cooldown(raw_err, until_ts=until_ts)
                         self.uncertain_sessions.discard(late)
                         if late in self._quarantined_slots:
                             self._quarantined_slots.remove(late)
@@ -485,9 +503,9 @@ class AcpProfile:
                     if future is None or future.done():
                         continue
                     if "error" in message:
-                        # Classify definite account/ToS bans BEFORE discarding details.
-                        # Only the fixed safe reason reaches durable state, never raw RPC.
+                        # Classify definite account/ToS bans and quota cooldown BEFORE discarding details.
                         from app import backend_antigravity as backend
+                        from app.provider_safety import parse_antigravity_quota_cooldown, trip_antigravity_cooldown
                         error = message["error"]
                         banned = backend._is_account_disabled_payload(error)
                         if banned:
@@ -496,8 +514,19 @@ class AcpProfile:
                         if banned:
                             refusal = AcpError("ACP RPC rejected; operator recovery required")
                         else:
+                            raw_err = error if isinstance(error, str) else json.dumps(error, ensure_ascii=False)
                             code = error.get("code") if isinstance(error, dict) else None
-                            refusal = AcpRPCRejected(code)
+                            is_quota, until_ts, reset_s = parse_antigravity_quota_cooldown(raw_err)
+                            if is_quota:
+                                info = trip_antigravity_cooldown(raw_err, until_ts=until_ts)
+                                refusal = AcpQuotaCooldownError(
+                                    code,
+                                    message=info["message"],
+                                    until_ts=info["until"],
+                                    reset_seconds=reset_s,
+                                )
+                            else:
+                                refusal = AcpRPCRejected(code)
                         future.set_exception(refusal)
                         if banned:
                             await self.close("ACP confirmed account-disabled/Terms-of-Service refusal")

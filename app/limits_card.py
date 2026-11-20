@@ -352,7 +352,24 @@ def collect(usage: dict, *, now: dt.datetime | None = None,
             or (key[0] == "grok" and "grok" in disabled)
         )
     ]
+    agy_7d = usage.get("antigravity") or {}
+    agy_5h = usage.get("antigravity_5h") or {}
+    has_agy_pools = "antigravity" not in disabled and (
+        any(isinstance(v, dict) and v.get("utilization") is not None for v in agy_7d.values())
+        or any(isinstance(v, dict) and v.get("utilization") is not None for v in agy_5h.values())
+    )
     pools = [p for p, _key in visible_pools]
+    if has_agy_pools:
+        for label, win, wid in (
+            ("Agy Gemini · 5 часов", agy_5h.get("gemini-5h"), "five_hour"),
+            ("Agy Gemini · неделя", agy_7d.get("gemini-weekly"), "seven_day"),
+            ("Agy Argon · неделя", agy_7d.get("gemini-argon-wtu-weekly"), "seven_day"),
+            ("Agy Claude/3P · неделя", agy_7d.get("3p-weekly"), "seven_day"),
+        ):
+            p = pool(label, win, wid)
+            p["history"] = None
+            p["history_unavailable"] = False
+            pools.append(p)
     histories = collect_history(history or {}, now)
     for p, key in visible_pools:
         p["history"] = histories.get(key)

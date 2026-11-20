@@ -84,6 +84,86 @@ ANTIGRAVITY_TOKEN_PRICES: dict[str, dict[str, float]] = {
 }
 
 
+def estimate_antigravity_turn_usage(
+    raw_model: str,
+    *,
+    context_tokens: int | None,
+    tool_calls: int = 0,
+    output_chars: int = 0,
+    thinking_chars: int = 0,
+    last_turn_at: float | None = None,
+    now: float | None = None,
+    quota_delta_pct: float | None = None,
+) -> dict | None:
+    """Estimate API-equivalent tokens and USD when ACP omits per-turn token counters."""
+    try:
+        ctx = int(context_tokens or 0)
+    except (TypeError, ValueError):
+        ctx = 0
+    total_out_chars = max(0, int(output_chars or 0)) + max(0, int(thinking_chars or 0))
+    if ctx <= 0 and total_out_chars <= 0:
+        return None
+    now_ts = time.time() if now is None else float(now)
+    warm = last_turn_at is not None and (now_ts - float(last_turn_at)) < 1800.0
+    api_calls = max(1, int(tool_calls or 0) + 1)
+    prompt_total = max(0, ctx) * api_calls
+    output_tokens = max(1, total_out_chars // 4) if total_out_chars > 0 else 0
+    input_rate = 0.50 if warm else 2.00
+    output_rate = 12.00
+    cost_usd = round((prompt_total * input_rate + output_tokens * output_rate) / 1_000_000.0, 6)
+    input_tokens = 0 if warm else prompt_total
+    cache_read_tokens = prompt_total if warm else 0
+    normalized = AggregateUsage.normalized(
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cache_read_tokens=cache_read_tokens,
+        cache_create_tokens=0,
+        model_calls=api_calls,
+        accuracy="estimated",
+    ).derived()
+    if quota_delta_pct is not None and math.isfinite(float(quota_delta_pct)):
+        normalized["quota_delta_pct"] = round(float(quota_delta_pct), 4)
+    normalized["warm_cache"] = bool(warm)
+    normalized["context_tokens"] = ctx
+    normalized["api_calls"] = api_calls
+    normalized["cost_usd"] = cost_usd
+    return {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "cache_read_tokens": cache_read_tokens,
+        "cache_create_tokens": 0,
+        "prompt_total": prompt_total,
+        "context_tokens": ctx,
+        "api_calls": api_calls,
+        "warm": bool(warm),
+        "cost_usd": cost_usd,
+        "quota_delta_pct": normalized.get("quota_delta_pct"),
+        "normalized": normalized,
+        "accuracy": "estimated",
+    }
+
+
+def _current_seven_day_utilization(model: str) -> float | None:
+    try:
+        from app.quota_gate import quota_bucket_for_model
+        from app.routes.system import _antigravity_usage_cache
+        bucket = quota_bucket_for_model("antigravity/" + model.removeprefix("antigravity/"))
+        data = _antigravity_usage_cache.get("data") or {}
+        if not isinstance(data, dict):
+            return None
+        key_map = {
+            "antigravity_gemini": "gemini-weekly",
+            "antigravity_argon": "gemini-argon-wtu-weekly",
+            "antigravity_3p": "3p-weekly",
+        }
+        entry = data.get(key_map.get(bucket or "", ""))
+        if isinstance(entry, dict) and isinstance(entry.get("utilization"), (int, float)):
+            return float(entry["utilization"])
+    except Exception:
+        return None
+    return None
+
+
 def _antigravity_cost(
     raw_model: str, input_tokens: int, cache_read_tokens: int, output_tokens: int
 ) -> float | None:
@@ -593,6 +673,30 @@ class AntigravityBackend:
                 metadata.update(cost_usd=round(self._cost_total - baseline, 8),
                                 cost_usd_cached=round(self._cost_total - baseline, 8),
                                 cost_unaccounted=False, cost_is_delta=True)
+        start_7d = getattr(self, "_turn_start_seven_day_pct", None)
+        end_7d = _current_seven_day_utilization(self.model)
+        quota_delta_pct = (
+            round(end_7d - start_7d, 4)
+            if isinstance(start_7d, (int, float)) and isinstance(end_7d, (int, float))
+            else None
+        )
+        if quota_delta_pct is not None:
+            metadata["quota_delta_pct"] = quota_delta_pct
+        if metadata.get("cost_unaccounted"):
+            ctx_tokens = context.tokens if isinstance(context, KnownContext) else getattr(getattr(self, "_context", None), "tokens", 0)
+            est = estimate_antigravity_turn_usage(
+                self.model,
+                context_tokens=ctx_tokens,
+                tool_calls=int(getattr(self, "_turn_tool_calls", 0) or 0),
+                output_chars=sum(len(chunk) for chunk in getattr(self, "_assistant_reply", ())),
+                thinking_chars=int(getattr(self, "_turn_thinking_chars", 0) or 0),
+                last_turn_at=getattr(self, "_last_turn_completed_at", None),
+                quota_delta_pct=quota_delta_pct,
+            )
+            if est is not None:
+                metadata["estimated_usage"] = est
+        if ok:
+            self._last_turn_completed_at = time.time()
         if error:
             metadata.update(model_error=error, errors=[error])
         return AgentEvent("turn_end", metadata=metadata, usage=typed)
@@ -614,13 +718,17 @@ class AntigravityBackend:
                 fut.set_exception(error)
 
     async def send(self, message, *, before_submit=None):
-        from app.antigravity_acp import ensure_interactive_input
+        from app.antigravity_acp import AcpSessionError, ensure_interactive_input
+        from app.provider_safety import get_antigravity_cooldown
         from app.session_state import DeliveryDeferred
         from app import db
         target = db.get_session(self.app_session_id) if getattr(self, "app_session_id", "") else None
         ensure_interactive_input("antigravity/" + self.model,
             message.provenance if isinstance(message, InjectedMessage) else None,
             target_session=target)
+        cooldown = get_antigravity_cooldown()
+        if cooldown is not None:
+            raise AcpSessionError(cooldown["message"])
         msg_text = message.text if isinstance(message, InjectedMessage) else str(message)
         msg_explicit = isinstance(message, InjectedMessage) and message.provenance.origin == "user"
         msg_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
@@ -658,6 +766,9 @@ class AntigravityBackend:
         self._segment = None
         self._segment_index = 0
         self._assistant_reply = []
+        self._turn_thinking_chars = 0
+        self._turn_tool_calls = 0
+        self._turn_start_seven_day_pct = _current_seven_day_utilization(self.model)
         from app.acp_tools import ToolReducer
         self._tools = ToolReducer()
         self._before_submit = before_submit
@@ -710,7 +821,10 @@ class AntigravityBackend:
                 self._segment_index+=1
                 self._segment=(target,"acp:"+str(self.session_id)+":"+self._turn_id+":"+str(self._segment_index),[])
             self._segment[2].append(text)
-            if target=="text":self._assistant_reply.append(text)
+            if target=="text":
+                self._assistant_reply.append(text)
+            else:
+                self._turn_thinking_chars = int(getattr(self, "_turn_thinking_chars", 0) or 0) + len(text)
             self._queue.put_nowait(AgentEvent("stream" if target=="text" else "thinking_stream",self._redact(text),metadata={"item_id":self._segment[1]}))
         elif kind=="config_option_update":
             if self._owner is not None and self.session_id:
@@ -733,6 +847,8 @@ class AntigravityBackend:
                 amount=_cumulative_value(cost.get("amount"),integer=False)
                 if amount is not None:self._cost_total=amount
         elif kind in {"tool_call","tool_call_update"}:
+            if kind == "tool_call":
+                self._turn_tool_calls = int(getattr(self, "_turn_tool_calls", 0) or 0) + 1
             self._flush_segment()
             for event,body,meta in self._tools.apply(update):
                 meta["native_tool_call_id"]=meta["tool_use_id"]
@@ -769,13 +885,37 @@ class AntigravityBackend:
                 + json.dumps(history[-10:], ensure_ascii=False))
 
     async def _run(self, message, *, explicit=False, event_id=""):
-        from app.provider_safety import verify_provider_egress, record_provider_activity
-        from app.antigravity_acp import AcpError, AcpRPCRejected, AcpSessionError
+        from app.provider_safety import (
+            get_antigravity_cooldown,
+            parse_antigravity_quota_cooldown,
+            record_provider_activity,
+            trip_antigravity_cooldown,
+            verify_provider_egress,
+        )
+        from app.antigravity_acp import AcpError, AcpQuotaCooldownError, AcpRPCRejected, AcpSessionError
         from app.native_requests import bind_session, profile_epoch
         prompt_task = None
         held_session_lock = None
         owns_session_lock = False
         try:
+            cooldown = get_antigravity_cooldown()
+            if cooldown is not None:
+                err = AcpSessionError(cooldown["message"])
+                self._settle_submission(err)
+                self._queue.put_nowait(
+                    AgentEvent(
+                        "error",
+                        cooldown["message"],
+                        metadata={
+                            "antigravity_quota_cooldown": True,
+                            "cooldown_until": cooldown["until"],
+                        },
+                    )
+                )
+                self._queue.put_nowait(
+                    self._end(ok=False, reason="antigravity_cooldown", error="antigravity_cooldown", context=self._context)
+                )
+                return
             if self.session_id:
                 cand_lock = self._owner.session_lock(self.session_id)
                 await cand_lock.acquire()
@@ -1034,8 +1174,46 @@ class AntigravityBackend:
             self._settle_submission(cancel_err)
             self._fail_pending_steers(cancel_err)
             self._queue.put_nowait(self._end(reason="interrupt", error="interrupted", context=self._context))
+        except AcpQuotaCooldownError as exc:
+            self._accepting_steer = False
+            self._settle_submission(exc)
+            self._fail_pending_steers(exc)
+            self._queue.put_nowait(
+                AgentEvent(
+                    "error",
+                    str(exc)[:280],
+                    metadata={
+                        "antigravity_quota_cooldown": True,
+                        "cooldown_until": exc.until_ts,
+                    },
+                )
+            )
+            self._queue.put_nowait(
+                self._end(ok=False, reason="antigravity_cooldown", error="antigravity_cooldown", context=self._context)
+            )
         except Exception as exc:
             self._accepting_steer = False
+            raw_exc = str(exc)
+            is_quota, until_ts, _ = parse_antigravity_quota_cooldown(raw_exc)
+            if is_quota:
+                info = trip_antigravity_cooldown(raw_exc, until_ts=until_ts)
+                cd_err = AcpQuotaCooldownError(message=info["message"], until_ts=info["until"])
+                self._settle_submission(cd_err)
+                self._fail_pending_steers(cd_err)
+                self._queue.put_nowait(
+                    AgentEvent(
+                        "error",
+                        info["message"],
+                        metadata={
+                            "antigravity_quota_cooldown": True,
+                            "cooldown_until": info["until"],
+                        },
+                    )
+                )
+                self._queue.put_nowait(
+                    self._end(ok=False, reason="antigravity_cooldown", error="antigravity_cooldown", context=self._context)
+                )
+                return
             acp_err = exc if isinstance(exc, AcpError) else AcpError("ACP submission failed")
             self._settle_submission(acp_err)
             self._fail_pending_steers(acp_err)

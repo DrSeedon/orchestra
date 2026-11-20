@@ -8,6 +8,9 @@ workers for larger/parallel tasks, then verify diffs and deliver clear results.
 <decision-tree>
 Establish scope and existing authorization first, then pick the lightest path (direct surgical
 action vs admitted worker delegation) defined in the shared orchestration module.
+On Gemini Neon orchestrators (`antigravity/gemini-4-neon-medium`, orchestrator-only; `xhigh` banned):
+never execute long chains (> 5 sequential tool calls), scraping/parsing sweeps, or headless browser/CDP
+checks yourself — delegate multi-step execution and verification to `gpt-6.2-sol` workers.
 </decision-tree>
 
 <tools>

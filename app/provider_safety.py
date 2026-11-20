@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
+import math
 import logging
 import os
 import re
@@ -1067,3 +1068,143 @@ def classify_and_trip_if_banned(
         return None
     trip_provider_circuit_breaker(provider, reason)
     return "credentials"
+
+ANTIGRAVITY_COOLDOWN_KV_KEY = "antigravity_quota_cooldown"
+ANTIGRAVITY_COOLDOWN_FALLBACK_SECONDS = 1800
+ANTIGRAVITY_COOLDOWN_BUFFER_SECONDS = 90
+_ANTIGRAVITY_QUOTA_ERR_RE = re.compile(
+    r"individual\s+quota\s+reached|quota\s+(?:limit\s+)?reached|quota\s+exhausted|resource_exhausted|\b429\b",
+    re.IGNORECASE,
+)
+_ANTIGRAVITY_RESETS_IN_RE = re.compile(r"resets?\s+in\s+([^\n.;,]+)", re.IGNORECASE)
+_ANTIGRAVITY_DURATION_PART_RE = re.compile(r"(\d+)\s*([dhms])", re.IGNORECASE)
+
+
+def _format_krs_hhmm(ts: float) -> str:
+    from datetime import datetime, timedelta, timezone
+
+    krs = timezone(timedelta(hours=7))
+    return datetime.fromtimestamp(float(ts), tz=krs).strftime("%H:%M")
+
+
+def parse_antigravity_quota_cooldown(
+    text: object, *, now: float | None = None
+) -> tuple[bool, float | None, int | None]:
+    """Detect Antigravity 5h/quota-reached errors and parse reset delay + 90s buffer."""
+    raw = str(text or "").strip()
+    if not raw or not _ANTIGRAVITY_QUOTA_ERR_RE.search(raw):
+        return False, None, None
+    now_ts = time.time() if now is None else float(now)
+    reset_seconds = 0
+    match = _ANTIGRAVITY_RESETS_IN_RE.search(raw)
+    if match:
+        tail = match.group(1)
+        for amount_s, unit in _ANTIGRAVITY_DURATION_PART_RE.findall(tail):
+            amount = int(amount_s)
+            u = unit.lower()
+            if u == "d":
+                reset_seconds += amount * 86400
+            elif u == "h":
+                reset_seconds += amount * 3600
+            elif u == "m":
+                reset_seconds += amount * 60
+            elif u == "s":
+                reset_seconds += amount
+    if reset_seconds <= 0:
+        reset_seconds = ANTIGRAVITY_COOLDOWN_FALLBACK_SECONDS
+    until_ts = now_ts + reset_seconds + ANTIGRAVITY_COOLDOWN_BUFFER_SECONDS
+    return True, until_ts, reset_seconds
+
+
+def antigravity_cooldown_message(until_ts: float) -> str:
+    return (
+        f"⛔ Antigravity 5h лимит исчерпан — антибан-стоп до "
+        f"{_format_krs_hhmm(until_ts)} КРС (переключите на gpt-6.2-sol)"
+    )
+
+
+def get_antigravity_cooldown(*, now: float | None = None) -> dict | None:
+    """Return active Antigravity cooldown info or None when expired/absent."""
+    try:
+        from app import db
+        raw = db.kv_get(ANTIGRAVITY_COOLDOWN_KV_KEY)
+    except Exception:
+        return None
+    if not raw:
+        return None
+    try:
+        payload = json.loads(raw) if isinstance(raw, str) else raw
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    until_raw = payload.get("until")
+    try:
+        until_ts = float(until_raw)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(until_ts):
+        return None
+    now_ts = time.time() if now is None else float(now)
+    if now_ts >= until_ts:
+        return None
+    remaining = max(1, int(math.ceil(until_ts - now_ts)))
+    return {
+        "active": True,
+        "until": until_ts,
+        "until_krs": _format_krs_hhmm(until_ts),
+        "remaining_seconds": remaining,
+        "reason": str(payload.get("reason") or ""),
+        "tripped_at": payload.get("tripped_at"),
+        "message": antigravity_cooldown_message(until_ts),
+    }
+
+
+def trip_antigravity_cooldown(
+    raw_message: object,
+    *,
+    until_ts: float | None = None,
+    now: float | None = None,
+) -> dict:
+    """Persist Antigravity 5h cooldown breaker to SQLite KV without touching Google again."""
+    now_ts = time.time() if now is None else float(now)
+    parsed_until = until_ts
+    if parsed_until is None:
+        _, parsed_until, _ = parse_antigravity_quota_cooldown(raw_message, now=now_ts)
+    if parsed_until is None or parsed_until <= now_ts:
+        parsed_until = (
+            now_ts
+            + ANTIGRAVITY_COOLDOWN_FALLBACK_SECONDS
+            + ANTIGRAVITY_COOLDOWN_BUFFER_SECONDS
+        )
+    existing = get_antigravity_cooldown(now=now_ts)
+    if existing and float(existing["until"]) > parsed_until:
+        parsed_until = float(existing["until"])
+    record = {
+        "until": parsed_until,
+        "tripped_at": now_ts,
+        "reason": str(raw_message or "Individual quota reached")[:300],
+    }
+    try:
+        from app import db
+        db.kv_set(ANTIGRAVITY_COOLDOWN_KV_KEY, json.dumps(record, ensure_ascii=False))
+    except Exception as exc:
+        logger.debug("Antigravity cooldown kv_set skipped: %s", exc)
+    return {
+        "active": True,
+        "until": parsed_until,
+        "until_krs": _format_krs_hhmm(parsed_until),
+        "remaining_seconds": max(1, int(math.ceil(parsed_until - now_ts))),
+        "reason": record["reason"],
+        "tripped_at": now_ts,
+        "message": antigravity_cooldown_message(parsed_until),
+    }
+
+
+def clear_antigravity_cooldown() -> None:
+    try:
+        from app import db
+        db.kv_set(ANTIGRAVITY_COOLDOWN_KV_KEY, "")
+    except Exception as exc:
+        logger.debug("Antigravity cooldown clear skipped: %s", exc)
+

@@ -1161,7 +1161,7 @@ def _exhausted_window_reset(provider: object, now: float) -> float | None:
 # other Antigravity bucket first, then the owner's 09.11.2026 Hub stack (separate pool).
 ANTIGRAVITY_ALTERNATIVES: dict[str, tuple[str, ...]] = {
     "antigravity_gemini": ("antigravity/claude-sonnet-5-5-medium", "hub-gemini-4-argon"),
-    "antigravity_argon": ("antigravity/gemini-4-neon-high", "hub-gemini-4-argon"),
+    "antigravity_argon": ("antigravity/gemini-4-hydrogen-high", "hub-gemini-4-argon"),
     "antigravity_3p": (
         "antigravity/gemini-4-argon-medium", "hub-claude-opus-5-5", "hub-claude-sonnet-5-5",
     ),
@@ -1233,6 +1233,37 @@ def evaluate_worker_admission(
     lane = lane_for_model(resolved, bucket)
     gated = lane_gated(lane)
     hard_stop = lane_hard_stop(lane)
+    if runtime == "antigravity":
+        from app.provider_safety import get_antigravity_cooldown
+
+        cooldown = get_antigravity_cooldown(now=checked_at)
+        if cooldown is not None:
+            return QuotaDecision(
+                state="blocked",
+                model=resolved,
+                provider=bucket,
+                provider_label=str((providers.get(bucket) or {}).get("label") or bucket),
+                lane=lane,
+                gated=True,
+                utilization=None,
+                progress=None,
+                tolerance_pp=None,
+                limit_pct=None,
+                observed_at=parse_quota_timestamp(observed_at_by_provider.get(bucket)),
+                valid_until=cooldown["until"],
+                reset_at=None,
+                window_starts_at=None,
+                reason=cooldown["message"],
+                hard_limit_pct=hard_stop,
+                release_status="blocked",
+                release_in_seconds=cooldown["remaining_seconds"],
+                override_seconds_left=override_left,
+                reason_key="antigravity_cooldown",
+                reason_params={"until_krs": cooldown["until_krs"]},
+                alternatives=(
+                    {"provider": "codex", "model": "gpt-6.2-sol"},
+                ) if _include_alternatives else (),
+            )
     provider = providers.get(bucket)
     label = provider.get("label") if isinstance(provider, Mapping) else None
     label = str(label or bucket)

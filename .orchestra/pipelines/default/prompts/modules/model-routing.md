@@ -64,7 +64,7 @@ is the native advertised window; the Gemini 1M document guidance is not a univer
    orchestrator messages keep their existing event-driven contract.
 2. Launch at most **1–2 local workers together**. The shared profile has `Semaphore(3)`;
    leave room for the owner's interactive session. This does not guarantee vendor internal-call limits.
-3. Neon, Orchestrator (Neon), Hydrogen and 3.8 Flash share **Gemini Models** (`gemini-weekly` / `gemini-5h`).
+3. Neon (`antigravity/gemini-4-neon-medium` default) is **orchestrator-only** (workers must use `gpt-6.2-sol` or admitted Hub routes, never Neon). Antigravity `xhigh` (`gemini-4-neon-xhigh`, `gemini-4-hydrogen-xhigh`) is disabled. If an Antigravity orchestrator needs > 5 tool calls, parsing/scraping, or headless CDP browser checks, delegate to a `gpt-6.2-sol` worker. Neon, Hydrogen and 3.8 Flash share **Gemini Models** (`gemini-weekly` / `gemini-5h`).
    Argon and Orchestrator (Argon) use `gemini-argon-wtu-weekly`. Local Claude 5.5 uses `3p-weekly` / `3p-5h`.
    Respect fresh 5h/weekly observations; unknown/stale observations are not invented capacity.
 4. **Local Carbon is unavailable on this g1-pro VPS**: never spawn `agy-carbon`,

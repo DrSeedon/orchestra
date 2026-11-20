@@ -1550,6 +1550,15 @@ class AgentSession:
             if provenance.subtype != "server_error_retry":
                 self._session_limit_hit = False
 
+            if self.backend_type == "antigravity":
+                from app.provider_safety import get_antigravity_cooldown
+
+                cooldown = get_antigravity_cooldown()
+                if cooldown is not None:
+                    self._session_limit_hit = True
+                    self._log("error", cooldown["message"])
+                    raise RuntimeError(cooldown["message"])
+
             capabilities = get_runtime(self.backend_type).capabilities
             if (
                 delivery is None
@@ -3231,6 +3240,12 @@ class AgentSession:
                 self._persist()
             self._active_delivery_context = None
         elif event.type == "error":
+            if event.metadata.get("antigravity_quota_cooldown"):
+                self._session_limit_hit = True
+                self._rate_limit_retries = self.RATE_LIMIT_MAX_RETRIES
+                self._server_error_retries = self.SERVER_ERROR_MAX_RETRIES
+                self._log("error", event.content)
+                return
             if event.metadata.get("codex_quota_exhausted"):
                 self._session_limit_hit = True
                 self._codex_limit_wake_generation = (self._turn_gen, self._turn_start_cancel_gen)

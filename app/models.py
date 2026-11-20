@@ -237,16 +237,21 @@ SELECTABLE_MODEL_SPECS += tuple(
 # Owner 2026-11-18: exact local g1-pro Gemini worker routes. A shared source
 # owns catalog defaults AND the native subscription dispatch exception.
 ANTIGRAVITY_NEON_RAW_MODELS = (
-    "gemini-4-neon-xhigh", "gemini-4-neon-high",
+    "gemini-4-neon-high",
     "gemini-4-neon-medium", "gemini-4-neon-low",
     "gemini-pro-orchestrator-neon",
 )
+ANTIGRAVITY_NEON_MODEL_IDS = frozenset("antigravity/" + raw for raw in ANTIGRAVITY_NEON_RAW_MODELS)
+RETIRED_ANTIGRAVITY_XHIGH_IDS = frozenset({
+    "gemini-4-neon-xhigh", "antigravity/gemini-4-neon-xhigh", "agy-neon-xhigh",
+    "gemini-4-hydrogen-xhigh", "antigravity/gemini-4-hydrogen-xhigh", "agy-hydrogen-xhigh",
+})
 ANTIGRAVITY_NEON_TOKEN_PRICES = {"input": 3.0, "cached": 0.15, "output": 15.0}
 
 ANTIGRAVITY_G1_GEMINI_AGENT_MODELS = frozenset(
     "antigravity/" + raw for raw in (
         *ANTIGRAVITY_NEON_RAW_MODELS,
-        "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-high",
+        "gemini-4-hydrogen-high",
         "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
         "gemini-4-argon-high", "gemini-4-argon-medium", "gemini-4-argon-low",
         "gemini-pro-orchestrator-g1-pro",
@@ -265,7 +270,7 @@ ANTIGRAVITY_G1_AGENT_MODELS = ANTIGRAVITY_G1_GEMINI_AGENT_MODELS | ANTIGRAVITY_G
 ANTIGRAVITY_RAW_MODELS = (
     *ANTIGRAVITY_NEON_RAW_MODELS,
     "gemini-4-carbon-medium", "gemini-4-carbon-high", "gemini-4-carbon-low",
-    "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
+    "gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
     "gemini-4-argon-medium", "gemini-4-argon-high", "gemini-4-argon-low",
     "gemini-pro-orchestrator", "gemini-pro-orchestrator-g1-pro", "gemini-pro-orchestrator-argon",
     "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
@@ -278,7 +283,6 @@ ANTIGRAVITY_RAW_MODELS = (
     "claude-opus-4-6-thinking",
 )
 ANTIGRAVITY_DISPLAY_NAMES = {
-    "gemini-4-neon-xhigh": "Antigravity: Gemini 4 Neon (XHigh)",
     "gemini-4-neon-high": "Antigravity: Gemini 4 Neon (High)",
     "gemini-4-neon-medium": "Antigravity: Gemini 4 Neon (Medium)",
     "gemini-4-neon-low": "Antigravity: Gemini 4 Neon (Low)",
@@ -286,7 +290,6 @@ ANTIGRAVITY_DISPLAY_NAMES = {
     "gemini-4-carbon-medium": "Antigravity: Gemini 4 Carbon (Medium)",
     "gemini-4-carbon-high": "Antigravity: Gemini 4 Carbon (High)",
     "gemini-4-carbon-low": "Antigravity: Gemini 4 Carbon (Low)",
-    "gemini-4-hydrogen-xhigh": "Antigravity: Gemini 4 Hydrogen (XHigh)",
     "gemini-4-hydrogen-high": "Antigravity: Gemini 4 Hydrogen (High)",
     "gemini-4-hydrogen-medium": "Antigravity: Gemini 4 Hydrogen (Medium)",
     "gemini-4-hydrogen-low": "Antigravity: Gemini 4 Hydrogen (Low)",
@@ -314,7 +317,6 @@ ANTIGRAVITY_CONTEXT_LENGTHS = {
     "gemini-4-carbon-high": 1_000_000,
     "gemini-4-carbon-medium": 1_000_000,
     "gemini-4-carbon-low": 1_000_000,
-    "gemini-4-hydrogen-xhigh": 1_000_000,
     "gemini-4-hydrogen-high": 1_000_000,
     "gemini-4-hydrogen-medium": 1_000_000,
     "gemini-4-hydrogen-low": 1_000_000,
@@ -364,14 +366,12 @@ ALIASES = {
     "agy-argon-high": "antigravity/gemini-4-argon-high",
     "agy-flash-high": "antigravity/gemini-3.8-flash-high",
     "agy-carbon": "antigravity/gemini-4-carbon-medium",
-    "agy-neon": "antigravity/gemini-4-neon-high",
+    "agy-neon": "antigravity/gemini-4-neon-medium",
     "agy-neon-high": "antigravity/gemini-4-neon-high",
-    "agy-neon-xhigh": "antigravity/gemini-4-neon-xhigh",
     "agy-neon-medium": "antigravity/gemini-4-neon-medium",
     "agy-neon-low": "antigravity/gemini-4-neon-low",
     "agy-neon-orch": "antigravity/gemini-pro-orchestrator-neon",
     "agy-hydrogen": "antigravity/gemini-4-hydrogen-high",
-    "agy-hydrogen-xhigh": "antigravity/gemini-4-hydrogen-xhigh",
     "agy-hydrogen-med": "antigravity/gemini-4-hydrogen-medium",
     "fable": "claude-fable-5-1[1m]",
     "fable5": "claude-fable-5-1[1m]",
@@ -710,6 +710,26 @@ MODEL_SPECS: dict[str, ModelSpec] = {}
 # Keeping them outside MODELS prevents retired models from returning to the UI
 # while making resume deterministic without any prefix inference.
 COMPAT_MODEL_SPECS: dict[str, ModelSpec] = {
+    "antigravity/gemini-4-neon-xhigh": ModelSpec(
+        id="antigravity/gemini-4-neon-xhigh",
+        name="Antigravity: Gemini 4 Neon (XHigh, retired)",
+        runtime="antigravity",
+        provider="google-antigravity",
+        context_length=1_000_000,
+        price_input=ANTIGRAVITY_NEON_TOKEN_PRICES["input"],
+        price_output=ANTIGRAVITY_NEON_TOKEN_PRICES["output"],
+        default_dashboard=False,
+        default_agents=False,
+    ),
+    "antigravity/gemini-4-hydrogen-xhigh": ModelSpec(
+        id="antigravity/gemini-4-hydrogen-xhigh",
+        name="Antigravity: Gemini 4 Hydrogen (XHigh, retired)",
+        runtime="antigravity",
+        provider="google-antigravity",
+        context_length=1_000_000,
+        default_dashboard=False,
+        default_agents=False,
+    ),
     "hub-gpt-6-astra": ModelSpec(
         id="hub-gpt-6-astra", name="hub-gpt-6-astra (legacy)", runtime="hub", provider="multicode",
     ),
@@ -1277,6 +1297,11 @@ def ensure_spawn_allowed(
     """
     _ensure_model_not_retired(model_id)
     spec = get_model_spec(model_id)
+    if model_id in ANTIGRAVITY_NEON_MODEL_IDS and (role or "").strip().lower() != "orchestrator":
+        raise ValueError(
+            f"model {model_id!r} is restricted to orchestrators (role='orchestrator'); "
+            "for workers use gpt-6.2-sol or hub routes."
+        )
     if is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider):
         raise ValueError(
             f"model {model_id!r} is disabled because provider {spec.runtime!r} "
@@ -1733,8 +1758,11 @@ def runtime_for_record(record: dict) -> str:
 
 def _ensure_model_not_retired(model: str) -> None:
     normalized = model.lower().strip()
-    if ALIASES.get(normalized, normalized) in RETIRED_SOL_ASTRA_IDS:
+    resolved = ALIASES.get(normalized, normalized)
+    if resolved in RETIRED_SOL_ASTRA_IDS:
         raise ValueError(f"model {model!r} is retired; select Sol 6.2 or Astra 6.2")
+    if resolved in RETIRED_ANTIGRAVITY_XHIGH_IDS:
+        raise ValueError(f"model {model!r} is retired; Antigravity xhigh is disabled (use high or medium)")
 
 
 def validate_model_reason(model: str, reason: str = "", **context) -> str:

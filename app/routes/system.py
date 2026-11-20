@@ -1674,11 +1674,13 @@ async def _get_usage_data(
     agy = None if agy_disabled else _antigravity_usage_cache.get("data")
     agy_5h = None if agy_disabled else _antigravity_usage_cache.get("five_hour")
     from app.backend_antigravity import QUOTA_KEYS
+    from app.provider_safety import get_antigravity_cooldown
 
     return {
         "antigravity": {key: (agy or {}).get(key) for key in QUOTA_KEYS},
         **({"antigravity_5h": agy_5h} if isinstance(agy_5h, dict) else {}),
         "antigravity_observed_at": None if agy_disabled else _antigravity_usage_cache.get("ts"),
+        "antigravity_cooldown": None if agy_disabled else get_antigravity_cooldown(),
         "anthropic": anthropic_data,
         "anthropic_error": None if claude_disabled else _usage_cache.get("error"),
         "codex": codex_data,

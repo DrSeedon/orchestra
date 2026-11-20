@@ -4137,10 +4137,34 @@ async def stream_logs(orch_name: str, thread_id: int):
 
 
 async def _get_limits_usage() -> dict:
-    from app.routes.system import _get_usage_data, _quota_headroom
+    from app.models import is_provider_disabled
+    from app.provider_safety import get_antigravity_cooldown
+    from app.quota_gate import quota_policy
+    from app.routes.system import (
+        _antigravity_headroom,
+        _antigravity_quota_decisions,
+        _get_usage_data,
+        _quota_headroom,
+        _quota_observation_from_cache,
+    )
 
     data = await _get_usage_data()
-    return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
+    agy_gate = {}
+    if not is_provider_disabled("antigravity"):
+        obs = _quota_observation_from_cache()
+        agy_gate = {
+            key: {"state": decision.state, "headroom_pp": _antigravity_headroom(decision)}
+            for _, _, key, _, decision in _antigravity_quota_decisions(
+                obs["providers"], obs["observed_at_by_provider"],
+                now=time.time(), policy=quota_policy(),
+            )
+        }
+    return {
+        **data,
+        "quota_headroom": _quota_headroom(data.get("anthropic")),
+        "antigravity_gate": agy_gate,
+        "antigravity_cooldown": get_antigravity_cooldown(),
+    }
 
 
 async def _is_limits_owner(msg: types.Message) -> bool:
@@ -4262,7 +4286,51 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
             "• Claude extra usage — лимит расходов достигнут "
             "(базовые окна считаются отдельно)"
         )
-    return "\n".join(lines)
+
+    agy_7d = usage.get("antigravity") or {}
+    agy_5h = usage.get("antigravity_5h") or {}
+    agy_cd = usage.get("antigravity_cooldown")
+    agy_gate = usage.get("antigravity_gate") or {}
+    has_agy = (
+        any(isinstance(v, dict) and v.get("utilization") is not None for v in agy_7d.values())
+        or any(isinstance(v, dict) and v.get("utilization") is not None for v in agy_5h.values())
+        or isinstance(agy_cd, dict)
+        or (isinstance(agy_gate, dict) and bool(agy_gate))
+    )
+    if has_agy:
+        def _short_agy(win: dict | None, *, time_fmt: str = "%H:%M") -> str:
+            if not isinstance(win, dict) or not isinstance(win.get("utilization"), (int, float)):
+                return "нет данных"
+            used = float(win["utilization"])
+            rem = _fmt_pct(100.0 - used)
+            rst = _to_utc_datetime(win.get("resets_at"))
+            rst_s = f", сброс {rst.astimezone(local_tz).strftime(time_fmt)}" if rst else ""
+            return f"ост. {rem}% (исп. {_fmt_pct(used)}%{rst_s})"
+
+        lines.append(f"• Antigravity Gemini 5h — {_short_agy(agy_5h.get('gemini-5h'), time_fmt='%H:%M КРС')}")
+        lines.append(f"• Antigravity Gemini 7d — {_short_agy(agy_7d.get('gemini-weekly'), time_fmt='%d.%m %H:%M')}")
+        lines.append(
+            f"• Antigravity Argon 7d — {_short_agy(agy_7d.get('gemini-argon-wtu-weekly'), time_fmt='%d.%m %H:%M')} · "
+            f"Claude/3P 7d — {_short_agy(agy_7d.get('3p-weekly'), time_fmt='%d.%m %H:%M')}"
+        )
+        gate_parts = [f"{k}={v.get('state', '?')}" for k, v in agy_gate.items() if isinstance(v, dict)] if isinstance(agy_gate, dict) else []
+        if isinstance(agy_cd, dict) and agy_cd.get("until_krs"):
+            status_tail = f"⛔ cooldown до {agy_cd['until_krs']} КРС"
+            if gate_parts:
+                status_tail += f" ({', '.join(gate_parts)})"
+        elif gate_parts:
+            status_tail = f"gate: {', '.join(gate_parts)}"
+        else:
+            status_tail = "gate: ok"
+        lines.append(f"• Antigravity статус — {status_tail}")
+
+    text = "\n".join(lines)
+    if len(text) > 1024:
+        compact_lines = [line.replace(" UTC+7", "").replace("; темп ok", "") for line in lines]
+        text = "\n".join(compact_lines)
+    if len(text) > 1024:
+        text = text[:1021].rstrip() + "..."
+    return text
 
 
 def _live_limits_state() -> dict | None:

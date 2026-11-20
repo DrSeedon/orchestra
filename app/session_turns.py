@@ -43,6 +43,7 @@ TURN_END_HOLD_MAX_WAITING = 8
 
 # Leave room for the CLI's own compaction and any in-flight context growth.
 CRITICAL_AUTO_COMPACT_PCT = 95
+ANTIGRAVITY_AUTO_COMPACT_TOKENS = 180_000
 CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT = 1
 # V-995: a resumed Claude session gets the whole refreshed system prompt prepended to the
 # next message and the CLI re-attaches the instruction files on top. Measured on the
@@ -71,6 +72,12 @@ def injection_overflows_context(s: "AgentSession", incoming_chars: int) -> bool:
 def _auto_compact_threshold_pct(s: "AgentSession") -> int:
     """Return our threshold, staying ahead of the CLI threshold when known."""
     threshold = CRITICAL_AUTO_COMPACT_PCT
+    if getattr(s, "backend_type", "") == "antigravity" or str(getattr(s, "model", "")).startswith("antigravity/"):
+        max_tok = s._last_context.get("max_tokens")
+        if isinstance(max_tok, int) and not isinstance(max_tok, bool) and max_tok > 0:
+            threshold = min(threshold, math.ceil(ANTIGRAVITY_AUTO_COMPACT_TOKENS * 100 / max_tok))
+        else:
+            threshold = min(threshold, 18)
     cli_tokens = s._last_context.get("auto_compact_threshold")
     max_tokens = s._last_context.get("max_tokens")
     if isinstance(cli_tokens, bool) or isinstance(max_tokens, bool):
@@ -547,9 +554,22 @@ class TurnManager:
                     "terminal_quota": quota_snapshot["state"],
                 },
             )
+        est_usage = meta.get("estimated_usage") if (cost_unaccounted and isinstance(meta.get("estimated_usage"), dict)) else None
         if event_id:
             cost_fields = {"cost_usd": s._turn_cost}
-            if cost_unaccounted:
+            in_tok = meta.get("input_tokens", 0)
+            out_tok = meta.get("output_tokens", 0)
+            cache_read_tok = meta.get("cache_read", 0)
+            cache_create_tok = meta.get("cache_create", 0)
+            normalized_payload = meta.get("normalized_usage")
+            if est_usage is not None and sr != "antigravity_cooldown":
+                cost_fields = {"cost_usd": est_usage.get("cost_usd"), "cost_unaccounted": False}
+                in_tok = est_usage.get("input_tokens", 0)
+                out_tok = est_usage.get("output_tokens", 0)
+                cache_read_tok = est_usage.get("cache_read_tokens", 0)
+                cache_create_tok = est_usage.get("cache_create_tokens", 0)
+                normalized_payload = est_usage.get("normalized")
+            elif cost_unaccounted:
                 cost_fields = {"cost_usd": None, "cost_unaccounted": True}
             baseline_fields = {}
             if not meta.get("cost_is_delta") and meta.get("session_id"):
@@ -569,10 +589,10 @@ class TurnManager:
                 ok=ok,
                 stop_reason=sr,
                 **cost_fields,
-                input_tokens=meta.get("input_tokens", 0),
-                output_tokens=meta.get("output_tokens", 0),
-                cache_read_tokens=meta.get("cache_read", 0),
-                cache_create_tokens=meta.get("cache_create", 0),
+                input_tokens=in_tok,
+                output_tokens=out_tok,
+                cache_read_tokens=cache_read_tok,
+                cache_create_tokens=cache_create_tok,
                 turn_duration_ms=meta.get("turn_duration_ms"),
                 api_duration_ms=meta.get("api_duration_ms"),
                 reasoning_tokens=meta.get("reasoning_tokens"),
@@ -584,7 +604,7 @@ class TurnManager:
                 tool_intervals_count=meta.get("tool_intervals_count"),
                 tool_intervals_missing=meta.get("tool_intervals_missing"),
                 provider_source_records=meta.get("provider_source_records"),
-                normalized_usage=meta.get("normalized_usage"),
+                normalized_usage=normalized_payload,
                 **baseline_fields,
                 **quota_snapshot["state"],
             )
@@ -1251,9 +1271,15 @@ class TurnManager:
         """Run both automatic compaction decisions from one validated context."""
         s = self.s
         from app.runtime_registry import get_runtime
+        tokens_now = int(s._last_context.get("total_tokens") or 0)
         if not get_runtime(s.backend_type).capabilities.automated_prompts:
-            if live_pct >= _auto_compact_threshold_pct(s):
-                s._log("status", "Automatic compaction disabled by runtime policy; owner manual compaction required")
+            if live_pct >= _auto_compact_threshold_pct(s) or (
+                (getattr(s, "backend_type", "") == "antigravity" or str(getattr(s, "model", "")).startswith("antigravity/")) and tokens_now >= ANTIGRAVITY_AUTO_COMPACT_TOKENS
+            ):
+                s._log(
+                    "status",
+                    f"Automatic compaction disabled by runtime policy; owner manual compaction required ({tokens_now:,} tokens >= {ANTIGRAVITY_AUTO_COMPACT_TOKENS:,})",
+                )
             return
         if self._compact_codex_before_limit():
             return

@@ -39,7 +39,7 @@ SPAWNER = Path("/run/orchestra-agy/spawner.sock")
 TOOL_EXEC = Path("/run/orchestra-agy/tool-exec.sock")
 KILLSWITCH = Path("/run/orchestra-oauth-killswitch.ready")
 MODEL = re.compile(
-    r"(?:gemini-4-(?:neon|hydrogen)-(?:low|medium|high|xhigh)"
+    r"(?:gemini-4-(?:neon|hydrogen)-(?:low|medium|high)"
     r"|gemini-4-carbon-(?:low|high)|gemini-pro-orchestrator-neon)"
 )
 
@@ -150,7 +150,12 @@ def _validate_prompt(blocks):
 
 
 async def _check_quota():
+    from app.provider_safety import get_antigravity_cooldown
     from app.routes.system import _antigravity_usage_cache
+
+    cooldown = get_antigravity_cooldown()
+    if cooldown is not None:
+        raise AcpSessionError(cooldown["message"])
     for key in ("data", "five_hour"):
         values = _antigravity_usage_cache.get(key) or {}
         usage = values.get("gemini-weekly" if key == "data" else "gemini-5h")
@@ -222,9 +227,21 @@ class Connection:
         self.writer.write(data)
 
     def update(self, update):
-        if update.get("sessionUpdate") == "agent_thought_chunk":
+        kind = update.get("sessionUpdate")
+        if kind == "agent_thought_chunk":
+            text = (update.get("content") or {}).get("text")
+            if isinstance(text, str):
+                self.turn_thinking_chars = int(getattr(self, "turn_thinking_chars", 0) or 0) + len(text)
             return
-        if update.get("sessionUpdate") == "usage_update":
+        if kind == "agent_message_chunk":
+            text = (update.get("content") or {}).get("text")
+            if isinstance(text, str):
+                self.turn_output_chars = int(getattr(self, "turn_output_chars", 0) or 0) + len(text)
+        elif kind == "tool_call":
+            self.turn_tool_calls = int(getattr(self, "turn_tool_calls", 0) or 0) + 1
+        if kind == "usage_update":
+            if isinstance(update.get("used"), (int, float)) and not isinstance(update.get("used"), bool):
+                self.turn_context_used = int(update["used"])
             usage = update.get("usage")
             if isinstance(usage, dict):
                 self.reported_usage = usage
@@ -401,6 +418,27 @@ class Connection:
             if previous is not None:
                 accounting["cost_usd"] = round(cost - previous if cost >= previous else cost, 6)
             owner.cost_totals[sid] = cost
+        if "cost_usd" not in accounting or "input_tokens" not in accounting:
+            from app.backend_antigravity import estimate_antigravity_turn_usage
+
+            est = estimate_antigravity_turn_usage(
+                str(getattr(self, "turn_model", "") or ""),
+                context_tokens=getattr(self, "turn_context_used", None),
+                tool_calls=int(getattr(self, "turn_tool_calls", 0) or 0),
+                output_chars=int(getattr(self, "turn_output_chars", 0) or 0),
+                thinking_chars=int(getattr(self, "turn_thinking_chars", 0) or 0),
+                last_turn_at=getattr(self, "last_turn_at", None),
+                now=time.time(),
+            )
+            if est is not None:
+                accounting.setdefault("input_tokens", est["input_tokens"])
+                accounting.setdefault("cache_read_tokens", est["cache_read_tokens"])
+                accounting.setdefault("output_tokens", est["output_tokens"])
+                accounting.setdefault("cost_usd", est["cost_usd"])
+                accounting["accuracy"] = est["accuracy"]
+                accounting["context_tokens"] = est["context_tokens"]
+                accounting["warm_cache"] = est["warm"]
+        self.last_turn_at = time.time()
         return accounting
 
     async def run_prompt(self, rpc_id, params):
@@ -445,6 +483,11 @@ class Connection:
                 owner.client_request_handlers[sid] = self.relay
                 self.reported_usage = {}
                 self.reported_cost = None
+                self.turn_model = model
+                self.turn_context_used = None
+                self.turn_output_chars = 0
+                self.turn_thinking_chars = 0
+                self.turn_tool_calls = 0
                 record_provider_activity("antigravity")
                 try:
                     result = await owner.request(
@@ -460,6 +503,18 @@ class Connection:
                 owner.uncertain_sessions.add(sid)
             raise
         except Exception as exc:
+            from app.antigravity_acp import AcpQuotaCooldownError
+            from app.provider_safety import get_antigravity_cooldown
+
+            if isinstance(exc, AcpQuotaCooldownError):
+                self.send({"id": rpc_id, "error": str(exc)})
+                return
+            if isinstance(exc, AcpSessionError) and "антибан-стоп" in str(exc):
+                self.send({"id": rpc_id, "error": str(exc)})
+                return
+            if (cd := get_antigravity_cooldown()) is not None:
+                self.send({"id": rpc_id, "error": cd["message"]})
+                return
             if not isinstance(exc, AcpError):
                 logger.error("ACP mux prompt failure (%s)", type(exc).__name__)
             uncertain = str(exc) == "uncertain_session" or bool(owner and sid in owner.uncertain_sessions)
