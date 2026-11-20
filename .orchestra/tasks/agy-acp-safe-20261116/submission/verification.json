@@ -1,0 +1,193 @@
+{
+  "before": {
+    "revision": "1a247b24a434ee68c462ba899040516329c1d831",
+    "failed": 2,
+    "log": "before.log",
+    "proven": "SUBMITTED despite prompt0"
+  },
+  "after_targeted": {
+    "passed": 10,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 2,
+    "seconds": 11.29,
+    "log": "targeted-final.log"
+  },
+  "once_combined": {
+    "passed": 225,
+    "failed": 1,
+    "warnings": 2,
+    "seconds": 31.79,
+    "log": "acceptance.log",
+    "failure": "tests/test_initial_deliveries.py::test_t381_provider_accept_then_transport_loss_stays_unknown_quarantined",
+    "boundary": "existing Claude multicast gate before mocked transport; not altered/waived",
+    "receipt_cases_at_time": 8,
+    "note": "Application fix unchanged afterwards; only final peer/test coverage strengthened and 2 real initial cases added, then targeted file rerun (10 passed). No second combined run."
+  },
+  "canonical_receipt_modules": "unchanged",
+  "rpc_by_test": {
+    "test_http_pre_submit_refusal_is_not_a_submitted_receipt[missing-model]": {
+      "test": "test_http_pre_submit_refusal_is_not_a_submitted_receipt[missing-model]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1580445
+      ],
+      "token_files": 0
+    },
+    "test_http_pre_submit_refusal_is_not_a_submitted_receipt[config-mismatch]": {
+      "test": "test_http_pre_submit_refusal_is_not_a_submitted_receipt[config-mismatch]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/set_config_option": 2,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1580450
+      ],
+      "token_files": 0
+    },
+    "test_successful_transport_submission_does_not_wait_for_turn_and_duplicates_once": {
+      "test": "test_successful_transport_submission_does_not_wait_for_turn_and_duplicates_once",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "session/cancel": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1580453
+      ],
+      "token_files": 0
+    },
+    "test_cancel_receipt_waiting_for_other_profile_turn_remains_known_not_submitted": {
+      "test": "test_cancel_receipt_waiting_for_other_profile_turn_remains_known_not_submitted",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 2,
+        "prompt_start": 2,
+        "session/cancel": 1,
+        "prompt_end": 2
+      },
+      "pids": [
+        1580456
+      ],
+      "token_files": 0
+    },
+    "test_pre_send_egress_failure_is_a_known_failed_receipt": {
+      "test": "test_pre_send_egress_failure_is_a_known_failed_receipt",
+      "methods": {},
+      "pids": [],
+      "token_files": 0
+    },
+    "test_post_write_rpc_refusal_is_sent_once_not_model_success": {
+      "test": "test_post_write_rpc_refusal_is_sent_once_not_model_success",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/prompt": 2,
+        "prompt_start": 2,
+        "prompt_end": 2
+      },
+      "pids": [
+        1580458
+      ],
+      "token_files": 0
+    },
+    "test_lost_post_write_confirmation_is_unknown_and_duplicate_never_replays": {
+      "test": "test_lost_post_write_confirmation_is_unknown_and_duplicate_never_replays",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1
+      },
+      "pids": [
+        1580471
+      ],
+      "token_files": 0
+    },
+    "test_cancel_during_backpressured_write_is_unknown_and_bounded": {
+      "test": "test_cancel_during_backpressured_write_is_unknown_and_bounded",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1
+      },
+      "pids": [
+        1580473
+      ],
+      "token_files": 0
+    },
+    "test_initial_receipt_uses_same_actual_transport_boundary[False]": {
+      "test": "test_initial_receipt_uses_same_actual_transport_boundary[False]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 1,
+        "prompt_start": 1,
+        "prompt_end": 1
+      },
+      "pids": [
+        1580489
+      ],
+      "token_files": 0
+    },
+    "test_initial_receipt_uses_same_actual_transport_boundary[True]": {
+      "test": "test_initial_receipt_uses_same_actual_transport_boundary[True]",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1
+      },
+      "pids": [
+        1580492
+      ],
+      "token_files": 0
+    }
+  },
+  "notes": "missing-model/config test final counters include one healthy sibling prompt; assertions verify zero before sibling",
+  "isolation": {
+    "isolation": "kernel network namespace + Python audit",
+    "interfaces": [
+      [
+        1,
+        "lo"
+      ]
+    ],
+    "external_routes": 0,
+    "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py",
+    "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe",
+    "credentials_in_environment": 0
+  },
+  "overall_gate": "RED; historical frozen, policy/fixture and fixed-account limitations remain"
+}

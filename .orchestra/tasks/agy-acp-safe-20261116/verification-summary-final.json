@@ -1,0 +1,155 @@
+{
+  "passed": 189,
+  "skipped": 0,
+  "warnings": 2,
+  "seconds": 26.01,
+  "imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app",
+  "isolation": {
+    "isolation": "kernel network namespace + Python audit",
+    "interfaces": [
+      [
+        1,
+        "lo"
+      ]
+    ],
+    "external_routes": 0,
+    "allowed_executable": "/home/kesha/orchestra-worktrees/agy-acp-safe/tests/acp_mock/fake_agy_acp.py",
+    "import_root": "/home/kesha/orchestra-worktrees/agy-acp-safe",
+    "credentials_in_environment": 0
+  },
+  "legacy": {
+    "failed": 15,
+    "passed": 18,
+    "setup_errors": 79,
+    "gate": "RED"
+  },
+  "additional_bundle": "timeout60s_not_passed",
+  "measurements": {
+    "test_one_daemon_multiple_turns_and_instances": {
+      "test": "test_one_daemon_multiple_turns_and_instances",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/prompt": 4,
+        "prompt_start": 4,
+        "prompt_end": 4
+      },
+      "pids": [
+        1540676
+      ],
+      "token_files": 0
+    },
+    "test_profile_concurrency_and_event_isolation": {
+      "test": "test_profile_concurrency_and_event_isolation",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 2,
+        "session/prompt": 2,
+        "prompt_start": 2,
+        "prompt_end": 2,
+        "session/set_model": 1
+      },
+      "pids": [
+        1540678
+      ],
+      "token_files": 0
+    },
+    "test_passive_status_and_quota_never_probe_or_verify_egress": {
+      "test": "test_passive_status_and_quota_never_probe_or_verify_egress",
+      "methods": {},
+      "pids": [],
+      "token_files": 0
+    },
+    "test_loopback_http_and_real_orchestra_sse_smoke": {
+      "test": "test_loopback_http_and_real_orchestra_sse_smoke",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 2,
+        "prompt_start": 2,
+        "prompt_end": 2
+      },
+      "pids": [
+        1540715
+      ],
+      "token_files": 0
+    },
+    "test_immediate_cancel_without_sleep_always_settles_once": {
+      "test": "test_immediate_cancel_without_sleep_always_settles_once",
+      "methods": {},
+      "pids": [],
+      "token_files": 0
+    },
+    "test_permission_request_is_cancelled_without_closing_sibling_profile": {
+      "test": "test_permission_request_is_cancelled_without_closing_sibling_profile",
+      "methods": {
+        "spawn": 1,
+        "initialize": 1,
+        "authenticate": 1,
+        "session/new": 1,
+        "session/prompt": 2,
+        "prompt_start": 2,
+        "permission_denied": 1,
+        "prompt_end": 2
+      },
+      "pids": [
+        1540778
+      ],
+      "token_files": 0
+    }
+  },
+  "http_smoke": {
+    "url": "http://127.0.0.1:18889",
+    "database": "/tmp/pytest-of-kesha/pytest-170/test_loopback_http_and_real_or0/orchestra.db",
+    "imported_app": "/home/kesha/orchestra-worktrees/agy-acp-safe/app",
+    "passive_http_polls": 15,
+    "spawn_before_prompt": 0,
+    "methods": {
+      "spawn": 1,
+      "initialize": 1,
+      "authenticate": 1,
+      "session/new": 1,
+      "session/prompt": 2,
+      "prompt_start": 2,
+      "prompt_end": 2
+    },
+    "sse_frames": [
+      {
+        "type": "__session",
+        "session_id": "offline-http",
+        "agent_status": "idle",
+        "compaction": null
+      },
+      {
+        "type": "thinking_stream",
+        "content": "thinking:mock-session-1",
+        "agent_status": "idle",
+        "compaction": null
+      },
+      {
+        "type": "tool_stream",
+        "content": "tool progress",
+        "tool_use_id": "tool-1",
+        "tool_name": "mock-tool",
+        "agent_status": "idle",
+        "compaction": null
+      },
+      {
+        "type": "stream",
+        "content": "mock-session-1:[21:44] http-sse",
+        "agent_status": "idle",
+        "compaction": null
+      }
+    ],
+    "telegram": "not started",
+    "cron": "not started",
+    "main_lifespan": "deliberately replaced by mock-only stand lifespan"
+  },
+  "independent_review": "Astra R1 findings addressed; immutable revision requires fresh parent review"
+}

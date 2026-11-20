@@ -1,0 +1,10 @@
+*
+!.gitignore
+!report.md
+!review-notes.md
+!semantic-coverage.md
+!verification-summary-final.json
+!http-sse-smoke.json
+!cleanup-final.json
+!r2/
+!submission/

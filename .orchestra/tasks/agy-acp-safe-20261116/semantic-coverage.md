@@ -1,0 +1,45 @@
+## Bounded R2 update
+- Current scoped check: 210 passed; real compact/ACK (no fake listener), returned-model
+  confirmation and nested durable bans are covered in test_antigravity_acp_r2.py.
+- Actual HTTP receipt/retry/interrupt/compact use normal SessionManager and handler.
+- Malformed/reset cumulative USD costs covered; unknown billed token totals unchanged.
+- Account-generation/rotation isolation remains OPEN; no token inspection or new workflow.
+- Legacy last result15failed/18passed/79errors is not replaced by new green checks.
+- Original timeout reproduced once with progress: first pending-ACK node, exit124/60s;
+  root cause unknown. See r2/report.md and timeout-command.json; overall gate RED.
+
+# Frozen acceptance migration map (original tests unchanged)
+
+Final CTO suite: 189 passed. Overall acceptance remains RED: the unchanged legacy
+suite now returns 15 failed, 18 passed, 79 setup errors (the additional conflict is
+old implicit manual-compact authorization). Original implementation R1 was 14 failed,
+19 passed, 79 setup errors. This is not permission to
+skip/delete tests, restore live probes or token copying, merge or activate accounts.
+
+| Legacy contract / tests | ACP coverage in tests/test_antigravity_acp.py | Status / exact conflict |
+|---|---|---|
+| test_t1_two_workers_stream_tools_resume_and_keep_every_state_path_private | test_one_daemon_multiple_turns_and_instances; test_profile_concurrency_and_event_isolation; test_resume_capability_no_history_replay; test_settings_and_credential_status_do_not_read_oauth_snapshot | Session identity/event/tool isolation and resume preserved. Legacy per-worker HOME/token copies directly contradict canonical profile/no-copy requirement. Standard stdio MCP configuration preserved. |
+| test_t1_tool_error_preserves_terminal_success_and_is_not_silent | test_terminal_result_controls_success_after_partial_output[RECOVERED-True] | A failed tool update remains visible while terminal end_turn succeeds. No conversion of a rejected RPC into success. |
+| recovered_retry_error, replayed_sticky_error, unrecovered_failure and intermediate_reply tests in test_antigravity_turn_health.py | test_terminal_result_controls_success_after_partial_output; test_turn_failure_no_automatic_prompt_replay_or_restart | Partial text does not hide RPC rejection/cancellation; terminal success wins after a recovered tool failure. Old NDJSON sticky-error recovery heuristic has no ACP wire equivalent and is intentionally not copied. |
+| test_t1_interrupt_terminates_only_owned_process_and_cleans_token; interrupted_terminal_accounts_spend | test_cancellation_is_session_scoped_and_daemon_reused; test_cancel_queued_turn_does_not_cancel_other_session; test_unacknowledged_cancel_closes_profile; test_prompt_timeout_latches_and_shutdown_cleans_owned_pid | Cancellation preserves other sessions/profile owner when acknowledged; timeout closes the exact owned group. No token-copy cleanup because no token copies exist. Cost accounting on RPC failure is covered; cancellation-time cost emission is now covered by test_cancelled_turn_accounts_latest_cost_once in the review suite. |
+| multiturn_usage_is_delta_and_survives_backend_recreation; failed_turn_spend_advances_baseline | test_cumulative_cost_delta_survives_backend_recreation; test_failed_turn_cost_is_recorded_without_success_or_replay; test_resumed_unknown_cost_baseline_never_double_counts_history | Cumulative ACP USD cost becomes a per-turn delta; failed turns advance baseline; resumed unknown history is never charged again. Standard ACP usage_update gives context/cost, not billed input/output/cache totals: those remain accuracy=unknown. Old token/duration/model-call cumulative NDJSON accounting is not claimed preserved. |
+| usage_baseline_resets; absent_telemetry; invalid_cumulative_counters | test_credits_are_never_converted_to_usd; test_invalid_context_is_unknown_without_breaking_terminal_success; existing test_usage_contract.py; pure legacy readers retained | Unknown/non-USD cost never becomes measured USD. Cost reset logic rebases a decreasing valid counter; exhaustive legacy per-token counter/malformed epoch matrix is not ported. Open coverage gap. |
+| current-context protobuf parsing, missing/malformed DB and invalid conversation tests | test_one_daemon_multiple_turns_and_instances; test_invalid_context_is_unknown_without_breaking_terminal_success; existing test_usage_contract.py | ACP usage_update context semantics replace live conversation-DB probing. Legacy functions remain unchanged. CTO review now directly reuses the frozen WAL/read-only, boundary, corrupt/latest and invalid-conversation assertions with a canonical synthetic profile fixture in test_antigravity_acp_review.py, plus unreadable database cases. Original transport-coupled test files remain unchanged. |
+| test_t3_runtime_readiness_checks_credentials_and_live_catalog; test_t2_antigravity_refresh_is_singleflight_for_both_group_consumers | test_passive_status_and_quota_never_probe_or_verify_egress; test_cached_observation_does_not_become_fresh_by_polling; test_readiness_uses_only_catalog_from_explicit_session | Exact contradictory old expectations: fresh live readiness before any turn and one active quota fetch. New requirement is unknown cached catalog and zero probes/verifier calls, even force_refresh. |
+| test_t3_post_admission_token_loss_is_terminal_visible_and_not_retried | test_auth_loss_after_success_latches_without_reauth; test_start_failure_latches_without_login_or_spawn_loop; test_disabled_and_egress_guards_preserved | ACP auth-required/RPC refusal is terminal, one authentication only, no relogin/replay/spawn storm. Official CLI owns credential refresh/loss; Python does not reread token snapshots each turn. |
+| test_t3_account_generation_change_reuses_worker_but_not_foreign_conversation | test_resume_capability_no_history_replay; test_canonical_profile_aliases_share_owner; test_profile_concurrency_and_event_isolation | Canonical profile/session separation covered. Automatic account-generation detection via token deserialization was removed. Account rotation/migration is deliberately unimplemented, requires separate operator workflow. |
+| five test_t3_login_* cases | test_credit_settings_fail_closed_without_rewriting; test_settings_and_credential_status_do_not_read_oauth_snapshot | Old staged login/promote code is outside the runtime design; harness forbids its arbitrary executable and live probes. Legacy login now refuses before any executable/auth-file side effects. No new account/login workflow implemented. |
+| test_t1_antigravity_manual_compact_uses_summary_then_force_fresh | test_plain_backend_calls_cannot_bypass_user_provenance; test_automated_inputs_denied_at_session_and_backend | CLOSED by CTO review: operator-only HTTP route and explicit user provenance authorize summary then fresh-session acknowledgement; automatic compact is denied before any RPC, failures get one attempt and retain the old session. New real-stdio tests in test_antigravity_acp_review.py. No guessed ACP compact method was added. |
+
+## Why 79 setup errors are not 79 demonstrated product regressions
+
+`tests/test_antigravity_turn_health.py:21` monkeypatches a removed
+`backend_antigravity.read_auth_snapshot` import. This fixture now fails before its
+body/assertions. Reintroducing that live credential API merely to satisfy a fixture
+would obscure the new ownership contract. Some downstream assertions still test
+valuable pure behavior and need a reviewed fixture migration; others pin retired
+NDJSON terminal/account-copy semantics. The map above makes both explicit.
+
+No original frozen file was edited, marked skipped or deleted. The kernel-isolated
+runner additionally refuses legacy test executables; those five login failures
+are harness restrictions, not evidence of a successful or failed real login.

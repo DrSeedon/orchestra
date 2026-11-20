@@ -1,0 +1,22 @@
+{
+  "revision": "120cb528faaefcf0fddd688e4ab300469aeb3fc8",
+  "command": [
+    "scripts/run_antigravity_offline.sh",
+    "tests/test_compact_pending_ack_467.py",
+    "tests/test_compact_pending_rollback_467.py",
+    "tests/test_compact_gate_438.py",
+    "tests/test_mailbox.py",
+    "-vv",
+    "-s",
+    "--tb=short",
+    "-p",
+    "no:faulthandler"
+  ],
+  "timeout_seconds": 60,
+  "kill_grace_seconds": 5,
+  "capture": "off",
+  "faulthandler": "disabled",
+  "note": "Exact original four-file invocation reconstructed; diagnostic adds per-node progress only",
+  "raw_log_sha256": "bb995db123fe603ab8746474a01495b483edfb0e2123de50b2b387fe7a02ff24",
+  "tracked_log_format": "Only trailing line whitespace normalized; original retained as timeout-diagnostic.raw.log locally"
+}
