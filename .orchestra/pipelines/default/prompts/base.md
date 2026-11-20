@@ -49,11 +49,9 @@ For interactive HTML, diagrams or visual explainers load the `html-artifacts` sk
 </artifact-skill>
 
 <skillcache>
-For repetitive Tier A/B read-only routines (>= 5 deterministic reads/API/CLI/MCP steps):
-1. Capsule first: check SkillCache (`capsule_run` MCP or `scripts/orch-capsule-run run`) and run the active capsule before re-running raw tool chains.
-2. Self-create: when you complete a clean >= 5-step deterministic collector without a capsule (`invocation_id`), extract/package it as a read-only capsule.
-3. Mandatory 2-gate qualification before `active`: (a) fixture replay + `secret_mask` redaction, (b) mutated counterexample (dates/inbox/IDs/windows — frozen responses must fail verification, dynamic runs must recompute).
-4. Self-repair & Tier C boundary: on `status=stale` (`SKILL.md`/schema SHA-256 drift) or `deopt` at step `k`, patch only step `k`, re-run counterexamples, and bump `vN -> v(N+1)`. Never bake pure creative/dialog Tier C skills (`explainer-craft`, `grill-me`, `game-ui-design`, `codex-debate`, `teach-me`).
+Pragmatic SkillCache in field evaluation (use where it genuinely helps, verify in practice):
+1. Multi-step & invariant wins only: use SkillCache (`capsule_run` MCP or `orch-capsule-run list/describe/exec`) when it replaces >= 5 repetitive MCP/API/network reads (mail, Direct reports, digests, VPS preflight) or enforces fragile business invariants. Skip capsules for trivial 1-step local checks where a short `.py`/command is faster, and never bake creative/dialog Tier C skills (`explainer-craft`, `grill-me`, `game-ui-design`, `codex-debate`, `teach-me`).
+2. Field-test & qualify: package genuinely useful >= 5-step collectors only after passing 2-gate `qualify` (fixture replay + `secret_mask` AND mutated counterexample inputs); on `stale` (`SHA-256` drift) or step-`k` `deopt`, repair step `k` (`vN -> v(N+1)`), and retire low-value wrappers.
 </skillcache>
 
 <rules priority="critical">

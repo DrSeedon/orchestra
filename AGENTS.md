@@ -61,6 +61,8 @@ and a descriptive entry in `.orchestra/kb/README.md` to reach agents.
 
 - **АВТО-ДЕПЛОЙ И РЕСТАРТ НА `orchestra-vps` (прямое правило Максима от 04.11.2026):**
   Каждый раз, когда в проект Orchestra вносятся и заливаются правки кода/промптов/конфигов, **всегда сразу синхронизируй обновлённые файлы на боевой сервер `orchestra-vps:/home/kesha/orchestra/` и перезапускай сервис `sudo systemctl restart orchestra.service`** (с проверкой `systemctl is-active orchestra.service`), не дожидаясь отдельного напоминания от Максима. При этом сервис `telegram-bot-api` никогда не перезапускать (`Never restart telegram-bot-api`). После рестарта проверять `cut_names` / прерванные ходы.
+- **ПРАГМАТИЧНЫЙ `SKILLCACHE` В БОЕВОЙ ОБКАТКЕ (20.11.2026 — ПРАВИЛО МАКСИМА):**
+  Использовать капсулы (`orch-capsule-run` / `capsule_run`) там, где они дают реальный выигрыш на повторяющихся цепочках `>= 5` сетевых/MCP/API-шагов или страхуют критичные инварианты (почта, отчёты Директа, сводки, VPS preflight), и проверять пользу на практике. На разовые мелкие одношаговые проверки (где короткий `.py` проще и быстрее) и на творческие/диалоговые задачи капсулы не натягивать; полезные капсулы проверять контрпримерами (`qualify`), пустые обёртки не плодить.
 - Do not coordinate infrastructure through other projects' orchestrators. Verify service
   state read-only; files on disk are not proof that a live Python process loaded them.
 - On the VPS, resource priority is kesha-bot-vps, Orchestra, then agents. Do not change
