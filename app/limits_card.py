@@ -311,10 +311,24 @@ def collect(usage: dict, *, now: dt.datetime | None = None,
     disabled = set(usage.get("disabled_providers") or ())
     claude_disabled = bool(disabled & {"claude", "anthropic"})
 
+    def _agy_norm(win: dict | None, wid: str | None = None) -> dict:
+        if not isinstance(win, dict):
+            return {}
+        out = dict(win)
+        rem = out.get("remaining_fraction")
+        if not isinstance(out.get("utilization"), (int, float)) or isinstance(out.get("utilization"), bool):
+            if _finite_number(rem) is not None:
+                out["utilization"] = max(0.0, min(100.0, (1.0 - float(rem)) * 100.0))
+        if not out.get("resets_at") and out.get("reset_time"):
+            out["resets_at"] = out["reset_time"]
+        if wid and (not isinstance(out.get("window_minutes"), int) or out["window_minutes"] <= 0):
+            out["window_minutes"] = WINDOW_FALLBACK_MINUTES.get(wid)
+        return out
+
     def pool(label: str, window: dict | None, window_id: str | None = None) -> dict:
-        window = window if isinstance(window, dict) else {}
+        window = _agy_norm(window, window_id)
         used = window.get("utilization")
-        if not isinstance(used, (int, float)):
+        if not isinstance(used, (int, float)) or isinstance(used, bool):
             # Форма ответа одна на обе ветки: словарь с разным набором ключей — мина
             # для рисовалки, она обходит пулы одним циклом.
             return {"label": label, "used": None, "elapsed": None,
@@ -332,13 +346,30 @@ def collect(usage: dict, *, now: dt.datetime | None = None,
         }
 
     spark = codex.get("spark") or {}
-    # Недельное окно Codex лежит в `secondary` и останавливает работу так же, как
-    # пятичасовое, — рисуем обе полосы, иначе картинка показывает ноль расхода у
-    # провайдера, который на самом деле закрыт до конца недели.
+    codex_primary = codex.get("primary")
+    codex_primary_min = (
+        resolve_window_minutes(None, codex_primary)
+        if isinstance(codex_primary, dict)
+        else None
+    )
+    codex_weekly_only = (
+        codex.get("plan_type") == "prolite"
+        and isinstance(codex_primary, dict)
+        and codex_primary_min is not None
+        and codex_primary_min >= 1440
+        and codex.get("secondary") is None
+    )
+    # Недельное окно Codex обычно лежит в `secondary`, а на тарифе `prolite` единственное
+    # недельное окно находится в `primary` (`window_minutes >= 1440`, `secondary=None`).
+    codex_primary_pool = (
+        pool("Codex · неделя", codex_primary, "seven_day")
+        if codex_weekly_only
+        else pool("Codex · 5 часов", codex_primary, "five_hour")
+    )
     pools = [
         pool("Claude · 5 часов", anthropic.get("five_hour"), "five_hour"),
         pool("Claude · неделя", anthropic.get("seven_day"), "seven_day"),
-        pool("Codex · 5 часов", codex.get("primary"), "five_hour"),
+        codex_primary_pool,
         pool("Codex · неделя", codex.get("secondary"), "seven_day"),
         pool("Spark · 5 часов", spark.get("primary"), "five_hour"),
         pool("Grok", (usage.get("grok") or {}).get("primary")),
@@ -349,31 +380,37 @@ def collect(usage: dict, *, now: dt.datetime | None = None,
         if not (
             (key[0] == "anthropic" and claude_disabled)
             or (key[0] in {"codex", "codex_spark"} and "codex" in disabled)
+            or (key[0] == "codex" and key[1] == "secondary" and codex_weekly_only)
+            or (key[0] == "codex_spark" and codex_weekly_only and not spark)
             or (key[0] == "grok" and "grok" in disabled)
         )
     ]
     agy_7d = usage.get("antigravity") or {}
     agy_5h = usage.get("antigravity_5h") or {}
+    def _has_agy_val(v) -> bool:
+        nv = _agy_norm(v)
+        return isinstance(nv.get("utilization"), (int, float))
     has_agy_pools = "antigravity" not in disabled and (
-        any(isinstance(v, dict) and v.get("utilization") is not None for v in agy_7d.values())
-        or any(isinstance(v, dict) and v.get("utilization") is not None for v in agy_5h.values())
+        any(_has_agy_val(v) for v in agy_7d.values())
+        or any(_has_agy_val(v) for v in agy_5h.values())
     )
-    pools = [p for p, _key in visible_pools]
+    agy_entries = []
     if has_agy_pools:
-        for label, win, wid in (
-            ("Agy Gemini · 5 часов", agy_5h.get("gemini-5h"), "five_hour"),
-            ("Agy Gemini · неделя", agy_7d.get("gemini-weekly"), "seven_day"),
-            ("Agy Argon · неделя", agy_7d.get("gemini-argon-wtu-weekly"), "seven_day"),
-            ("Agy Claude/3P · неделя", agy_7d.get("3p-weekly"), "seven_day"),
+        for label, win, wid, hkey in (
+            ("Agy Gemini · 5 часов", agy_5h.get("gemini-5h"), "five_hour", ("antigravity_gemini", "gemini-5h")),
+            ("Agy Gemini · неделя", agy_7d.get("gemini-weekly"), "seven_day", ("antigravity_gemini", "gemini-weekly")),
+            ("Agy Argon · неделя", agy_7d.get("gemini-argon-wtu-weekly"), "seven_day", ("antigravity_argon", "gemini-argon-wtu-weekly")),
+            ("Agy Claude/3P · неделя", agy_7d.get("3p-weekly"), "seven_day", ("antigravity_3p", "3p-weekly")),
         ):
-            p = pool(label, win, wid)
-            p["history"] = None
-            p["history_unavailable"] = False
-            pools.append(p)
+            agy_entries.append((pool(label, win, wid), hkey))
+    # Put Antigravity first when present so visible pools appear at the top.
+    ordered_entries = agy_entries + visible_pools if agy_entries else visible_pools
     histories = collect_history(history or {}, now)
-    for p, key in visible_pools:
+    pools = []
+    for p, key in ordered_entries:
         p["history"] = histories.get(key)
         p["history_unavailable"] = bool(history and history.get("unavailable"))
+        pools.append(p)
 
     head = usage.get("quota_headroom")
     week = None
@@ -401,7 +438,7 @@ def collect(usage: dict, *, now: dt.datetime | None = None,
             "locked_pct": float(head.get("locked_pct") or 0.0),
             "reset": pools[1].get("reset") or "",
         }
-    return {"now": now, "pools": pools, "week": week}
+    return {"now": now, "pools": pools, "week": week, "hide_week_banner": claude_disabled}
 
 
 # ── вёрстка ───────────────────────────────────────────────────────────────────
@@ -535,7 +572,9 @@ def _pools_html(pools: list[dict]) -> str:
 def build_html(data: dict) -> str:
     stamp = data["now"].astimezone(LOCAL_TZ).strftime("%d.%m %H:%M")
     week = data["week"]
-    if week is None:
+    if week is None and data.get("hide_week_banner"):
+        top = ""
+    elif week is None:
         top = (
             f'<div class="huge">Курс не измерен</div>'
             f'<div class="sub">Сколько пятичасовых окон осталось — посчитать нечем: нет '

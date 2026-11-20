@@ -1676,9 +1676,28 @@ async def _get_usage_data(
     from app.backend_antigravity import QUOTA_KEYS
     from app.provider_safety import get_antigravity_cooldown
 
+    def _enrich_agy_window(win, default_minutes: int):
+        if not isinstance(win, dict):
+            return None
+        out = dict(win)
+        rem = out.get("remaining_fraction")
+        if out.get("utilization") is None and _finite_number(rem):
+            used = max(0.0, min(100.0, (1.0 - float(rem)) * 100.0))
+            out["utilization"] = round(used, 2)
+        if not out.get("resets_at") and out.get("reset_time"):
+            out["resets_at"] = out["reset_time"]
+        if not isinstance(out.get("window_minutes"), int) or out["window_minutes"] <= 0:
+            out["window_minutes"] = default_minutes
+        return out
+
+    enriched_5h = (
+        {key: _enrich_agy_window(val, 300) for key, val in agy_5h.items()}
+        if isinstance(agy_5h, dict)
+        else None
+    )
     return {
-        "antigravity": {key: (agy or {}).get(key) for key in QUOTA_KEYS},
-        **({"antigravity_5h": agy_5h} if isinstance(agy_5h, dict) else {}),
+        "antigravity": {key: _enrich_agy_window((agy or {}).get(key), 10080) for key in QUOTA_KEYS},
+        **({"antigravity_5h": enriched_5h} if isinstance(enriched_5h, dict) else {}),
         "antigravity_observed_at": None if agy_disabled else _antigravity_usage_cache.get("ts"),
         "antigravity_cooldown": None if agy_disabled else get_antigravity_cooldown(),
         "anthropic": anthropic_data,
@@ -1764,6 +1783,7 @@ async def get_usage(force_refresh: bool = False):
         for _, _, key, _, decision in _antigravity_quota_decisions(
             observation["providers"], observation["observed_at_by_provider"],
             now=time.time(), policy=quota_policy(),
+            activity_by_provider=observation.get("activity_by_provider"),
         )
     } if not is_provider_disabled("antigravity") else {}
     return {**data, "gemini_web": pool_usage(manager.sessions.values()),

@@ -4140,6 +4140,7 @@ async def _get_limits_usage() -> dict:
     from app.models import is_provider_disabled
     from app.provider_safety import get_antigravity_cooldown
     from app.quota_gate import quota_policy
+    import app.routes.system as system_mod
     from app.routes.system import (
         _antigravity_headroom,
         _antigravity_quota_decisions,
@@ -4147,6 +4148,20 @@ async def _get_limits_usage() -> dict:
         _quota_headroom,
         _quota_observation_from_cache,
     )
+
+    if not is_provider_disabled("antigravity"):
+        hydrate = getattr(system_mod, "hydrate_antigravity_quota", None)
+        if callable(hydrate):
+            try:
+                hydrate()
+            except Exception as exc:
+                logger.warning("Antigravity quota hydration skipped (%s)", type(exc).__name__)
+        refresh_agy = getattr(system_mod, "_refresh_antigravity_usage", None)
+        if callable(refresh_agy):
+            try:
+                await refresh_agy()
+            except Exception as exc:
+                logger.warning("Antigravity quota refresh skipped (%s)", type(exc).__name__)
 
     data = await _get_usage_data()
     agy_gate = {}
@@ -4157,6 +4172,7 @@ async def _get_limits_usage() -> dict:
             for _, _, key, _, decision in _antigravity_quota_decisions(
                 obs["providers"], obs["observed_at_by_provider"],
                 now=time.time(), policy=quota_policy(),
+                activity_by_provider=obs.get("activity_by_provider"),
             )
         }
     return {
@@ -4254,46 +4270,43 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
         parts.append(pace)
         return "; ".join(parts)
 
+    def _norm_agy_win(win: dict | None, window_id: str | None = None) -> dict | None:
+        if not isinstance(win, dict):
+            return None
+        out = dict(win)
+        rem = out.get("remaining_fraction")
+        util = out.get("utilization")
+        if (not isinstance(util, (int, float)) or isinstance(util, bool)) and isinstance(rem, (int, float)) and not isinstance(rem, bool):
+            out["utilization"] = round(max(0.0, min(100.0, (1.0 - float(rem)) * 100.0)), 2)
+        if not out.get("resets_at") and out.get("reset_time"):
+            out["resets_at"] = out["reset_time"]
+        if window_id and not out.get("window_minutes"):
+            out["window_minutes"] = 300 if window_id == "five_hour" else 10080
+        return out
+
+    disabled = set(usage.get("disabled_providers") or ())
+    claude_disabled = bool(disabled & {"claude", "anthropic"})
+    codex_disabled = "codex" in disabled
+    grok_disabled = "grok" in disabled
+    agy_disabled = "antigravity" in disabled
+
     anthropic = usage.get("anthropic") or {}
     codex = usage.get("codex") or {}
     spark = codex.get("spark") or {}
-    # У Codex недельное окно живёт в `secondary` и решает не меньше пятичасового: именно
-    # оно 16.09 встало на 100% и остановило работу на трое суток, пока пятичасовое
-    # показывало ноль. Показываем обе строки, как у Claude.
-    lines = [
-        "📊 *Лимиты*",
-        _window_line("Claude 5h", anthropic.get("five_hour"), "five_hour"),
-        _window_line("Claude 7d", anthropic.get("seven_day"), "seven_day"),
-        _window_line("Codex 5h", codex.get("primary"), "five_hour"),
-        _window_line("Codex 7d", codex.get("secondary"), "seven_day"),
-        _window_line("Spark 5h", spark.get("primary"), "five_hour"),
-    ]
-    if isinstance(spark.get("secondary"), dict):
-        lines.append(_window_line("Spark 7d", spark.get("secondary"), "seven_day"))
-    lines.append(_window_line("Grok", (usage.get("grok") or {}).get("primary")))
-    headroom = usage.get("quota_headroom")
-    windows_left = headroom.get("windows_left") if isinstance(headroom, dict) else None
-    if (isinstance(windows_left, (int, float))
-            and not isinstance(windows_left, bool)
-            and math.isfinite(windows_left)
-            and windows_left > 0):
-        lines.append(f"• Остаток пятичасовых окон в неделе — {windows_left:.2f}")
-    else:
-        lines.append("• Остаток пятичасовых окон в неделе — курс не измерен: нет истории расхода")
-    extra_usage = anthropic.get("extra_usage") or {}
-    if extra_usage.get("spend_limit_reached") is True:
-        lines.append(
-            "• Claude extra usage — лимит расходов достигнут "
-            "(базовые окна считаются отдельно)"
-        )
+    lines = ["📊 *Лимиты*"]
 
+    # Antigravity block at top when present/enabled so Gemini limits lead the message.
     agy_7d = usage.get("antigravity") or {}
     agy_5h = usage.get("antigravity_5h") or {}
     agy_cd = usage.get("antigravity_cooldown")
     agy_gate = usage.get("antigravity_gate") or {}
-    has_agy = (
-        any(isinstance(v, dict) and v.get("utilization") is not None for v in agy_7d.values())
-        or any(isinstance(v, dict) and v.get("utilization") is not None for v in agy_5h.values())
+    norm_g5 = _norm_agy_win(agy_5h.get("gemini-5h"), "five_hour")
+    norm_g7 = _norm_agy_win(agy_7d.get("gemini-weekly"), "seven_day")
+    norm_arg = _norm_agy_win(agy_7d.get("gemini-argon-wtu-weekly"), "seven_day")
+    norm_3p = _norm_agy_win(agy_7d.get("3p-weekly"), "seven_day")
+    has_agy = (not agy_disabled) and (
+        any(isinstance(_norm_agy_win(v), dict) and isinstance((_norm_agy_win(v) or {}).get("utilization"), (int, float)) for v in agy_7d.values())
+        or any(isinstance(_norm_agy_win(v), dict) and isinstance((_norm_agy_win(v) or {}).get("utilization"), (int, float)) for v in agy_5h.values())
         or isinstance(agy_cd, dict)
         or (isinstance(agy_gate, dict) and bool(agy_gate))
     )
@@ -4307,13 +4320,22 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
             rst_s = f", сброс {rst.astimezone(local_tz).strftime(time_fmt)}" if rst else ""
             return f"ост. {rem}% (исп. {_fmt_pct(used)}%{rst_s})"
 
-        lines.append(f"• Antigravity Gemini 5h — {_short_agy(agy_5h.get('gemini-5h'), time_fmt='%H:%M КРС')}")
-        lines.append(f"• Antigravity Gemini 7d — {_short_agy(agy_7d.get('gemini-weekly'), time_fmt='%d.%m %H:%M')}")
+        lines.append(_window_line("Antigravity Gemini 5h", norm_g5, "five_hour"))
+        lines.append(_window_line("Antigravity Gemini 7d", norm_g7, "seven_day"))
         lines.append(
-            f"• Antigravity Argon 7d — {_short_agy(agy_7d.get('gemini-argon-wtu-weekly'), time_fmt='%d.%m %H:%M')} · "
-            f"Claude/3P 7d — {_short_agy(agy_7d.get('3p-weekly'), time_fmt='%d.%m %H:%M')}"
+            f"• Antigravity Argon 7d — {_short_agy(norm_arg, time_fmt='%d.%m %H:%M')} · "
+            f"Claude/3P 7d — {_short_agy(norm_3p, time_fmt='%d.%m %H:%M')}"
         )
-        gate_parts = [f"{k}={v.get('state', '?')}" for k, v in agy_gate.items() if isinstance(v, dict)] if isinstance(agy_gate, dict) else []
+        if isinstance(agy_gate, dict):
+            gate_parts = []
+            for k, v in agy_gate.items():
+                if not isinstance(v, dict):
+                    continue
+                st = v.get("state", "?")
+                hp = v.get("headroom_pp")
+                gate_parts.append(f"{k}={st}({hp:+.0f}п)" if isinstance(hp, (int, float)) else f"{k}={st}")
+        else:
+            gate_parts = []
         if isinstance(agy_cd, dict) and agy_cd.get("until_krs"):
             status_tail = f"⛔ cooldown до {agy_cd['until_krs']} КРС"
             if gate_parts:
@@ -4324,14 +4346,71 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
             status_tail = "gate: ok"
         lines.append(f"• Antigravity статус — {status_tail}")
 
+    if not claude_disabled:
+        lines.append(_window_line("Claude 5h", anthropic.get("five_hour"), "five_hour"))
+        lines.append(_window_line("Claude 7d", anthropic.get("seven_day"), "seven_day"))
+
+    if not codex_disabled:
+        codex_primary = codex.get("primary")
+        codex_primary_min = (
+            resolve_window_minutes(None, codex_primary)
+            if isinstance(codex_primary, dict)
+            else None
+        )
+        codex_weekly_only = (
+            codex.get("plan_type") == "prolite"
+            and isinstance(codex_primary, dict)
+            and codex_primary_min is not None
+            and codex_primary_min >= 1440
+            and codex.get("secondary") is None
+        )
+        if codex_weekly_only:
+            lines.append(_window_line("Codex 7d", codex_primary, "seven_day"))
+            if spark:
+                lines.append(_window_line("Spark 5h", spark.get("primary"), "five_hour"))
+                if isinstance(spark.get("secondary"), dict):
+                    lines.append(_window_line("Spark 7d", spark.get("secondary"), "seven_day"))
+        else:
+            lines.append(_window_line("Codex 5h", codex_primary, "five_hour"))
+            lines.append(_window_line("Codex 7d", codex.get("secondary"), "seven_day"))
+            lines.append(_window_line("Spark 5h", spark.get("primary"), "five_hour"))
+            if isinstance(spark.get("secondary"), dict):
+                lines.append(_window_line("Spark 7d", spark.get("secondary"), "seven_day"))
+
+    if not grok_disabled:
+        lines.append(_window_line("Grok", (usage.get("grok") or {}).get("primary")))
+
+    if not claude_disabled:
+        headroom = usage.get("quota_headroom")
+        windows_left = headroom.get("windows_left") if isinstance(headroom, dict) else None
+        if (isinstance(windows_left, (int, float))
+                and not isinstance(windows_left, bool)
+                and math.isfinite(windows_left)
+                and windows_left > 0):
+            lines.append(f"• Остаток пятичасовых окон в неделе — {windows_left:.2f}")
+        else:
+            lines.append("• Остаток пятичасовых окон в неделе — курс не измерен: нет истории расхода")
+        extra_usage = anthropic.get("extra_usage") or {}
+        if extra_usage.get("spend_limit_reached") is True:
+            lines.append(
+                "• Claude extra usage — лимит расходов достигнут "
+                "(базовые окна считаются отдельно)"
+            )
+
     text = "\n".join(lines)
+    if len(text) > 1024 and has_agy:
+        compact_agy = [
+            "📊 *Лимиты*",
+            f"• Antigravity Gemini 5h — {_short_agy(norm_g5, time_fmt='%H:%M КРС')}",
+            f"• Antigravity Gemini 7d — {_short_agy(norm_g7, time_fmt='%d.%m %H:%M')}",
+        ] + lines[3:]
+        text = "\n".join(compact_agy)
     if len(text) > 1024:
-        compact_lines = [line.replace(" UTC+7", "").replace("; темп ok", "") for line in lines]
+        compact_lines = [line.replace(" UTC+7", "").replace("; темп ok", "") for line in text.splitlines()]
         text = "\n".join(compact_lines)
     if len(text) > 1024:
         text = text[:1021].rstrip() + "..."
     return text
-
 
 def _live_limits_state() -> dict | None:
     from app.db import kv_get

@@ -638,3 +638,84 @@ def test_history_without_reset_has_usage_but_no_fabricated_elapsed_line():
     chart = ET.fromstring(re.search(r"<svg\b.*?</svg>", source).group())
     assert len(chart.findall("circle")) == 2
     assert len(chart.findall("polyline")) == 1
+
+
+def test_antigravity_remaining_fraction_format_and_prolite_codex_with_claude_disabled():
+    from app.limits_card import build_html, collect
+    from app.tg_bridge import _format_limits_message_for_chat
+
+    usage = {
+        "disabled_providers": ["claude", "grok"],
+        "antigravity": {
+            "gemini-weekly": {"remaining_fraction": 0.25, "reset_time": _iso(4000)},
+            "gemini-argon-wtu-weekly": {"remaining_fraction": 0.99, "reset_time": _iso(5000)},
+            "3p-weekly": {"remaining_fraction": 1.0, "reset_time": _iso(6000)},
+        },
+        "antigravity_5h": {
+            "gemini-5h": {"remaining_fraction": 0.98, "reset_time": _iso(150)},
+        },
+        "antigravity_gate": {
+            "gemini-weekly": {"state": "allowed", "headroom_pp": 18.0},
+            "gemini-5h": {"state": "allowed", "headroom_pp": 88.0},
+        },
+        "codex": {
+            "plan_type": "prolite",
+            "primary": {"utilization": 56, "window_minutes": 10080, "resets_at": _iso(1440)},
+            "secondary": None,
+        },
+    }
+    history = {
+        "step_minutes": 5,
+        "rows": [
+            {
+                "sample_ts": _iso(-15),
+                "providers": {
+                    "antigravity_gemini": {"windows": [
+                        {"id": "gemini-5h", "utilization": 1.0, "window_minutes": 300, "resets_at": _iso(150)},
+                        {"id": "gemini-weekly", "utilization": 70.0, "window_minutes": 10080, "resets_at": _iso(4000)},
+                    ]},
+                    "codex": {"windows": [
+                        {"id": "primary", "utilization": 55.0, "window_minutes": 10080, "resets_at": _iso(1440)},
+                    ]},
+                },
+            },
+            {
+                "sample_ts": _iso(-5),
+                "providers": {
+                    "antigravity_gemini": {"windows": [
+                        {"id": "gemini-5h", "utilization": 2.0, "window_minutes": 300, "resets_at": _iso(150)},
+                        {"id": "gemini-weekly", "utilization": 75.0, "window_minutes": 10080, "resets_at": _iso(4000)},
+                    ]},
+                    "codex": {"windows": [
+                        {"id": "primary", "utilization": 56.0, "window_minutes": 10080, "resets_at": _iso(1440)},
+                    ]},
+                },
+            },
+        ],
+    }
+
+    card = collect(usage, now=NOW, history=history)
+    assert card["hide_week_banner"] is True
+    labels = [p["label"] for p in card["pools"]]
+    assert labels == [
+        "Agy Gemini · 5 часов",
+        "Agy Gemini · неделя",
+        "Agy Argon · неделя",
+        "Agy Claude/3P · неделя",
+        "Codex · неделя",
+    ]
+    by_label = {p["label"]: p for p in card["pools"]}
+    assert round(by_label["Agy Gemini · неделя"]["used"], 2) == 75.0
+    assert by_label["Agy Gemini · неделя"]["history"] is not None
+    assert by_label["Codex · неделя"]["history"] is not None
+
+    html = build_html(card)
+    assert "Курс не измерен" not in html
+    assert "нет данных — сервис не ответил" not in html
+
+    msg = _format_limits_message_for_chat(usage, now=NOW)
+    assert len(msg) <= 1024
+    assert "Claude 5h" not in msg and "Grok" not in msg and "курс не измерен" not in msg
+    assert "Antigravity Gemini 5h" in msg and "Antigravity Gemini 7d" in msg
+    assert "Codex 7d —" in msg and "Codex 5h" not in msg and "Spark 5h" not in msg
+    assert "allowed(+18п)" in msg
