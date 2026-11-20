@@ -338,6 +338,14 @@ mcp = OrchestraMCP("orchestra")
 
 
 @mcp.tool()
+async def capsule_run(request: dict[str, Any]) -> dict:
+    """Run or continue a qualified read-only capsule for the active turn."""
+    result = await _api("POST", "/api/skillcache/capsule-run", json=request, timeout=75)
+    return result if isinstance(result, dict) else {"status": "unavailable"}
+
+
+
+@mcp.tool()
 async def multicode_run(prompt: str, title: str = "Orchestra task",
                         timeout_ms: int = 300_000, instance: str = "", model: str = "",
                         effort: str = "") -> str:

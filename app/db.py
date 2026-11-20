@@ -164,6 +164,29 @@ def _ensure_tool_raw_input_schema(connection):
         connection.execute("ALTER TABLE logs ADD COLUMN tool_raw_input_json TEXT")
 
 
+def _ensure_skillcache_schema(connection):
+    for table, additions in (
+        ("logs", {"invocation_id": "TEXT", "invocation_seq": "INTEGER"}),
+        ("turn_usage", {"invocation_id": "TEXT", "invocation_events": "INTEGER",
+                        "invocation_exclusion": "TEXT"}),
+    ):
+        columns = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
+        for name, kind in additions.items():
+            if name not in columns:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_logs_invocation "
+                       "ON logs(invocation_id, invocation_seq) WHERE invocation_id IS NOT NULL")
+    connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_invocation "
+                       "ON turn_usage(invocation_id) WHERE invocation_id IS NOT NULL")
+    schema = Path(__file__).with_name("skillcache") / "schema.sql"
+    statement = ""
+    for line in schema.read_text().splitlines(True):
+        statement += line
+        if sqlite3.complete_statement(statement):
+            connection.execute(statement)
+            statement = ""
+
+
 def init_db(path: Path | None = None) -> None:
     with _conn(path) as connection:
         version = connection.execute('PRAGMA user_version').fetchone()[0]
@@ -174,6 +197,7 @@ def init_db(path: Path | None = None) -> None:
             _ensure_restart_cut_turns_schema(connection)
             _ensure_always_on_schema(connection)
             _ensure_tool_raw_input_schema(connection)
+            _ensure_skillcache_schema(connection)
             return
         if version or connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").fetchone():
             raise RuntimeError('database schema needs offline migration before starting Orchestra')
@@ -188,6 +212,7 @@ def init_db(path: Path | None = None) -> None:
         _ensure_restart_cut_turns_schema(connection)
         _ensure_always_on_schema(connection)
         _ensure_tool_raw_input_schema(connection)
+        _ensure_skillcache_schema(connection)
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
 
 
@@ -840,6 +865,8 @@ def add_log(
     tool_name: str | None = None,
     tool_is_error: bool | None = None,
     tool_raw_input=None,
+    invocation_id: str | None = None,
+    invocation_seq: int | None = None,
 ) -> int:
     """ИНВАРИАНТ: строки logs неизменяемы — только этот INSERT и оптовый DELETE по
     возрасту в cleanup_old_logs. Ни одного UPDATE. На этом стоит зеркало журнала в
@@ -865,14 +892,16 @@ def add_log(
         cur = c.execute(
             """INSERT INTO logs (
                    session_id, ts, type, content, event_id,
-                   tool_use_id, tool_name, tool_is_error, origin, origin_detail, tool_raw_input_json
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   tool_use_id, tool_name, tool_is_error, origin, origin_detail, tool_raw_input_json,
+                   invocation_id, invocation_seq
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 session_id, ts.isoformat(), type, content, event_id,
                 tool_use_id, tool_name,
                 None if tool_is_error is None else int(tool_is_error),
                 origin, origin_detail,
                 None if tool_raw_input is None else json.dumps(tool_raw_input, ensure_ascii=False),
+                invocation_id, invocation_seq,
             ),
         )
         if type == "user_message" and provenance is not None and provenance.origin == "user":
@@ -2700,6 +2729,9 @@ def tool_error_add(
 def turn_usage_add(
     *,
     event_id: str,
+    invocation_id: str | None = None,
+    invocation_events: int | None = None,
+    invocation_exclusion: str | None = None,
     session_id: str,
     scope: str = "",
     task_id: str = "",
@@ -2789,8 +2821,8 @@ def turn_usage_add(
                 provider_api_duration_ms, model_estimate_duration_ms,
                 tool_duration_sum_ms, tool_union_duration_ms,
                 tool_intervals_count, tool_intervals_missing, source_records_json,
-                quota_primary_pct, quota_sampled_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                quota_primary_pct, quota_sampled_at, invocation_id, invocation_events, invocation_exclusion)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 event_id,
                 observed_at,
@@ -2823,6 +2855,7 @@ def turn_usage_add(
                 json.dumps(provider_source_records or [], ensure_ascii=False, separators=(",", ":")),
                 quota_primary_pct,
                 quota_sampled_at,
+                invocation_id, invocation_events, invocation_exclusion,
             ),
         )
         inserted = cursor.rowcount == 1

@@ -662,6 +662,7 @@ from app.routes.artifacts import router as artifacts_router
 from app.routes.attention import router as attention_router
 from app.routes.temp_rules import router as temp_rules_router
 from app.routes.owner_activity import router as owner_activity_router
+from app.routes.skillcache import ENDPOINT as SKILLCACHE_ENDPOINT, router as skillcache_router
 app.include_router(tm_router)
 app.include_router(bg_router)
 app.include_router(sessions_router)
@@ -673,6 +674,7 @@ app.include_router(artifacts_router)
 app.include_router(attention_router)
 app.include_router(temp_rules_router)
 app.include_router(owner_activity_router)
+app.include_router(skillcache_router)
 from app.routes.timers import router as timers_router
 from app.routes.inbox import router as inbox_router
 from app.routes.outbox import router as outbox_router
@@ -721,6 +723,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 "details": {"capability": "operation-v1"},
             }
             return JSONResponse({"result": None, "error": error}, status_code=426)
+        # This endpoint authenticates the originating turn or signed bot request itself.
+        if method == "POST" and path == SKILLCACHE_ENDPOINT:
+            return await call_next(request)
         # Internal token bypasses cookie auth — allows MCP subprocess and workers
         # to call the API without a browser session
         if check_internal_token(request.headers.get("authorization", "")):

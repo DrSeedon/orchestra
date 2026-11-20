@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""One JSON request in, one JSON report out. The service owns DB and source access."""
+
+import argparse
+import json
+import os
+from pathlib import Path
+import sys
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("action", choices=("run", "continue", "qualify"))
+    parser.add_argument("--scope")
+    parser.add_argument("--skill")
+    args = parser.parse_args()
+    if args.action == "qualify":
+        # Local operator command only. MCP exposes the two execution transitions.
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from app.skillcache.pilots import MANIFESTS
+        from app.skillcache.qualifier import qualify
+        from app.skillcache.service import registry, settings
+
+        config = settings()
+        if not args.scope or args.skill not in MANIFESTS or not config:
+            parser.error("qualify requires host provisioning, --scope and --skill")
+        version = qualify(registry(config), args.scope, MANIFESTS[args.skill])
+        return {"status": "active", "digest": version}
+
+    sid = os.getenv("ORCHESTRA_SESSION_ID", "")
+    proof = os.getenv("ORCHESTRA_MCP_PROOF", "")
+    if not sid or not proof:
+        return {"status": "revoked"}
+    raw = sys.stdin.buffer.read(524289)
+    if len(raw) > 524288:
+        return {"status": "invalid_request"}
+    try:
+        request = json.loads(raw)
+        if not isinstance(request, dict) or request.get("action", args.action) != args.action:
+            return {"status": "invalid_request"}
+        request["action"] = args.action
+    except (ValueError, RecursionError):
+        return {"status": "invalid_request"}
+    endpoint = os.getenv("ORCHESTRA_URL", "http://127.0.0.1:8888")
+    target = urlsplit(endpoint)
+    if (target.scheme != "http" or target.hostname not in {"127.0.0.1", "::1"} or target.username
+            or target.path not in {"", "/"} or target.query or target.fragment):
+        return {"status": "revoked"}
+    headers = {"Content-Type": "application/json", "X-Orchestra-Session-Id": sid, "X-Orchestra-Mcp-Proof": proof}
+    req = Request(endpoint.rstrip("/") + "/api/skillcache/capsule-run", data=json.dumps(request).encode(), headers=headers)
+    try:
+        with build_opener(ProxyHandler({}), NoRedirect()).open(req, timeout=75) as response:
+            return json.loads(response.read(2097153))
+    except HTTPError as exc:
+        return {"status": "revoked" if exc.code in (401, 403) else "unavailable"}
+    except (URLError, OSError, ValueError):
+        return {"status": "unavailable"}
+
+
+if __name__ == "__main__":
+    print(json.dumps(main(), ensure_ascii=False))
+

@@ -511,6 +511,15 @@ class TurnManager:
         s = self.s
         s._cancel_checklist_reminder()
         meta = event.metadata
+        invocation_id = getattr(s, "_skillcache_invocation_id", None)
+        lineage = {}
+        if invocation_id:
+            lineage = {
+                "invocation_id": invocation_id,
+                "invocation_events": s._skillcache_seq,
+                "invocation_exclusion": s._skillcache_exclusion,
+            }
+            s._skillcache_invocation_id = None
         cost_unaccounted = (
             meta.get("cost_unaccounted") is True
             or ("cost_usd" in meta and meta.get("cost_usd") is None)
@@ -583,6 +592,7 @@ class TurnManager:
                 }
             s._submit_db_write(
                 turn_usage_add,
+                **lineage,
                 event_id=event_id,
                 session_id=s.id,
                 scope=s.scope,
@@ -1055,6 +1065,7 @@ class TurnManager:
         turn_id = getattr(backend, "active_turn_id", None)
         turn_id = turn_id if isinstance(turn_id, str) and turn_id else None
         try:
+            s._exclude_skillcache_turn("steered")
             await backend.send(_render_mailbox(_owner_first(held)))
         except BaseException as error:
             mailbox.release_claim([m["id"] for m in held])

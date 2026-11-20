@@ -844,3 +844,33 @@ def build_codex_skills_index(
             required.append(path)
 
     return build_skills_index(required, _project_skill_files(worktree_path))
+
+
+
+def skillcache_hints(scope: str, session_id: str, role: str, runtime: str, disabled_tools) -> str:
+    """List the exact active intents granted to this role and runtime."""
+    if (runtime not in {"claude", "codex", "antigravity"} or role in {"reader", "reviewer"}
+            or "capsule_run" in disabled_tools or not os.environ.get("ORCHESTRA_SKILLCACHE_CONFIG")):
+        return ""
+    from app.skillcache import service
+    from app.skillcache.pilots import MANIFESTS
+
+    try:
+        config = service.settings()
+        access = service.access(config, principal=f"orchestra:{session_id}", scope=scope,
+                                invocation="hint", origin="orchestra")
+        if not access:
+            return ""
+        registry = service.registry(config)
+        entries = []
+        for skill in sorted(access.skills):
+            intent = MANIFESTS[skill]["intent"]
+            row = registry.lookup(scope, skill, intent)
+            if row:
+                entries.append(f"- `{skill}` / `{intent}` — {MANIFESTS[skill]['description']}")
+        if entries:
+            return ("## SkillCache\nUse capsule_run only when the request matches an exact read-only intent. "
+                    "For unavailable capsules, follow the original skill.\n" + "\n".join(entries))
+    except Exception as exc:
+        logger.warning("SkillCache hints unavailable (%s)", type(exc).__name__)
+    return ""

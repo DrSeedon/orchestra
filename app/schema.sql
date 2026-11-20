@@ -112,6 +112,8 @@ CREATE TABLE logs (
                 tool_name TEXT,
                 tool_is_error INTEGER,
                 tool_raw_input_json TEXT,
+                invocation_id TEXT,
+                invocation_seq INTEGER,
                 origin TEXT NOT NULL DEFAULT 'unknown'
                     CHECK(origin IN ('user','agent','background_task','platform','system','unknown')),
                 origin_detail TEXT NOT NULL DEFAULT '{"senders":["unknown"]}'
@@ -552,6 +554,9 @@ CREATE TABLE tool_errors (
 CREATE TABLE turn_usage (
                 id INTEGER PRIMARY KEY,
                 event_id TEXT NOT NULL UNIQUE,
+                invocation_id TEXT,
+                invocation_events INTEGER,
+                invocation_exclusion TEXT,
                 ts TEXT NOT NULL,
                 session_id TEXT NOT NULL,
                 scope TEXT NOT NULL DEFAULT '',

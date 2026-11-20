@@ -986,6 +986,12 @@ class AgentSession:
         project_doc_instruction = getattr(self, "_codex_project_doc_instruction", "")
         if runtime == "codex" and project_doc_instruction:
             system_prompt = f"{system_prompt}\n\n{project_doc_instruction}"
+        if not validation_profile and self.mcp_servers.get("orchestra"):
+            from app.prompting import skillcache_hints
+
+            hints = skillcache_hints(self.scope, self.id, self.role, runtime, self.disabled_tools)
+            if hints:
+                system_prompt = f"{system_prompt}\n\n{hints}"
         context = BackendBuildContext(
             model=model,
             provider=spec.provider,
@@ -1293,6 +1299,9 @@ class AgentSession:
         if not compact_ack:
             self._note_next_precompact_activity()
         self._turns.bump_turn_gen()
+        self._skillcache_invocation_id = uuid.uuid4().hex
+        self._skillcache_seq = 0
+        self._skillcache_exclusion = "internal" if compact_ack or auto_continuation else None
         if compact_ack:
             self._compact_ack_gen = self._turn_gen
         self._turn_logs = []
@@ -1637,6 +1646,7 @@ class AgentSession:
                         if hold == "flush":
                             await self._turns.steer_turn_end_holds(backend, hold_reason)
                         injected, fact_keys = self._attach_pending_facts(message)
+                        self._exclude_skillcache_turn("steered")
                         mark_running_steer = getattr(delivery, "mark_running_steer", None)
                         if self.backend_type == "antigravity":
                             steer_payload = InjectedMessage(injected, provenance, message_event_id)
@@ -1755,6 +1765,7 @@ class AgentSession:
                                 ref=turn_id,
                             ),
                         )
+                    self._exclude_skillcache_turn("steered")
                     if self.backend_type == "antigravity":
                         steer_payload = InjectedMessage(injected, provenance, message_event_id)
                         await backend.send(steer_payload)
@@ -3057,6 +3068,10 @@ class AgentSession:
             self._output_tails.stop(task_id)
             broker.end_live(self.id, "tool_stream", str(meta.get("tool_use_id") or ""))
 
+    def _exclude_skillcache_turn(self, reason: str) -> None:
+        if getattr(self, "_skillcache_invocation_id", None):
+            self._skillcache_exclusion = reason
+
     def _handle_event(self, event: AgentEvent) -> None:
         acp_event_id = event.metadata.get("item_id", "") if self.backend_type == "antigravity" else ""
         if event.type in {"native_request","native_request_closed"}:
@@ -3132,6 +3147,8 @@ class AgentSession:
         # record is subagent_start/end; persisting these too would double-render them
         # (once in the accordion via broker, once in the main flow on reload).
         sub_id = event.metadata.get("subagent_id")
+        if sub_id or event.type == "subagent_start":
+            self._exclude_skillcache_turn("subagent")
         if sub_id and event.type in ("tool_use", "tool_result", "text", "thinking"):
             from app.live_broker import broker
             payload = {"type": "subagent_event", "event_type": event.type,
@@ -3501,6 +3518,8 @@ class AgentSession:
             try:
                 _refuse_if_draining(self)  # no await between here and RUNNING below
                 self._start_turn_state(owner_initiated=owner_initiated, input_provenance=acp_provenance)
+                if len(msgs) != 1:
+                    self._exclude_skillcache_turn("combined_input")
                 self._hibernated = False
                 try:
                     backend = await self._ensure_backend(
@@ -3514,6 +3533,7 @@ class AgentSession:
                 held = self._turns.claim_mailbox_held_after_stop()
                 try:
                     if held:
+                        self._exclude_skillcache_turn("combined_input")
                         combined = self._turns.mailbox_turn_text(
                             held, combined, message_is_owner=owner_initiated,
                         )
@@ -5547,8 +5567,13 @@ class AgentSession:
     ) -> None:
         # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns (B22: no stale item_id)
         args = (self.id, datetime.now(timezone.utc), type, content, event_id)
+        lineage = {}
+        invocation = getattr(self, "_skillcache_invocation_id", None)
+        if invocation and type in {"tool", "tool_result", "tool_update"}:
+            self._skillcache_seq += 1
+            lineage = {"invocation_id": invocation, "invocation_seq": self._skillcache_seq}
         if tool_use_id is None and tool_name is None and tool_is_error is None and tool_raw_input is None:
-            operation = partial(add_log, *args, provenance=provenance)
+            operation = partial(add_log, *args, provenance=provenance, **lineage)
         else:
             operation = partial(
                 add_log,
@@ -5557,6 +5582,7 @@ class AgentSession:
                 tool_use_id=tool_use_id,
                 tool_name=tool_name,
                 tool_is_error=tool_is_error,
+                **lineage,
                 **({"tool_raw_input":tool_raw_input} if tool_raw_input is not None else {}),
             )
         if self.backend_type == "antigravity":
