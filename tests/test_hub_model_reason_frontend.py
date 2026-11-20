@@ -28,12 +28,17 @@ const document = {
 const alerts = [];
 const window = { alert(message) { alerts.push(message); }, prompt() { throw Error('No reason may admit a forbidden hub model'); } };
 eval(parts.helpers);
-assert.equal(_modelReasonForSelection('hub-gpt-6.1-sol'), '');
+assert.equal(_modelReasonForSelection('hub-gpt-6.2-sol'), '');
 assert.equal(_modelReasonForSelection('claude-sonnet-5-5[1m]'), '');
-for (const model of ['hub-claude-sonnet-5-5', 'hub-claude-opus-5-5', 'hub-claude-haiku-5-5', 'hub-gpt-6-luna', 'hub-grok-4.7']) {
-    assert.equal(_modelReasonForSelection(model), null);
+for (const model of [
+    'hub-claude-sonnet-5-5', 'hub-claude-opus-5-5', 'hub-claude-haiku-5-5',
+    'hub-gpt-6.2-sol', 'hub-gpt-6.2-astra', 'hub-gpt-6-luna',
+    'hub-gemini-4-argon', 'hub-gemini-4-carbon', 'hub-gemini-4-hydrogen',
+]) {
+    assert.equal(_modelReasonForSelection(model), '');
 }
-assert.equal(alerts.length, 5);
+assert.equal(_modelReasonForSelection('hub-grok-4.7'), null);
+assert.equal(alerts.length, 1);
 const reason = '<img src=x onerror=alert(1)> creative direction';
 const badge = _modelReasonBadge(reason);
 assert.equal(badge.textContent, reason);

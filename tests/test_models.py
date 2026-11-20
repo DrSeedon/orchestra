@@ -136,7 +136,7 @@ def test_claude_cache_rates_and_prompt_tier_are_registry_data():
     assert TOKEN_PRICES["claude-haiku-5-5"]["prompt_over_threshold_multiplier"] == 5.0
 
 
-@pytest.mark.parametrize("model_id", ["gpt-6.2-astra", "gpt-6.2-sol", "gpt-6.1-terra"])
+@pytest.mark.parametrize("model_id", ["gpt-6.1-terra"])
 def test_astra_and_sol_are_manual_only_even_if_stored_flags_allow_agents(model_id, monkeypatch):
     monkeypatch.setattr(
         "app.models._load_model_flags",

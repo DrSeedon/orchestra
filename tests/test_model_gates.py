@@ -72,7 +72,7 @@ def test_t3_worker_spawn_rejected_on_agents_off(vendor_model, monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("model", ["astra", "sol", "terra"])
+@pytest.mark.parametrize("model", ["terra"])
 async def test_manual_only_model_cannot_be_spawned_by_an_agent(model):
     from app.manager import SessionManager
 
@@ -84,7 +84,7 @@ async def test_manual_only_model_cannot_be_spawned_by_an_agent(model):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("model", ["astra", "sol", "terra"])
+@pytest.mark.parametrize("model", ["terra"])
 async def test_mcp_change_model_rejects_manual_only_models_before_loading(model, monkeypatch):
     from app.routes import sessions as routes
     from fastapi.responses import JSONResponse
@@ -145,10 +145,11 @@ def test_t3_gates_are_wired_into_spawn_and_change_model():
 def test_sol_is_dashboard_selectable_but_closed_to_agents():
     from app.models import ensure_dashboard_visible, ensure_spawn_allowed, get_model_flags
 
-    assert get_model_flags("gpt-6.1-sol") == {"dashboard": True, "agents": False}
-    ensure_dashboard_visible("gpt-6.1-sol")
+    assert get_model_flags("gpt-6.2-sol") == {"dashboard": True, "agents": True}
+    ensure_dashboard_visible("gpt-6.2-sol")
+    ensure_spawn_allowed("gpt-6.2-sol")
     with pytest.raises(ValueError, match="disabled for agents"):
-        ensure_spawn_allowed("gpt-6.1-sol")
+        ensure_spawn_allowed("gpt-6.1-terra")
 
 
 @pytest.mark.asyncio
@@ -167,4 +168,4 @@ async def test_owner_dashboard_change_model_allows_sol(monkeypatch):
     result = await routes.change_model("worker", {"scope": "/tmp", "model": "sol"})
 
     assert result["ok"] is True
-    assert changed_to == ["gpt-6.1-sol"]
+    assert changed_to == ["gpt-6.2-sol"]

@@ -65,7 +65,7 @@ RETIRED_SOL_ASTRA_IDS = frozenset({
     "gpt-6.1-sol", "gpt-6-sol", "gpt-6-astra", "hub-gpt-6.1-sol", "hub-gpt-6-astra",
 })
 
-MANUAL_ONLY_MODEL_IDS = frozenset({ "gpt-6.1-terra", "gpt-6.2-sol", "gpt-6.2-astra"})
+MANUAL_ONLY_MODEL_IDS = frozenset({"gpt-6.1-terra"})
 RETIRED_SELECTABLE_MODEL_IDS = frozenset({
     "gpt-5.6-luna", "gpt-5.6-sol", "gpt-6-sol", "gpt-5.6-terra", "gpt-5.5",
     "grok-4.5", "claude-opus-5[1m]", "claude-sonnet-5[1m]", "claude-opus-4-6",
@@ -120,9 +120,9 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="codex", provider="openai", context_length=258400,
     ),
     ModelSpec(id="gpt-6.2-sol", name="GPT-6.2 Sol", runtime="codex", provider="openai",
-              context_length=500000, price_input=2.0, price_output=10.0, default_agents=False),
+              context_length=500000, price_input=2.0, price_output=10.0, default_agents=True),
     ModelSpec(id="gpt-6.2-astra", name="GPT-6.2 Astra", runtime="codex", provider="openai",
-              context_length=272000, price_input=8.0, price_output=40.0, default_agents=False),
+              context_length=272000, price_input=8.0, price_output=40.0, default_agents=True),
     # Conservative Codex fallback, not the public API's 1.05M window. Native
     # catalog/config metadata and rollout telemetry remain the runtime authority.
     ModelSpec(
@@ -140,7 +140,7 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     # and back through the platform broker; nothing is billed to our subscriptions.
     ModelSpec(
         id="hub-claude-haiku-5-5", name="Hub: Haiku 5.5",
-        runtime="hub", provider="multicode", default_agents=False,
+        runtime="hub", provider="multicode", default_agents=True,
     ),
     ModelSpec(
         id="hub-claude-sonnet-5-5", name="Hub: Sonnet 5.5",
@@ -245,28 +245,39 @@ ANTIGRAVITY_NEON_MODEL_IDS = frozenset("antigravity/" + raw for raw in ANTIGRAVI
 RETIRED_ANTIGRAVITY_XHIGH_IDS = frozenset({
     "gemini-4-neon-xhigh", "antigravity/gemini-4-neon-xhigh", "agy-neon-xhigh",
     "gemini-4-hydrogen-xhigh", "antigravity/gemini-4-hydrogen-xhigh", "agy-hydrogen-xhigh",
+    "gemini-4-carbon-xhigh", "antigravity/gemini-4-carbon-xhigh",
+    "gemini-4-argon-xhigh", "antigravity/gemini-4-argon-xhigh",
+    "claude-opus-5-5-xhigh", "antigravity/claude-opus-5-5-xhigh",
+    "claude-sonnet-5-5-xhigh", "antigravity/claude-sonnet-5-5-xhigh",
 })
 ANTIGRAVITY_NEON_TOKEN_PRICES = {"input": 3.0, "cached": 0.15, "output": 15.0}
 
 ANTIGRAVITY_G1_GEMINI_AGENT_MODELS = frozenset(
     "antigravity/" + raw for raw in (
         *ANTIGRAVITY_NEON_RAW_MODELS,
+        "gemini-4-carbon-high", "gemini-4-carbon-medium", "gemini-4-carbon-low",
+        "gemini-pro-orchestrator",
         "gemini-4-hydrogen-high",
         "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
         "gemini-4-argon-high", "gemini-4-argon-medium", "gemini-4-argon-low",
-        "gemini-pro-orchestrator-g1-pro",
+        "gemini-pro-orchestrator-g1-pro", "gemini-pro-orchestrator-argon",
         "gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
     )
 )
-# Owner clarification: these six routes spend OUR Antigravity third bucket,
-# not the Hub Claude pool or direct Anthropic API/CLI. No prefix-wide exemption.
+# Owner clarification: these routes spend OUR Antigravity third bucket (Claude 5.5 + GPT-OSS 120B),
+# not the Hub Claude pool or direct Anthropic API/CLI.
 ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS = frozenset(
     "antigravity/" + raw for raw in (
         "claude-opus-5-5-low", "claude-opus-5-5-medium", "claude-opus-5-5-high",
         "claude-sonnet-5-5-low", "claude-sonnet-5-5-medium", "claude-sonnet-5-5-high",
     )
 )
-ANTIGRAVITY_G1_AGENT_MODELS = ANTIGRAVITY_G1_GEMINI_AGENT_MODELS | ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS
+ANTIGRAVITY_G1_3P_AGENT_MODELS = frozenset({"antigravity/gpt-oss-120b-medium"})
+ANTIGRAVITY_G1_AGENT_MODELS = (
+    ANTIGRAVITY_G1_GEMINI_AGENT_MODELS
+    | ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS
+    | ANTIGRAVITY_G1_3P_AGENT_MODELS
+)
 ANTIGRAVITY_RAW_MODELS = (
     *ANTIGRAVITY_NEON_RAW_MODELS,
     "gemini-4-carbon-medium", "gemini-4-carbon-high", "gemini-4-carbon-low",
@@ -1192,15 +1203,20 @@ HUB_SOL_MODEL = "hub-gpt-6.2-sol"
 HUB_ARGON_MODEL = "hub-gemini-4-argon"
 HUB_CARBON_MODEL = "hub-gemini-4-carbon"
 HUB_HYDROGEN_MODEL = "hub-gemini-4-hydrogen"
+HUB_HAIKU_MODEL = "hub-claude-haiku-5-5"
 HUB_SONNET_MODEL = "hub-claude-sonnet-5-5"
 HUB_OPUS_MODEL = "hub-claude-opus-5-5"
 HUB_ASTRA_MODEL = "hub-gpt-6.2-astra"
 HUB_LUNA_MODEL = "hub-gpt-6-luna"
-# Owner stack 09–12.11.2026: Opus 5.5 xhigh and Sonnet 5.5 high (Multicast), Carbon medium
-# for deep reasoning/UI, Hydrogen high for fast execution, Argon medium, Sol, Astra and Luna.
+NATIVE_CODEX_AGENT_MODELS = frozenset({
+    "gpt-6.2-sol",
+    "gpt-6.2-astra",
+    "gpt-6-luna",
+    "gpt-5.3-codex-spark",
+})
 ALLOWED_HUB_WORKER_MODELS = frozenset({
-    HUB_OPUS_MODEL, HUB_SONNET_MODEL, HUB_CARBON_MODEL, HUB_HYDROGEN_MODEL,
-    HUB_ARGON_MODEL, HUB_SOL_MODEL, HUB_LUNA_MODEL, HUB_ASTRA_MODEL,
+    HUB_HAIKU_MODEL, HUB_OPUS_MODEL, HUB_SONNET_MODEL, HUB_CARBON_MODEL,
+    HUB_HYDROGEN_MODEL, HUB_ARGON_MODEL, HUB_SOL_MODEL, HUB_LUNA_MODEL, HUB_ASTRA_MODEL,
 })
 HUB_SPECIALIST_ROLE = "specialist"
 
@@ -1217,23 +1233,8 @@ MULTICAST_PATH_TOKENS = frozenset({"multicode", "multicast", "obelisk", "polus",
 
 
 def ensure_project_model_allowed(model: str, scope: str) -> None:
-    """Direct/Hub Claude is Multicast-only; exact OUR Antigravity 5.5 routes are exempt."""
-    model_id = ALIASES.get(model.lower().strip(), model.lower().strip())
-    if model_id in ANTIGRAVITY_G1_CLAUDE_AGENT_MODELS:
-        return  # Explicit owner exception for OUR local subscription bucket only.
-    if "claude-" not in model_id or os.getenv("ORCHESTRA_ALLOW_CLAUDE_ALL") == "1":
-        return
-    # Catalog-only validation has no project identity; dispatch supplies its actual scope.
-    if not scope:
-        return
-    extra = {p.strip().lower() for p in os.getenv("ORCHESTRA_MULTICAST_PATH_TOKENS", "").split(",") if p.strip()}
-    components = {part.lower() for part in Path(scope).resolve().parts}
-    if components & (MULTICAST_PATH_TOKENS | extra):
-        return
-    raise ValueError(
-        "claude_multicast_only: Claude is allowed only in Multicast projects; "
-        "use hub-gpt-6.2-sol, hub-gpt-6.2-astra or hub-gpt-6-luna for this project"
-    )
+    """All active models are open across projects; only retired/disabled/opt-in credit guards apply."""
+    _ensure_model_not_retired(model)
 
 
 def ensure_hub_worker_allowed(
@@ -1297,11 +1298,6 @@ def ensure_spawn_allowed(
     """
     _ensure_model_not_retired(model_id)
     spec = get_model_spec(model_id)
-    if model_id in ANTIGRAVITY_NEON_MODEL_IDS and (role or "").strip().lower() != "orchestrator":
-        raise ValueError(
-            f"model {model_id!r} is restricted to orchestrators (role='orchestrator'); "
-            "for workers use gpt-6.2-sol or hub routes."
-        )
     if is_provider_disabled(spec.runtime) or is_provider_disabled(spec.provider):
         raise ValueError(
             f"model {model_id!r} is disabled because provider {spec.runtime!r} "
@@ -1313,8 +1309,14 @@ def ensure_spawn_allowed(
     if billing == "api_credit":
         if spec.runtime != "claude":
             raise ValueError("billing='api_credit' requires a Claude model")
-    elif spec.runtime != "hub" and model_id not in FREE_POOL_MODEL_IDS and model_id not in ANTIGRAVITY_G1_AGENT_MODELS and not (
-        model_id == LOCAL_LUNA_MODEL and isinstance(model_reason, str) and model_reason.strip()
+    elif (
+        spec.runtime != "hub"
+        and model_id not in FREE_POOL_MODEL_IDS
+        and model_id not in ANTIGRAVITY_G1_AGENT_MODELS
+        and model_id not in NATIVE_CODEX_AGENT_MODELS
+        and not (
+            model_id == LOCAL_LUNA_MODEL and isinstance(model_reason, str) and model_reason.strip()
+        )
     ):
         raise ValueError(
             f"{AGENT_HUB_ROUTE_RULE}: model '{model_id}' is disabled for agents on "

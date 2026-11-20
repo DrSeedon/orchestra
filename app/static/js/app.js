@@ -2888,11 +2888,16 @@ function _showHistoryTransfer(transfer) {
 }
 
 function _modelReasonForSelection(model) {
-    if (model.startsWith('hub-') && model !== 'hub-gpt-6.2-sol') {
-        window.alert(T('Hub workers require hubsol (GPT-6.1 Sol). If Sol is unavailable, wait or report the blocker; no fallback.'));
+    const allowedHubModels = new Set([
+        "hub-claude-haiku-5-5", "hub-claude-sonnet-5-5", "hub-claude-opus-5-5",
+        "hub-gpt-6.2-sol", "hub-gpt-6.2-astra", "hub-gpt-6-luna",
+        "hub-gemini-4-argon", "hub-gemini-4-carbon", "hub-gemini-4-hydrogen",
+    ]);
+    if (model.startsWith("hub-") && !allowedHubModels.has(model)) {
+        window.alert(T("Hub workers require hubsol (GPT-6.1 Sol). If Sol is unavailable, wait or report the blocker; no fallback."));
         return null;
     }
-    return '';
+    return "";
 }
 
 function _modelReasonBadge(reason) {

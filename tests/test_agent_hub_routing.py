@@ -6,7 +6,7 @@ import pytest
 from app import models
 from scripts import wf_adapters
 
-NATIVE = [spec.id for spec in models.SELECTABLE_MODEL_SPECS if spec.runtime != 'hub']
+NATIVE = [spec.id for spec in models.SELECTABLE_MODEL_SPECS if spec.runtime not in ('hub', 'codex', 'antigravity') or spec.id in models.MANUAL_ONLY_MODEL_IDS or (spec.runtime == 'antigravity' and spec.id not in models.ANTIGRAVITY_G1_AGENT_MODELS)]
 HUB = ['hubsol', 'hubargon', 'hubsonnet', 'hubluna']
 
 
@@ -77,7 +77,7 @@ def test_hub_configuration_and_catalog_gates_remain_effective(admission, monkeyp
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('alias', ['sonnet', 'opus', 'luna', 'spark', 'grok', 'gigachat'])
+@pytest.mark.parametrize('alias', ['sonnet', 'opus', 'grok', 'gigachat'])
 async def test_agent_spawn_refuses_before_allocating_any_session(admission, monkeypatch, tmp_path, alias):
     from app import manager as module
 
@@ -93,7 +93,7 @@ async def test_agent_spawn_refuses_before_allocating_any_session(admission, monk
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('alias', ['sonnet', 'opus', 'luna', 'spark', 'grok', 'gigachat'])
+@pytest.mark.parametrize('alias', ['sonnet', 'opus', 'grok', 'gigachat'])
 async def test_agent_change_refuses_before_loading_or_mutating_worker(admission, monkeypatch, alias):
     from app.routes import sessions
 
@@ -133,7 +133,7 @@ async def test_manual_native_model_change_still_dispatches(admission, monkeypatc
     worker.change_model.assert_awaited_once_with(models.resolve_model('sol'))
 
 
-@pytest.mark.parametrize('alias', ['sonnet', 'opus', 'luna', 'spark', 'grok', 'gigachat'])
+@pytest.mark.parametrize('alias', ['sonnet', 'opus', 'grok', 'gigachat'])
 def test_dynamic_normalization_refuses_ordinary_native_tasks(admission, alias):
     from app import mcp_stdio
 
@@ -155,7 +155,7 @@ def test_dynamic_normalization_preserves_explicit_credit_opt_in(admission, alias
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('alias', ['sonnet', 'opus', 'luna', 'spark', 'gigachat', 'hubsol'])
+@pytest.mark.parametrize('alias', ['sonnet', 'opus', 'gigachat', 'hubsol'])
 async def test_one_shot_dispatch_refuses_without_any_provider_call(admission, monkeypatch, tmp_path, alias):
     calls = [AsyncMock() for _ in range(3)]
     for name, call in zip(['run_claude', 'run_codex', 'run_harness'], calls):

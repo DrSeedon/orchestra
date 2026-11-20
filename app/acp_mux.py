@@ -39,8 +39,11 @@ SPAWNER = Path("/run/orchestra-agy/spawner.sock")
 TOOL_EXEC = Path("/run/orchestra-agy/tool-exec.sock")
 KILLSWITCH = Path("/run/orchestra-oauth-killswitch.ready")
 MODEL = re.compile(
-    r"(?:gemini-4-(?:neon|hydrogen)-(?:low|medium|high)"
-    r"|gemini-4-carbon-(?:low|high)|gemini-pro-orchestrator-neon)"
+    r"(?:gemini-4-(?:neon|hydrogen|carbon|argon)-(?:low|medium|high)"
+    r"|gemini-3\.8-flash-(?:low|medium|high)"
+    r"|gemini-pro-orchestrator(?:-neon|-g1-pro|-argon)?"
+    r"|claude-(?:sonnet|opus)-5-5-(?:low|medium|high)"
+    r"|gpt-oss-120b-medium)"
 )
 
 
@@ -149,16 +152,28 @@ def _validate_prompt(blocks):
             raise AcpSessionError("ACP audio exceeds the 20 MiB prompt budget")
 
 
-async def _check_quota():
+def _pool_quota_keys(model: str) -> tuple[str, str]:
+    if model.startswith("gemini-4-argon-") or model in (
+        "gemini-pro-orchestrator-g1-pro",
+        "gemini-pro-orchestrator-argon",
+    ):
+        return ("gemini-argon-wtu-weekly", "gemini-argon-wtu-5h")
+    if model.startswith(("claude-", "gpt-oss-")):
+        return ("3p-weekly", "3p-5h")
+    return ("gemini-weekly", "gemini-5h")
+
+
+async def _check_quota(model: str = ""):
     from app.provider_safety import get_antigravity_cooldown
     from app.routes.system import _antigravity_usage_cache
 
     cooldown = get_antigravity_cooldown()
     if cooldown is not None:
         raise AcpSessionError(cooldown["message"])
-    for key in ("data", "five_hour"):
+    weekly_key, short_key = _pool_quota_keys(str(model or ""))
+    for key, metric in (("data", weekly_key), ("five_hour", short_key)):
         values = _antigravity_usage_cache.get(key) or {}
-        usage = values.get("gemini-weekly" if key == "data" else "gemini-5h")
+        usage = values.get(metric)
         if isinstance(usage, dict):
             remaining = usage.get("remaining_fraction")
             if isinstance(remaining, (float, int)):
@@ -451,12 +466,16 @@ class Connection:
             if not isinstance(blocks, list):
                 raise AcpSessionError("Invalid prompt blocks")
             cached = cached_profile(self.home)
-            if not cached or cached.capabilities.get("promptCapabilities", {}).get("audio") is not True:
+            if (
+                not model.startswith("gemini-")
+                or not cached
+                or cached.capabilities.get("promptCapabilities", {}).get("audio") is not True
+            ):
                 blocks = [block for block in blocks if not isinstance(block, dict) or block.get("type") != "audio"]
             _validate_prompt(blocks)
             if not any(block["type"] == "text" and block["text"].strip() for block in blocks):
                 raise AcpSessionError("ACP requires a nonempty text prompt")
-            await _check_quota()
+            await _check_quota(model)
             event = params.get("turnId")
             if not isinstance(event, str) or not re.fullmatch(r"[a-f0-9]{32}", event):
                 raise AcpSessionError("ACP requires a one-use turn ticket")
@@ -465,7 +484,7 @@ class Connection:
             if owner is None:
                 await self.attach()
                 sid, owner = self.session_id, self.owner
-            if owner.capabilities.get("promptCapabilities", {}).get("audio") is not True:
+            if not model.startswith("gemini-") or owner.capabilities.get("promptCapabilities", {}).get("audio") is not True:
                 blocks = [block for block in blocks if block["type"] != "audio"]
             logger.info("ACP mux origin=%s model=%s sid_hash=%s", params["origin"], model,
                         hashlib.sha256(sid.encode()).hexdigest()[:12])

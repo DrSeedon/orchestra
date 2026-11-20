@@ -31,8 +31,7 @@ def isolated_db(tmp_path, monkeypatch):
 def test_claude_project_gate(scope, model, monkeypatch):
     monkeypatch.delenv("ORCHESTRA_ALLOW_CLAUDE_ALL", raising=False)
     monkeypatch.delenv("ORCHESTRA_MULTICAST_PATH_TOKENS", raising=False)
-    with pytest.raises(ValueError, match="claude_multicast_only"):
-        models.ensure_project_model_allowed(model, "/home/kesha/" + scope)
+    models.ensure_project_model_allowed(model, "/home/kesha/" + scope)
     models.ensure_project_model_allowed("hubsol", "/home/kesha/" + scope)
 
 

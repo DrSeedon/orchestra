@@ -145,9 +145,10 @@ async def test_failed_model_persistence_rolls_back_model_effort_and_native_id(tm
 
 
 def test_new_alias_does_not_bypass_manual_or_disabled_guards(monkeypatch):
-    assert {"gpt-6.2-sol","gpt-6.2-astra"}<=models.MANUAL_ONLY_MODEL_IDS
+    assert {"gpt-6.2-sol","gpt-6.2-astra"}<=models.NATIVE_CODEX_AGENT_MODELS
     for mid in ("sol","astra"):
-        with pytest.raises(ValueError):models.ensure_spawn_allowed(models.resolve_model(mid))
+        models.ensure_spawn_allowed(models.resolve_model(mid))
+    with pytest.raises(ValueError):models.ensure_spawn_allowed(models.resolve_model("terra"))
     monkeypatch.setattr(models,"is_provider_disabled",lambda name:True)
     with pytest.raises(ValueError):models.ensure_dashboard_visible("gpt-6.2-sol")
 

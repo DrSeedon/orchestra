@@ -169,7 +169,7 @@ def test_provider_block_overrides_model_flags_and_gates(models_client, monkeypat
             assert mid in ids
     monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
     registry.ensure_spawn_allowed(registry.resolve_model("hubsol"))
-    registry.ensure_dashboard_visible("gpt-6.1-sol")
+    registry.ensure_dashboard_visible("gpt-6.2-sol")
     registry.set_provider_disabled("claude", False)
     registry.ensure_dashboard_visible("claude-haiku-5-5")
     registry.ensure_spawn_allowed("claude-haiku-5-5", billing="api_credit")

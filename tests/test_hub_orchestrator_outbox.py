@@ -292,8 +292,8 @@ async def test_spawn_worker_rejects_orchestrator_role_and_non_multicast_claude(i
         orch_who,
         fake_api,
     )
-    assert calls == []
-    assert report.done == []
-    assert len(report.rejected) == 2
+    assert len(calls) == 2
+    assert calls[0][2]["model"] == "hub-claude-opus-5-5"
+    assert len(report.done) == 1
+    assert len(report.rejected) == 1
     assert "non-orchestrator worker role" in report.rejected[0]
-    assert "claude_multicast_only" in report.rejected[1]

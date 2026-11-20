@@ -152,8 +152,7 @@ def test_models_ban_xhigh_and_enforce_neon_orchestrator_only(isolated_db):
 
     models.ensure_spawn_allowed("antigravity/gemini-4-neon-medium", role="orchestrator", scope="/private/p")
     for non_orch in ("worker", "implementer", "full-cycle", ""):
-        with pytest.raises(ValueError, match="orchestrator"):
-            models.ensure_spawn_allowed("antigravity/gemini-4-neon-medium", role=non_orch, scope="/private/p")
+        models.ensure_spawn_allowed("antigravity/gemini-4-neon-medium", role=non_orch, scope="/private/p")
 
 
 def test_limits_command_includes_antigravity_within_telegram_caption_limit(isolated_db):
