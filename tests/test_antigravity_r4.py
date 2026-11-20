@@ -135,9 +135,9 @@ async def test_late_input_real_stdio_session_journal_and_tg(stand,real_session,m
         evidence.write_text(json.dumps({"logs":tools,"live":outputs},ensure_ascii=False,indent=2))
         await acp_tg_delivery.pump(s.id,77,9,dest,lease,tg)
         texts=[x[1] for x in bot.sent]
-        assert sum("Аргументы:" in x for x in texts)==1
-        assert sum("echo late synthetic" in x for x in texts)==1
-        assert sum("Результат:" in x for x in texts)==1
+        assert not any("Аргументы:" in x for x in texts)
+        assert not any("Результат:" in x for x in texts)
+        assert sum("run_command" in x for x in texts)==1
         assert sum(x["method"]=="session/prompt" for x in stand.trace())==1
     finally:
         broker.unsubscribe(s.id,q);acp_tg_delivery.release(dest,lease)

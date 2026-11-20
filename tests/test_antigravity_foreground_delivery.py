@@ -44,13 +44,14 @@ async def test_real_tg_formatter_cursor_restart_and_first_attach_skips_old_histo
     db.add_log("tg-fg",datetime.now(timezone.utc),"tool",'title: {"url":"https://synthetic.invalid/"}',tool_name="mcp__orchestra__task_get",tool_use_id="t1")
     db.add_log("tg-fg",datetime.now(timezone.utc),"tool_result","actual result",tool_name="mcp__orchestra__task_get",tool_use_id="t1")
     await acp_tg_delivery.pump("tg-fg",77,9,dest,lease,tg)
-    assert len(bot.sent)==2 and "task_get" in bot.sent[0][1]
+    assert len(bot.sent)==1 and "task_get" in bot.sent[0][1]
+    assert "actual result" not in str(bot.sent)
     assert "old history" not in str(bot.sent)
     acp_tg_delivery.release(dest,lease)
     db.add_log("tg-fg",datetime.now(timezone.utc),"text","unsent tail after bridge restart")
     dest,lease=acp_tg_delivery.start("tg-fg",77,9)
     await acp_tg_delivery.pump("tg-fg",77,9,dest,lease,tg)
-    assert len(bot.sent)==3 and "unsent tail" in bot.sent[-1][1]
+    assert len(bot.sent)==2 and "unsent tail" in bot.sent[-1][1]
     acp_tg_delivery.release(dest,lease)
     (tmp_path/"tg-delivered.json").write_text(json.dumps([x[1] for x in bot.sent]))
 

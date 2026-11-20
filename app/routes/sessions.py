@@ -335,7 +335,7 @@ class CreateSessionRequest(BaseModel):
 
 
 class SendRequest(BaseModel):
-    channel: Literal["", "dashboard"] = ""
+    channel: Literal["", "dashboard", "kesha"] = ""
     message: str
     scope: str
     sender: str | None = None
@@ -1364,7 +1364,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 origin="agent", senders=(req.sender,), subtype="http_send",
             )
         else:
-            from app.auth import is_auth_enabled, validate_session
+            from app.auth import check_internal_token, is_auth_enabled, validate_session
 
             # Человеком считается ТОЛЬКО предъявивший валидную куку. Прежнее
             # `not is_auth_enabled() or ...` превращало любого безымянного вызывающего в
@@ -1377,11 +1377,66 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 request is not None
                 and validate_session(request.cookies.get("session", ""))
             )
-            provenance = MessageProvenance(
-                origin="user" if operator else "unknown",
-                senders=("user",) if operator else (("dashboard",) if req.channel == "dashboard" else ("unknown",)),
-                subtype="dashboard" if req.channel == "dashboard" else "http_send",
-            )
+            kesha_handoff = False
+            if not operator and request is not None:
+                _client_host = (getattr(getattr(request, "client", None), "host", "") or "").strip()
+                _is_loopback = (
+                    _client_host in {"127.0.0.1", "::1", "localhost"}
+                    and not request.headers.get("x-forwarded-for")
+                    and not request.headers.get("x-real-ip")
+                )
+                _has_kesha_signal = (
+                    req.channel == "kesha"
+                    or request.headers.get("x-orchestra-kesha-handoff", "").strip() == "1"
+                    or req.message.lstrip().startswith("[от Кеши]")
+                )
+                if _is_loopback and _has_kesha_signal and check_internal_token(
+                    request.headers.get("authorization", "")
+                ):
+                    _live = getattr(manager, "sessions", None) or {}
+                    _live_target = next(
+                        (
+                            x for x in _live.values()
+                            if getattr(x, "name", None) == name
+                            and (not req.scope or getattr(x, "scope", None) == req.scope)
+                        ),
+                        None,
+                    )
+                    _row_target = (
+                        await asyncio.to_thread(get_session_by_name, name, req.scope)
+                        if req.scope else None
+                    )
+                    if _row_target is None:
+                        _all_rows = await asyncio.to_thread(get_all_sessions)
+                        _matches = [
+                            r for r in _all_rows
+                            if r.get("name") == name and (not req.scope or r.get("scope") == req.scope)
+                        ]
+                        if len(_matches) == 1:
+                            _row_target = _matches[0]
+                    _target_is_orch = bool(
+                        (_live_target is not None and (
+                            getattr(_live_target, "is_orchestrator", False)
+                            or getattr(_live_target, "role", "") in {"orchestrator", "sub-orchestrator"}
+                        ))
+                        or (_row_target is not None and (
+                            _row_target.get("is_orchestrator")
+                            or _row_target.get("role") in {"orchestrator", "sub-orchestrator"}
+                        ))
+                    )
+                    kesha_handoff = _target_is_orch
+            if kesha_handoff:
+                provenance = MessageProvenance(
+                    origin="user",
+                    senders=("kesha",),
+                    subtype="kesha_handoff",
+                )
+            else:
+                provenance = MessageProvenance(
+                    origin="user" if operator else "unknown",
+                    senders=("user",) if operator else (("dashboard",) if req.channel == "dashboard" else ("unknown",)),
+                    subtype="dashboard" if req.channel == "dashboard" else "http_send",
+                )
         from app.antigravity_acp import ensure_interactive_input
         if req.after_turn and req.channel == "dashboard":
             # The second dashboard mode queues only an active turn.  An idle target

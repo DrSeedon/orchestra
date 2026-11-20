@@ -43,17 +43,25 @@ from app.tool_output_compactor import TOOL_RESULTS
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("orchestra-mcp")
 
+import argparse
+
+_cli_parser = argparse.ArgumentParser(add_help=False)
+_cli_parser.add_argument("--scope", default="")
+_cli_parser.add_argument("--sender", default="")
+_cli_parser.add_argument("--session-id", default="")
+_cli_args, _ = _cli_parser.parse_known_args()
+
 ORCHESTRA_URL = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888")
-SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
+SCOPE = _cli_args.scope or os.environ.get("ORCHESTRA_SCOPE", "")
 # Full Git worktree creation measured above 100 seconds on current large projects.
 SPAWN_CREATE_TIMEOUT_S = 300.0
 MESSAGE_FILE_MAX_BYTES = 64 * 1024
 DISABLED_TOOLS = parse_disabled_tools(os.environ.get("ORCHESTRA_DISABLED_TOOLS", "[]"))
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
-WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
+WORKER_NAME = _cli_args.sender or os.environ.get("WORKER_NAME", "worker")
 # Имя агента меняется и может быть переиспользовано; id — нет. Нужен там, где
 # идентичность СОХРАНЯЕТСЯ и сравнивается позже: держатель тест-лока (#82).
-SESSION_ID = os.environ.get("ORCHESTRA_SESSION_ID", "")
+SESSION_ID = _cli_args.session_id or os.environ.get("ORCHESTRA_SESSION_ID", "")
 PARENT_NAME = os.environ.get("PARENT_NAME", "")
 _INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")
 _MCP_PROOF = os.environ.get("ORCHESTRA_MCP_PROOF", "")

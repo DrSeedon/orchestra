@@ -1065,8 +1065,20 @@ class AntigravityBackend:
             # Existing IPC tool boundary restores kesha's GID and scrubs provider proxies.
             clean = next((p for p in ("/home/kesha/.local/bin/agy-clean-exec", "/usr/local/bin/agy-clean-exec")
                           if Path(p).is_file() and os.access(p, os.X_OK)), None)
+            args_in = list(config.get("args", []))
+            env_dict = config.get("env", {}) or {}
+            if name == "orchestra":
+                _scope = str(env_dict.get("ORCHESTRA_SCOPE") or "").strip()
+                _sender = str(env_dict.get("WORKER_NAME") or "").strip()
+                _sid = str(env_dict.get("ORCHESTRA_SESSION_ID") or "").strip()
+                if _scope and "--scope" not in args_in:
+                    args_in.extend(["--scope", _scope])
+                if _sender and "--sender" not in args_in:
+                    args_in.extend(["--sender", _sender])
+                if _sid and "--session-id" not in args_in:
+                    args_in.extend(["--session-id", _sid])
             command = clean or config["command"]
-            args = [config["command"], *config.get("args", [])] if clean else config.get("args", [])
+            args = [config["command"], *args_in] if clean else args_in
             servers.append({"name": name, "command": command,
                 "args": args, "env": [
                     {"name": key, "value": str(value)} for key, value in config.get("env", {}).items()]})

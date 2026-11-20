@@ -72,11 +72,9 @@ def format_log(log,bridge):
         markup=native_markup(request)
     elif kind=="tool":
         name,body=parts(log);content=bridge._tool_line(name,body)+"\n"+body
-    elif kind=="tool_update":
-        name,body=parts(log);content="Аргументы: "+name+"\n"+body
-    elif kind=="tool_result":
-        content=("Ошибка: " if log.get("tool_is_error") else "Результат: ")+str(log.get("tool_name") or "tool")+"\n"+content
-    elif kind in {"text","thinking","error"}:pass
+    elif kind in {"tool_update","tool_result","thinking"}:
+        return []
+    elif kind in {"text","error"}:pass
     elif kind=="user_message":content=bridge._format_user_message_log(log,"")
     else:return []
     # Existing production Markdown formatter, no third-party renderer or fake content.

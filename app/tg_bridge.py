@@ -84,6 +84,8 @@ def _incoming_message_parts(log: dict, target_name: str) -> tuple[str | None, st
         origin, detail, senders = "unknown", {"senders": ["unknown"]}, ["unknown"]
     subtype = str(detail.get("subtype") or "").strip()
     content = user_message_display_content(log)
+    if subtype == "kesha_handoff":
+        return f"🦜 kesha → {target_name}", content
     if origin == "user":
         return None, content
     label = ", ".join(str(sender) for sender in senders)
@@ -812,8 +814,8 @@ def _tool_target(tool_name: str, body: str) -> str:
     except Exception:
         params = {}
     short = _tg_tool_short(tool_name)
-    if tool_name == "Bash":
-        cmd = str(params.get("command", "")).strip()
+    if tool_name in ("Bash", "run_command"):
+        cmd = str(params.get("command") or params.get("CommandLine") or "").strip()
         m = _BASH_WRAPPER.match(cmd)
         if m:
             cmd = cmd[m.end():].strip()
@@ -836,17 +838,28 @@ def _tool_target(tool_name: str, body: str) -> str:
         return _WORKTREE_PREFIX.sub("", cmd) or short
     if tool_name == "FileChange":
         return _file_change_target(params) or short
-    if tool_name in ("Read", "Write", "Edit", "NotebookEdit"):
-        path = _tail_path(str(params.get("file_path", "")), _ACTION_LINE_MAX - 14)
-        if tool_name == "Edit":
-            plus, minus = _line_delta(params.get("old_string", ""),
-                                      params.get("new_string", ""))
+    if tool_name in (
+        "Read", "Write", "Edit", "NotebookEdit",
+        "read_file", "view_file", "write_file", "edit_file",
+        "replace_file_content", "multi_replace_file_content",
+    ):
+        raw_path = str(params.get("file_path") or params.get("Path") or params.get("TargetFile") or "")
+        path = _tail_path(raw_path, _ACTION_LINE_MAX - 14)
+        if tool_name in ("Edit", "edit_file"):
+            plus, minus = _line_delta(params.get("old_string") or params.get("Target") or "",
+                                      params.get("new_string") or params.get("Replacement") or "")
             return f"{path} +{plus} −{minus}"
-        if tool_name == "Write":
-            return f"{path} +{len(str(params.get('content', '')).splitlines())}"
+        if tool_name in ("Write", "write_file"):
+            return f"{path} +{len(str(params.get('content') or params.get('Content') or '').splitlines())}"
         return path or short
-    if tool_name in ("Grep", "Glob"):
-        return str(params.get("pattern", "")) or short
+    if tool_name in ("Grep", "Glob", "grep_search", "find_by_name", "list_dir"):
+        val = (
+            params.get("pattern")
+            or params.get("Pattern")
+            or params.get("Query")
+            or _tail_path(str(params.get("SearchPath") or params.get("DirectoryPath") or ""), _ACTION_LINE_MAX - 14)
+        )
+        return str(val or "") or short
     if tool_name in ("WebSearch", "WebFetch"):
         return str(params.get("query") or params.get("url", "")) or short
     if "send_message" in tool_name:
@@ -874,6 +887,8 @@ def _send_message_parts(tool_name: str, body: str) -> tuple[str, str] | None:
     except ValueError:
         return None
     if not isinstance(params, dict):
+        return None
+    if "to" not in params and "message" not in params:
         return None
     return f"✉️ → {params.get('to', '?')}", str(params.get("message", ""))
 
@@ -2793,17 +2808,39 @@ _TG_TOOL_ICONS = {
     # Одна правка файла — один значок, каким бы рантаймом она ни была сделана:
     # Codex пишет её как FileChange, Claude как Edit/Write (767 против 82 за трое суток).
     'FileChange': '✏️',
+    'run_command': '🖥', 'read_file': '📖', 'view_file': '📖',
+    'write_file': '✏️', 'edit_file': '✏️', 'replace_file_content': '✏️',
+    'multi_replace_file_content': '✏️', 'grep_search': '🔎',
+    'find_by_name': '🔎', 'list_dir': '🔎',
 }
 _TG_MCP_ICONS = {
     'orchestra': '🎼', 'websearch': '🌐', 'kesha': '🦜',
     'yougile': '📋', 'serena': '🧠', 'mailru': '📧',
+    'gpb': '🏦', 'ozon': '🛒', 'gmail': '📧', 'hub-images': '🖼',
 }
+_ACP_MCP_HEX_RE = re.compile(r'^mcp_([a-z0-9-]+?)_[0-9a-f]{8}_(.+)$')
+_ACP_MCP_PLAIN_RE = re.compile(r'^mcp_([a-z0-9-]+?)_(.+)$')
+
+
+def _parse_mcp_name(name: str) -> tuple[str, str] | None:
+    if name.startswith('mcp__'):
+        parts = name.split('__', 2)
+        if len(parts) >= 3:
+            return parts[1], parts[2]
+        if len(parts) == 2:
+            return parts[1], name
+        return None
+    if name.startswith('mcp_'):
+        m = _ACP_MCP_HEX_RE.match(name) or _ACP_MCP_PLAIN_RE.match(name)
+        if m:
+            return m.group(1), m.group(2)
+    return None
 
 
 def _tg_tool_icon(name: str) -> str:
-    if name.startswith('mcp__'):
-        parts = name.split('__')
-        return _TG_MCP_ICONS.get(parts[1], '🔌') if len(parts) >= 2 else '🔌'
+    parsed = _parse_mcp_name(name)
+    if parsed is not None:
+        return _TG_MCP_ICONS.get(parsed[0], '🔌')
     for key, icon in _TG_TOOL_ICONS.items():
         if name == key or name.startswith(key):
             return icon
@@ -2811,9 +2848,9 @@ def _tg_tool_icon(name: str) -> str:
 
 
 def _tg_tool_short(name: str) -> str:
-    if name.startswith('mcp__'):
-        parts = name.split('__', 2)
-        return parts[2] if len(parts) >= 3 else name
+    parsed = _parse_mcp_name(name)
+    if parsed is not None:
+        return parsed[1]
     return name
 
 
@@ -3755,10 +3792,6 @@ async def stream_logs(orch_name: str, thread_id: int):
     if not session_id:
         return
 
-    if row and (row.get("backend_type")=="antigravity" or str(row.get("model","")).startswith("antigravity/")):
-        import sys
-        from app.acp_tg_delivery import stream
-        return await stream(session_id,config["group_id"],thread_id,sys.modules[__name__])
 
     from app.db import _conn
     # Dedicated connection per stream loop — avoids sharing state with the request threads
@@ -3898,6 +3931,42 @@ async def stream_logs(orch_name: str, thread_id: int):
                             continue
                         await _update_progress(turn, thread_id, orch_name)
                         continue
+                    elif t == "tool_update":
+                        _tu_id = log.get("tool_use_id") or ""
+                        _tu_aid = turn.by_tool_id.get(_tu_id) if _tu_id else None
+                        if _tu_aid is not None and _tu_aid in turn.actions:
+                            from app.acp_tg_delivery import parts
+                            _tu_name, _tu_body = parts(log)
+                            if _tu_name == "tool" and turn.names.get(_tu_aid):
+                                _tu_name = turn.names[_tu_aid]
+                            turn.raw[_tu_aid] = _tu_body
+                            turn.actions[_tu_aid] = _tool_line(_tu_name, _tu_body)
+                            await _update_progress(turn, thread_id, orch_name)
+                        continue
+                    elif t == "native_request":
+                        try:
+                            from app.acp_tg_delivery import native_markup
+                            _nreq = json.loads(c)
+                            _ntitle = str(_nreq.get("title") or "")
+                            _ntext = (
+                                "Вопрос агента"
+                                if _nreq.get("kind") == "question"
+                                else "Подтверждение действия"
+                            ) + (f"\n{_ntitle}" if _ntitle else "")
+                            if _nreq.get("details"):
+                                _ntext += "\n" + json.dumps(_nreq["details"], ensure_ascii=False)
+                            _nmarkup = native_markup(_nreq)
+                            await _update_progress(turn, thread_id, orch_name, force=True)
+                            turn.new_block()
+                            for _ni, (_nconv, _nents) in enumerate(_formatted_chunks(_ntext)):
+                                await _acp_send_once(
+                                    config["group_id"], _nconv,
+                                    message_thread_id=thread_id, entities=_nents,
+                                    reply_markup=_nmarkup if _ni == 0 else None,
+                                )
+                        except Exception as _ne:
+                            logger.warning(f"TG native_request send failed for {orch_name}: {_ne}")
+                        continue
                     elif t == "tool_result":
                         # Картинка настоящего файла, который агент СМОТРЕЛ, — это содержимое,
                         # а не машинерия: она остаётся отдельным сообщением.
@@ -3912,14 +3981,19 @@ async def stream_logs(orch_name: str, thread_id: int):
                             _notify_reason = str(
                                 _attention_event.get("reason") or ""
                             ).strip()
-                        if turn.names.get(_action_id) == "Read" and (
+                        if turn.names.get(_action_id) in ("Read", "read_file", "view_file") and (
                             "'type': 'image'" in c or '"type": "image"' in c
                             or "'type':'image'" in c
                         ):
                             raw = turn.raw.get(_action_id, "")
                             try:
                                 _read_params = json.loads(raw) if raw else {}
-                                _img_path = _read_params.get("file_path", "")
+                                _img_path = (
+                                    _read_params.get("file_path")
+                                    or _read_params.get("Path")
+                                    or _read_params.get("TargetFile")
+                                    or ""
+                                )
                                 if _img_path and Path(_img_path).is_file():
                                     await _tg_send_file_safe(
                                         config["group_id"], _img_path,

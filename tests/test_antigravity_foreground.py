@@ -65,7 +65,8 @@ async def test_ordered_transcript_two_sessions_two_turns_and_passive_poll(stand,
             assert "resource preview" in results[2]["content"] and "+++" in results[2]["content"]
             assert s._last_text_output=="before tool after tool"
             assert len({x["event_id"] for x in native})==len(native)
-        assert "early output" in str(bot.sent) and "late output" in str(bot.sent) and "task_get" in str(bot.sent)
+        assert "before tool" in str(bot.sent) and "after tool" in str(bot.sent) and "task_get" in str(bot.sent)
+        assert "early output" not in str(bot.sent) and "late output" not in str(bot.sent)
         (EVIDENCE/"fake-tg-transcript.json").write_text(json.dumps([x[1] for x in bot.sent],ensure_ascii=False,indent=2))
         before=len(stand.trace());stand.egress.reset_mock()
         for _ in range(10):
