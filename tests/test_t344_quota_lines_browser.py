@@ -1043,11 +1043,14 @@ def test_antigravity_chart_renders_five_windows_and_three_weekly_thresholds(brow
             payload["buckets"].append(bucket)
 
     page, errors = _render(browser, payload, as_json=False)
-    panel = page.locator('[data-ql-panel="antigravity"]')
-    assert panel.locator('[data-ql-point]').count() == 5
-    assert panel.locator('[data-ql-threshold]').count() == 3
-    assert panel.locator('[data-ql-timeline-history]').count() == 5
-    assert panel.locator('[data-ql-reset]').count() == 5
+    assert page.locator('[data-ql-panel]').count() == 1
+    assert page.locator('[data-ql-panel="antigravity"]').count() == 0
+    assert page.locator('svg.ql-chart').count() == 2
+    panel = page.locator('[data-ql-panel="all"]')
+    assert panel.locator('[data-ql-point^="agy_"]').count() == 5
+    assert panel.locator('[data-ql-threshold^="agy_"]').count() == 3
+    assert panel.locator('[data-ql-timeline-history^="antigravity_"]').count() == 5
+    assert panel.locator('[data-ql-reset^="antigravity_"]').count() == 5
     assert panel.locator('.ql-badge-blocked').count() == 2
     assert panel.locator('[data-ql-hard-lane]').count() == 1
     assert errors == [], errors
@@ -1072,7 +1075,8 @@ def test_antigravity_zero_point_labels_fit_inside_both_plots(browser):
         payload["buckets"].append(bucket)
 
     page, errors = _render(browser, payload, as_json=False)
-    panel = page.locator('[data-ql-panel="antigravity"]')
+    assert page.locator('svg.ql-chart').count() == 2
+    panel = page.locator('[data-ql-panel="all"]')
 
     def coordinates(selector):
         return sorted(float(value) for value in panel.locator(selector).evaluate_all(
@@ -1085,10 +1089,12 @@ def test_antigravity_zero_point_labels_fit_inside_both_plots(browser):
         assert min(rows) >= min_y and max(rows) <= 426 - 8
         assert all(b - a >= min_gap for a, b in zip(rows, rows[1:]))
 
-    assert_rows("[data-ql-timeline-label]", 5, 15)
-    assert_rows("[data-ql-label]", 5, 28, min_y=426 - 0.35 * 408)
-    assert_rows("[data-ql-detail]", 5, 28)
-    assert_rows(".ql-timeline-edge-label", 4, 15)
+    assert_rows("[data-ql-timeline-label]", 9, 15)
+    assert_rows("[data-ql-label^='agy_']", 5, 28, min_y=426 - 0.35 * 408)
+    assert_rows("[data-ql-detail^='agy_']", 5, 28)
+    assert_rows("[data-ql-label]", 9, 28)
+    assert_rows("[data-ql-detail]", 9, 28)
+    assert_rows(".ql-timeline-edge-label", 7, 15)
     assert_rows("[data-ql-stop-label]", 2, 14)
     assert errors == []
     page.close()

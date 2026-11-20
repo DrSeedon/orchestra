@@ -228,6 +228,23 @@ class Connection:
             usage = update.get("usage")
             if isinstance(usage, dict):
                 self.reported_usage = usage
+            quota = update.get("quota")
+            if isinstance(quota, dict):
+                try:
+                    from app.backend_antigravity import (
+                        _publish_quota,
+                        canonical_profile,
+                        normalize_antigravity_five_hour_quota,
+                        normalize_antigravity_quota,
+                    )
+                    if self.home == canonical_profile():
+                        weekly = normalize_antigravity_quota(quota)
+                        short = normalize_antigravity_five_hour_quota(quota)
+                        if any(v is not None for v in (*weekly.values(), *short.values())):
+                            epoch = getattr(self.owner, "epoch", "") or ""
+                            _publish_quota(weekly, time.time(), epoch, short)
+                except Exception as exc:
+                    logger.debug("ACP mux quota publish skipped (%s)", type(exc).__name__)
             cost = update.get("cost")
             if isinstance(cost, dict) and cost.get("currency") == "USD":
                 amount = _cumulative_value(cost.get("amount"), integer=False)
@@ -429,10 +446,13 @@ class Connection:
                 self.reported_usage = {}
                 self.reported_cost = None
                 record_provider_activity("antigravity")
-                result = await owner.request(
-                    "session/prompt", {"sessionId": sid, "prompt": blocks},
-                    before_write=self.before_prompt_write, on_written=self.prompt_written,
-                )
+                try:
+                    result = await owner.request(
+                        "session/prompt", {"sessionId": sid, "prompt": blocks},
+                        before_write=self.before_prompt_write, on_written=self.prompt_written,
+                    )
+                finally:
+                    record_provider_activity("antigravity")
                 self.send({"id": rpc_id, "result": {"stopReason": result.get("stopReason"),
                                                     "accounting": self.account(result)}})
         except asyncio.CancelledError:

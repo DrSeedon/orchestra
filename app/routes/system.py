@@ -1406,7 +1406,7 @@ def _get_openrouter_usage() -> dict:
     }
 
 
-def _antigravity_quota_decisions(providers, timestamps, *, now, policy):
+def _antigravity_quota_decisions(providers, timestamps, *, now, policy, activity_by_provider=None):
     from app.backend_antigravity import QUOTA_BUCKETS
     from app.quota_gate import evaluate_worker_admission
 
@@ -1419,6 +1419,7 @@ def _antigravity_quota_decisions(providers, timestamps, *, now, policy):
                 continue
             decision = evaluate_worker_admission(
                 model, providers, timestamps, now=now, policy=policy,
+                activity_by_provider=activity_by_provider,
                 _include_alternatives=False, _window=window,
             )
             yield bucket, label, key, window, decision
@@ -1435,6 +1436,7 @@ def _antigravity_headroom(decision):
 
 def publish_antigravity_quota(weekly, short, observed, *, generation=None) -> None:
     from app.db import usage_save_snapshot
+    from app.provider_safety import record_provider_quota_observation
 
     cache = _antigravity_usage_cache
     if observed <= cache.get("ts", 0):
@@ -1448,19 +1450,20 @@ def publish_antigravity_quota(weekly, short, observed, *, generation=None) -> No
         providers=providers, observed_at=observed,
     )
     cache.update(data=weekly, five_hour=short, ts=observed, failed_at=0.0, generation=generation)
+    record_provider_quota_observation("antigravity", observed)
 
 
 def hydrate_antigravity_quota() -> None:
-    from app.backend_antigravity import QUOTA_BUCKETS, QUOTA_CACHE_TTL
+    from app.backend_antigravity import QUOTA_BUCKETS
     from app.db import latest_usage_snapshot
-    from app.quota_gate import parse_quota_timestamp
+    from app.quota_gate import ANTIGRAVITY_IDLE_MAX_AGE
 
     now = time.time()
-    saved = latest_usage_snapshot(tuple(group[0] for group in QUOTA_BUCKETS), since=now - QUOTA_CACHE_TTL)
+    saved = latest_usage_snapshot(tuple(group[0] for group in QUOTA_BUCKETS), since=now - ANTIGRAVITY_IDLE_MAX_AGE)
     if saved is None:
         return
     observed, providers = saved
-    if not 0 <= now - observed < QUOTA_CACHE_TTL or observed <= _antigravity_usage_cache.get("ts", 0):
+    if not 0 <= now - observed < ANTIGRAVITY_IDLE_MAX_AGE or observed <= _antigravity_usage_cache.get("ts", 0):
         return
     weekly, short = {}, {}
     for group, _, weekly_key, short_key in QUOTA_BUCKETS:
@@ -1473,9 +1476,7 @@ def hydrate_antigravity_quota() -> None:
             key = window.get("id")
             util = window.get("utilization")
             reset = window.get("resets_at")
-            if (key not in (weekly_key, short_key) or not _finite_number(util)
-                    or not 0 <= util <= 100
-                    or (reset is not None and (parse_quota_timestamp(reset) or 0) <= now)):
+            if key not in (weekly_key, short_key) or not _finite_number(util) or not 0 <= util <= 100:
                 continue
             target = weekly if key == weekly_key else short
             target[key] = {"remaining_fraction": 1 - util / 100, "reset_time": reset}
@@ -1844,6 +1845,9 @@ def _quota_observation_from_cache() -> dict:
         and grok_ts > 0
     ):
         observed_at_by_provider["grok"] = grok_ts
+    from app.provider_safety import provider_activity_state
+
+    agy_activity = provider_activity_state("antigravity")
     return {
         "providers": _provider_usage_snapshot(
             _usage_cache.get("data"),
@@ -1853,6 +1857,11 @@ def _quota_observation_from_cache() -> dict:
             None if is_provider_disabled("antigravity") else _antigravity_usage_cache.get("five_hour"),
         ),
         "observed_at_by_provider": observed_at_by_provider,
+        "activity_by_provider": {
+            "antigravity_gemini": agy_activity,
+            "antigravity_argon": agy_activity,
+            "antigravity_3p": agy_activity,
+        },
     }
 
 
@@ -2413,6 +2422,8 @@ async def build_quota_map() -> dict:
     from app.quota_gate import (
         ANTIGRAVITY_LANES,
         QUOTA_OBSERVATION_MAX_AGE,
+        antigravity_activity_for_bucket,
+        antigravity_effective_freshness_and_provider,
         quota_observation_max_age,
         LANE_LABELS,
         deciding_window,
@@ -2433,6 +2444,7 @@ async def build_quota_map() -> dict:
     observation = _quota_observation_from_cache()
     providers = observation.get("providers") or {}
     timestamps = observation.get("observed_at_by_provider") or {}
+    activity_by_provider = observation.get("activity_by_provider")
     observe_quota_policy_history()
     now = time.time()
     policy = quota_policy()
@@ -2453,6 +2465,7 @@ async def build_quota_map() -> dict:
             continue
         decision = evaluate_worker_admission(
             model_id, providers, timestamps, now=now, policy=policy,
+            activity_by_provider=activity_by_provider,
             _window="7d" if spec.runtime == "antigravity" else None,
         )
         item = {
@@ -2708,7 +2721,14 @@ async def build_quota_map() -> dict:
         # Preserve both sides of utilization drops, which mark window resets.
         required = {0, len(points) - 1}
         for index in range(1, len(points)):
-            if points[index]["utilization"] < points[index - 1]["utilization"]:
+            prev_pt, curr_pt = points[index - 1], points[index]
+            prev_r, curr_r = prev_pt.get("resets_at"), curr_pt.get("resets_at")
+            reset_changed = (
+                prev_r is not None
+                and curr_r is not None
+                and abs(float(curr_r) - float(prev_r)) > 60.0
+            )
+            if curr_pt["utilization"] < prev_pt["utilization"] or reset_changed:
                 required.update((index - 1, index))
         stride = max(1, (len(points) + max_points - 1) // max_points)
         chosen = required | set(range(0, len(points), stride))
@@ -2727,6 +2747,18 @@ async def build_quota_map() -> dict:
         data = data if isinstance(data, dict) else {}
         observed_at = timestamps.get(bucket)
         observed_at = float(observed_at) if isinstance(observed_at, (int, float)) else None
+        if bucket in ANTIGRAVITY_LANES:
+            bucket_fresh, _, _, projected_data = antigravity_effective_freshness_and_provider(
+                bucket, data, observed_at, now=now,
+                activity_info=antigravity_activity_for_bucket(activity_by_provider, bucket),
+            )
+            data = projected_data if isinstance(projected_data, dict) else {}
+            providers = {**providers, bucket: data}
+        else:
+            bucket_fresh = (
+                observed_at is not None
+                and 0 <= now - observed_at < quota_observation_max_age(bucket)
+            )
         gating_raw = deciding_window(data, bucket)
         gating = _window_item(dict(gating_raw)) if gating_raw is not None else None
         reference = [
@@ -2750,10 +2782,7 @@ async def build_quota_map() -> dict:
             "bucket": bucket,
             "label": data.get("label") or bucket_labels.get(bucket, bucket),
             "observed_at": observed_at,
-            "fresh": (
-                observed_at is not None
-                and 0 <= now - observed_at < quota_observation_max_age(bucket)
-            ),
+            "fresh": bucket_fresh,
             "data_available": gating is not None
             and isinstance(gating.get("utilization"), (int, float)),
             "window": gating,
@@ -2772,6 +2801,7 @@ async def build_quota_map() -> dict:
     if not is_provider_disabled("antigravity"):
         for parent, label, key, window, decision in _antigravity_quota_decisions(
             providers, timestamps, now=now, policy=policy,
+            activity_by_provider=activity_by_provider,
         ):
             if window != "5h":
                 continue

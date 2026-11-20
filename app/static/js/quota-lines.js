@@ -22,9 +22,8 @@ const _QL_KR_HOUR_FORMAT = new Intl.DateTimeFormat(orchLocale(), {
 
 const _QL_PANELS = [
     {key: 'all', title: T('Pool quotas'), sub: T('single scale: window progress share, 0–100%'),
-     buckets: ['codex', 'codex_spark', 'anthropic']},
-    {key: 'antigravity', title: 'Google AI Pro · Antigravity', sub: 'Gemini, Argon, Claude / 3P',
-     buckets: ['antigravity_gemini', 'antigravity_gemini_5h', 'antigravity_argon',
+     buckets: ['codex', 'codex_spark', 'anthropic',
+         'antigravity_gemini', 'antigravity_gemini_5h', 'antigravity_argon',
          'antigravity_argon_5h', 'antigravity_3p', 'antigravity_3p_5h']},
 ];
 
@@ -323,14 +322,18 @@ function _qlApplyWindowResetHistory(data, history) {
     }
 }
 
+function _qlParseTsMs(value) {
+    if (value === null || value === undefined || value === '') return NaN;
+    const num = Number(value);
+    if (Number.isFinite(num)) return num * 1000;
+    return Date.parse(String(value));
+}
+
 function _qlMonotoneTimelinePoints(points) {
     let previousReset = null;
     let peak = -Infinity;
     return points.map(point => {
-        const resetValue = point.resets_at;
-        const reset = Number.isFinite(Number(resetValue))
-            ? Number(resetValue)
-            : Date.parse(resetValue) / 1000;
+        const reset = _qlParseTsMs(point.resets_at) / 1000;
         const utilization = Number(point.utilization);
         if (Number.isFinite(reset) && previousReset !== null && reset > previousReset) {
             peak = -Infinity;
@@ -339,6 +342,54 @@ function _qlMonotoneTimelinePoints(points) {
         peak = Math.max(peak, utilization);
         return {...point, utilization: peak};
     });
+}
+
+function _qlStepTimelineAcrossResets(points, isSparsePool) {
+    if (!Array.isArray(points) || points.length < 2) return points || [];
+    const out = [];
+    for (let i = 0; i < points.length; i++) {
+        const curr = points[i];
+        const t2 = Number(curr.ts) * 1000;
+        const u2 = Number(curr.utilization);
+        if (!Number.isFinite(t2) || !Number.isFinite(u2)) continue;
+        if (out.length > 0) {
+            const prev = out[out.length - 1];
+            const t1 = Number(prev.ts) * 1000;
+            const u1 = Number(prev.utilization);
+            const reset1 = _qlParseTsMs(prev.resets_at);
+            const reset2 = _qlParseTsMs(curr.resets_at);
+            const winMin = Number(curr.window_minutes ?? prev.window_minutes);
+            const durMs = Number.isFinite(winMin) && winMin > 0 ? winMin * 60000 : NaN;
+            const crossedReset = (
+                (Number.isFinite(reset1) && reset1 > t1 && reset1 <= t2)
+                || (Number.isFinite(reset1) && Number.isFinite(reset2) && reset2 - reset1 > _QL_RESET_JUMP_MS)
+            );
+            const largeGap = (t2 - t1) > 3600000;
+            if (crossedReset && (isSparsePool || largeGap)) {
+                const dropAt = (Number.isFinite(reset1) && reset1 > t1 && reset1 <= t2)
+                    ? reset1
+                    : (Number.isFinite(reset2) && Number.isFinite(durMs) && reset2 - durMs > t1 && reset2 - durMs <= t2)
+                        ? reset2 - durMs
+                        : t1;
+                if (u1 > 0 && dropAt > t1) {
+                    out.push({...prev, ts: dropAt / 1000, utilization: u1});
+                }
+                if (u1 > 0 || u2 > 0) {
+                    out.push({...prev, ts: dropAt / 1000, utilization: 0});
+                    const winStart2 = (Number.isFinite(reset2) && Number.isFinite(durMs))
+                        ? reset2 - durMs : NaN;
+                    const idleUntil = (Number.isFinite(winStart2) && winStart2 >= dropAt && winStart2 < t2)
+                        ? winStart2
+                        : dropAt;
+                    if (idleUntil > dropAt) {
+                        out.push({...curr, ts: idleUntil / 1000, utilization: 0});
+                    }
+                }
+            }
+        }
+        out.push(curr);
+    }
+    return out;
 }
 
 function _qlLaneLabel(laneId) {
@@ -549,7 +600,7 @@ function _qlTimelineSvg(panel, rule) {
         const reset = Date.parse(window?.resets_at);
         const duration = Number(window?.window_minutes) * 60000;
         if (!Number.isFinite(reset) || !(duration > 0)) continue;
-        if (panel.key === 'antigravity') {
+        if (bucket.bucket.startsWith('antigravity_')) {
             const lane = bucket.lanes?.[0]?.lane;
             const resetTimes = [reset, ...(bucket.timeline?.reset_events || []).map(event => event.at)];
             for (const at of new Set(resetTimes)) {
@@ -620,17 +671,23 @@ function _qlTimelineSvg(panel, rule) {
         }
     }
     // Facts stop at now. Add a current sample there; the right half is policy only.
-    let pointIndex = 0;
-    const timelinePointRows = [];
+    const timelinePointEntries = [];
     for (const lane of _qlLanes(panel)) {
         const point = _qlPoint(lane.bucket);
         if (!point) continue;
+        timelinePointEntries.push({lane, point});
+    }
+    timelinePointEntries.sort((a, b) => (a.point.util - b.point.util)
+        || (Number(a.lane.lane.endsWith('_5h')) - Number(b.lane.lane.endsWith('_5h'))));
+    let pointIndex = 0;
+    const timelinePointRows = [];
+    for (const {lane, point} of timelinePointEntries) {
         const color = _qlLaneColor(lane.lane);
         p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="${5.5 + pointIndex * 2}" fill="none" stroke="${color}" stroke-width="2.5"><title>${_escHtml(T(lane.label || lane.lane))}: ${_formatPercent(point.util)}%</title></circle>`);
         const lowPoint = point.util < 15;
-        const leftLabel = lowPoint && pointIndex % 2 === 1;
+        const leftLabel = pointIndex % 2 === 1;
         const labelY = _qlPlaceY(y(point.util) + (lowPoint ? -12 : 4),
-            timelinePointRows, {upward: lowPoint});
+            timelinePointRows, {gap: 16, upward: lowPoint});
         p.push(`<text class="ql-timeline-point-label" data-ql-timeline-label="${_escHtml(lane.lane)}" x="${x(now) + (leftLabel ? -12 : 12)}" y="${labelY}" text-anchor="${leftLabel ? 'end' : 'start'}" fill="${color}">${_escHtml(T(lane.label || lane.lane))} ${_formatPercent(point.util)}%</text>`);
         pointIndex++;
     }
@@ -642,18 +699,22 @@ function _qlTimelineSvg(panel, rule) {
         const points = bucket.timeline?.points || [];
         const current = _qlPoint(bucket);
         const measured = points.filter(point => Number(point.ts) * 1000 >= from && Number(point.ts) * 1000 <= now);
-        const tracePoints = panel.key === 'antigravity' ? measured : _qlMonotoneTimelinePoints([
+        const isAgy = bucket.bucket.startsWith('antigravity_');
+        const withCurrent = [
             ...measured,
             ...(current ? [{
                 ts: now / 1000,
                 utilization: current.util,
                 resets_at: bucket.window?.resets_at,
+                window_minutes: bucket.window?.window_minutes,
             }] : []),
-        ]);
+        ];
+        const basePoints = isAgy ? withCurrent : _qlMonotoneTimelinePoints(withCurrent);
+        const tracePoints = _qlStepTimelineAcrossResets(basePoints, isAgy);
         const coords = tracePoints.map(point => [Number(point.ts) * 1000, Number(point.utilization)])
             .filter(([ts, util]) => Number.isFinite(ts) && Number.isFinite(util) && ts >= from && ts <= now)
             .map(([ts, util]) => `${x(ts)},${y(util)}`);
-        if (coords.length === 1 && panel.key === 'antigravity') {
+        if (coords.length === 1 && isAgy) {
             const [cx, cy] = coords[0].split(',');
             p.push(`<circle data-ql-timeline-history="${_escHtml(bucket.bucket)}" cx="${cx}" cy="${cy}" r="3" fill="${_qlLaneColor(bucket.lanes[0].lane)}"/>`);
         }
@@ -771,11 +832,14 @@ function _qlChartSvg(panel, rule) {
         }
     }
 
-    for (let i = 0; i < lanes.length; i++) {
-        const lane = lanes[i];
+    const sortedLanes = lanes
+        .map((lane, i) => ({lane, i, point: _qlPoint(lane.bucket)}))
+        .filter(item => item.point !== null)
+        .sort((a, b) => (a.point.util - b.point.util)
+            || (Number(a.lane.lane.endsWith('_5h')) - Number(b.lane.lane.endsWith('_5h')))
+            || (a.i - b.i));
+    for (const {lane, i, point} of sortedLanes) {
         const bucket = lane.bucket;
-        const point = _qlPoint(bucket);
-        if (!point) continue;
         if (point.progress === null) {
             if (i === 0) {
                 p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${T('{label}: reset time unknown — only hard {pct}%', {label: _escHtml(bucket.label || bucket.bucket), pct: _formatPercent(_qlHardStop(rule, lane.lane))})}</text>`);

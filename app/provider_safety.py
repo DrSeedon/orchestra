@@ -223,6 +223,10 @@ _egress_locks: dict[tuple[int, str], asyncio.Lock] = {}
 
 _activity_lock = threading.Lock()
 _last_provider_activity_ts: dict[str, float] = {}
+_unobserved_activity_since_ts: dict[str, float] = {}
+_last_quota_observed_ts: dict[str, float] = {}
+_activity_db_path: str = ""
+_ACTIVITY_KV_PREFIX = "provider_activity:"
 
 _incident_lock = threading.Lock()
 _tripped_incidents_mem: set[tuple[str, str]] = set()
@@ -246,8 +250,62 @@ def reset_provider_safety_state_for_tests() -> None:
         _egress_locks.clear()
     with _activity_lock:
         _last_provider_activity_ts.clear()
+        _unobserved_activity_since_ts.clear()
+        _last_quota_observed_ts.clear()
+        global _activity_db_path
+        _activity_db_path = ""
     with _incident_lock:
         _tripped_incidents_mem.clear()
+
+
+def _sync_activity_db_locked() -> None:
+    global _activity_db_path
+    try:
+        from app import db
+        current = str(getattr(db, "DB_PATH", ""))
+        if _activity_db_path != current:
+            _last_provider_activity_ts.clear()
+            _unobserved_activity_since_ts.clear()
+            _last_quota_observed_ts.clear()
+            _activity_db_path = current
+    except Exception:
+        pass
+
+
+def _load_activity_kv_locked(key: str) -> None:
+    if key in _last_provider_activity_ts or key in _last_quota_observed_ts:
+        return
+    try:
+        from app import db
+        raw = db.kv_get(f"{_ACTIVITY_KV_PREFIX}{key}", "")
+        if not raw:
+            return
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            last_act = data.get("last_activity_at")
+            unobs = data.get("unobserved_since")
+            last_obs = data.get("last_quota_observed_at")
+            if isinstance(last_act, (int, float)) and last_act > 0:
+                _last_provider_activity_ts[key] = float(last_act)
+            if isinstance(unobs, (int, float)) and unobs > 0:
+                _unobserved_activity_since_ts[key] = float(unobs)
+            if isinstance(last_obs, (int, float)) and last_obs > 0:
+                _last_quota_observed_ts[key] = float(last_obs)
+    except Exception:
+        pass
+
+
+def _persist_activity_kv_locked(key: str) -> None:
+    try:
+        from app import db
+        payload = {
+            "last_activity_at": _last_provider_activity_ts.get(key),
+            "unobserved_since": _unobserved_activity_since_ts.get(key),
+            "last_quota_observed_at": _last_quota_observed_ts.get(key),
+        }
+        db.kv_set(f"{_ACTIVITY_KV_PREFIX}{key}", json.dumps(payload))
+    except Exception:
+        pass
 
 
 def record_provider_activity(provider: str) -> None:
@@ -255,8 +313,46 @@ def record_provider_activity(provider: str) -> None:
     key = normalize_provider_key(provider)
     if key not in SUBSCRIPTION_OAUTH_RUNTIMES:
         return
+    now = time.time()
     with _activity_lock:
-        _last_provider_activity_ts[key] = time.time()
+        _sync_activity_db_locked()
+        _load_activity_kv_locked(key)
+        _last_provider_activity_ts[key] = now
+        last_obs = _last_quota_observed_ts.get(key, 0.0)
+        if now > last_obs + 60.0:
+            prev_unobs = _unobserved_activity_since_ts.get(key, 0.0)
+            if prev_unobs <= last_obs + 60.0:
+                _unobserved_activity_since_ts[key] = now
+        _persist_activity_kv_locked(key)
+
+
+def record_provider_quota_observation(provider: str, observed_at: float) -> None:
+    """Record a fresh quota snapshot timestamp, clearing pending unobserved activity."""
+    key = normalize_provider_key(provider)
+    if key not in SUBSCRIPTION_OAUTH_RUNTIMES:
+        return
+    with _activity_lock:
+        _sync_activity_db_locked()
+        _load_activity_kv_locked(key)
+        ts = float(observed_at)
+        if ts >= _last_quota_observed_ts.get(key, 0.0):
+            _last_quota_observed_ts[key] = ts
+            _unobserved_activity_since_ts.pop(key, None)
+            _persist_activity_kv_locked(key)
+
+
+def provider_activity_state(provider: str) -> dict[str, float | None]:
+    """Return last recorded turn activity and unobserved streak start for a provider."""
+    key = normalize_provider_key(provider)
+    if key not in SUBSCRIPTION_OAUTH_RUNTIMES:
+        return {"last_activity_at": None, "unobserved_since": None}
+    with _activity_lock:
+        _sync_activity_db_locked()
+        _load_activity_kv_locked(key)
+        return {
+            "last_activity_at": _last_provider_activity_ts.get(key),
+            "unobserved_since": _unobserved_activity_since_ts.get(key),
+        }
 
 
 def has_recent_provider_activity(

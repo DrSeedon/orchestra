@@ -1047,6 +1047,7 @@ class AntigravityBackend:
             self._queue.put_nowait(AgentEvent("error", "Antigravity ACP failure: " + reason[:280]))
             self._queue.put_nowait(self._end(error="protocol", context=self._context))
         finally:
+            record_provider_activity("antigravity")
             self._accepting_steer = False
             if owns_session_lock and held_session_lock is not None:
                 held_session_lock.release()

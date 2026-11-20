@@ -119,6 +119,9 @@ CURVE_EXPONENT = _env_float_var(
 _ENV_CURVED_LANES_DEFAULT = ()
 # Наблюдение старше этого возраста считается отсутствующим.
 QUOTA_OBSERVATION_MAX_AGE = 300.0
+# При подтверждённом простое Antigravity (без фонового поллинга) кэш до 24ч остаётся валидным.
+ANTIGRAVITY_IDLE_MAX_AGE = 86400.0
+ANTIGRAVITY_ACTIVITY_GRACE_SECONDS = 60.0
 
 _QUOTA_ENV_NAMES = (
     "QUOTA_HARD_STOP_PCT",
@@ -891,6 +894,96 @@ def quota_observation_max_age(bucket: str | None) -> float:
     return QUOTA_OBSERVATION_MAX_AGE
 
 
+def antigravity_activity_for_bucket(
+    activity_by_provider: Mapping[str, object] | None,
+    bucket: str | None,
+) -> Mapping[str, object] | None:
+    if not isinstance(activity_by_provider, Mapping):
+        return None
+    entry = activity_by_provider.get(bucket) or activity_by_provider.get("antigravity")
+    return entry if isinstance(entry, Mapping) else None
+
+
+def _project_antigravity_window(
+    window: Mapping[str, object],
+    *,
+    now: float,
+    observed_at: float,
+    last_activity_at: float,
+) -> dict[str, object]:
+    item = dict(window)
+    reset_at = parse_quota_timestamp(item.get("resets_at"))
+    minutes = item.get("window_minutes")
+    if (
+        reset_at is None
+        or reset_at > now
+        or isinstance(minutes, bool)
+        or not isinstance(minutes, (int, float))
+        or not math.isfinite(minutes)
+        or minutes <= 0
+    ):
+        return item
+    if last_activity_at > reset_at or (now - observed_at) >= ANTIGRAVITY_IDLE_MAX_AGE:
+        return item
+    span = float(minutes) * 60.0
+    cycles = math.floor((now - reset_at) / span) + 1
+    new_reset = reset_at + cycles * span
+    item["utilization"] = 0.0
+    item["resets_at"] = datetime.fromtimestamp(new_reset, timezone.utc).isoformat().replace("+00:00", "Z")
+    return item
+
+
+def antigravity_effective_freshness_and_provider(
+    bucket: str | None,
+    provider: object,
+    observed_at: float | None,
+    *,
+    now: float,
+    activity_info: Mapping[str, object] | None = None,
+) -> tuple[bool, float, str | None, object]:
+    """Evaluate idle-aware freshness and roll expired Antigravity windows to 0% when idle."""
+    if observed_at is None:
+        return False, 0.0, "timestamp_missing", provider
+    age = now - observed_at
+    if age < 0:
+        return False, 0.0, "timestamp_future", provider
+    if activity_info is None:
+        max_age = quota_observation_max_age(bucket)
+        if age >= max_age:
+            return False, max_age, "observation_stale", provider
+        return True, max_age, None, provider
+    if age >= ANTIGRAVITY_IDLE_MAX_AGE:
+        return False, ANTIGRAVITY_IDLE_MAX_AGE, "observation_stale", provider
+
+    last_act = parse_quota_timestamp(activity_info.get("last_activity_at")) or 0.0
+    unobs_since = parse_quota_timestamp(activity_info.get("unobserved_since"))
+    if last_act <= observed_at + ANTIGRAVITY_ACTIVITY_GRACE_SECONDS:
+        effective_max_age = ANTIGRAVITY_IDLE_MAX_AGE
+    else:
+        streak_start = (
+            unobs_since
+            if unobs_since is not None and unobs_since > observed_at + ANTIGRAVITY_ACTIVITY_GRACE_SECONDS
+            else last_act
+        )
+        active_without_quota = now - streak_start
+        if age >= QUOTA_OBSERVATION_MAX_AGE and active_without_quota > QUOTA_OBSERVATION_MAX_AGE:
+            return False, QUOTA_OBSERVATION_MAX_AGE, "observation_stale", provider
+        effective_max_age = max(QUOTA_OBSERVATION_MAX_AGE, age + 60.0)
+
+    if not isinstance(provider, Mapping):
+        return True, effective_max_age, None, provider
+    raw_windows = provider.get("windows")
+    if not isinstance(raw_windows, list):
+        return True, effective_max_age, None, provider
+    projected_windows = [
+        _project_antigravity_window(w, now=now, observed_at=observed_at, last_activity_at=last_act)
+        if isinstance(w, Mapping) else w
+        for w in raw_windows
+    ]
+    projected_provider = {**provider, "windows": projected_windows}
+    return True, effective_max_age, None, projected_provider
+
+
 def _model_target(model: str) -> tuple[str, str | None, str]:
     if not isinstance(model, str):
         raise ValueError("model must be a string")
@@ -1082,6 +1175,7 @@ def evaluate_worker_admission(
     *,
     now: float | None = None,
     policy: QuotaPolicy | None = None,
+    activity_by_provider: Mapping[str, object] | None = None,
     _include_alternatives: bool = True,
     _window: str | None = None,
 ) -> QuotaDecision:
@@ -1153,11 +1247,21 @@ def evaluate_worker_admission(
         return unknown("observation timestamp is in the future", resolved=resolved,
                        bucket=bucket, label=label, lane=lane, observed_at=observed_at,
                        reason_key="timestamp_future")
-    max_age = quota_observation_max_age(bucket)
-    if age >= max_age:
-        return unknown("observation is stale", resolved=resolved, bucket=bucket,
-                       label=label, lane=lane, observed_at=observed_at,
-                       reason_key="observation_stale")
+    if runtime == "antigravity":
+        activity_info = antigravity_activity_for_bucket(activity_by_provider, bucket)
+        is_fresh, max_age, stale_key, provider = antigravity_effective_freshness_and_provider(
+            bucket, provider, observed_at, now=checked_at, activity_info=activity_info,
+        )
+        if not is_fresh:
+            return unknown("observation is stale", resolved=resolved, bucket=bucket,
+                           label=label, lane=lane, observed_at=observed_at,
+                           reason_key=stale_key or "observation_stale")
+    else:
+        max_age = quota_observation_max_age(bucket)
+        if age >= max_age:
+            return unknown("observation is stale", resolved=resolved, bucket=bucket,
+                           label=label, lane=lane, observed_at=observed_at,
+                           reason_key="observation_stale")
 
     window = deciding_window(provider, bucket)
     if runtime == "antigravity" and isinstance(provider, Mapping):
@@ -1303,7 +1407,7 @@ def evaluate_worker_admission(
         for other in ANTIGRAVITY_ALTERNATIVES.get(bucket, ()):
             alternative = evaluate_worker_admission(
                 other, providers, observed_at_by_provider, now=checked_at, policy=policy,
-                _include_alternatives=False,
+                activity_by_provider=activity_by_provider, _include_alternatives=False,
             )
             # Hub routes answer `not_applicable`: their pool quota is outside this policy.
             if alternative.state in ("available", "not_applicable"):
@@ -1357,10 +1461,12 @@ async def get_worker_admission(
         observation = {}
     providers = observation.get("providers")
     timestamps = observation.get("observed_at_by_provider")
+    activity_by_provider = observation.get("activity_by_provider")
     decision = evaluate_worker_admission(
         model,
         providers if isinstance(providers, Mapping) else {},
         timestamps if isinstance(timestamps, Mapping) else {},
+        activity_by_provider=activity_by_provider if isinstance(activity_by_provider, Mapping) else None,
     )
     return decision
 
