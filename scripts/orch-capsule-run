@@ -267,19 +267,30 @@ def main():
         config = settings()
         if not config:
             parser.error(f"{args.action} requires host provisioning (ORCHESTRA_SKILLCACHE_CONFIG or {DEFAULT_SKILLCACHE_CONFIG})")
-        reg = registry(config)
+        def _read_only_db_rows(sql: str, params: tuple = ()):
+            db_file = Path(os.environ.get("ORCHESTRA_DB_PATH") or DEFAULT_ORCHESTRA_DB)
+            import sqlite3
+            if db_file.is_file():
+                for uri_qs in ("mode=ro", "immutable=1"):
+                    try:
+                        with sqlite3.connect(f"file:{db_file}?{uri_qs}", uri=True, timeout=1.0) as ro_conn:
+                            return ro_conn.execute(sql, params).fetchall()
+                    except sqlite3.Error:
+                        continue
+            reg_tmp = registry(config)
+            with reg_tmp.connect() as conn:
+                return conn.execute(sql, params).fetchall()
 
         if args.action == "list":
-            with reg.connect() as conn:
-                if args.scope:
-                    rows = conn.execute(
-                        "SELECT scope, skill, intent, status, digest, created_at FROM sc_capsule WHERE scope=? ORDER BY skill, created_at DESC",
-                        (args.scope,),
-                    ).fetchall()
-                else:
-                    rows = conn.execute(
-                        "SELECT scope, skill, intent, status, digest, created_at FROM sc_capsule ORDER BY scope, skill, created_at DESC"
-                    ).fetchall()
+            if args.scope:
+                rows = _read_only_db_rows(
+                    "SELECT scope, skill, intent, status, digest, created_at FROM sc_capsule WHERE scope=? ORDER BY skill, created_at DESC",
+                    (args.scope,),
+                )
+            else:
+                rows = _read_only_db_rows(
+                    "SELECT scope, skill, intent, status, digest, created_at FROM sc_capsule ORDER BY scope, skill, created_at DESC"
+                )
             capsules = []
             for r in rows:
                 sk = r[1]
@@ -331,28 +342,86 @@ def main():
                 "mcp_examples": mcp_ex,
             }
 
-        # args.action == "exec"
+        # args.action == "exec" — zero-disk-write read-only execution over in-memory SQLite + PrivateStore
         if not skill_arg:
-            return {"status": "invalid_request", "error": "exec requires <skill>", "available": sorted(MANIFESTS)}
+            return {"status": "invalid_request", "error": "exec requires <skill>", "available": sorted(MANIFESTS), "_exit_code": 2}
         if skill_arg not in MANIFESTS:
-            return {"status": "unknown_skill", "skill": skill_arg, "available": sorted(MANIFESTS)}
+            return {"status": "unknown_skill", "skill": skill_arg, "available": sorted(MANIFESTS), "_exit_code": 2}
         mf = MANIFESTS[skill_arg]
         bindings, err = _normalize_and_validate_exec_input(skill_arg, mf, TYPES, args.input_json)
         if err is not None:
+            err["_exit_code"] = 2
             return err
         scope = args.scope or "vps"
         secret = os.environ.get("ORCHESTRA_SKILLCACHE_RECEIPT_KEY", "")
         if len(secret) < 32:
-            return {"status": "unavailable", "error": "ORCHESTRA_SKILLCACHE_RECEIPT_KEY missing or < 32 bytes"}
+            return {"status": "unavailable", "error": "ORCHESTRA_SKILLCACHE_RECEIPT_KEY missing or < 32 bytes", "_exit_code": 1}
         principal = _pick_cli_grant(config, scope)
         if not principal:
-            return {"status": "revoked", "error": f"No host grant provisioned for scope '{scope}'"}
-        from app.skillcache.registry import PrivateStore
+            return {"status": "revoked", "error": f"No host grant provisioned for scope '{scope}'", "_exit_code": 1}
+
+        import sqlite3
+        from app.skillcache.pilots import catalog
+        from app.skillcache.registry import Registry, SkillSource
         from app.skillcache.runner import Runner
 
+        class _InMemoryPrivateStore:
+            def __init__(self):
+                self._items = {}
+
+            def purge_expired(self, now):
+                return None
+
+            def put(self, payload, expires_at):
+                ref = uuid4().hex
+                self._items[ref] = deepcopy(payload)
+                return ref
+
+            def get(self, ref):
+                return deepcopy(self._items[ref])
+
+        mem_conn = sqlite3.connect(":memory:", check_same_thread=False)
+        mem_conn.row_factory = sqlite3.Row
+        mem_conn.execute("PRAGMA foreign_keys = ON")
+        mem_conn.executescript((REPO_ROOT / "app" / "skillcache" / "schema.sql").read_text(encoding="utf-8"))
+
+        ro_caps = _read_only_db_rows(
+            "SELECT scope,digest,skill,intent,manifest_json,deps_json,status,created_at "
+            "FROM sc_capsule WHERE scope=? AND skill=? AND status='active'",
+            (scope, skill_arg),
+        )
+        for row in ro_caps:
+            mem_conn.execute(
+                "INSERT INTO sc_capsule(scope,digest,skill,intent,manifest_json,deps_json,status,created_at) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                tuple(row),
+            )
+        mem_conn.commit()
+
+        class _MemRegistry(Registry):
+            def __init__(self, cat):
+                super().__init__(lambda: mem_conn, cat)
+
+            def connect(self):
+                return mem_conn
+
+            def write(self):
+                return mem_conn
+
+        skills_cat = {}
+        schemas_cat = {}
+        for sc_name, defs in config["scopes"].items():
+            for sk_name, dfn in defs.items():
+                skills_cat[sc_name, sk_name] = SkillSource(
+                    Path(dfn["skill_path"]), tuple(Path(p) for p in dfn.get("scripts", []))
+                )
+                if dfn.get("mcp_schema_paths"):
+                    schemas_cat[sc_name, sk_name] = tuple(Path(p) for p in dfn["mcp_schema_paths"])
+
+        mem_reg = _MemRegistry(catalog(skills_cat, schemas_cat))
         invocation_id = f"cli-{uuid4().hex[:24]}"
         key = hmac.digest(secret.encode(), b"skillcache-receipts", hashlib.sha256)
-        private = PrivateStore(config["private_dir"])
+        private = _InMemoryPrivateStore()
         request = {
             "action": "run",
             "skill": skill_arg,
@@ -360,9 +429,12 @@ def main():
             "request_id": f"cli-req-{uuid4().hex[:16]}",
             "bindings": bindings,
         }
-        return Runner(reg, private, key, lambda: build_access(
+        report = Runner(mem_reg, private, key, lambda: build_access(
             config, principal=principal, invocation=invocation_id, origin="cli", scope=scope,
         )).handle(request)
+        if report.get("status") not in ("complete", "your_steps", "needs_bindings", "active"):
+            report["_exit_code"] = 2 if report.get("status") == "invalid_request" else 1
+        return report
 
     if args.action == "qualify":
         # Local operator command only. MCP exposes the two execution transitions.
@@ -411,4 +483,9 @@ def main():
 
 
 if __name__ == "__main__":
-    print(json.dumps(main(), ensure_ascii=False))
+    out = main()
+    code = 0
+    if isinstance(out, dict):
+        code = int(out.pop("_exit_code", 0))
+    print(json.dumps(out, ensure_ascii=False))
+    raise SystemExit(code)

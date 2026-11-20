@@ -19,7 +19,7 @@ description: "Self-learning SkillCache v1 protocol: capsule-first execution for 
 orch-capsule-run list
 orch-capsule-run describe vps-health-preflight
 orch-capsule-run exec vps-health-preflight
-orch-capsule-run exec vps-health-preflight --in '{"units":["orchestra.service","kesha-bot-vps.service"],"include_sessions":true}'
+orch-capsule-run exec vps-health-preflight --in '{"query":{"units":["orchestra.service","kesha-bot-vps.service"],"include_sessions":true}}'
 ```
 - `list` and `describe` auto-discover `/home/kesha/orchestra/data/skillcache.json` and `data/orchestra.db` from any shell.
 - `exec <skill> [--in JSON]` runs any active `vps` capsule with smart defaults or validated `--in` arguments (`describe <skill>` shows exact schema & copy-paste MCP/CLI payloads).
