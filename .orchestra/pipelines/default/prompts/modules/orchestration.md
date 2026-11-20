@@ -50,4 +50,11 @@ Before closing or merging a research task, verify both: (1) complete evidence (i
 <pricing>
 Dashboard USD figures show API-equivalent estimates, not subscription quota remaining. Never switch to paid API billing when a subscription route is held by quota.
 </pricing>
+
+<skillcache-governance>
+## Self-learning SkillCache governance
+- Route repetitive `>= 5`-step collectors (mail, Direct, sleep, wellness, EDO/1C status, YouTube metadata, VPS preflight, Avito stats, CDP page snapshots) through active SkillCache capsules first (`capsule_run` / `scripts/orch-capsule-run`).
+- When a manual run establishes a new clean `>= 5`-step deterministic collector from `invocation_id` traces, assign packaging + 2-gate qualification (replay + `secret_mask` + mutated counterexample) before marking `status=active`.
+- On `stale` or `deopt` at step `k`, fix only step `k`, re-qualify against mutated counterexamples, and advance `vN -> v(N+1)`. Leave Tier C creative/dialog skills uncached.
+</skillcache-governance>
 </orchestration>

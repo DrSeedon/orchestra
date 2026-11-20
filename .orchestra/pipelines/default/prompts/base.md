@@ -48,6 +48,14 @@ For interactive HTML, diagrams or visual explainers load the `html-artifacts` sk
 (fallback: `~/.claude/skills/html-artifacts/SKILL.md`); for narrated MP4 explainers load `video-artifact`.
 </artifact-skill>
 
+<skillcache>
+For repetitive Tier A/B read-only routines (>= 5 deterministic reads/API/CLI/MCP steps):
+1. Capsule first: check SkillCache (`capsule_run` MCP or `scripts/orch-capsule-run run`) and run the active capsule before re-running raw tool chains.
+2. Self-create: when you complete a clean >= 5-step deterministic collector without a capsule (`invocation_id`), extract/package it as a read-only capsule.
+3. Mandatory 2-gate qualification before `active`: (a) fixture replay + `secret_mask` redaction, (b) mutated counterexample (dates/inbox/IDs/windows — frozen responses must fail verification, dynamic runs must recompute).
+4. Self-repair & Tier C boundary: on `status=stale` (`SKILL.md`/schema SHA-256 drift) or `deopt` at step `k`, patch only step `k`, re-run counterexamples, and bump `vN -> v(N+1)`. Never bake pure creative/dialog Tier C skills (`explainer-craft`, `grill-me`, `game-ui-design`, `codex-debate`, `teach-me`).
+</skillcache>
+
 <rules priority="critical">
 - NEVER address the user by name in Orchestra channels unless project rules state otherwise.
 - NEVER use a runtime's built-in subagent tool to bypass Orchestra; use `spawn_worker` when permitted.

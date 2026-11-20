@@ -196,3 +196,130 @@ def test_cdp_reads_authorized_headless_page_without_following_redirects(monkeypa
     assert calls == ["aborted", "aborted", "aborted", 200, "closed-websocket", "closed"]
     assert result["elements"] == [{"selector": "#status", "count": 1}]
     assert result["dom_nodes"] == 20 and result["load_ms"] == 500
+
+
+def test_wave17_six_new_live_sources_read_only_and_masked(tmp_path, monkeypatch):
+    import json
+    import sqlite3
+    from types import SimpleNamespace
+    import httpx
+    from app.skillcache.sources import LiveSources
+    from app.skillcache.abi import AccessRevoked
+    from app.skillcache.pilots import (
+        _avito_summarize, _avito_verify,
+        _edo_normalize, _edo_verify,
+        _morning_normalize, _morning_verify,
+        _vps_summarize, _vps_verify,
+        _wellness_summarize, _wellness_verify,
+        _youtube_normalize, _youtube_verify,
+    )
+
+    # Setup fixtures on tmp_path
+    sleep_dir = tmp_path / "sleep-log"
+    act_dir = tmp_path / "activity-log"
+    sleep_dir.mkdir()
+    act_dir.mkdir()
+    (sleep_dir / "2025-01-sleep.md").write_text("| 1 | 01→02.01 | — | **7ч30м** | x | y | z |\n")
+    (act_dir / "2025-01-activity.md").write_text("| 2025-01-02 | 1 | 2 | 3 | 58 | 6 |\n")
+
+    dash_json = tmp_path / "wellness_data.json"
+    dash_json.write_text(json.dumps({
+        "updated": "2025-01-02",
+        "courses": {"c1": {"active": True}, "c2": {"active": False}},
+        "inventory": {"mag": {"name": "Magnesium", "stock": 3, "threshold": 5}},
+        "log": [{"id": 1}, {"id": 2}],
+    }))
+
+    rem_db = tmp_path / "reminders.db"
+    with sqlite3.connect(rem_db) as conn:
+        conn.execute("CREATE TABLE reminders (id INTEGER PRIMARY KEY, status TEXT)")
+        conn.execute("INSERT INTO reminders VALUES (1, 'pending'), (2, 'done')")
+
+    edo_db = tmp_path / "edo-db"
+    edo_db.mkdir()
+    (edo_db / "1Cv8.1CD").write_bytes(b"edo-data")
+    edo_inbox = tmp_path / "edo-inbox"
+    edo_inbox.mkdir()
+    (edo_inbox / "doc1.xml").write_text("<xml/>")
+    acc_guide = tmp_path / "ACCOUNTING.md"
+    acc_guide.write_text("Срок сдачи РСВ до 25 числа\nsk-proj-secret1234567890abcdef token\n")
+
+    yt_cache = tmp_path / "yt-cache"
+    yt_cache.mkdir()
+    (yt_cache / "dQw4w9WgXcQ.json").write_text(json.dumps({
+        "title": "Video Title", "author_name": "Channel",
+        "author_url": "https://youtube.com/@c", "transcript": "Hello chapter", "chapters_count": 2,
+    }))
+
+    orch_db = tmp_path / "orchestra.db"
+    with sqlite3.connect(orch_db) as conn:
+        conn.execute("CREATE TABLE sessions (name TEXT, status TEXT)")
+        conn.execute("INSERT INTO sessions VALUES ('w1', 'running'), ('w2', 'idle')")
+
+    avito_json = tmp_path / "listings.json"
+    avito_json.write_text(json.dumps({
+        "items": [
+            {"batch": "b1", "status": "published", "price_rub": 1500, "photos": 3},
+            {"batch": "b1", "status": "draft", "price_rub": 2500, "photos": 0},
+        ]
+    }))
+
+    import subprocess
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
+        returncode=0,
+        stdout="ActiveState=active\nSubState=running\nMainPID=1234\nMemoryCurrent=104857600\nNRestarts=0\n",
+    ))
+
+    src = LiveSources({
+        "wellness_root": str(tmp_path),
+        "wellness_dashboard_path": str(dash_json),
+        "reminders_db_path": str(rem_db),
+        "edo_db_dir": str(edo_db),
+        "edo_platform_path": str(edo_db / "1Cv8.1CD"),
+        "edo_license_path": str(edo_db / "missing.lic"),
+        "edo_inbox_dir": str(edo_inbox),
+        "accounting_guide_path": str(acc_guide),
+        "youtube_cache_dir": str(yt_cache),
+        "vps_allowed_units": ["orchestra.service"],
+        "vps_stat_path": str(tmp_path),
+        "orchestra_db_path": str(orch_db),
+        "avito_listings_path": str(avito_json),
+    }, {})
+
+    win = {"start": "2025-01-02", "end": "2025-01-02"}
+    m_raw = src.morning(win)
+    m_dig = _morning_normalize({"raw": m_raw}, src)["digest"]
+    assert m_dig["reminders_pending"] == 1 and m_dig["active_courses"] == 1
+    assert _morning_verify({"window": win, "raw": m_raw, "digest": m_dig}, src) == {}
+
+    wsel = {"window": win, "category": "all"}
+    w_raw = src.wellness(wsel)
+    w_sum = _wellness_summarize({"raw": w_raw}, src)["summary"]
+    assert w_sum["low_stock_names"] == ["Magnesium"] and w_sum["sleep_nights"] == 1
+    assert _wellness_verify({"selection": wsel, "raw": w_raw, "summary": w_sum}, src) == {}
+
+    etgt = {"scope_key": "seedon", "include_deadlines": True}
+    e_raw = src.edo(etgt)
+    e_st = _edo_normalize({"raw": e_raw}, src)["status"]
+    assert e_st["incoming_xml_count"] == 1 and e_st["db_bytes"] == 8
+    assert _edo_verify({"target": etgt, "raw": e_raw, "status": e_st}, src) == {}
+
+    ytgt = {"video_id": "dQw4w9WgXcQ", "include_transcript": True}
+    y_raw = src.youtube(ytgt)
+    y_meta = _youtube_normalize({"raw": y_raw}, src)["metadata"]
+    assert y_meta["title"] == "Video Title" and y_meta["chapters_count"] == 2
+    assert _youtube_verify({"target": ytgt, "raw": y_raw, "metadata": y_meta}, src) == {}
+
+    vq = {"units": ["orchestra.service"], "include_sessions": True}
+    v_raw = src.vps(vq)
+    v_rep = _vps_summarize({"raw": v_raw}, src)["report"]
+    assert v_rep["cut_risk"] is True and v_rep["service_states"][0]["rss_mib"] == 100
+    assert _vps_verify({"query": vq, "raw": v_raw, "report": v_rep}, src) == {}
+    with pytest.raises(AccessRevoked):
+        src.vps({"units": ["ssh.service"], "include_sessions": False})
+
+    aq = {"batch": "b1", "status_filter": "draft"}
+    a_raw = src.avito(aq)
+    a_st = _avito_summarize({"raw": a_raw}, src)["stats"]
+    assert a_st["matched_items"] == 1 and a_st["missing_photo_count"] == 1
+    assert _avito_verify({"query": aq, "raw": a_raw, "stats": a_st}, src) == {}

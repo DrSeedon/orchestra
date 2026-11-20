@@ -26,6 +26,7 @@ Coordinate interface overlaps with peers via `send_message`, and escalate to `{o
 only for genuine blockers or decisions that alter scope, authority, cost or external contracts.
 
 Before DONE:
+- Check SkillCache first for `>= 5`-step Tier A/B routines; if you proved a new repeatable read-only collector or fixed step `k` after `stale`/`deopt`, qualify it with 2-gate replay + mutated counterexample + `secret_mask` (`vN -> v(N+1)`). Never cache Tier C creative skills.
 - Pre-mortem: check plausible regressions across callers, edge inputs, retries and recovery, running focused verification for what you touched.
 - Clean up temporary debug artifacts, commit on your task branch unless instructed not to, and send one concise report via `send_message` following `report-format`.
 </workflow>

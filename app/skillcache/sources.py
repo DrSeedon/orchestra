@@ -18,7 +18,12 @@ from uuid import uuid4
 import httpx
 
 from .abi import AccessRevoked, Rejected, RetryableRead
-from .pilots import dates
+import json
+import os
+import sqlite3
+import subprocess
+
+from .pilots import _sleep_summary, dates
 
 
 LIMIT = 2048
@@ -336,6 +341,281 @@ class LiveSources(Evidence):
                 return self.record("cdp", result)
             finally:
                 browser.close()
+
+
+    def _load_wellness_data(self):
+        api_url = self.config.get("wellness_api_url")
+        if api_url:
+            parsed = urlsplit(api_url)
+            if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "::1"}:
+                raise AccessRevoked
+            with httpx.Client(timeout=4, trust_env=False) as client:
+                return _json_response(client.get(api_url))
+        dash_path = self.config.get("wellness_dashboard_path")
+        if not dash_path:
+            return {}
+        fp = Path(dash_path)
+        if not fp.is_file():
+            return {}
+        return json.loads(fp.read_text(encoding="utf-8"))
+
+    def morning(self, window):
+        dates(window)
+        unread_count = 0
+        subjects = []
+        if self.config.get("mailru_user") and self.config.get("gmail_access_token_env"):
+            try:
+                batch = self.mail(window, ["mailru", "gmail"])
+                unread_count = len(batch["messages"])
+                subjects = [str(m.get("subject") or "")[:200] for m in batch["messages"][:20]]
+            except AccessRevoked:
+                pass
+        sleep_min = None
+        rhr_bpm = None
+        if self.config.get("wellness_root"):
+            recs = self.sleep(window)
+            if recs:
+                latest = sorted(recs, key=lambda r: r["date"])[-1]
+                sleep_min = latest.get("sleep_minutes")
+                rhr_bpm = latest.get("rhr_bpm")
+        rem_pending = 0
+        rem_db = self.config.get("reminders_db_path")
+        if rem_db and Path(rem_db).is_file():
+            with sqlite3.connect(f"file:{rem_db}?mode=ro", uri=True, timeout=1.0) as conn:
+                tbl = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='reminders'").fetchone()
+                if tbl:
+                    cols = {r[1] for r in conn.execute("PRAGMA table_info(reminders)").fetchall()}
+                    if "status" in cols:
+                        rem_pending = int(conn.execute("SELECT COUNT(*) FROM reminders WHERE status IN ('pending','active','scheduled')").fetchone()[0])
+                    else:
+                        rem_pending = int(conn.execute("SELECT COUNT(*) FROM reminders").fetchone()[0])
+        wdata = self._load_wellness_data()
+        courses = wdata.get("courses") or {}
+        active_courses = len([c for c in (courses.values() if isinstance(courses, dict) else courses) if isinstance(c, dict) and c.get("active", True)]) if courses else 0
+        return self.record("morning", {
+            "window": window,
+            "unread_mail_count": unread_count,
+            "mail_subjects": subjects,
+            "sleep_minutes": sleep_min,
+            "rhr_bpm": rhr_bpm,
+            "reminders_pending": rem_pending,
+            "active_courses": active_courses,
+        })
+
+    def wellness(self, selection):
+        window = selection["window"]
+        category = selection["category"]
+        dates(window)
+        data = self._load_wellness_data()
+        if not data and not self.config.get("wellness_root"):
+            raise AccessRevoked
+        courses = data.get("courses") or {}
+        active_courses = len([c for c in (courses.values() if isinstance(courses, dict) else courses) if isinstance(c, dict) and c.get("active", True)]) if courses else 0
+        inv = data.get("inventory") or {}
+        inv_items = inv.values() if isinstance(inv, dict) else inv
+        low_names = []
+        for item in inv_items:
+            if not isinstance(item, dict):
+                continue
+            amt = item.get("stock", item.get("amount", 999))
+            thr = item.get("threshold", item.get("min", 5))
+            if isinstance(amt, (int, float)) and isinstance(thr, (int, float)) and amt <= thr:
+                low_names.append(str(item.get("name") or item.get("id") or "item")[:120])
+        low_names = sorted(low_names)[:64]
+        logs = data.get("log") or []
+        sleep_sum = {"nights": 0, "median_sleep_minutes": None, "median_rhr_bpm": None}
+        if self.config.get("wellness_root"):
+            recs = self.sleep(window)
+            sleep_sum = _sleep_summary(window, recs)
+        return self.record("wellness", {
+            "selection": selection,
+            "updated": str(data.get("updated") or "")[:40],
+            "active_courses": active_courses if category in ("all", "supplements") else 0,
+            "low_stock_count": len(low_names) if category in ("all", "supplements") else 0,
+            "low_stock_names": low_names if category in ("all", "supplements") else [],
+            "recent_intake_count": len(logs) if category in ("all", "supplements") else 0,
+            "sleep_nights": sleep_sum["nights"] if category in ("all", "sleep") else 0,
+            "median_sleep_minutes": sleep_sum["median_sleep_minutes"] if category in ("all", "sleep") else None,
+            "median_rhr_bpm": sleep_sum["median_rhr_bpm"] if category in ("all", "sleep") else None,
+        })
+
+    def edo(self, target):
+        db_dir = self.config.get("edo_db_dir")
+        if not db_dir:
+            raise AccessRevoked
+        db_path = Path(db_dir)
+        db_exists = db_path.exists()
+        db_bytes = 0
+        if db_exists:
+            if db_path.is_file():
+                db_bytes = db_path.stat().st_size
+            else:
+                for p in db_path.rglob("*"):
+                    if p.is_file():
+                        db_bytes += p.stat().st_size
+        plat = Path(self.config.get("edo_platform_path", "")) if self.config.get("edo_platform_path") else None
+        lic = Path(self.config.get("edo_license_path", "")) if self.config.get("edo_license_path") else None
+        inbox = Path(self.config.get("edo_inbox_dir", "")) if self.config.get("edo_inbox_dir") else None
+        xml_count = len(list(inbox.glob("*.xml"))) if inbox and inbox.is_dir() else 0
+        deadlines = []
+        if target.get("include_deadlines") and self.config.get("accounting_guide_path"):
+            gp = Path(self.config["accounting_guide_path"])
+            if gp.is_file():
+                for line in gp.read_text(encoding="utf-8", errors="replace").splitlines():
+                    low = line.lower()
+                    if any(k in low for k in ("срок", "дедлайн", "до 25", "до 28", "ефс", "рсв", "усн")):
+                        clean = _redact_line(line.strip())[:240]
+                        if clean:
+                            deadlines.append(clean)
+                        if len(deadlines) >= 20:
+                            break
+        return self.record("edo", {
+            "scope_key": target["scope_key"],
+            "db_exists": db_exists,
+            "db_bytes": int(db_bytes),
+            "platform_exists": bool(plat and plat.exists()),
+            "license_exists": bool(lic and lic.exists()),
+            "incoming_xml_count": int(xml_count),
+            "deadline_lines": deadlines,
+        })
+
+    def youtube(self, target):
+        vid = target["video_id"]
+        if not re.fullmatch(r"[A-Za-z0-9_-]{11}", vid):
+            raise Rejected("invalid YouTube video_id")
+        include_tr = bool(target.get("include_transcript", False))
+        cache_dir = self.config.get("youtube_cache_dir")
+        cached = {}
+        if cache_dir:
+            cf = Path(cache_dir) / f"{vid}.json"
+            if cf.is_file():
+                cached = json.loads(cf.read_text(encoding="utf-8"))
+        if cached:
+            title = str(cached.get("title") or "")[:300]
+            author_name = str(cached.get("author_name") or "")[:200]
+            author_url = str(cached.get("author_url") or "")[:300]
+            transcript = str(cached.get("transcript") or "")
+            chapters = int(cached.get("chapters_count") or 0)
+        else:
+            proxy = self.config.get("youtube_proxy_url")
+            url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={vid}&format=json"
+            with httpx.Client(timeout=8, trust_env=False, proxy=proxy or None, follow_redirects=False) as client:
+                data = _json_response(client.get(url, headers={"User-Agent": "Mozilla/5.0"}))
+            title = str(data.get("title") or "")[:300]
+            author_name = str(data.get("author_name") or "")[:200]
+            author_url = str(data.get("author_url") or "")[:300]
+            transcript = ""
+            chapters = 0
+        has_tr = bool(transcript)
+        excerpt = transcript[:2000] if include_tr else ""
+        return self.record("youtube", {
+            "video_id": vid,
+            "include_transcript": include_tr,
+            "title": title,
+            "author_name": author_name,
+            "author_url": author_url,
+            "has_transcript": has_tr,
+            "chapters_count": chapters,
+            "transcript_chars": len(transcript),
+            "transcript_excerpt": excerpt,
+        })
+
+    def vps(self, query):
+        allowed = set(self.config.get("vps_allowed_units", (
+            "orchestra.service", "kesha-bot-vps.service", "telegram-bot-api.service",
+        )))
+        units = list(query["units"])
+        if any(u not in allowed for u in units):
+            raise AccessRevoked
+        states = []
+        for unit in units:
+            self._check_budget()
+            proc = subprocess.run(
+                ["systemctl", "show", unit, "-p", "ActiveState", "-p", "SubState", "-p", "MainPID", "-p", "MemoryCurrent", "-p", "NRestarts"],
+                capture_output=True, text=True, timeout=4, check=False,
+            )
+            props = {}
+            for line in proc.stdout.splitlines():
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    props[k.strip()] = v.strip()
+            mem_raw = props.get("MemoryCurrent", "")
+            rss_mib = int(int(mem_raw) / (1024 * 1024)) if mem_raw.isdigit() else 0
+            pid_raw = props.get("MainPID", "0")
+            rst_raw = props.get("NRestarts", "0")
+            states.append({
+                "unit": unit,
+                "active": _redact_line(props.get("ActiveState", "unknown"))[:40],
+                "sub": _redact_line(props.get("SubState", "unknown"))[:40],
+                "pid": int(pid_raw) if pid_raw.isdigit() else 0,
+                "rss_mib": max(0, rss_mib),
+                "restarts": int(rst_raw) if rst_raw.isdigit() else 0,
+            })
+        stat_root = self.config.get("vps_stat_path", "/")
+        sv = os.statvfs(stat_root)
+        disk_free_mb = int((sv.f_bavail * sv.f_frsize) / (1024 * 1024))
+        running = waiting = idle = 0
+        db_path = self.config.get("orchestra_db_path")
+        if query.get("include_sessions") and db_path and Path(db_path).is_file():
+            with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=1.0) as conn:
+                for st, cnt in conn.execute("SELECT status, COUNT(*) FROM sessions WHERE status IN ('running','waiting','idle') GROUP BY status"):
+                    if st == "running":
+                        running = int(cnt)
+                    elif st == "waiting":
+                        waiting = int(cnt)
+                    elif st == "idle":
+                        idle = int(cnt)
+        return self.record("vps", {
+            "units": units,
+            "include_sessions": bool(query.get("include_sessions")),
+            "service_states": states,
+            "disk_free_mb": max(0, disk_free_mb),
+            "running_sessions": running,
+            "waiting_sessions": waiting,
+            "idle_sessions": idle,
+        })
+
+    def avito(self, query):
+        src_path = self.config.get("avito_listings_path")
+        if not src_path:
+            raise AccessRevoked
+        fp = Path(src_path)
+        if not fp.is_file():
+            raise AccessRevoked
+        items = []
+        if fp.suffix == ".json":
+            raw_data = json.loads(fp.read_text(encoding="utf-8"))
+            items = raw_data.get("items", raw_data) if isinstance(raw_data, dict) else raw_data
+        else:
+            for line in fp.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.startswith("- "):
+                    low = line.lower()
+                    st = "published" if ("опубликован" in low or "published" in low) else "draft"
+                    items.append({"batch": query["batch"], "status": st, "price_rub": 0, "photos": 1})
+        batch = query["batch"]
+        flt = query["status_filter"]
+        in_batch = [i for i in items if isinstance(i, dict) and (batch == "all" or i.get("batch", batch) == batch)]
+        pub = sum(1 for i in in_batch if i.get("status") == "published")
+        drf = sum(1 for i in in_batch if i.get("status") != "published")
+        matched = in_batch if flt == "all" else [i for i in in_batch if (i.get("status") == "published") == (flt == "published")]
+        total_price = sum(int(i.get("price_rub") or 0) for i in matched if int(i.get("price_rub") or 0) >= 0)
+        missing_photos = sum(1 for i in matched if int(i.get("photos", 1) or 0) <= 0)
+        return self.record("avito", {
+            "batch": batch,
+            "status_filter": flt,
+            "total_items": len(in_batch),
+            "matched_items": len(matched),
+            "published_count": pub,
+            "draft_count": drf,
+            "total_price_rub": total_price,
+            "missing_photo_count": missing_photos,
+        })
+
+
+def _redact_line(text: str) -> str:
+    text = re.sub(r"(?i)(Bearer\\s+)[A-Za-z0-9._~+/=-]{8,}", r"[REDACTED]", text)
+    text = re.sub(r"(?:sk-(?:ant-|proj-)?|gh[pousr]_|ya29\.|bot\d{6,15}:)[A-Za-z0-9_:-]{12,}", "[REDACTED]", text)
+    return text
 
 
 def _json_response(response):

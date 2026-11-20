@@ -24,6 +24,7 @@ Follow `model-routing` for admitted routes and `worker-lifecycle` for WIP checks
 </worker-management>
 
 <task-workflow>
+Use active SkillCache capsules (`capsule_run` / `orch-capsule-run`) before multi-step manual sweeps; delegate new `>= 5`-step deterministic collectors, 2-gate counterexample tests, and `stale`/`deopt` `vN -> v(N+1)` repairs to coding workers (keep Tier C creative skills uncached).
 Track tasks from binding through `worker_wip` diff inspection, `merge_worker` exact-HEAD
 integration and live verification. Distinguish merged code on disk from active runtime state.
 </task-workflow>
