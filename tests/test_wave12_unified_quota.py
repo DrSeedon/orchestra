@@ -164,3 +164,60 @@ def test_unified_panel_renders_2_svgs_and_breaks_cross_reset_diagonal_sawtooth(b
     assert pts[3][1] == pytest.approx(426.0)
     assert pts[3][0] > pts[2][0] + 40.0  # >8h overnight flat 0% segment on bottom axis
     page.close()
+
+
+def test_equal_utilization_labels_do_not_overlap_and_timeline_labels_sit_right_of_now(browser):
+    payload = _payload()
+    payload["buckets"] = [
+        _bucket("codex", "Codex (Sol)", 54.0, 0.84, [
+            _lane("sol", "Sol", True, False),
+            _lane("luna", "Luna", False, False),
+        ]),
+        _bucket("antigravity_gemini", "Gemini", 62.0, 0.29, [
+            _lane("agy_gemini", "Gemini · 7d", True, False),
+        ], window_minutes=10080),
+        _bucket("antigravity_gemini_5h", "Gemini · 5h", 60.0, 0.48, [
+            _lane("agy_gemini_5h", "Gemini · 5h", False, False),
+        ], window_minutes=300),
+    ]
+    payload["rule"]["antigravity_default_hard_stop_pct"] = 95
+    payload["rule"]["gated_lanes"] = ["sol", "agy_gemini"]
+
+    page, errors = _render(browser, payload, as_json=False)
+    assert errors == []
+
+    # 1. All timeline point labels are cleanly right of `now` and do not overlap vertically.
+    t_boxes = page.locator('[data-ql-timeline-label]').evaluate_all(
+        "els => els.map(e => ({lane: e.dataset.qlTimelineLabel, anchor: e.getAttribute('text-anchor'), r: e.getBoundingClientRect()}))"
+    )
+    assert len(t_boxes) == 4
+    assert all(item["anchor"] == "start" for item in t_boxes)
+    t_boxes.sort(key=lambda item: item["r"]["top"])
+    for a, b in zip(t_boxes, t_boxes[1:]):
+        assert a["r"]["bottom"] <= b["r"]["top"] + 0.5, (a, b)
+
+    # 2. Equal (progress, util) pairs (Luna 54% & Sol 54%) stay vertically separated.
+    chart_groups = page.locator('[data-ql-label]').evaluate_all(
+        """els => els.map(e => {
+            const lane = e.dataset.qlLabel;
+            const detail = document.querySelector(`[data-ql-detail="${lane}"]`);
+            const r1 = e.getBoundingClientRect();
+            const r2 = detail ? detail.getBoundingClientRect() : r1;
+            return {
+                lane,
+                top: Math.min(r1.top, r2.top),
+                bottom: Math.max(r1.bottom, r2.bottom),
+                left: Math.min(r1.left, r2.left),
+                right: Math.max(r1.right, r2.right),
+            };
+        })"""
+    )
+    assert len(chart_groups) == 4
+    for i in range(len(chart_groups)):
+        for j in range(i + 1, len(chart_groups)):
+            a, b = chart_groups[i], chart_groups[j]
+            h_overlap = min(a["right"], b["right"]) - max(a["left"], b["left"]) > 0
+            v_overlap = min(a["bottom"], b["bottom"]) - max(a["top"], b["top"]) > 0
+            assert not (h_overlap and v_overlap), (a, b)
+
+    page.close()

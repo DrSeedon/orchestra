@@ -685,10 +685,9 @@ function _qlTimelineSvg(panel, rule) {
         const color = _qlLaneColor(lane.lane);
         p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="${5.5 + pointIndex * 2}" fill="none" stroke="${color}" stroke-width="2.5"><title>${_escHtml(T(lane.label || lane.lane))}: ${_formatPercent(point.util)}%</title></circle>`);
         const lowPoint = point.util < 15;
-        const leftLabel = pointIndex % 2 === 1;
-        const labelY = _qlPlaceY(y(point.util) + (lowPoint ? -12 : 4),
-            timelinePointRows, {gap: 16, upward: lowPoint});
-        p.push(`<text class="ql-timeline-point-label" data-ql-timeline-label="${_escHtml(lane.lane)}" x="${x(now) + (leftLabel ? -12 : 12)}" y="${labelY}" text-anchor="${leftLabel ? 'end' : 'start'}" fill="${color}">${_escHtml(T(lane.label || lane.lane))} ${_formatPercent(point.util)}%</text>`);
+        const labelY = _qlPlaceY(y(point.util) + (lowPoint ? -10 : 4),
+            timelinePointRows, {gap: 17, upward: lowPoint});
+        p.push(`<text class="ql-timeline-point-label" data-ql-timeline-label="${_escHtml(lane.lane)}" x="${x(now) + 14}" y="${labelY}" text-anchor="start" fill="${color}">${_escHtml(T(lane.label || lane.lane))} ${_formatPercent(point.util)}%</text>`);
         pointIndex++;
     }
     p.push(`<line class="ql-now" x1="${x(now)}" y1="${_QL_MT}" x2="${x(now)}" y2="${_QL_MT + _QL_PH}"/>`);
@@ -857,7 +856,7 @@ function _qlChartSvg(panel, rule) {
         const lowPoint = point.util < 15;
         const nearHardStop = Math.abs(y - _qlY(hard)) < 28;
         const stackedLabelY = _qlPlaceY(nearHardStop ? y + 36 : y - 20,
-            pointLabelRows, {gap: 28, detail: 14, upward: lowPoint});
+            pointLabelRows, {gap: 30, detail: 13, upward: lowPoint});
         p.push(`<circle data-ql-point="${_escHtml(lane.lane)}" class="${markerClass}" cx="${x}" cy="${y}" r="5.5" fill="none" stroke="${color}" stroke-width="2.5"/>`);
         // Use the server's lane verdict: explicit owner overrides can remove its
         // line or lower its ceiling even when the pool still has capacity.
@@ -871,7 +870,7 @@ function _qlChartSvg(panel, rule) {
                 pct: _formatPercent(point.progress * 100), limit: _formatPercent(laneLimit, 1),
             });
         p.push(`<text class="ql-quota-label ql-point-label" data-ql-label="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY}" text-anchor="${anchor}" fill="${color}"><title>${_escHtml(labelTitle)}</title>${label} ${_formatPercent(point.util)}%${point.fresh ? '' : T(' (telemetry stale)')}</text>`);
-        p.push(`<text class="ql-axis ql-quota-label" data-ql-detail="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY + 14}" text-anchor="${anchor}">${detail}</text>`);
+        p.push(`<text class="ql-axis ql-quota-label" data-ql-detail="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY + 12}" text-anchor="${anchor}">${detail}</text>`);
     }
 
     return {

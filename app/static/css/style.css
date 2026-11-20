@@ -1227,12 +1227,12 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .ql-timeline-legend span:nth-child(2) { position: relative; }
 .ql-timeline-legend span:nth-child(2)::after { content: ''; display: inline-block; width: 9px; height: 6px; margin-left: 3px; background: #fb923c; opacity: .28; vertical-align: middle; }
 .ql-axis { fill: var(--ink-faintest); font-size: 11px; font-family: var(--font-mono); }
-.ql-point-label { font-size: 13px; font-weight: 600; }
+.ql-point-label { font-size: 12px; font-weight: 600; }
 .ql-halo { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
 .ql-timeline-point-label, .ql-timeline-edge-label, .ql-quota-label {
     paint-order: stroke;
     stroke: #0b1120;
-    stroke-width: 4px;
+    stroke-width: 3px;
     stroke-linejoin: round;
 }
 .ql-grid { stroke: var(--border-soft); stroke-width: 1; }
