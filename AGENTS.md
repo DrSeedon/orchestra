@@ -56,6 +56,9 @@ and a descriptive entry in `.orchestra/kb/README.md` to reach agents.
 
 ## Runtime and safety
 
+- **ЖЕЛЕЗНЫЙ ЗАКОН НЕЗАВИСИМОСТИ КЕШИ И ORCHESTRA (20.11.2026 — ПРЯМОЕ ПРАВИЛО МАКСИМА):**
+  Кеша (`/opt/kesha-bot`) и Orchestra (`/home/kesha/orchestra`) — два на 100% независимых процесса и репозитория с нулевым общим кодовым импортом (Кеша — последний оплот Out-of-Band восстановления сервера с полным `sudo`; права `sudo` у Кеши не урезать и чат Кати на отдельного Linux-юзера не выносить). Запрещено импортировать модули рабочего дерева Orchestra внутрь Кеши или сливать их рантаймы; общение Кеши с воркерами Orchestra идёт строго через внешний локальный HTTP/CLI контракт с graceful fallback (управление `/orch`, `Bearer INTERNAL_TOKEN`, `last-known-good` тег, пуш в `:18081/inbox`).
+
 - **АВТО-ДЕПЛОЙ И РЕСТАРТ НА `orchestra-vps` (прямое правило Максима от 04.11.2026):**
   Каждый раз, когда в проект Orchestra вносятся и заливаются правки кода/промптов/конфигов, **всегда сразу синхронизируй обновлённые файлы на боевой сервер `orchestra-vps:/home/kesha/orchestra/` и перезапускай сервис `sudo systemctl restart orchestra.service`** (с проверкой `systemctl is-active orchestra.service`), не дожидаясь отдельного напоминания от Максима. При этом сервис `telegram-bot-api` никогда не перезапускать (`Never restart telegram-bot-api`). После рестарта проверять `cut_names` / прерванные ходы.
 - Do not coordinate infrastructure through other projects' orchestrators. Verify service

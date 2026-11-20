@@ -84,7 +84,7 @@ def _incoming_message_parts(log: dict, target_name: str) -> tuple[str | None, st
         origin, detail, senders = "unknown", {"senders": ["unknown"]}, ["unknown"]
     subtype = str(detail.get("subtype") or "").strip()
     content = user_message_display_content(log)
-    if subtype == "kesha_handoff":
+    if subtype in {"kesha_handoff", "kesha_worker"}:
         return f"🦜 kesha → {target_name}", content
     if origin == "user":
         return None, content

@@ -284,6 +284,7 @@ class CreateSessionRequest(BaseModel):
     initial_delivery_id: str = ""
     model_policy_override_reason: str = ""
     model_reason: str = ""
+    kesha_worker: bool = False
 
     @field_validator("name")
     @classmethod
@@ -335,7 +336,7 @@ class CreateSessionRequest(BaseModel):
 
 
 class SendRequest(BaseModel):
-    channel: Literal["", "dashboard", "kesha"] = ""
+    channel: Literal["", "dashboard", "kesha", "kesha_worker"] = ""
     message: str
     scope: str
     sender: str | None = None
@@ -586,6 +587,9 @@ async def create_session(req: CreateSessionRequest):
             topic_updater = getattr(manager, "tg_topic_updater", None)
             if topic_updater:
                 await topic_updater(session.name)
+        if req.kesha_worker:
+            from app.db import kv_set as _kv_set
+            _kv_set(f"kesha_notify:{session.id}", "1")
         d = session.to_dict()
         if req.initial_task_title:
             from app.models import recommend_task_route
@@ -1385,9 +1389,14 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     and not request.headers.get("x-forwarded-for")
                     and not request.headers.get("x-real-ip")
                 )
+                _is_kesha_worker = (
+                    req.channel == "kesha_worker"
+                    or request.headers.get("x-orchestra-kesha-worker", "").strip() == "1"
+                )
                 _has_kesha_signal = (
-                    req.channel == "kesha"
+                    req.channel in {"kesha", "kesha_worker"}
                     or request.headers.get("x-orchestra-kesha-handoff", "").strip() == "1"
+                    or _is_kesha_worker
                     or req.message.lstrip().startswith("[от Кеши]")
                 )
                 if _is_loopback and _has_kesha_signal and check_internal_token(
@@ -1424,12 +1433,16 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                             or _row_target.get("role") in {"orchestrator", "sub-orchestrator"}
                         ))
                     )
-                    kesha_handoff = _target_is_orch
+                    kesha_handoff = _target_is_orch or _is_kesha_worker
             if kesha_handoff:
+                _target_sid = getattr(_live_target, "id", None) or (_row_target.get("id") if _row_target else None)
+                if _target_sid:
+                    from app.db import kv_set as _kv_set
+                    await asyncio.to_thread(_kv_set, f"kesha_notify:{_target_sid}", "1")
                 provenance = MessageProvenance(
                     origin="user",
                     senders=("kesha",),
-                    subtype="kesha_handoff",
+                    subtype="kesha_worker" if _is_kesha_worker else "kesha_handoff",
                 )
             else:
                 provenance = MessageProvenance(

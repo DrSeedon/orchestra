@@ -517,6 +517,10 @@ class TurnManager:
         )
         s._turn_start = 0
         ok, sr, nt = s._cost.apply_turn_result(meta, event.usage)
+        _kesha_summary = str(meta.get("assistant_text") or getattr(s, "_last_text_output", "") or "")
+        s._spawn_bg(_push_kesha_inbox_if_subscribed(
+            s.id, s.name, s.scope, ok=ok, stop_reason=sr, summary_text=_kesha_summary,
+        ))
         if ok and sr == "end_turn" and s.backend_type == "antigravity" and meta.get("profile_epoch"):
             from app.routes.system import _refresh_antigravity_usage
 
@@ -1385,3 +1389,50 @@ class TurnManager:
             s._codex_pre_limit_retry_at = (
                 time.monotonic() + CODEX_PRE_LIMIT_COMPACT_COOLDOWN_SECONDS
             )
+
+async def _push_kesha_inbox_if_subscribed(
+    session_id: str,
+    session_name: str,
+    scope: str,
+    *,
+    ok: bool,
+    stop_reason: str,
+    summary_text: str,
+) -> None:
+    """Push compact worker/handoff completion back to Kesha HTTP inbox (fail-soft)."""
+    import os
+    import sys
+    try:
+        from app.db import kv_get
+        if kv_get(f"kesha_notify:{session_id}") != "1":
+            return
+    except Exception:
+        return
+    if "pytest" in sys.modules and not os.environ.get("ORCHESTRA_ALLOW_KESHA_INBOX_TEST"):
+        return
+    token = (os.environ.get("KESHA_INBOX_TOKEN") or os.environ.get("INTERNAL_TOKEN") or "").strip()
+    if not token:
+        return
+    inbox_url = os.environ.get("KESHA_INBOX_URL", "http://127.0.0.1:18081/inbox").strip()
+    status_emoji = "✅" if ok else "⚠️"
+    clean_text = (summary_text or "").strip()
+    if len(clean_text) > 1200:
+        clean_text = clean_text[:1197].rstrip() + "..."
+    body_msg = (
+        f"{status_emoji} Воркер `{session_name}` ({scope or '?'}) завершил ход ({stop_reason})."
+        + (f"\n\n{clean_text}" if clean_text else "")
+    )
+    try:
+        import aiohttp
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with aiohttp.ClientSession(timeout=timeout) as client:
+            async with client.post(
+                inbox_url,
+                json={"sender": session_name, "message": body_msg},
+                headers={"Authorization": f"Bearer {token}"},
+            ) as resp:
+                if resp.status >= 400:
+                    logger.debug(f"[{session_name}] Kesha inbox push HTTP {resp.status}")
+    except Exception as exc:
+        logger.debug(f"[{session_name}] Kesha inbox push skipped: {type(exc).__name__}: {exc}")
+

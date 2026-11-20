@@ -597,6 +597,16 @@ async def lifespan(app: FastAPI):
                         logger.error("Could not start ACP mux (%s)", type(exc).__name__)
                     else:
                         mux = listener
+            if "pytest" not in _sys.modules:
+                try:
+                    import subprocess as _sp
+                    _repo_root = Path(__file__).resolve().parents[1]
+                    _sp.run(
+                        ["git", "-C", str(_repo_root), "tag", "-f", "last-known-good", "HEAD"],
+                        check=False, stdout=_sp.DEVNULL, stderr=_sp.DEVNULL, timeout=5,
+                    )
+                except Exception as _tag_exc:
+                    logger.debug("last-known-good tag update skipped: %s", _tag_exc)
             if _fdstore.notify_ready():
                 logger.info("systemd readiness published after application startup gates")
             yield
