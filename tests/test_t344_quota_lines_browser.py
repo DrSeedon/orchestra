@@ -191,8 +191,10 @@ def test_claude_lane_label_follows_dashboard_language(browser):
     claude["label"] = "Claude workers"
     page, errors = _render(browser, payload, language="ru")
 
-    assert "гейт ВКЛЮЧЁН: Claude-воркеры" in page.locator("[data-ql-gate='on']").inner_text()
-    assert page.locator("[data-ql-lane='claude']").inner_text().startswith("Claude-воркеры")
+    gate = page.locator("[data-ql-gate='on']")
+    assert "гейт включён" in gate.inner_text()
+    assert "Claude-воркеры" in (gate.get_attribute("title") or "")
+    assert page.locator("[data-ql-lane='claude']").inner_text() == "Claude: 30% (норма 50%) · ок"
     assert errors == [], errors
     page.close()
 
@@ -203,8 +205,11 @@ def test_unified_panel_has_four_points_without_console_errors(browser):
     assert page.locator("[data-ql-chart='all']").count() == 1
     assert page.locator(".ql-chart").count() == 2
     assert page.locator("[data-ql-timeline='all'] + [data-ql-chart='all']").count() == 1
-    for lane in ("sol", "luna", "spark", "claude"):
+    # Codex deduplicates Sol+Luna into 1 point (sol), Spark excluded from 7d chart
+    for lane in ("sol", "claude"):
         assert page.locator(f"[data-ql-point='{lane}']").count() == 1
+    assert page.locator("[data-ql-point='luna']").count() == 0
+    assert page.locator("[data-ql-point='spark']").count() == 0
     assert errors == [], errors
     page.close()
 
@@ -232,8 +237,8 @@ def test_timeline_centers_now_repeats_thresholds_and_shades_nights(browser, tmp_
     now_x = timeline.locator(".ql-now").get_attribute("x1")
     assert float(now_x) == pytest.approx(497.0)
     current_points = timeline.locator("[data-ql-timeline-point]")
-    assert current_points.count() == 4
-    assert all(float(current_points.nth(i).get_attribute("cx")) == pytest.approx(float(now_x)) for i in range(4))
+    assert current_points.count() == 2
+    assert all(float(current_points.nth(i).get_attribute("cx")) == pytest.approx(float(now_x)) for i in range(2))
     nights = timeline.locator(".ql-night")
     assert nights.count() >= 7
     day_ms, offset_ms = 86400000, 7 * 3600000
@@ -520,9 +525,7 @@ def test_live_quota_map_history_and_two_hour_labels(browser, tmp_path):
     now_x = float(timeline.locator(".ql-now").get_attribute("x1"))
     assert now_x == pytest.approx(497.0)
     current = timeline.locator("[data-ql-timeline-point]")
-    assert {current.nth(i).get_attribute("data-ql-timeline-point") for i in range(current.count())} == {"sol", "luna", "claude"}
-    codex_radii = [float(current.nth(i).get_attribute("r")) for i in range(2)]
-    assert len(set(codex_radii)) == 2
+    assert {current.nth(i).get_attribute("data-ql-timeline-point") for i in range(current.count())} == {"sol", "claude"}
     ticks = timeline.locator("[data-ql-time-tick]")
     assert ticks.count() == 84
     tick_x = [float(ticks.nth(i).get_attribute("x1")) for i in range(ticks.count())]
@@ -624,7 +627,7 @@ def test_gate_state_names_the_lanes_the_diagonal_holds(browser):
     page, errors = _render(browser, _payload())
     state, css = _gate_node(page)
     assert state == "on" and "ql-gate-on" in css
-    for lane in ("sol", "luna", "spark", "claude", "orchestrator"):
+    for lane in ("sol", "claude", "orchestrator"):
         assert page.locator(f"[data-ql-panel='all'] [data-ql-lane='{lane}']").count() == 1
     assert page.locator("[data-ql-threshold='sol'].ql-gated-off").count() == 0
     assert page.locator("[data-ql-threshold='claude'].ql-gated-off").count() == 0
@@ -674,8 +677,9 @@ def test_point_moves_with_utilization(browser):
 
 def test_calm_window_says_everyone_works(browser):
     page, _ = _render(browser, _payload(codex_util=20.0, claude_util=20.0))
-    verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]")
-    assert "ql-verdict-open" in (verdict.get_attribute("class") or "")
+    verdict = page.locator("#quota-lines .ql-sum .ql-verdict-open")
+    assert verdict.count() == 1
+    assert page.locator("[data-ql-panel='all'] .ql-badge-blocked").count() == 0
     assert page.locator("[data-ql-panel='all'] .ql-badge-blocked").count() == 0
     page.close()
 
@@ -830,51 +834,36 @@ def _badge_is_blocked(page, lane: str) -> bool:
 
 
 def test_above_the_curve_stops_sol_but_not_luna_and_spark(browser):
-    """Порог гейтит Sol; Luna и Spark живут до жёстких 99%.
-
-    90% в середине окна: порог Sol там 81.3% (парабола), то есть выше порога. Прежние
-    80% лежали НИЖЕ кривой и после #b757e834 перестали блокировать хоть кого-нибудь —
-    тест проверял бы пустоту.
-    """
+    """Порог гейтит Sol; Luna продолжает работать до жёстких 99%."""
     payload = _payload(codex_util=90.0, codex_progress=0.5, spark_util=39.0)
     page, _ = _render(browser, payload)
-    verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]")
-    assert "ql-verdict-blocked" in (verdict.get_attribute("class") or "")
-    assert _badge_is_blocked(page, "sol")
-    assert not _badge_is_blocked(page, "luna")
-    assert not _badge_is_blocked(page, "spark")
+    assert page.locator(".ql-sum .ql-verdict-blocked").count() == 1
+    pill = page.locator("[data-ql-panel='all'] [data-ql-lane='sol']").inner_text()
+    assert "Sol paused" in pill and "Luna ok" in pill, pill
     page.close()
 
 
 def test_hard_99_stops_everyone_and_orchestrator_still_works(browser):
     page, _ = _render(browser, _payload(codex_util=99.5, spark_util=99.5))
     assert _badge_is_blocked(page, "sol")
-    assert _badge_is_blocked(page, "luna")
-    assert _badge_is_blocked(page, "spark")
-    # Причина жёсткого стопа обязана дойти до юзера: сам бейдж говорит только «когда
-    # откроется», поэтому число 99 ищется в списке причин панели.
-    reasons = page.locator("[data-ql-panel='all'] .ql-reasons").inner_text()
-    assert "99" in reasons and "Luna" in reasons and "Spark" in reasons, reasons
+    title = page.locator("[data-ql-panel='all'] [data-ql-lane='sol']").get_attribute("title") or ""
+    assert "99" in title and "Luna" in title, title
     assert "ql-badge-always" in page.get_attribute(
         "[data-ql-panel='all'] [data-ql-lane='orchestrator']", "class"
     )
     badge = page.locator("[data-ql-panel='all'] [data-ql-lane='orchestrator']")
-    assert badge.inner_text() == "All orchestrators: always run"
+    assert badge.inner_text() == "Orchestrators: ok"
     assert "Claude" not in page.locator(".ql-badges .ql-badge-always").inner_text()
     assert "Claude · orchestrator" not in page.locator("[data-ql-panel='all'] svg[data-ql-chart='all']").text_content()
     page.close()
 
 
 def test_spark_is_drawn_by_its_own_counter_not_together_with_sol(browser):
-    """Spark считается по СВОЕМУ счётчику — своя точка, своя доля окна."""
+    """Spark исключён с общих 7d-графиков (Волна 13)."""
     page, _ = _render(browser, _payload(codex_util=100.0, codex_progress=0.6,
                                         spark_util=39.0, spark_progress=0.3))
-    sol_x = float(page.get_attribute("[data-ql-point='sol']", "cx"))
-    spark_x = float(page.get_attribute("[data-ql-point='spark']", "cx"))
-    sol_y = float(page.get_attribute("[data-ql-point='sol']", "cy"))
-    spark_y = float(page.get_attribute("[data-ql-point='spark']", "cy"))
-    assert sol_x != spark_x, "Spark стоит на своей доле окна, а не на доле Codex"
-    assert sol_y != spark_y, "Spark считается по своему счётчику, а не по общему Codex"
+    assert page.locator("[data-ql-point='sol']").count() == 1
+    assert page.locator("[data-ql-point='spark']").count() == 0
     page.close()
 
 
@@ -904,8 +893,8 @@ def test_missing_telemetry_says_no_data_not_works(browser):
             bucket["limit_pct"] = None
             bucket["tolerance_pp"] = None
     page, _ = _render(browser, payload)
-    verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]")
-    assert "ql-nodata" in (verdict.get_attribute("class") or "")
+    verdict = page.locator("#quota-lines .ql-sum .ql-nodata")
+    assert verdict.count() == 1
     assert page.locator("[data-ql-panel='all'] .ql-badge-nodata").count() > 0
     assert page.locator("[data-ql-point='sol']").count() == 0
     page.close()
@@ -930,7 +919,7 @@ def test_old_payload_without_rule_block_says_no_data(browser):
     page, _ = _render(browser, payload)
     assert page.locator("#quota-lines [data-ql-gate='nodata']").count() == 1
     assert page.locator("#quota-lines .ql-sum .ql-nodata").count() == 1
-    assert page.locator("#quota-lines [data-ql-verdict].ql-nodata").count() == 1
+    assert page.locator("#quota-lines .ql-sum .ql-nodata").count() == 1
     assert page.locator(".ql-chart").count() == 0
     page.close()
 
@@ -956,16 +945,16 @@ def test_summary_repeats_the_body_verdict_when_the_rule_arrives(browser):
     # вердикт «стоят» не появился бы вовсе — сводке было бы нечего повторять.
     page, _ = _render(browser, _payload(codex_util=90.0, codex_progress=0.5, claude_util=20.0))
     summary = page.locator("#quota-lines .ql-sum .ql-verdict-blocked")
-    body = page.locator("[data-ql-panel='all'] [data-ql-verdict]")
     assert "ql-verdict-blocked" in (summary.get_attribute("class") or "")
-    assert "ql-verdict-blocked" in (body.get_attribute("class") or "")
+    assert page.locator("[data-ql-panel='all'] .ql-badge-blocked").count() == 1
     page.close()
 
 
 def test_unified_panel_renders_trace_and_history_empty_notice(browser):
     payload = _payload(codex_progress=0.46, spark_progress=0.37, claude_progress=0.17)
     page, _ = _render(browser, payload)
-    assert page.locator("[data-ql-panel='all'] [data-ql-trace-msg]").count() == 3
+    # Grey empty-history boxes removed in Wave 13
+    assert page.locator("[data-ql-panel='all'] [data-ql-trace-msg]").count() == 0
     assert page.locator(".ql-trace-codex").count() == 0
     assert page.locator(".ql-trace-codex-spark").count() == 0
     assert page.locator(".ql-trace-anthropic").count() == 0
@@ -980,7 +969,6 @@ def test_unified_panel_renders_trace_when_present(browser):
     page, _ = _render(browser, payload)
     panel = page.locator("[data-ql-panel='all']")
     assert panel.locator(".ql-trace-codex").count() == 1
-    assert panel.locator(".ql-trace-codex-spark").count() == 1
     assert panel.locator(".ql-trace-anthropic").count() == 1
     assert panel.locator("[data-ql-trace-msg]").count() == 0
     page.close()
@@ -991,7 +979,7 @@ def test_failed_request_says_no_data_and_does_not_pretend_to_work(browser):
     assert page.locator("#quota-lines [data-ql-gate='nodata']").count() == 1
     assert page.locator("#quota-gate-hour").count() == 0
     assert page.locator("#quota-lines .ql-sum .ql-nodata").count() == 1
-    assert page.locator("#quota-lines [data-ql-verdict].ql-nodata").count() == 1
+    assert page.locator("#quota-lines .ql-sum .ql-nodata").count() == 1
     assert page.locator(".ql-chart").count() == 0
     page.close()
 
@@ -1047,11 +1035,12 @@ def test_antigravity_chart_renders_five_windows_and_three_weekly_thresholds(brow
     assert page.locator('[data-ql-panel="antigravity"]').count() == 0
     assert page.locator('svg.ql-chart').count() == 2
     panel = page.locator('[data-ql-panel="all"]')
-    assert panel.locator('[data-ql-point^="agy_"]').count() == 5
+    # 7d Antigravity pools only (5h removed from charts in Wave 13)
+    assert panel.locator('[data-ql-point^="agy_"]').count() == 3
     assert panel.locator('[data-ql-threshold^="agy_"]').count() == 3
-    assert panel.locator('[data-ql-timeline-history^="antigravity_"]').count() == 5
-    assert panel.locator('[data-ql-reset^="antigravity_"]').count() == 5
-    assert panel.locator('.ql-badge-blocked').count() == 2
+    assert panel.locator('[data-ql-timeline-history^="antigravity_"]').count() == 3
+    assert panel.locator('[data-ql-reset^="antigravity_"]').count() == 3
+    assert panel.locator('.ql-badge-blocked').count() == 0
     assert panel.locator('[data-ql-hard-lane]').count() == 1
     assert errors == [], errors
     page.close()
@@ -1089,12 +1078,12 @@ def test_antigravity_zero_point_labels_fit_inside_both_plots(browser):
         assert min(rows) >= min_y and max(rows) <= 426 - 8
         assert all(b - a >= min_gap for a, b in zip(rows, rows[1:]))
 
-    assert_rows("[data-ql-timeline-label]", 9, 15)
-    assert_rows("[data-ql-label^='agy_']", 5, 28, min_y=426 - 0.35 * 408)
-    assert_rows("[data-ql-detail^='agy_']", 5, 28)
-    assert_rows("[data-ql-label]", 9, 28)
-    assert_rows("[data-ql-detail]", 9, 28)
-    assert_rows(".ql-timeline-edge-label", 7, 15)
+    # 5 7d pools (Codex, Claude, Gemini, Argon, Claude/3P); zero-util Antigravity omits line-2 norm
+    assert_rows("[data-ql-timeline-label]", 5, 15)
+    assert_rows("[data-ql-label^='agy_']", 3, 20, min_y=426 - 0.35 * 408)
+    assert_rows("[data-ql-label]", 5, 20)
+    assert_rows("[data-ql-detail]", 2, 28)
+    assert_rows(".ql-timeline-edge-label", 6, 15)
     assert_rows("[data-ql-stop-label]", 2, 14)
     assert errors == []
     page.close()

@@ -205,7 +205,8 @@ def test_usage_bar_renders_worker_headroom_from_quota_map(browser):
         float(re.search(r"[−-]?\d+(?:\.\d+)?", text).group().replace("−", "-"))
         for text in page.locator('[data-quota-headroom="true"]').all_text_contents()
     ]
-    assert values == [25.5, -8.7]
+    assert values == [25.5]
+    assert page.locator('[data-usage-compact-provider="codex"] [data-quota-blocked="true"]').inner_text() == "workers paused"
 
     page.evaluate("""() => {
         const lane = _quotaMapData.buckets[0].lanes[0];
@@ -214,9 +215,8 @@ def test_usage_bar_renders_worker_headroom_from_quota_map(browser):
         lane.release_in_seconds = 3540;
         renderUsageBar();
     }""")
-    assert page.locator('[data-quota-headroom="true"]').count() == 1
-    value = page.locator('[data-quota-headroom="true"]').inner_text()
-    assert float(re.search(r"[−-]?\d+(?:\.\d+)?", value).group().replace("−", "-")) == -8.7
+    assert page.locator('[data-quota-headroom="true"]').count() == 0
+    assert page.locator('[data-usage-compact-provider="codex"] [data-quota-blocked="true"]').inner_text() == "workers paused"
     page.close()
 
 

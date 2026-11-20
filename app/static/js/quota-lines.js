@@ -21,11 +21,56 @@ const _QL_KR_HOUR_FORMAT = new Intl.DateTimeFormat(orchLocale(), {
 });
 
 const _QL_PANELS = [
-    {key: 'all', title: T('Pool quotas'), sub: T('single scale: window progress share, 0–100%'),
-     buckets: ['codex', 'codex_spark', 'anthropic',
-         'antigravity_gemini', 'antigravity_gemini_5h', 'antigravity_argon',
-         'antigravity_argon_5h', 'antigravity_3p', 'antigravity_3p_5h']},
+    {key: 'all', title: T('Pool quotas (7d)'), sub: T('0–100%'),
+     buckets: ['codex', 'anthropic', 'antigravity_gemini', 'antigravity_argon', 'antigravity_3p']},
 ];
+
+const _QL_POOL_NAMES = {
+    codex: {short: 'Codex', limitName: 'Codex'},
+    anthropic: {short: 'Claude', limitName: 'Claude'},
+    antigravity_gemini: {short: 'Gemini', limitName: 'Gemini'},
+    antigravity_argon: {short: 'Argon', limitName: 'Argon'},
+    antigravity_3p: {short: 'Claude/3P', limitName: '3P'},
+};
+
+function _qlPoolMeta(bucketId) {
+    return _QL_POOL_NAMES[bucketId] || {short: bucketId, limitName: bucketId};
+}
+
+function _qlPoolEntries(panel) {
+    const disabledProviders = typeof window !== 'undefined' && Array.isArray(window._usageData?.disabled_providers)
+        ? window._usageData.disabled_providers : [];
+    const entries = [];
+    for (const id of panel.buckets) {
+        if (id === 'anthropic' && disabledProviders.includes('claude')) continue;
+        if (id.startsWith('antigravity_') && disabledProviders.includes('antigravity')) continue;
+        const bucket = _qlBucket(id);
+        if (!bucket) continue;
+        // Skip anthropic when unconfigured/disabled and other 7d telemetry exists.
+        if (id === 'anthropic' && !bucket.data_available) {
+            const hasActivePeer = panel.buckets.some(otherId => otherId !== 'anthropic' && _qlBucket(otherId)?.data_available);
+            if (hasActivePeer) continue;
+        }
+        const meta = _qlPoolMeta(id);
+        const lanes = Array.isArray(bucket.lanes) ? bucket.lanes : [];
+        const primaryLane = lanes.find(l => l.gated) || lanes[0] || {
+            lane: id, label: meta.short, gated: false, blocked: false, release_status: 'no_data',
+        };
+        const blockedLanes = lanes.filter(l => l.blocked);
+        const openLanes = lanes.filter(l => !l.blocked && l.release_status !== 'no_data');
+        entries.push({
+            bucket,
+            lanes,
+            primaryLane,
+            blockedLanes,
+            openLanes,
+            short: meta.short,
+            limitName: meta.limitName,
+            point: _qlPoint(bucket),
+        });
+    }
+    return entries;
+}
 
 // Stable server `reason_key` -> English template (the i18n dictionary key). The server's
 // `reason` stays the ready English sentence for other consumers; the panel renders
@@ -228,9 +273,37 @@ function _qlLaneSummary(lane) {
     return _qlReleaseText(lane);
 }
 
+function _qlShortDurationFromSeconds(totalSeconds) {
+    const rounded = Math.max(0, Math.round(Number(totalSeconds)));
+    if (!Number.isFinite(rounded)) return '';
+    const isRu = typeof orchLocale === 'function' && String(orchLocale()).startsWith('ru');
+    const dUnit = isRu ? 'д' : 'd';
+    const hUnit = isRu ? 'ч' : 'h';
+    const mUnit = isRu ? 'м' : 'm';
+    const days = Math.floor(rounded / 86400);
+    const hours = Math.floor((rounded % 86400) / 3600);
+    const mins = Math.floor((rounded % 3600) / 60);
+    if (days > 0) return hours > 0 ? `${days}${dUnit} ${hours}${hUnit}` : `${days}${dUnit}`;
+    if (hours > 0) return mins > 0 ? `${hours}${hUnit} ${mins}${mUnit}` : `${hours}${hUnit}`;
+    return `${mins}${mUnit}`;
+}
+
+function _qlShortWait(lane) {
+    const status = String(lane?.release_status || '').trim();
+    const seconds = Number(lane?.release_in_seconds);
+    if ((status === 'opens_in' || status === 'at_reset') && Number.isFinite(seconds)) {
+        return T('in {duration}', {duration: _qlShortDurationFromSeconds(seconds)});
+    }
+    if (status === 'at_reset') return T('at reset');
+    if (status === 'opens_in') return T('soon');
+    return '';
+}
+
 function _qlAllLanes() {
+    const activeIds = new Set(_QL_PANELS[0].buckets);
     const lanes = [];
     for (const bucket of (_quotaLinesData?.buckets || [])) {
+        if (!activeIds.has(bucket.bucket)) continue;
         for (const lane of (bucket.lanes || [])) lanes.push(lane);
     }
     return lanes;
@@ -412,16 +485,28 @@ function _qlCeilingText(rule) {
 // diagonal lifted from ALL lanes differed from a working rule only by an italic
 // badge note, so two different modes looked identical on the panel.
 // Source is server's `rule.gated_lanes`: panel doesn't decide who gets gated.
+function _qlCompactCeilingRange(rule) {
+    const stops = new Set([Number(rule.hard_stop_pct)]);
+    for (const lane of _qlAllLanes()) {
+        const s = _qlHardStop(rule, lane.lane);
+        if (Number.isFinite(s)) stops.add(s);
+    }
+    const valid = [...stops].filter(Number.isFinite).sort((a, b) => a - b);
+    if (!valid.length) return `${_formatPercent(rule.hard_stop_pct)}%`;
+    return valid.length > 1
+        ? `${_formatPercent(valid[0])}–${_formatPercent(valid[valid.length - 1])}%`
+        : `${_formatPercent(valid[0])}%`;
+}
+
 function _qlGateState() {
     const rule = _quotaLinesData?.rule;
     // While connection is lost, panel verdict is already "—": printing a confident
     // "gate enabled" from a stale response would show outdated as current.
     if (Connection.ownsErrors() || !rule || !Array.isArray(rule.gated_lanes)) {
-        return {state: 'nodata', text: T('gate: no data')};
+        return {state: 'nodata', text: T('gate: no data'), title: ''};
     }
-    const ceilings = _qlCeilingText(rule);
-    // Manual lift by owner (#V-578) shown SEPARATELY from "rules are such":
-    // otherwise temporary lift would silently stretch for three days unnoticed.
+    const detailedCeilings = _qlCeilingText(rule);
+    const compactCeiling = _qlCompactCeilingRange(rule);
     const left = Number(rule.override_seconds_left) || 0;
     if (left > 0) {
         const until = rule.override_until
@@ -429,30 +514,27 @@ function _qlGateState() {
             : T('{min} min', {min: Math.ceil(left / 60)});
         return {
             state: 'override',
-            text: T('gate MANUALLY LIFTED until {until} · ceiling: {ceiling}', {
-                until,
-                ceiling: ceilings,
-            }),
+            text: T('gate lifted until {until}', {until}),
+            title: detailedCeilings,
         };
     }
     if (!rule.gated_lanes.length) {
         return {
             state: 'off',
-            text: T('gate LIFTED — diagonal holds no lanes, only ceiling remains: {ceiling}', {
-                ceiling: ceilings,
-            }),
+            text: T('gate lifted · ceiling {ceiling}', {ceiling: compactCeiling}),
+            title: detailedCeilings,
         };
     }
     const held = rule.gated_lanes.map(_qlLaneLabel);
     const free = _qlAllLanes()
         .filter(lane => !rule.gated_lanes.includes(lane.lane))
         .map(lane => T(lane.label || lane.lane));
-    const tail = free.length ? ` · ${T('outside gate')}: ${free.join(', ')}` : '';
-    return {state: 'on', text: T('gate ON: {held}{tail} · ceiling: {ceiling}', {
-        held: held.join(', '),
-        tail,
-        ceiling: ceilings,
-    })};
+    const title = `${held.join(', ')}${free.length ? ` · ${T('outside gate')}: ${free.join(', ')}` : ''} · ${detailedCeilings}`;
+    return {
+        state: 'on',
+        text: T('gate ON · ceiling {ceiling}', {ceiling: compactCeiling}),
+        title,
+    };
 }
 
 function _qlTrace(bucket) {
@@ -563,6 +645,7 @@ function _qlTimelineSvg(panel, rule) {
         ...(now > from && now < to ? [now] : []),
         to,
     ].sort((a, b) => a - b);
+    const poolEntries = _qlPoolEntries(panel);
     for (let segment = 0; segment < hardPolicyCuts.length - 1; segment++) {
         const segmentLeft = hardPolicyCuts[segment], segmentRight = hardPolicyCuts[segment + 1];
         if (segmentRight <= segmentLeft) continue;
@@ -580,9 +663,7 @@ function _qlTimelineSvg(panel, rule) {
             const uniqueLine = _formatPercent(stop);
             const common = Number(stop) === Number(active.policy.hard_stop_pct);
             const lane = lanes[0];
-            const label = common
-                ? T('stop {pct}%', {pct: uniqueLine})
-                : T('stop {label} {pct}%', {label: _qlLaneLabel(lane), pct: uniqueLine});
+            const label = T('stop {pct}%', {pct: uniqueLine});
             p.push(`<line class="ql-hard ql-timeline-hard${projected ? ' ql-timeline-projection' : ''}" data-ql-timeline-hard="${uniqueLine}" x1="${x(segmentLeft)}" y1="${y(stop)}" x2="${x(segmentRight)}" y2="${y(stop)}"/>`);
             if (segmentRight === to) {
                 const explanation = common
@@ -595,17 +676,18 @@ function _qlTimelineSvg(panel, rule) {
 
     // Quota policy curves restart at each provider window boundary. Historical
     // intervals also split at the time each rule snapshot became effective.
-    for (const bucket of panel.buckets.map(_qlBucket).filter(Boolean)) {
+    for (const entry of poolEntries) {
+        const bucket = entry.bucket;
         const window = bucket.window;
         const reset = Date.parse(window?.resets_at);
         const duration = Number(window?.window_minutes) * 60000;
         if (!Number.isFinite(reset) || !(duration > 0)) continue;
         if (bucket.bucket.startsWith('antigravity_')) {
-            const lane = bucket.lanes?.[0]?.lane;
+            const lane = entry.primaryLane.lane;
             const resetTimes = [reset, ...(bucket.timeline?.reset_events || []).map(event => event.at)];
             for (const at of new Set(resetTimes)) {
                 if (at < from || at > to) continue;
-                p.push(`<line class="ql-agy-reset" data-ql-reset="${_escHtml(bucket.bucket)}" stroke="${_qlLaneColor(lane)}" x1="${x(at)}" x2="${x(at)}" y1="${_QL_MT}" y2="${_QL_MT + _QL_PH}"><title>${_escHtml(bucket.label)} · ${new Date(at).toISOString()}</title></line>`);
+                p.push(`<line class="ql-agy-reset" data-ql-reset="${_escHtml(bucket.bucket)}" stroke="${_qlLaneColor(lane)}" x1="${x(at)}" x2="${x(at)}" y1="${_QL_MT}" y2="${_QL_MT + _QL_PH}"><title>${_escHtml(entry.short)} · ${new Date(at).toISOString()}</title></line>`);
             }
         }
         const cycles = [];
@@ -631,35 +713,36 @@ function _qlTimelineSvg(panel, rule) {
                 .sort((a, b) => a - b);
             const cuts = [left, ...events, ...(now > left && now < right ? [now] : []), right]
                 .sort((a, b) => a - b);
-            const lanes = new Set((bucket.lanes || []).map(lane => lane.lane));
-            for (const lane of lanes) {
-                for (let segment = 0; segment < cuts.length - 1; segment++) {
-                    const segmentLeft = cuts[segment], segmentRight = cuts[segment + 1];
-                    const active = _qlRuleAt((segmentLeft + segmentRight) / 2, now, rule,
-                        _quotaLinesData?.rule_history);
-                    const segmentRule = active.policy;
-                    const gated = (segmentRule.gated_lanes || []).includes(lane);
-                    const projectionClass = segmentLeft >= now ? ' ql-timeline-projection' : '';
-                    if (gated) {
-                        const coords = [];
-                        for (let i = 0; i <= 50; i++) {
-                            const ts = segmentLeft + (segmentRight - segmentLeft) * i / 50;
-                            coords.push(`${x(ts)},${y(_qlMonotoneLimitAt(
-                                progressAt(ts), segmentRule, lane, span / 60000, windowStart ?? start,
-                                _quotaLinesData?.rule_history, ts,
-                            ))}`);
-                        }
-                        const colorClass = lane === 'sol' ? 'ql-gated-sol' : '';
-                        p.push(`<polyline ${lane.startsWith('agy_') ? `style="stroke:${_qlLaneColor(lane)}"` : ''} class="ql-gated ql-timeline-threshold ${colorClass}${projectionClass}" data-ql-timeline-threshold="${_escHtml(lane)}" data-ql-policy-from="${_escHtml(active.effectiveFrom)}" data-ql-window-start="${start / 1000}" data-ql-window-end="${end / 1000}" points="${coords.join(' ')}"/>`);
-                        if (segmentRight === to) {
+            // One consolidated threshold curve per pool (primary/gated lane).
+            const lane = entry.primaryLane.lane;
+            for (let segment = 0; segment < cuts.length - 1; segment++) {
+                const segmentLeft = cuts[segment], segmentRight = cuts[segment + 1];
+                const active = _qlRuleAt((segmentLeft + segmentRight) / 2, now, rule,
+                    _quotaLinesData?.rule_history);
+                const segmentRule = active.policy;
+                const gated = (segmentRule.gated_lanes || []).includes(lane);
+                const projectionClass = segmentLeft >= now ? ' ql-timeline-projection' : '';
+                if (gated) {
+                    const coords = [];
+                    for (let i = 0; i <= 50; i++) {
+                        const ts = segmentLeft + (segmentRight - segmentLeft) * i / 50;
+                        coords.push(`${x(ts)},${y(_qlMonotoneLimitAt(
+                            progressAt(ts), segmentRule, lane, span / 60000, windowStart ?? start,
+                            _quotaLinesData?.rule_history, ts,
+                        ))}`);
+                    }
+                    const colorClass = lane === 'sol' ? 'ql-gated-sol' : '';
+                    p.push(`<polyline ${lane.startsWith('agy_') ? `style="stroke:${_qlLaneColor(lane)}"` : ''} class="ql-gated ql-timeline-threshold ${colorClass}${projectionClass}" data-ql-timeline-threshold="${_escHtml(lane)}" data-ql-policy-from="${_escHtml(active.effectiveFrom)}" data-ql-window-start="${start / 1000}" data-ql-window-end="${end / 1000}" points="${coords.join(' ')}"/>`);
+                    if (segmentRight === to) {
+                        const isUnused3p = bucket.bucket === 'antigravity_3p' && (!entry.point || entry.point.util <= 0);
+                        if (!isUnused3p) {
                             const value = _qlMonotoneLimitAt(
                                 progressAt(segmentRight), segmentRule, lane, span / 60000, windowStart ?? start,
                                 _quotaLinesData?.rule_history, segmentRight,
                             );
-                            const laneName = _qlLaneLabel(lane);
-                            const title = T('threshold {label}', {label: laneName});
+                            const title = T('threshold {label}', {label: entry.short});
                             timelineEdgeLabels.push({
-                                text: T('threshold {label}', {label: laneName}),
+                                text: T('limit {name}', {name: entry.limitName}),
                                 title,
                                 y: y(value) - 5,
                                 color: _qlLaneColor(lane),
@@ -670,29 +753,25 @@ function _qlTimelineSvg(panel, rule) {
             }
         }
     }
-    // Facts stop at now. Add a current sample there; the right half is policy only.
-    const timelinePointEntries = [];
-    for (const lane of _qlLanes(panel)) {
-        const point = _qlPoint(lane.bucket);
-        if (!point) continue;
-        timelinePointEntries.push({lane, point});
-    }
-    timelinePointEntries.sort((a, b) => (a.point.util - b.point.util)
-        || (Number(a.lane.lane.endsWith('_5h')) - Number(b.lane.lane.endsWith('_5h'))));
+    // Facts stop at now. Add one consolidated sample per pool; right half is policy only.
+    const timelinePointEntries = poolEntries
+        .filter(entry => entry.point !== null)
+        .sort((a, b) => a.point.util - b.point.util);
     let pointIndex = 0;
     const timelinePointRows = [];
-    for (const {lane, point} of timelinePointEntries) {
-        const color = _qlLaneColor(lane.lane);
-        p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="${5.5 + pointIndex * 2}" fill="none" stroke="${color}" stroke-width="2.5"><title>${_escHtml(T(lane.label || lane.lane))}: ${_formatPercent(point.util)}%</title></circle>`);
+    for (const entry of timelinePointEntries) {
+        const {primaryLane, short, point} = entry;
+        const color = _qlLaneColor(primaryLane.lane);
+        p.push(`<circle data-ql-timeline-point="${_escHtml(primaryLane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="${5.5 + pointIndex * 2}" fill="none" stroke="${color}" stroke-width="2.5"><title>${_escHtml(short)}: ${_formatPercent(point.util)}%</title></circle>`);
         const lowPoint = point.util < 15;
         const labelY = _qlPlaceY(y(point.util) + (lowPoint ? -10 : 4),
-            timelinePointRows, {gap: 17, upward: lowPoint});
-        p.push(`<text class="ql-timeline-point-label" data-ql-timeline-label="${_escHtml(lane.lane)}" x="${x(now) + 14}" y="${labelY}" text-anchor="start" fill="${color}">${_escHtml(T(lane.label || lane.lane))} ${_formatPercent(point.util)}%</text>`);
+            timelinePointRows, {gap: 18, upward: lowPoint});
+        p.push(`<text class="ql-timeline-point-label" data-ql-timeline-label="${_escHtml(primaryLane.lane)}" x="${x(now) + 14}" y="${labelY}" text-anchor="start" fill="${color}">${_escHtml(short)} ${_formatPercent(point.util)}%${point.fresh ? '' : T(' (stale)')}</text>`);
         pointIndex++;
     }
     p.push(`<line class="ql-now" x1="${x(now)}" y1="${_QL_MT}" x2="${x(now)}" y2="${_QL_MT + _QL_PH}"/>`);
     const histories = new Set();
-    for (const bucket of panel.buckets.map(_qlBucket).filter(Boolean)) {
+    for (const {bucket} of poolEntries) {
         if (histories.has(bucket.bucket)) continue;
         histories.add(bucket.bucket);
         const points = bucket.timeline?.points || [];
@@ -751,19 +830,19 @@ function _qlChartSvg(panel, rule) {
     }
     p.push(`<text class="ql-axis" x="${_QL_ML + _QL_PW / 2}" y="${_QL_H - 7}" text-anchor="middle">${T('window progress share')}</text>`);
 
-    // Separate thresholds keep each lane's curve, cap and day/night profile accurate.
+    // Separate thresholds keep each pool's curve, cap and day/night profile accurate.
     const band = [];
     for (let i = 0; i <= 100; i++) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(t * 100)}`); }
     for (let i = 100; i >= 0; i--) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(limitAt(t, 'claude'))}`); }
     p.push(`<polygon class="ql-band" points="${band.join(' ')}"/>`);
     p.push(`<line class="ql-diag" x1="${_qlX(0)}" y1="${_qlY(0)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
-    // Lifted diagonal drawn as ghost: solid line would imply a threshold that
-    // blocks someone, but on this lane it's not applied right now.
     const gatedLanes = Array.isArray(rule.gated_lanes) ? rule.gated_lanes : [];
     const _ghost = lane => gatedLanes.includes(lane) && !(rule.override_seconds_left > 0) ? '' : ' ql-gated-off';
-    for (const {lane, bucket} of _qlLanes(panel)) {
+    const poolEntries = _qlPoolEntries(panel);
+    for (const entry of poolEntries) {
+        const lane = entry.primaryLane.lane;
+        const bucket = entry.bucket;
         if (!bucket?.window) continue;
-        if (lane.endsWith('_5h')) continue;
         if (!lane.startsWith('agy_') && !rule.codex_claude_pacing && lane !== 'claude'
             && !(rule.curved_lanes || []).includes(lane)) continue;
         const points = [];
@@ -781,8 +860,6 @@ function _qlChartSvg(panel, rule) {
     const hardTitle = T('hard {pct}% — stop for lanes without own ceiling', {pct: _formatPercent(hard)});
     const hardLabelY = _qlPlaceY(_qlY(hard) - 7, stopLabelRows);
     p.push(`<text class="ql-axis ql-quota-label" data-ql-stop-label="common" x="${_QL_ML + _QL_PW - 4}" y="${hardLabelY}" text-anchor="end" fill="#fdba74"><title>${_escHtml(hardTitle)}</title>${T('stop {pct}%', {pct: _formatPercent(hard)})}</text>`);
-    // Lane-specific line for lane with lower ceiling: one common line would lie
-    // that the expensive lane runs to the last pool percent.
     const shownStops = new Set();
     for (const lane of _qlLanes(panel)) {
         const stop = _qlHardStop(rule, lane.lane);
@@ -792,32 +869,16 @@ function _qlChartSvg(panel, rule) {
         const laneLabel = T(lane.label || lane.lane);
         const laneStopTitle = T('{label} — hard {pct}%', {label: laneLabel, pct: _formatPercent(stop)});
         const stopLabelY = _qlPlaceY(_qlY(stop) - 7, stopLabelRows);
-        p.push(`<text class="ql-axis ql-quota-label" data-ql-stop-label="${_escHtml(lane.lane)}" x="${_QL_ML + _QL_PW - 4}" y="${stopLabelY}" text-anchor="end" fill="#fdba74"><title>${_escHtml(laneStopTitle)}</title>${T('stop {label} {pct}%', {label: _escHtml(laneLabel), pct: _formatPercent(stop)})}</text>`);
+        p.push(`<text class="ql-axis ql-quota-label" data-ql-stop-label="${_escHtml(lane.lane)}" x="${_QL_ML + _QL_PW - 4}" y="${stopLabelY}" text-anchor="end" fill="#fdba74"><title>${_escHtml(laneStopTitle)}</title>${T('stop {pct}%', {pct: _formatPercent(stop)})}</text>`);
     }
     p.push(`<line class="ql-orch" x1="${_qlX(0)}" y1="${_qlY(100)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
     p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe"><title>${T('orchestrator always runs — no limit')}</title>${T('orchestrator ∞')}</text>`);
 
-    const byBucket = [];
-    for (const id of panel.buckets) {
-        const bucket = _qlBucket(id);
-        if (!bucket) continue;
-        byBucket.push(bucket);
-    }
-    const lanes = _qlLanes(panel);
     const traceNotices = [];
-    const traces = new Set();
     const pointLabelRows = [];
-    // Пути строим по pool-решению (решающее окно): один пул — одна ломаная.
-    for (const bucket of byBucket) {
-        if (traces.has(bucket.bucket)) continue;
-        traces.add(bucket.bucket);
-        const point = _qlPoint(bucket);
+    for (const {bucket, primaryLane, point} of poolEntries) {
         const points = _qlTrace(bucket);
         if (points.length < 2) {
-            traceNotices.push({
-                bucket: bucket.bucket,
-                label: bucket.label || bucket.bucket,
-            });
             if (point && point.progress === null) {
                 p.push(`<line class="ql-noprogress" data-ql-flat="${_escHtml(bucket.bucket)}" x1="${_qlX(0)}" y1="${_qlY(point.util)}" x2="${_qlX(1)}" y2="${_qlY(point.util)}"/>`);
             }
@@ -831,46 +892,46 @@ function _qlChartSvg(panel, rule) {
         }
     }
 
-    const sortedLanes = lanes
-        .map((lane, i) => ({lane, i, point: _qlPoint(lane.bucket)}))
-        .filter(item => item.point !== null)
-        .sort((a, b) => (a.point.util - b.point.util)
-            || (Number(a.lane.lane.endsWith('_5h')) - Number(b.lane.lane.endsWith('_5h')))
-            || (a.i - b.i));
-    for (const {lane, i, point} of sortedLanes) {
-        const bucket = lane.bucket;
+    const sortedEntries = poolEntries
+        .filter(entry => entry.point !== null)
+        .sort((a, b) => a.point.util - b.point.util);
+    let chartIdx = 0;
+    for (const entry of sortedEntries) {
+        const {bucket, lanes, primaryLane, blockedLanes, short, point} = entry;
         if (point.progress === null) {
-            if (i === 0) {
-                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${T('{label}: reset time unknown — only hard {pct}%', {label: _escHtml(bucket.label || bucket.bucket), pct: _formatPercent(_qlHardStop(rule, lane.lane))})}</text>`);
+            if (chartIdx === 0) {
+                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${T('{label}: reset time unknown — only hard {pct}%', {label: _escHtml(short), pct: _formatPercent(_qlHardStop(rule, primaryLane.lane))})}</text>`);
             }
+            chartIdx++;
             continue;
         }
+        chartIdx++;
         const x = _qlX(point.progress), y = _qlY(point.util);
         p.push(`<line class="ql-cursor" x1="${x}" y1="${_QL_MT}" x2="${x}" y2="${_QL_MT + _QL_PH}"/>`);
         const right = point.progress > 0.6;
         const dx = right ? -12 : 12;
-        const color = _qlLaneColor(lane.lane);
-        const label = _escHtml(String(T(lane.label || lane.lane)));
-        const markerClass = `ql-point-${lane.lane || 'lane'}`;
+        const color = _qlLaneColor(primaryLane.lane);
+        const markerClass = `ql-point-${primaryLane.lane || 'lane'}`;
         const anchor = right ? 'end' : 'start';
         const lowPoint = point.util < 15;
+        const showDetail = point.util > 0 || blockedLanes.length > 0;
         const nearHardStop = Math.abs(y - _qlY(hard)) < 28;
         const stackedLabelY = _qlPlaceY(nearHardStop ? y + 36 : y - 20,
-            pointLabelRows, {gap: 30, detail: 13, upward: lowPoint});
-        p.push(`<circle data-ql-point="${_escHtml(lane.lane)}" class="${markerClass}" cx="${x}" cy="${y}" r="5.5" fill="none" stroke="${color}" stroke-width="2.5"/>`);
-        // Use the server's lane verdict: explicit owner overrides can remove its
-        // line or lower its ceiling even when the pool still has capacity.
-        const laneLimit = Number.isFinite(lane.limit_pct) ? Number(lane.limit_pct) : null;
-        const labelTitle = T('actual {util}% · expected {expected}%', {
+            pointLabelRows, showDetail ? {gap: 30, detail: 13, upward: lowPoint} : {gap: 22, detail: 0, upward: lowPoint});
+        p.push(`<circle data-ql-point="${_escHtml(primaryLane.lane)}" class="${markerClass}" cx="${x}" cy="${y}" r="5.5" fill="none" stroke="${color}" stroke-width="2.5"/>`);
+        const laneLimit = Number.isFinite(primaryLane.limit_pct) ? Number(primaryLane.limit_pct) : null;
+        const laneDetails = lanes.map(l => {
+            const lim = Number.isFinite(l.limit_pct) ? `, ${T('limit {limit}%', {limit: _formatPercent(l.limit_pct, 1)})}` : '';
+            return `${T(l.label || l.lane)}${lim}`;
+        }).join(' · ');
+        const labelTitle = `${T('actual {util}% · expected {expected}%', {
             util: _formatPercent(point.util), expected: _formatPercent(point.progress * 100),
-        });
-        const detail = !lane.gated || laneLimit === null
-            ? T('pace {pct}%', {pct: _formatPercent(point.progress * 100)})
-            : T('pace {pct}% · limit {limit}%', {
-                pct: _formatPercent(point.progress * 100), limit: _formatPercent(laneLimit, 1),
-            });
-        p.push(`<text class="ql-quota-label ql-point-label" data-ql-label="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY}" text-anchor="${anchor}" fill="${color}"><title>${_escHtml(labelTitle)}</title>${label} ${_formatPercent(point.util)}%${point.fresh ? '' : T(' (telemetry stale)')}</text>`);
-        p.push(`<text class="ql-axis ql-quota-label" data-ql-detail="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY + 12}" text-anchor="${anchor}">${detail}</text>`);
+        })}${laneDetails ? ` · ${laneDetails}` : ''}`;
+        p.push(`<text class="ql-quota-label ql-point-label" data-ql-label="${_escHtml(primaryLane.lane)}" x="${x + dx}" y="${stackedLabelY}" text-anchor="${anchor}" fill="${color}"><title>${_escHtml(labelTitle)}</title>${_escHtml(short)} ${_formatPercent(point.util)}%${point.fresh ? '' : T(' (stale)')}</text>`);
+        if (showDetail) {
+            const detail = T('pace {pct}%', {pct: _formatPercent(point.progress * 100)});
+            p.push(`<text class="ql-axis ql-quota-label" data-ql-detail="${_escHtml(primaryLane.lane)}" x="${x + dx}" y="${stackedLabelY + 12}" text-anchor="${anchor}"><title>${_escHtml(labelTitle)}</title>${detail}</text>`);
+        }
     }
 
     return {
@@ -889,27 +950,25 @@ function _qlVerdict(panel) {
     if (Connection.ownsErrors()) return {text: '—', nodata: true};
     if (_quotaLinesError) return {text: _quotaLinesError, nodata: true};
     if (!_quotaLinesData) return {text: T('allowance rule — loading…'), nodata: true};
-    // Without rule constants the rule itself is unknown: verdict not computed
-    // for anyone, including lanes where server sent ready `blocked`.
     if (!_quotaLinesData.rule) return {text: _QL_NO_RULE, nodata: true};
-    if (!panel.buckets.map(_qlBucket).filter(Boolean).length) {
+    const entries = _qlPoolEntries(panel);
+    if (!entries.length) {
         return {text: T('no data — pool missing from server response'), nodata: true};
     }
-    const lanes = _qlLanes(panel);
-    const known = lanes.filter(l => l.bucket?.data_available
-        && l.bucket.fresh !== false
-        && l.release_status !== 'no_data');
-    if (!lanes.length) return {text: T('no data — server did not send allowance lanes'), nodata: true};
+    const hasLanes = entries.some(e => e.lanes.length > 0);
+    if (!hasLanes) return {text: T('no data — server did not send allowance lanes'), nodata: true};
+    const known = entries.filter(e => e.bucket.data_available
+        && e.bucket.fresh !== false
+        && e.lanes.some(l => l.release_status !== 'no_data'));
     if (!known.length) return {text: T('no data — no pool telemetry, gate returns unknown'), nodata: true};
-    const partial = known.length < lanes.length;
-    if (partial) {
+    if (known.length < entries.length) {
         return {text: T('no data — some lanes missing telemetry'), nodata: true, blocked: false};
     }
-    const blocked = known.filter(l => l.blocked).map(l => T(l.label || l.lane));
-    const open = known.filter(l => !l.blocked).map(l => T(l.label || l.lane));
+    const blocked = known.filter(e => e.blockedLanes.length > 0).map(e => e.short);
+    const open = known.filter(e => e.blockedLanes.length === 0).map(e => e.short);
     const parts = [];
-    if (blocked.length) parts.push(T('{lanes} — blocked', {lanes: blocked.join(', ')}));
-    if (open.length) parts.push(T('{lanes} — running', {lanes: open.join(', ')}));
+    if (blocked.length) parts.push(T('{lanes} — workers paused', {lanes: blocked.join(', ')}));
+    if (open.length) parts.push(T('{lanes} — ok', {lanes: open.join(', ')}));
     return {
         text: parts.join(' · '),
         nodata: false,
@@ -920,32 +979,47 @@ function _qlVerdict(panel) {
 function _qlPanelHtml(panel) {
     const rule = _quotaLinesData?.rule;
     const verdict = _qlVerdict(panel);
-    const buckets = panel.buckets.map(_qlBucket).filter(Boolean);
-    if (!rule || !buckets.length) {
+    const entries = _qlPoolEntries(panel);
+    if (!rule || !entries.length) {
         return `<section class="ql-panel" data-ql-panel="${_escHtml(panel.key)}">
             <div class="ql-head"><h3>${_escHtml(panel.title)}</h3><span>${_escHtml(panel.sub)}</span></div>
             <p class="ql-nodata" data-ql-verdict>${_escHtml(verdict.text)}</p>
         </section>`;
     }
-    const lanes = _qlLanes(panel).map(lane => {
-        const nodata = !lane.bucket?.data_available
-            || lane.bucket.fresh === false
-            || lane.release_status === 'no_data';
-        const state = nodata ? 'nodata' : lane.blocked ? 'blocked' : 'open';
-        const word = _qlLaneSummary(lane);
-        const room = Number.isFinite(lane.headroom_pp) && lane.lane.startsWith('agy_')
-            ? ` · ${_formatPercent(lane.headroom_pp, 1)} pp` : '';
-        return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(lane.lane)}">${_escHtml(T(lane.label || lane.lane))}: <b>${word}</b>${room}${lane.gated ? '' : T(' <i>no diagonal</i>')}</span>`;
+    const pills = entries.map(entry => {
+        const {bucket, lanes, primaryLane, blockedLanes, openLanes, short, point} = entry;
+        const nodata = !bucket?.data_available
+            || bucket.fresh === false
+            || lanes.every(l => l.release_status === 'no_data');
+        const state = nodata ? 'nodata' : blockedLanes.length > 0 ? 'blocked' : 'open';
+        const tip = lanes.filter(l => l.reason).map(l => `${T(l.label || l.lane)}: ${_qlReasonText(l)}`).join(' · ');
+        let bodyText;
+        if (nodata || !point) {
+            bodyText = `${_escHtml(short)}: <b>${_escHtml(T('no data'))}</b>`;
+        } else {
+            const utilPct = _formatPercent(point.util);
+            const normPct = point.progress != null ? _formatPercent(point.progress * 100) : null;
+            const normSuffix = (Math.round(point.util) > 5 || blockedLanes.length > 0) && normPct != null
+                ? ` (${_escHtml(T('norm {pct}%', {pct: normPct}))})`
+                : '';
+            if (blockedLanes.length > 0 && openLanes.length > 0) {
+                const bNames = blockedLanes.map(l => _escHtml(T(l.label || l.lane))).join(', ');
+                const oNames = openLanes.map(l => _escHtml(T(l.label || l.lane))).join(', ');
+                const wait = _qlShortWait(blockedLanes[0]);
+                bodyText = `${_escHtml(short)}: ${utilPct}%${normSuffix} · <b>${bNames} ${_escHtml(T('paused'))}${wait ? ` (${_escHtml(wait)})` : ''}</b>, ${oNames} ${_escHtml(T('ok'))}`;
+            } else if (blockedLanes.length > 0) {
+                const wait = _qlShortWait(blockedLanes[0]);
+                bodyText = `${_escHtml(short)}: ${utilPct}%${normSuffix} · <b>${_escHtml(T('workers paused'))}${wait ? ` (${_escHtml(wait)})` : ''}</b>, ${_escHtml(T('orchestrators ok'))}`;
+            } else {
+                bodyText = `${_escHtml(short)}: ${utilPct}%${normSuffix} · <b>${_escHtml(T('ok'))}</b>`;
+            }
+        }
+        return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(primaryLane.lane)}" data-ql-bucket="${_escHtml(bucket.bucket)}" title="${_escHtml(tip)}">${bodyText}</span>`;
     }).join('');
-    const reasons = _qlLanes(panel).filter(l => l.blocked && l.reason)
-        .map(l => `<li><b>${_escHtml(T(l.label || l.lane))}</b> — ${_escHtml(_qlReasonText(l))}</li>`).join('');
     const chart = _qlChartSvg(panel, rule);
-    const traceNotices = (chart.traceNotices || [])
-        .map(item => `<div class="ql-trace-msg" data-ql-trace-msg="${_escHtml(item.bucket)}">${T('{label}: no history for this window', {label: _escHtml(item.label)})}</div>`)
-        .join('');
     return `<section class="ql-panel" data-ql-panel="${_escHtml(panel.key)}">
         <div class="ql-head"><h3>${_escHtml(panel.title)}</h3><span>${_escHtml(panel.sub)}</span></div>
-        <div class="ql-head ql-timeline-head"><h4>${T('Quota timeline')}</h4><span>${T('±3.5 days · current time centered · Krasnoyarsk')}</span></div>
+        <div class="ql-head ql-timeline-head"><h4>${T('Usage over time')}</h4><span>${T('±3.5d · Krasnoyarsk')}</span></div>
         <div class="ql-timeline-legend">
             <span><i class="ql-timeline-key-fact"></i>${T('usage history & current')}</span>
             <span><i class="ql-timeline-key-threshold"></i>${T('threshold; future projection dimmed')}</span>
@@ -958,10 +1032,7 @@ function _qlPanelHtml(panel) {
             <span><i style="background:#fb923c"></i>${T('hard {pct}%', {pct: _formatPercent(rule.hard_stop_pct)})}</span>
             <span><i style="background:var(--accent)"></i>${T('orchestrator — no limit')}</span>
         </div>
-        ${traceNotices ? `<div class="ql-trace-notices">${traceNotices}</div>` : ''}
-        <p class="ql-verdict ${_qlTone(verdict)}" data-ql-verdict>${_escHtml(verdict.text)}</p>
-        <div class="ql-badges">${lanes}<span class="ql-badge ql-badge-always" data-ql-lane="orchestrator">${T('All orchestrators: <b>always run</b>')}</span></div>
-        ${reasons ? `<ul class="ql-reasons">${reasons}</ul>` : ''}
+        <div class="ql-badges">${pills}<span class="ql-badge ql-badge-always" data-ql-lane="orchestrator">${T('Orchestrators: <b>ok</b>')}</span></div>
     </section>`;
 }
 
@@ -1000,7 +1071,7 @@ function renderQuotaLines() {
     root.innerHTML = `
         <div class="ql-bar">
             <button type="button" id="quota-lines-toggle" aria-expanded="${_quotaLinesOpen}">${_quotaLinesOpen ? '▾' : '▸'} ${T('allowance rule')}</button>
-            <span class="ql-gate ql-gate-${gate.state}" data-ql-gate="${gate.state}">${_escHtml(gate.text)}</span>
+            <span class="ql-gate ql-gate-${gate.state}" data-ql-gate="${gate.state}" title="${_escHtml(gate.title || '')}">${_escHtml(gate.text)}</span>
             ${overrideControls}
             <span class="ql-gate-error" id="quota-gate-error" role="alert"></span>
             <div class="ql-sum">${_qlSummary()}</div>

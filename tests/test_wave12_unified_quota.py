@@ -127,97 +127,87 @@ def test_unified_panel_renders_2_svgs_and_breaks_cross_reset_diagonal_sawtooth(b
     payload = _payload()
     payload["generated_at"] = "2026-11-20T06:10:00+00:00"
     now_dt = datetime.fromisoformat(payload["generated_at"])
-    now_ts = now_dt.timestamp()
 
-    # Exact measured scenario: 64% before reset on 19.11, 13.5h overnight idle gap, 1.4% on 20.11
-    t1 = datetime(2026, 11, 19, 15, 13, tzinfo=timezone.utc).timestamp()
-    reset1 = datetime(2026, 11, 19, 19, 30, tzinfo=timezone.utc).timestamp()
-    t2 = datetime(2026, 11, 20, 4, 41, tzinfo=timezone.utc).timestamp()
-    reset2 = datetime(2026, 11, 20, 9, 4, tzinfo=timezone.utc).timestamp()
+    # Verify cross-reset flat step-down geometry on a 7d pool (antigravity_gemini)
+    t1 = datetime(2026, 11, 18, 12, 0, tzinfo=timezone.utc).timestamp()
+    reset1 = datetime(2026, 11, 19, 0, 0, tzinfo=timezone.utc).timestamp()
+    t2 = datetime(2026, 11, 19, 18, 0, tzinfo=timezone.utc).timestamp()
+    reset2 = datetime(2026, 11, 26, 0, 0, tzinfo=timezone.utc).timestamp()
 
     payload["rule"]["antigravity_default_hard_stop_pct"] = 95
     payload["rule"]["gated_lanes"].append("agy_gemini")
     b7 = _bucket("antigravity_gemini", "Gemini", 51.0, 0.29, [_lane("agy_gemini", "Gemini · 7d", True, False)], window_minutes=10080)
-    b7["window"]["resets_at"] = (now_dt + timedelta(days=5)).isoformat()
-    b5 = _bucket("antigravity_gemini_5h", "Gemini · 5h", 20.4, 0.43, [_lane("agy_gemini_5h", "Gemini · 5h", False, False)], window_minutes=300)
-    b5["window"]["resets_at"] = datetime.fromtimestamp(reset2, timezone.utc).isoformat()
-    b5["timeline"] = {"points": [
-        {"ts": t1, "utilization": 64.0, "resets_at": reset1, "window_minutes": 300},
-        {"ts": t2, "utilization": 1.4, "resets_at": reset2, "window_minutes": 300},
+    b7["window"]["resets_at"] = datetime.fromtimestamp(reset2, timezone.utc).isoformat()
+    b7["timeline"] = {"points": [
+        {"ts": t1, "utilization": 64.0, "resets_at": reset1, "window_minutes": 10080},
+        {"ts": t2, "utilization": 12.0, "resets_at": reset2, "window_minutes": 10080},
     ]}
+    b5 = _bucket("antigravity_gemini_5h", "Gemini · 5h", 20.4, 0.43, [_lane("agy_gemini_5h", "Gemini · 5h", False, False)], window_minutes=300)
     payload["buckets"].extend([b7, b5])
 
     page, errors = _render(browser, payload, as_json=False)
     assert errors == []
     assert page.locator('[data-ql-panel]').count() == 1
     assert page.locator('svg.ql-chart').count() == 2
+    # 5h pools are omitted from Wave 13 charts
+    assert page.locator('[data-ql-timeline-history="antigravity_gemini_5h"]').count() == 0
 
-    line = page.locator('[data-ql-timeline-history="antigravity_gemini_5h"]')
+    line = page.locator('[data-ql-timeline-history="antigravity_gemini"]')
     pts = [tuple(map(float, p.split(","))) for p in line.get_attribute("points").split()]
-    # Expected SVG geometry:
-    # 0: (t1, 64%), 1: (reset1, 64%), 2: (reset1, 0%), 3: (reset2 - 5h, 0%), 4: (t2, 1.4%), 5: (now, 20.4%)
-    assert len(pts) >= 5
-    # Verify flat 64% until reset1, vertical drop at reset1 to bottom y(0)=426, and flat 0% across night until winStart2!
+    assert len(pts) >= 4
+    # Flat hold at 64%, vertical drop at reset1 to y(0)=426, horizontal 0% segment afterwards
     assert pts[0][1] == pytest.approx(pts[1][1])
     assert pts[1][0] == pytest.approx(pts[2][0])
     assert pts[2][1] == pytest.approx(426.0)
-    assert pts[3][1] == pytest.approx(426.0)
-    assert pts[3][0] > pts[2][0] + 40.0  # >8h overnight flat 0% segment on bottom axis
     page.close()
 
 
-def test_equal_utilization_labels_do_not_overlap_and_timeline_labels_sit_right_of_now(browser):
+def test_deduplicated_codex_and_short_7d_labels_do_not_overlap(browser):
     payload = _payload()
     payload["buckets"] = [
-        _bucket("codex", "Codex (Sol)", 54.0, 0.84, [
+        _bucket("codex", "Codex", 54.0, 0.84, [
             _lane("sol", "Sol", True, False),
             _lane("luna", "Luna", False, False),
         ]),
         _bucket("antigravity_gemini", "Gemini", 62.0, 0.29, [
-            _lane("agy_gemini", "Gemini · 7d", True, False),
+            _lane("agy_gemini", "Gemini · 7d", True, True, "over limit"),
+        ], window_minutes=10080),
+        _bucket("antigravity_argon", "Argon", 1.0, 0.14, [
+            _lane("agy_argon", "Argon · 7d", True, False),
+        ], window_minutes=10080),
+        _bucket("antigravity_3p", "Claude/3P", 0.0, 0.0, [
+            _lane("agy_3p", "Claude/3P · 7d", True, False),
         ], window_minutes=10080),
         _bucket("antigravity_gemini_5h", "Gemini · 5h", 60.0, 0.48, [
             _lane("agy_gemini_5h", "Gemini · 5h", False, False),
         ], window_minutes=300),
     ]
     payload["rule"]["antigravity_default_hard_stop_pct"] = 95
-    payload["rule"]["gated_lanes"] = ["sol", "agy_gemini"]
+    payload["rule"]["gated_lanes"] = ["sol", "agy_gemini", "agy_argon", "agy_3p"]
 
     page, errors = _render(browser, payload, as_json=False)
     assert errors == []
 
-    # 1. All timeline point labels are cleanly right of `now` and do not overlap vertically.
+    # Consolidated Codex (no duplicate Luna) + no 5h + concise labels without ' · 7d'
+    labels = page.locator('[data-ql-label]').evaluate_all("els => els.map(e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim())")
+    assert labels == ["Claude/3P 0%", "Argon 1%", "Codex 54%", "Gemini 62%"]
+    t_labels = page.locator('[data-ql-timeline-label]').evaluate_all("els => els.map(e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim())")
+    assert t_labels == ["Claude/3P 0%", "Argon 1%", "Codex 54%", "Gemini 62%"]
+
+    # Single-line 0% label has no detail row; active points have concise 'pace X%' only
+    assert page.locator('[data-ql-detail="agy_3p"]').count() == 0
+    assert page.locator('[data-ql-detail="agy_gemini"]').evaluate("e => [...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim()") == "pace 29%"
+    assert page.locator('[data-ql-trace-msg]').count() == 0
+    assert page.locator('.ql-reasons').count() == 0
+    assert page.locator('.ql-badges .ql-badge').count() == 5
+
+    # All timeline point labels sit cleanly right of now with zero vertical overlap
     t_boxes = page.locator('[data-ql-timeline-label]').evaluate_all(
         "els => els.map(e => ({lane: e.dataset.qlTimelineLabel, anchor: e.getAttribute('text-anchor'), r: e.getBoundingClientRect()}))"
     )
-    assert len(t_boxes) == 4
     assert all(item["anchor"] == "start" for item in t_boxes)
     t_boxes.sort(key=lambda item: item["r"]["top"])
     for a, b in zip(t_boxes, t_boxes[1:]):
         assert a["r"]["bottom"] <= b["r"]["top"] + 0.5, (a, b)
-
-    # 2. Equal (progress, util) pairs (Luna 54% & Sol 54%) stay vertically separated.
-    chart_groups = page.locator('[data-ql-label]').evaluate_all(
-        """els => els.map(e => {
-            const lane = e.dataset.qlLabel;
-            const detail = document.querySelector(`[data-ql-detail="${lane}"]`);
-            const r1 = e.getBoundingClientRect();
-            const r2 = detail ? detail.getBoundingClientRect() : r1;
-            return {
-                lane,
-                top: Math.min(r1.top, r2.top),
-                bottom: Math.max(r1.bottom, r2.bottom),
-                left: Math.min(r1.left, r2.left),
-                right: Math.max(r1.right, r2.right),
-            };
-        })"""
-    )
-    assert len(chart_groups) == 4
-    for i in range(len(chart_groups)):
-        for j in range(i + 1, len(chart_groups)):
-            a, b = chart_groups[i], chart_groups[j]
-            h_overlap = min(a["right"], b["right"]) - max(a["left"], b["left"]) > 0
-            v_overlap = min(a["bottom"], b["bottom"]) - max(a["top"], b["top"]) > 0
-            assert not (h_overlap and v_overlap), (a, b)
 
     page.close()

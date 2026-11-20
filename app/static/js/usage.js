@@ -46,12 +46,44 @@ function _antigravityUsageBuckets() {
         ],
     }));
 }
+function _formatShortCountdown(isoStr) {
+    const raw = _resetCountdown(isoStr);
+    if (!raw) return '';
+    const isRu = typeof orchLocale === 'function' && String(orchLocale()).startsWith('ru');
+    const dUnit = isRu ? 'д' : 'd';
+    const hUnit = isRu ? 'ч' : 'h';
+    const mUnit = isRu ? 'м' : 'm';
+    const dMatch = raw.match(/(\d+)d/);
+    const hMatch = raw.match(/(\d+)h/);
+    const mMatch = raw.match(/(\d+)m/);
+    if (dMatch) {
+        const d = Number(dMatch[1]);
+        const h = hMatch ? Number(hMatch[1]) : 0;
+        return h > 0 ? `${d}${dUnit} ${h}${hUnit}` : `${d}${dUnit}`;
+    }
+    if (hMatch) {
+        const h = Number(hMatch[1]);
+        const m = mMatch ? Number(mMatch[1]) : 0;
+        return m > 0 ? `${h}${hUnit} ${m}${mUnit}` : `${h}${hUnit}`;
+    }
+    return mMatch ? `${Number(mMatch[1])}${mUnit}` : raw;
+}
+
 function _antigravityGateLabel(key) {
     const gate = _usageData?.antigravity_gate?.[key];
     if (!gate || gate.state === 'unknown') return '';
-    const text = gate.state === 'blocked' ? T('blocked') : T('running');
-    const room = Number.isFinite(gate.headroom_pp) ? ` · ${gate.headroom_pp.toFixed(1)} pp` : '';
-    return `<span class="usage-agy-gate" data-state="${gate.state}">${text}${room}</span>`;
+    const pp = Number.isFinite(gate.headroom_pp) ? Math.round(Math.abs(gate.headroom_pp)) : null;
+    let text;
+    if (gate.state === 'blocked') {
+        text = pp != null
+            ? T('workers paused (over limit by {pp} pp), orchestrators run', {pp})
+            : T('workers paused, orchestrators run');
+    } else {
+        text = pp != null
+            ? T('within norm (headroom +{pp} pp)', {pp})
+            : T('running');
+    }
+    return `<span class="usage-agy-gate" data-state="${gate.state}">${text}</span>`;
 }
 
 function _antigravityReset(sample) {
@@ -60,22 +92,44 @@ function _antigravityReset(sample) {
         : '';
 }
 
-function _antigravityCompactWindow(key, period, sample) {
-    if (!sample) return `<span>${period} · ${T('нет данных')}</span>`;
+function _antigravityCompactWindow(key, period, sample, sample5h = null) {
+    if (!sample) return `<span>${T('no data')}</span>`;
     const gate = _usageData?.antigravity_gate?.[key];
-    const countdown = _resetCountdown(sample.resets_at);
-    const shortReset = countdown.includes('d')
-        ? countdown.replace(/ \d+m$/, '').replaceAll(' ', '')
-        : countdown.replaceAll(' ', '');
-    const headroom = gate?.headroom_pp;
-    const room = period === '7d' && Number.isFinite(headroom)
-        ? `<span class="usage-agy-gate">${headroom >= 0 ? '+' : ''}${headroom.toFixed(1)}</span>`
+    const windowMs = 7 * 86400000;
+    const normNum = sample.resets_at ? _resetPctNum(sample.resets_at, windowMs) : null;
+    const normPct = normNum != null ? Math.round(normNum) : null;
+    const utilPct = Math.round(Number(sample.utilization) || 0);
+    const shortReset = _formatShortCountdown(sample.resets_at);
+    const isBlocked = gate?.state === 'blocked';
+    const barColor = isBlocked ? '#f87171' : _usageColor(sample.utilization, normNum);
+    const normHtml = (utilPct > 5 || isBlocked) && normPct != null
+        ? `<span class="usage-norm">(${T('norm {pct}%', {pct: normPct})})</span>`
         : '';
-    const blocked = gate?.state === 'blocked'
-        ? `<span class="usage-agy-stop" aria-label="${escHtml(T('blocked'))}">■</span>` : '';
-    return `<span data-agy-window="${key}" title="${escHtml(countdown)}">${period} ${_miniBar(
-        sample.utilization, _usageColor(sample.utilization, null), 0, 23,
-    )}${room}${shortReset ? `<span class="usage-agy-reset">${shortReset}</span>` : ''}${blocked}</span>`;
+    const resetHtml = shortReset
+        ? `<span class="usage-agy-sep" aria-hidden="true">·</span><span class="usage-agy-reset">${shortReset}</span>`
+        : '';
+    const stopHtml = isBlocked
+        ? `<span class="usage-agy-sep" aria-hidden="true">·</span><span class="usage-workers-stop" data-agy-stop="true">${T('workers paused')}</span>`
+        : '';
+
+    const tipParts = [];
+    if (isBlocked) {
+        tipParts.push(T('Over weekly pace ({util}% vs norm {norm}%). Ordinary workers wait for pace to cool down; orchestrators & Kesha work normally.', {
+            util: utilPct,
+            norm: normPct != null ? normPct : '—',
+        }));
+    } else if (normPct != null) {
+        tipParts.push(T('Weekly pace OK ({util}% vs norm {norm}%).', {util: utilPct, norm: normPct}));
+    }
+    if (shortReset) tipParts.push(`${T('Reset in')}: ${shortReset}`);
+    if (sample5h) {
+        const u5 = Math.round(Number(sample5h.utilization) || 0);
+        const r5 = _formatShortCountdown(sample5h.resets_at);
+        tipParts.push(`5h: ${u5}%${r5 ? ` (${r5})` : ''}`);
+    }
+    return `<span data-agy-window="${key}" title="${escHtml(tipParts.join(' · '))}">${_miniBar(
+        sample.utilization, barColor, 0, 23,
+    )}${normHtml}${resetHtml}${stopHtml}</span>`;
 }
 
 let _usageFetchPromise = null;
@@ -487,6 +541,28 @@ function renderUsageBar() {
                 const windowMs = window.window_minutes * 60000;
                 const rpNum = _resetPctNum(window.resets_at, windowMs);
                 const c = _usageColor(window.utilization, rpNum);
+                const utilRounded = Math.round(Number(window.utilization) || 0);
+                if (provider.id === 'codex') {
+                    const showPrefix = provider.windows.length > 1 || Number(window.window_minutes) === 300;
+                    const prefix = showPrefix ? `${windowLabel(window.window_minutes)}: ` : '';
+                    const normPct = rpNum != null ? Math.round(rpNum) : null;
+                    const normHtml = normPct != null && (utilRounded > 5 || showPrefix)
+                        ? ` <span class="usage-norm">(${T('norm {pct}%', {pct: normPct})})</span>`
+                        : '';
+                    const shortCd = _formatShortCountdown(window.resets_at);
+                    const release = _quotaMapLaneRelease(window, provider.bucketId);
+                    const isBlocked = release.status === 'opens_in' || release.status === 'at_reset';
+                    const stopHtml = isBlocked
+                        ? ` <span style="font-size:10px">·</span> <span class="usage-workers-stop" data-quota-blocked="true">${T('workers paused')}</span>`
+                        : '';
+                    const tip = isBlocked
+                        ? T('Over weekly pace ({util}% vs norm {norm}%). Ordinary workers wait for pace to cool down; orchestrators & Kesha work normally.', {
+                            util: utilRounded, norm: normPct != null ? normPct : '—',
+                        })
+                        : (normPct != null ? T('Weekly pace OK ({util}% vs norm {norm}%).', {util: utilRounded, norm: normPct}) : '');
+                    providerParts.push(`<span style="display:inline-flex;align-items:center;gap:4px" title="${escHtml(tip)}">${prefix}${_miniBar(window.utilization, isBlocked ? '#f87171' : c)}${normHtml}${shortCd ? ` <span style="font-size:10px">·</span> <span style="color:var(--ink-dim)">${shortCd}</span>` : ''}${stopHtml}</span>`);
+                    continue;
+                }
                 const rp = rpNum != null ? ` <span style="color:var(--ink-dim)">(${_resetPctText(rpNum)}%)</span>` : '';
                 const cd = _resetCountdown(window.resets_at);
                 const release = _quotaMapLaneStatusText(window, provider.bucketId);
@@ -505,10 +581,10 @@ function renderUsageBar() {
 
     if (!_isProviderDisabled('antigravity')) {
         const parts = _antigravityUsageBuckets().map(({id, label, windows}) => {
-            const values = windows.map(({key, period, sample}) =>
-                _antigravityCompactWindow(key, period, sample),
-            ).join('<span class="usage-agy-divider" aria-hidden="true">·</span>');
-            return `<span class="usage-agy-bucket" data-antigravity-bucket="${id}"><b>${label}</b>${values}</span>`;
+            const w7d = windows.find(w => w.period === '7d') || windows[windows.length - 1];
+            const w5h = windows.find(w => w.period === '5h');
+            const compact = _antigravityCompactWindow(w7d.key, w7d.period, w7d.sample, w5h?.sample);
+            return `<span class="usage-agy-bucket" data-antigravity-bucket="${id}"><b>${label}</b>${compact}</span>`;
         });
         groups.push('<span class="usage-provider-group" data-usage-compact-provider="antigravity">'
             + '<span class="usage-provider-title">Antigravity</span>'

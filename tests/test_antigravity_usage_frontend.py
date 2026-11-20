@@ -153,7 +153,7 @@ def test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero(
     compact = page.locator('[data-usage-compact-provider="antigravity"]')
     expect(compact).to_be_visible()
     bucket = compact.locator(f'[data-antigravity-bucket="{missing_bucket}"]')
-    expect(bucket).to_contain_text("нет данных")
+    expect(bucket).to_contain_text("no data")
     expect(bucket).not_to_contain_text("0%")
 
     page.locator("#usage-info-btn").hover()
@@ -200,9 +200,11 @@ def test_t4_antigravity_does_not_regress_desktop_usage_bar_overflow(browser):
 def test_antigravity_desktop_renders_three_single_row_chips(browser):
     page = _page(browser, _three_groups(), width=1720)
     compact = page.locator('[data-usage-compact-provider="antigravity"]')
-    expect(compact.locator("[data-agy-window]")).to_have_count(5)
-    expect(compact).to_contain_text("+13.3")
-    expect(compact).not_to_contain_text("95.0")
+    # Compact top bar shows only 7d windows (no 5h noise or raw headroom_pp numbers)
+    expect(compact.locator("[data-agy-window]")).to_have_count(3)
+    expect(compact).not_to_contain_text("+13.3")
+    expect(compact).not_to_contain_text("5h")
+    expect(compact).not_to_contain_text("■")
     metrics = compact.locator(".usage-agy-bucket").evaluate_all(
         """chips => chips.map(chip => ({
             top: chip.getBoundingClientRect().top,
@@ -213,5 +215,5 @@ def test_antigravity_desktop_renders_three_single_row_chips(browser):
     assert max(m["height"] for m in metrics) < 26
     page.locator("#usage-info-btn").hover()
     details = page.locator('[data-usage-provider="antigravity"]')
-    expect(details).to_contain_text("95.0 pp")
+    expect(details).to_contain_text("headroom +95 pp")
     page.close()

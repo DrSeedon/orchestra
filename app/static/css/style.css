@@ -1491,6 +1491,20 @@ body.panel-resizing, body.panel-resizing * { user-select: none !important; -webk
 }
 .usage-agy-divider { color: var(--ink-faint); }
 .usage-agy-stop { color: var(--danger, #f87171); font-size: .72em; }
+.usage-norm { color: var(--ink-dim); font-size: 10.5px; }
+.usage-agy-sep { color: var(--ink-faint); }
+.usage-workers-stop {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(244, 63, 94, 0.16);
+    border: 1px solid rgba(244, 63, 94, 0.55);
+    color: #fda4af;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.3;
+}
 .usage-agy-gate, .usage-agy-reset { color: var(--ink-muted); font-size: .85em; }
 .usage-agy-gate[data-state="blocked"] { color: var(--danger, #f87171); }
 .usage-agy-details { margin-bottom: 8px; }
