@@ -107,9 +107,16 @@ def _mcp_servers(configs):
                     or len(args) != 1 or Path(args[0]).name != "kesha_mcp_proxy.py"
                     or not all(isinstance(value, str) for value in env.values())):
             raise AcpSessionError("Invalid ACP Kesha bridge")
+        home_dir = Path.home()
+        base_env = {
+            "HOME": str(home_dir),
+            "XDG_CONFIG_HOME": str(home_dir / ".config"),
+            "XDG_CACHE_HOME": str(home_dir / ".cache"),
+            "XDG_DATA_HOME": str(home_dir / ".local" / "share"),
+        }
         servers.append({"name": name, "command": str(CLEAN_EXEC), "args": [command, *args],
                         "env": [{"name": key, "value": value}
-                                for key, value in {**env, "HOME": str(Path.home())}.items()]})
+                                for key, value in {**base_env, **env}.items()]})
     return servers
 
 

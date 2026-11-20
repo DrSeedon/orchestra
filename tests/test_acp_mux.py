@@ -246,3 +246,37 @@ async def test_disconnect_during_drain_cancels_after_submission(home, monkeypatc
     with pytest.raises(AcpSessionError, match="disconnected"):
         await owner._write({"method": "session/prompt"}, before_write=conn.before_prompt_write)
     assert len(writes) == 1
+
+
+def test_mcp_servers_admits_all_8_via_launcher_and_sets_xdg_env(tmp_path, monkeypatch):
+    monkeypatch.setattr(acp_mux.Path, "home", classmethod(lambda cls: tmp_path))
+    configs = [
+        {
+            "name": "kesha",
+            "command": "/opt/kesha-bot/.venv/bin/python3",
+            "args": ["/opt/kesha-bot/kesha_mcp_proxy.py"],
+            "env": {"KESHA_BRIDGE_AUTH_FILE": "/tmp/bridge.json"},
+        },
+        *[
+            {
+                "name": srv,
+                "command": "/opt/kesha-bot/.venv/bin/python3",
+                "args": ["/opt/kesha-bot/kesha_mcp_launcher.py", srv],
+                "env": {},
+            }
+            for srv in ("yougile", "mailru", "gmail", "websearch", "ozon", "gpb", "hub-images")
+        ],
+    ]
+    out = acp_mux._mcp_servers(configs)
+    assert [s["name"] for s in out] == ["kesha", "yougile", "mailru", "gmail", "websearch", "ozon", "gpb", "hub-images"]
+    for item in out:
+        env_map = {e["name"]: e["value"] for e in item["env"]}
+        assert env_map["HOME"] == str(tmp_path)
+        assert env_map["XDG_CONFIG_HOME"] == str(tmp_path / ".config")
+        assert env_map["XDG_CACHE_HOME"] == str(tmp_path / ".cache")
+        assert env_map["XDG_DATA_HOME"] == str(tmp_path / ".local" / "share")
+
+    with pytest.raises(acp_mux.AcpSessionError, match="Invalid ACP MCP environment"):
+        acp_mux._mcp_servers([
+            {"name": "gmail", "command": "/usr/bin/python3", "args": [], "env": {"GOOGLE_OAUTH_CLIENT_SECRET": "x"}}
+        ])
