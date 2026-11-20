@@ -1,7 +1,19 @@
-#!/usr/bin/env python3
-"""One JSON request in, one JSON report out. The service owns DB and source access."""
+#!/home/kesha/orchestra/.venv/bin/python3
+"""CLI & local operator wrapper for SkillCache v1.
+
+Supports:
+  orch-capsule-run list [--scope <scope>]
+  orch-capsule-run describe [<skill>] [--scope <scope>]
+  orch-capsule-run exec <skill> [--in '{...}'] [--scope <scope>]
+  orch-capsule-run run|continue         (MCP/CLI stdin JSON protocol with session proof)
+  orch-capsule-run qualify --scope <scope> --skill <skill>
+"""
 
 import argparse
+from copy import deepcopy
+from datetime import date, timedelta
+import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -9,6 +21,12 @@ import sys
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from uuid import uuid4
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SKILLCACHE_CONFIG = REPO_ROOT / "data" / "skillcache.json"
+DEFAULT_ORCHESTRA_DB = REPO_ROOT / "data" / "orchestra.db"
+DEFAULT_ENV_FILE = REPO_ROOT / ".env"
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -16,49 +34,352 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+def _ensure_cli_env(*, load_receipt_key: bool = False) -> None:
+    """Auto-discover host SkillCache config & DB for operator CLI commands."""
+    if not os.environ.get("ORCHESTRA_SKILLCACHE_CONFIG") and DEFAULT_SKILLCACHE_CONFIG.is_file():
+        if os.access(DEFAULT_SKILLCACHE_CONFIG, os.R_OK):
+            os.environ["ORCHESTRA_SKILLCACHE_CONFIG"] = str(DEFAULT_SKILLCACHE_CONFIG)
+    if not os.environ.get("ORCHESTRA_DB_PATH") and DEFAULT_ORCHESTRA_DB.is_file():
+        os.environ["ORCHESTRA_DB_PATH"] = str(DEFAULT_ORCHESTRA_DB)
+    if load_receipt_key and not os.environ.get("ORCHESTRA_SKILLCACHE_RECEIPT_KEY") and DEFAULT_ENV_FILE.is_file():
+        if os.access(DEFAULT_ENV_FILE, os.R_OK):
+            for line in DEFAULT_ENV_FILE.read_text(encoding="utf-8", errors="replace").splitlines():
+                if "=" in line and not line.lstrip().startswith("#"):
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    if k in ("ORCHESTRA_SKILLCACHE_RECEIPT_KEY", "ORCHESTRA_SKILLCACHE_CONFIG") and not os.environ.get(k):
+                        os.environ[k] = v.strip()
+
+
+def _request_bindings_meta(manifest: dict, types: dict) -> dict:
+    meta = {}
+    for key, spec in manifest.get("bindings", {}).items():
+        if spec.get("from") == "request":
+            schema = types.get(spec["type"], {})
+            props = schema.get("properties", {})
+            meta[key] = {
+                "type": spec["type"],
+                "required_fields": sorted(schema.get("required", list(props.keys()))),
+                "fields": {
+                    fname: {
+                        "type": fspec.get("type") or ("enum" if "enum" in fspec else "any"),
+                        **({"enum": fspec["enum"]} if "enum" in fspec else {}),
+                        **({"pattern": fspec["pattern"]} if "pattern" in fspec else {}),
+                    }
+                    for fname, fspec in props.items()
+                },
+                "schema": schema,
+            }
+    return meta
+
+
+def _default_bindings(skill: str) -> dict:
+    today = date.today().isoformat()
+    week_ago = (date.today() - timedelta(days=7)).isoformat()
+    defaults = {
+        "kesha-mail": {"window": {"start": today, "end": today}},
+        "xiaomi-sleep": {"window": {"start": week_ago, "end": today}},
+        "morning-digest": {"window": {"start": today, "end": today}},
+        "wellness-dashboard": {"selection": {"window": {"start": week_ago, "end": today}, "category": "all"}},
+        "edo-1c-status": {"target": {"scope_key": "vps", "include_deadlines": True}},
+        "vps-health-preflight": {
+            "query": {
+                "units": ["orchestra.service", "kesha-bot-vps.service", "telegram-bot-api.service"],
+                "include_sessions": True,
+            }
+        },
+        "avito-stats": {"query": {"batch": "all", "status_filter": "all"}},
+        "youtube-reader": {"target": {"video_id": "dQw4w9WgXcQ", "include_transcript": False}},
+        "direct-reports": {
+            "selection": {
+                "window": {"start": week_ago, "end": today},
+                "campaign": "<campaign_id>",
+                "goal": "<goal_id>",
+                "attribution": "AUTO",
+                "vat": True,
+            }
+        },
+        "browser-control": {"selection": {"page": "<page_key>", "selectors": ["#content"]}},
+    }
+    return deepcopy(defaults.get(skill, {}))
+
+
+def _mcp_examples(skill: str, manifest: dict) -> dict:
+    ex_bindings = _default_bindings(skill)
+    run_payload = {
+        "action": "run",
+        "skill": skill,
+        "intent": manifest["intent"],
+        "request_id": "<unique-request-id>",
+        "bindings": ex_bindings,
+    }
+    out = {"run": run_payload}
+    llm_steps = [s for s in manifest.get("steps", []) if s.get("kind") == "llm_step"]
+    if llm_steps:
+        out["continue"] = {
+            "action": "continue",
+            "run_id": "<run_id>",
+            "revision": 1,
+            "request_id": "<unique-continue-id>",
+            "bindings": {s["id"]: {"<out_key>": "<value>"} for s in llm_steps},
+        }
+    return out
+
+
+def _normalize_and_validate_exec_input(skill: str, manifest: dict, types: dict, raw_in: str | None) -> tuple[dict | None, dict | None]:
+    req_meta = _request_bindings_meta(manifest, types)
+    req_keys = list(req_meta.keys())
+    defaults = _default_bindings(skill)
+
+    if raw_in is None:
+        user_obj = None
+    else:
+        try:
+            user_obj = json.loads(raw_in)
+        except ValueError as exc:
+            return None, {
+                "status": "invalid_request",
+                "error": f"Invalid JSON in --in: {exc}",
+                "expected_bindings": req_meta,
+            }
+        if not isinstance(user_obj, dict):
+            return None, {
+                "status": "invalid_request",
+                "error": "--in must be a JSON object",
+                "allowed_top_keys": req_keys,
+            }
+
+    bindings = deepcopy(defaults)
+    if user_obj is not None:
+        if len(req_keys) == 1 and req_keys[0] not in user_obj:
+            bkey = req_keys[0]
+            allowed_sub = set(req_meta[bkey]["fields"].keys())
+            unexpected = sorted(set(user_obj.keys()) - allowed_sub)
+            if unexpected:
+                return None, {
+                    "status": "invalid_request",
+                    "error": f"Unexpected field(s) in '{bkey}': {unexpected}",
+                    "unexpected_fields": unexpected,
+                    "allowed_fields": sorted(allowed_sub),
+                    "required_fields": req_meta[bkey]["required_fields"],
+                    "hint": f"Run: orch-capsule-run describe {skill}",
+                }
+            base = bindings.get(bkey, {})
+            if isinstance(base, dict):
+                base.update(user_obj)
+                bindings[bkey] = base
+            else:
+                bindings[bkey] = user_obj
+        else:
+            unexpected_top = sorted(set(user_obj.keys()) - set(req_keys))
+            if unexpected_top:
+                return None, {
+                    "status": "invalid_request",
+                    "error": f"Unexpected binding key(s): {unexpected_top}",
+                    "unexpected_fields": unexpected_top,
+                    "allowed_fields": req_keys,
+                    "hint": f"Run: orch-capsule-run describe {skill}",
+                }
+            for k, v in user_obj.items():
+                if isinstance(bindings.get(k), dict) and isinstance(v, dict):
+                    allowed_sub = set(req_meta[k]["fields"].keys())
+                    unexpected_sub = sorted(set(v.keys()) - allowed_sub)
+                    if unexpected_sub:
+                        return None, {
+                            "status": "invalid_request",
+                            "error": f"Unexpected field(s) in '{k}': {unexpected_sub}",
+                            "unexpected_fields": unexpected_sub,
+                            "allowed_fields": sorted(allowed_sub),
+                            "required_fields": req_meta[k]["required_fields"],
+                            "hint": f"Run: orch-capsule-run describe {skill}",
+                        }
+                    bindings[k].update(v)
+                else:
+                    bindings[k] = v
+
+    missing_top = [k for k in req_keys if k not in bindings]
+    if missing_top:
+        return None, {
+            "status": "invalid_request",
+            "error": f"Missing required binding key(s): {missing_top}",
+            "missing_fields": missing_top,
+            "allowed_fields": req_keys,
+            "hint": f"Run: orch-capsule-run describe {skill}",
+        }
+
+    from app.skillcache.abi import Rejected, check_value
+    for k in req_keys:
+        val = bindings[k]
+        schema = req_meta[k]["schema"]
+        if isinstance(val, dict):
+            req_sub = set(req_meta[k]["required_fields"])
+            allowed_sub = set(req_meta[k]["fields"].keys())
+            miss_sub = sorted(req_sub - set(val.keys()))
+            extra_sub = sorted(set(val.keys()) - allowed_sub)
+            if miss_sub or extra_sub:
+                return None, {
+                    "status": "invalid_request",
+                    "error": f"Schema mismatch in '{k}'",
+                    "missing_fields": miss_sub,
+                    "unexpected_fields": extra_sub,
+                    "allowed_fields": sorted(allowed_sub),
+                    "hint": f"Run: orch-capsule-run describe {skill}",
+                }
+        try:
+            check_value(schema, val)
+        except Rejected as exc:
+            return None, {
+                "status": "invalid_request",
+                "error": f"Invalid value for '{k}': {exc}",
+                "allowed_fields": req_meta[k]["fields"],
+                "hint": f"Run: orch-capsule-run describe {skill}",
+            }
+    return bindings, None
+
+
+def _pick_cli_grant(config: dict, scope: str) -> str | None:
+    grants = config.get("grants", {})
+    if "cli:operator" in grants and grants["cli:operator"].get("scope") == scope:
+        return "cli:operator"
+    for principal, grant in grants.items():
+        if grant.get("scope") == scope:
+            return principal
+    return None
+
+
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("run", "continue", "qualify", "list"))
-    parser.add_argument("--scope")
-    parser.add_argument("--skill")
+    parser = argparse.ArgumentParser(prog="orch-capsule-run")
+    parser.add_argument("action", choices=("run", "continue", "qualify", "list", "describe", "exec"))
+    parser.add_argument("target", nargs="?", help="Optional skill name for describe/exec")
+    parser.add_argument("--scope", default=None)
+    parser.add_argument("--skill", default=None)
+    parser.add_argument("--in", dest="input_json", default=None, help="JSON input object for exec")
     args = parser.parse_args()
-    if args.action == "list":
-        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-        from app.skillcache.service import registry, settings
+    skill_arg = args.skill or args.target
+
+    if args.action in ("list", "describe", "exec"):
+        if str(REPO_ROOT) not in sys.path:
+            sys.path.insert(0, str(REPO_ROOT))
+        _ensure_cli_env(load_receipt_key=(args.action == "exec"))
+        from app.skillcache.pilots import MANIFESTS, TYPES
+        from app.skillcache.service import access as build_access, registry, settings
 
         config = settings()
         if not config:
-            parser.error("list requires host provisioning (ORCHESTRA_SKILLCACHE_CONFIG)")
+            parser.error(f"{args.action} requires host provisioning (ORCHESTRA_SKILLCACHE_CONFIG or {DEFAULT_SKILLCACHE_CONFIG})")
         reg = registry(config)
-        with reg.connect() as conn:
-            if args.scope:
-                rows = conn.execute(
-                    "SELECT scope, skill, intent, status, digest, created_at FROM sc_capsule WHERE scope=? ORDER BY skill, created_at DESC",
-                    (args.scope,),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT scope, skill, intent, status, digest, created_at FROM sc_capsule ORDER BY scope, skill, created_at DESC"
-                ).fetchall()
-        capsules = [
-            {"scope": r[0], "skill": r[1], "intent": r[2], "status": r[3], "digest": r[4], "created_at": r[5]}
-            for r in rows
-        ]
-        return {"capsules": capsules, "active_count": sum(1 for c in capsules if c["status"] == "active")}
+
+        if args.action == "list":
+            with reg.connect() as conn:
+                if args.scope:
+                    rows = conn.execute(
+                        "SELECT scope, skill, intent, status, digest, created_at FROM sc_capsule WHERE scope=? ORDER BY skill, created_at DESC",
+                        (args.scope,),
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        "SELECT scope, skill, intent, status, digest, created_at FROM sc_capsule ORDER BY scope, skill, created_at DESC"
+                    ).fetchall()
+            capsules = []
+            for r in rows:
+                sk = r[1]
+                mf = MANIFESTS.get(sk, {})
+                req_meta = _request_bindings_meta(mf, TYPES) if mf else {}
+                capsules.append({
+                    "scope": r[0],
+                    "skill": sk,
+                    "intent": r[2],
+                    "status": r[3],
+                    "required_bindings": {k: v["required_fields"] for k, v in req_meta.items()},
+                    "summary": mf.get("description", ""),
+                    "digest": r[4],
+                    "created_at": r[5],
+                })
+            return {"capsules": capsules, "active_count": sum(1 for c in capsules if c["status"] == "active")}
+
+        if args.action == "describe":
+            if not skill_arg:
+                items = {}
+                for sk in sorted(MANIFESTS):
+                    mf = MANIFESTS[sk]
+                    req_meta = _request_bindings_meta(mf, TYPES)
+                    items[sk] = {
+                        "intent": mf["intent"],
+                        "summary": mf["description"],
+                        "required_bindings": {k: v["required_fields"] for k, v in req_meta.items()},
+                        "cli_example": f"orch-capsule-run describe {sk}",
+                    }
+                return {"skills": items}
+            if skill_arg not in MANIFESTS:
+                return {"status": "unknown_skill", "skill": skill_arg, "available": sorted(MANIFESTS)}
+            mf = MANIFESTS[skill_arg]
+            req_meta = _request_bindings_meta(mf, TYPES)
+            defaults = _default_bindings(skill_arg)
+            mcp_ex = _mcp_examples(skill_arg, mf)
+            cli_payload = json.dumps(defaults, separators=(",", ":"), ensure_ascii=False)
+            return {
+                "skill": skill_arg,
+                "intent": mf["intent"],
+                "effect": mf["effect"],
+                "summary": mf["description"],
+                "bindings": req_meta,
+                "defaults": defaults,
+                "cli_examples": {
+                    "run_with_defaults": f"orch-capsule-run exec {skill_arg}",
+                    "run_with_json": f"orch-capsule-run exec {skill_arg} --in '{cli_payload}'",
+                },
+                "mcp_examples": mcp_ex,
+            }
+
+        # args.action == "exec"
+        if not skill_arg:
+            return {"status": "invalid_request", "error": "exec requires <skill>", "available": sorted(MANIFESTS)}
+        if skill_arg not in MANIFESTS:
+            return {"status": "unknown_skill", "skill": skill_arg, "available": sorted(MANIFESTS)}
+        mf = MANIFESTS[skill_arg]
+        bindings, err = _normalize_and_validate_exec_input(skill_arg, mf, TYPES, args.input_json)
+        if err is not None:
+            return err
+        scope = args.scope or "vps"
+        secret = os.environ.get("ORCHESTRA_SKILLCACHE_RECEIPT_KEY", "")
+        if len(secret) < 32:
+            return {"status": "unavailable", "error": "ORCHESTRA_SKILLCACHE_RECEIPT_KEY missing or < 32 bytes"}
+        principal = _pick_cli_grant(config, scope)
+        if not principal:
+            return {"status": "revoked", "error": f"No host grant provisioned for scope '{scope}'"}
+        from app.skillcache.registry import PrivateStore
+        from app.skillcache.runner import Runner
+
+        invocation_id = f"cli-{uuid4().hex[:24]}"
+        key = hmac.digest(secret.encode(), b"skillcache-receipts", hashlib.sha256)
+        private = PrivateStore(config["private_dir"])
+        request = {
+            "action": "run",
+            "skill": skill_arg,
+            "intent": mf["intent"],
+            "request_id": f"cli-req-{uuid4().hex[:16]}",
+            "bindings": bindings,
+        }
+        return Runner(reg, private, key, lambda: build_access(
+            config, principal=principal, invocation=invocation_id, origin="cli", scope=scope,
+        )).handle(request)
 
     if args.action == "qualify":
         # Local operator command only. MCP exposes the two execution transitions.
-        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        if str(REPO_ROOT) not in sys.path:
+            sys.path.insert(0, str(REPO_ROOT))
+        _ensure_cli_env(load_receipt_key=False)
         from app.skillcache.pilots import MANIFESTS
         from app.skillcache.qualifier import qualify
         from app.skillcache.service import registry, settings
 
         config = settings()
-        if not args.scope or args.skill not in MANIFESTS or not config:
+        if not args.scope or skill_arg not in MANIFESTS or not config:
             parser.error("qualify requires host provisioning, --scope and --skill")
-        version = qualify(registry(config), args.scope, MANIFESTS[args.skill])
+        version = qualify(registry(config), args.scope, MANIFESTS[skill_arg])
         return {"status": "active", "digest": version}
 
+    # Strict MCP / proof-gated HTTP path for `run` and `continue`
     sid = os.getenv("ORCHESTRA_SESSION_ID", "")
     proof = os.getenv("ORCHESTRA_MCP_PROOF", "")
     if not sid or not proof:
