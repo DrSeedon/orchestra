@@ -33,7 +33,7 @@ def test_default_pipeline_effort_for_carbon_and_hydrogen():
     load_pipeline.cache_clear()
     for role_name in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer", "specialist"):
         role = get_role("default", role_name)
-        assert resolve_effort(role.effort, "hub-gemini-4-carbon", "hub") == "medium"
+        assert resolve_effort(role.effort, "hub-gemini-4-carbon", "hub") == "high"
         assert resolve_effort(role.effort, "hub-gemini-4-hydrogen", "hub") == "high"
 
 

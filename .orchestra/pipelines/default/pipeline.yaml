@@ -71,7 +71,7 @@ roles:
     model: gpt-6.2-sol
     # Ручной выбор Astra владельцем оставляет ступень для оркестраторского промпта;
     # агентские вызовы блокируются централизованным model gate.
-    effort: &effort_policy {gpt-6.2-sol: high, gpt-6.2-astra: high, gpt-6.1-terra: high, "claude-opus-5-5[1m]": xhigh, "claude-sonnet-5-5[1m]": high, claude-haiku-5-5: low, hub-gpt-6.2-sol: high, hub-gemini-4-carbon: medium, hub-gemini-4-hydrogen: high, hub-gemini-4-argon: medium, hub-gpt-6.2-astra: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: xhigh, hub-claude-sonnet-5-5: high, hub-claude-haiku-5-5: low, gpt-6-luna: high, harness: medium, default: high}
+    effort: &effort_policy {gpt-6.2-sol: high, gpt-6.2-astra: high, gpt-6.1-terra: high, "claude-opus-5-5[1m]": xhigh, "claude-sonnet-5-5[1m]": high, claude-haiku-5-5: low, hub-gpt-6.2-sol: high, hub-gemini-4-carbon: high, hub-gemini-4-hydrogen: high, hub-gemini-4-argon: medium, hub-gpt-6.2-astra: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: xhigh, hub-claude-sonnet-5-5: high, hub-claude-haiku-5-5: low, gpt-6-luna: high, harness: medium, default: high}
     skills: [grill-me, orchestra-agents, laptop-access, edo-1c, vps-deploy]
     modules: [safety, code-quality, model-routing, orchestration, worker-lifecycle, knowledge]
     can_spawn: [worker, full-cycle, reducer, specialist]
@@ -105,7 +105,7 @@ roles:
     label: Worker
     order: 2
     model: hub-gpt-6.2-sol
-    effort: &worker_effort_policy {gpt-6.2-sol: medium, gpt-6.2-astra: high, "claude-opus-5-5[1m]": xhigh, "claude-sonnet-5-5[1m]": high, claude-haiku-5-5: low, hub-gpt-6.2-sol: medium, hub-gemini-4-carbon: medium, hub-gemini-4-hydrogen: high, hub-gemini-4-argon: medium, hub-gpt-6.2-astra: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: xhigh, hub-claude-sonnet-5-5: high, hub-claude-haiku-5-5: low, gpt-6-luna: high, harness: medium, default: high}
+    effort: &worker_effort_policy {gpt-6.2-sol: medium, gpt-6.2-astra: high, "claude-opus-5-5[1m]": xhigh, "claude-sonnet-5-5[1m]": high, claude-haiku-5-5: low, hub-gpt-6.2-sol: medium, hub-gemini-4-carbon: high, hub-gemini-4-hydrogen: high, hub-gemini-4-argon: medium, hub-gpt-6.2-astra: high, hub-gpt-6-luna: high, hub-claude-opus-5-5: xhigh, hub-claude-sonnet-5-5: high, hub-claude-haiku-5-5: low, gpt-6-luna: high, harness: medium, default: high}
     skills: [laptop-access, edo-1c]
     modules: [safety, code-quality, report-format, knowledge]
     can_spawn: []
@@ -159,7 +159,7 @@ roles:
     label: Gemini Specialist
     order: 5
     model: hub-gemini-4-argon
-    effort: {gpt-6.2-sol: medium, gpt-6.2-astra: high, hub-gemini-4-hydrogen: high, default: medium}
+    effort: {gpt-6.2-sol: medium, gpt-6.2-astra: high, hub-gemini-4-carbon: high, hub-gemini-4-hydrogen: high, default: medium}
     skills: []
     modules: [safety, code-quality, model-routing, report-format, knowledge]
     disabled_tools: [hub_generate_image]
