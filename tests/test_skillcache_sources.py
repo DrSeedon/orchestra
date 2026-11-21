@@ -127,7 +127,11 @@ def test_sleep_reads_synced_files_without_writes(tmp_path):
     activity.mkdir()
     sleep_path = logs / "2025-01-sleep.md"
     rhr_path = activity / "2025-01-activity.md"
-    sleep = "| 12 | 01→02.01 | — | **7ч10м** | x | y | z |\n| 13 | 02→03.01 | — | **50м** | x | y | z |\n"
+    sleep = (
+        "| 11 | 31.12→01.01 | — | — | — | — | — |\n"
+        "| 12 | 01→02.01 | — | **7ч10м** ✅ | x | y | z |\n"
+        "| 13 | 02→03.01 | — | ~50м | x | y | z |\n"
+    )
     rhr = "| 2025-01-02 | 1 | x | 10 | 59 | — |\n"
     sleep_path.write_text(sleep)
     rhr_path.write_text(rhr)

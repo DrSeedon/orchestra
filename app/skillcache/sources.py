@@ -268,8 +268,11 @@ class LiveSources(Evidence):
             for row in _table_rows(path):
                 if not row[0].isdigit():
                     continue
+                cell = row[3].replace(" ", "")
+                if cell in ("—", "-", "", "н/д"):
+                    continue
                 wake = re.search(r"→(\d\d)\.(\d\d)$", row[1])
-                duration = re.fullmatch(r"\*\*(?:(\d+)ч)?(\d+)м\*\*", row[3].replace(" ", ""))
+                duration = re.match(r"^(?:\*\*)?~?(?:(\d+)ч)?(\d+)м(?:\*\*)?", cell)
                 if not wake or not duration:
                     raise Rejected("unsupported Xiaomi sleep row")
                 day = f"{month[:4]}-{wake[2]}-{wake[1]}"

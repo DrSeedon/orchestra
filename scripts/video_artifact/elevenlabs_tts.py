@@ -21,7 +21,7 @@ import wave
 
 import httpx
 
-MODEL = "eleven_flash_v2_5"
+MODEL = "eleven_v4_turbo"
 # Owner-selected saved voice: Sergey - Rich, Engaging and Captivating.
 # Root verified Flash fine-tuning and sharing.rate=1.0 on 2026-10-25.
 # Do not substitute another voice (including for English) on a refusal.
