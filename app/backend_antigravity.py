@@ -9,8 +9,10 @@ import logging
 import math
 import os
 import re
+import shutil
 import signal
 import sqlite3
+import tempfile
 import time
 import uuid
 from contextlib import closing
@@ -405,76 +407,157 @@ async def fetch_antigravity_usage() -> dict:
     return dict(system._antigravity_usage_cache.get("data") or dict.fromkeys(QUOTA_KEYS))
 
 
+_ISOLATED_QUOTA_FILES = (
+    ".gemini/oauth_creds.json",
+    ".gemini/settings.json",
+    ".gemini/antigravity-acp/oauth_creds.json",
+    ".gemini/antigravity-acp/settings.json",
+    ".gemini/antigravity-acp/installation_id",
+    ".gemini/antigravity-cli/oauth_creds.json",
+    ".gemini/antigravity-cli/settings.json",
+    ".gemini/antigravity-cli/installation_id",
+    ".gemini/config/config.json",
+)
+
+
+def _resolve_antigravity_bin(env: dict[str, str]) -> str:
+    return (
+        shutil.which(ANTIGRAVITY_BIN, path=env.get("PATH") or os.environ.get("PATH", ""))
+        or shutil.which(ANTIGRAVITY_BIN, path="/home/kesha/.local/bin:/usr/local/bin:/usr/bin")
+        or ANTIGRAVITY_BIN
+    )
+
+
+def _prepare_isolated_quota_home(home: Path, iso_home: Path) -> None:
+    """Copy only auth/config files into a 0700 temp home without touching .orchestra-acp.lock."""
+    os.chmod(iso_home, 0o700)
+    for rel_dir in (
+        ".gemini",
+        ".gemini/antigravity-acp",
+        ".gemini/antigravity-cli",
+        ".gemini/config",
+    ):
+        d = iso_home / rel_dir
+        d.mkdir(parents=True, exist_ok=True)
+        os.chmod(d, 0o700)
+    src_token = home / ".gemini/antigravity-acp/antigravity-oauth-token"
+    dst_token = iso_home / ".gemini/antigravity-acp/antigravity-oauth-token"
+    shutil.copy2(src_token, dst_token)
+    os.chmod(dst_token, 0o600)
+    dst_link = iso_home / TOKEN_RELATIVE_PATH
+    dst_link.parent.mkdir(parents=True, exist_ok=True)
+    dst_link.symlink_to(os.path.relpath(dst_token, dst_link.parent))
+    for rel_file in _ISOLATED_QUOTA_FILES:
+        src = home / rel_file
+        if src.is_file():
+            dst = iso_home / rel_file
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            os.chmod(dst, 0o600)
+
+
+async def _run_antigravity_quota_probe(probe_home: Path) -> tuple[dict, dict]:
+    from app.provider_safety import verify_provider_egress
+
+    env = cli_environment(probe_home)
+    await verify_provider_egress("antigravity", env=env)
+    # Print mode has no ACP-only directory/telemetry flags. It reads the
+    # legacy location, which must resolve to the same canonical token.
+    acp_token = probe_home / ".gemini/antigravity-acp/antigravity-oauth-token"
+    cli_token = probe_home / TOKEN_RELATIVE_PATH
+    if cli_token.resolve() != acp_token.resolve():
+        raise RuntimeError("Antigravity quota requires the shared CLI/ACP token store")
+    agy_bin = _resolve_antigravity_bin(env)
+    proc = await asyncio.create_subprocess_exec(
+        agy_bin, "--print", "/quota", "--output-format", "json",
+        cwd=str(probe_home), env=env, stdin=asyncio.subprocess.DEVNULL,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    try:
+        output, _ = await asyncio.wait_for(proc.communicate(), timeout=12)
+    finally:
+        if proc.returncode is None:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=2)
+            except TimeoutError:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                await proc.wait()
+    if len(output) > 1024 * 1024:
+        raise RuntimeError("Antigravity quota report exceeds size limit")
+    if proc.returncode and not output.strip():
+        raise RuntimeError("Antigravity quota command returned no report")
+    raw = json.loads(output)
+    if _is_account_disabled_payload(raw):
+        _trip_antigravity_circuit_breaker("Antigravity quota confirmed account-disabled/Terms-of-Service refusal")
+        raise RuntimeError("Antigravity account disabled")
+    if proc.returncode:
+        raise RuntimeError("Antigravity quota command failed")
+    weekly = normalize_antigravity_quota(raw)
+    short = normalize_antigravity_five_hour_quota(raw)
+    if not any(value is not None for value in (*weekly.values(), *short.values())):
+        raise ValueError("Antigravity quota report contains no recognized windows")
+    return weekly, short
+
+
 async def probe_antigravity_quota() -> tuple[dict, dict] | None:
     """Read one quota report using the same profile and egress guards as ACP."""
     from app.antigravity_acp import get_profile
     from app.models import is_provider_disabled
-    from app.provider_safety import verify_provider_egress
 
     home = canonical_profile()
     if is_provider_disabled("antigravity") or not _has_cached_credentials(home):
         return None
     owner = get_profile(home)
-    async with owner._start_lock:
-        if owner.process is not None and owner.process.returncode is None:
-            return None
-        if is_provider_disabled("antigravity"):
-            return None
-        owner._check_settings()
-        lock_fd = os.open(home / ".orchestra-acp.lock",
-                          os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-        try:
-            try:
-                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
+    tmp_dir: tempfile.TemporaryDirectory[str] | None = None
+    isolated_home: Path | None = None
+
+    try:
+        async with owner._start_lock:
+            if is_provider_disabled("antigravity"):
                 return None
-            env = cli_environment(home)
-            await verify_provider_egress("antigravity", env=env)
-            # Print mode has no ACP-only directory/telemetry flags. It reads the
-            # legacy location, which must resolve to the same canonical token.
+            owner._check_settings()
             acp_token = home / ".gemini/antigravity-acp/antigravity-oauth-token"
             cli_token = home / TOKEN_RELATIVE_PATH
             if cli_token.resolve() != acp_token.resolve():
                 raise RuntimeError("Antigravity quota requires the shared CLI/ACP token store")
-            proc = await asyncio.create_subprocess_exec(
-                ANTIGRAVITY_BIN, "--print", "/quota", "--output-format", "json",
-                cwd=str(home), env=env, stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
-                start_new_session=True,
-            )
-            try:
-                output, _ = await asyncio.wait_for(proc.communicate(), timeout=12)
-            finally:
-                if proc.returncode is None:
-                    try:
-                        os.killpg(proc.pid, signal.SIGTERM)
-                    except ProcessLookupError:
-                        pass
-                    try:
-                        await asyncio.wait_for(proc.wait(), timeout=2)
-                    except TimeoutError:
-                        try:
-                            os.killpg(proc.pid, signal.SIGKILL)
-                        except ProcessLookupError:
-                            pass
-                        await proc.wait()
-            if len(output) > 1024 * 1024:
-                raise RuntimeError("Antigravity quota report exceeds size limit")
-            if proc.returncode and not output.strip():
-                raise RuntimeError("Antigravity quota command returned no report")
-            raw = json.loads(output)
-            if _is_account_disabled_payload(raw):
-                _trip_antigravity_circuit_breaker("Antigravity quota confirmed account-disabled/Terms-of-Service refusal")
-                raise RuntimeError("Antigravity account disabled")
-            if proc.returncode:
-                raise RuntimeError("Antigravity quota command failed")
-            weekly = normalize_antigravity_quota(raw)
-            short = normalize_antigravity_five_hour_quota(raw)
-            if not any(value is not None for value in (*weekly.values(), *short.values())):
-                raise ValueError("Antigravity quota report contains no recognized windows")
-            return weekly, short
-        finally:
-            os.close(lock_fd)
+            lock_fd: int | None = None
+            isolated = owner.process is not None and owner.process.returncode is None
+            if not isolated:
+                lock_fd = os.open(
+                    home / ".orchestra-acp.lock",
+                    os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW,
+                    0o600,
+                )
+                try:
+                    fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    os.close(lock_fd)
+                    lock_fd = None
+                    isolated = True
+            if isolated:
+                tmp_dir = tempfile.TemporaryDirectory(prefix="orch-agy-quota-")
+                isolated_home = Path(tmp_dir.name)
+                _prepare_isolated_quota_home(home, isolated_home)
+            else:
+                try:
+                    return await _run_antigravity_quota_probe(home)
+                finally:
+                    if lock_fd is not None:
+                        os.close(lock_fd)
+        # Isolated mode: _start_lock and .orchestra-acp.lock are both free; run against temp copy.
+        assert isolated_home is not None
+        return await _run_antigravity_quota_probe(isolated_home)
+    finally:
+        if tmp_dir is not None:
+            tmp_dir.cleanup()
 
 
 def canonical_profile(profile: str = "") -> Path:

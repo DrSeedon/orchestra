@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
@@ -86,7 +87,7 @@ def test_argon_has_own_weekly_line_and_short_stops_do_not_gate_by_diagonal():
 
 
 @pytest.mark.asyncio
-async def test_quota_uses_print_cli_contract_and_never_runs_with_active_acp(tmp_path, monkeypatch):
+async def test_quota_uses_print_cli_contract_and_isolates_with_active_acp(tmp_path, monkeypatch):
     import json
     import time
     from types import SimpleNamespace
@@ -95,7 +96,7 @@ async def test_quota_uses_print_cli_contract_and_never_runs_with_active_acp(tmp_
 
     token = tmp_path / ".gemini/antigravity-acp/antigravity-oauth-token"
     token.parent.mkdir(parents=True)
-    token.touch()
+    token.write_text("tok")
     link = tmp_path / agy.TOKEN_RELATIVE_PATH
     link.parent.mkdir()
     link.symlink_to(token)
@@ -108,21 +109,104 @@ async def test_quota_uses_print_cli_contract_and_never_runs_with_active_acp(tmp_
     monkeypatch.setattr(agy, "canonical_profile", lambda: tmp_path)
     monkeypatch.setattr(antigravity_acp, "get_profile", lambda _: owner)
     monkeypatch.setattr(models, "is_provider_disabled", lambda _: False)
-    monkeypatch.setattr(agy, "cli_environment", lambda _: {"HOME": str(tmp_path)})
+    monkeypatch.setattr(agy, "cli_environment", lambda h: {"HOME": str(h)})
     monkeypatch.setattr(agy.asyncio, "create_subprocess_exec", launch)
     monkeypatch.setattr(provider_safety, "verify_provider_egress", egress)
 
-    assert await agy.probe_antigravity_quota() is None
-    launch.assert_not_called()
-    egress.assert_not_called()
-    owner.process = None
+    # Active ACP must probe using an isolated temporary home instead of returning None.
     weekly, short = await agy.probe_antigravity_quota()
     assert len(weekly) + len(short) == 5
+    iso_cwd = Path(launch.call_args.kwargs["cwd"])
+    assert iso_cwd != tmp_path
+    assert iso_cwd.name.startswith("orch-agy-quota-")
+    assert not iso_cwd.exists()  # cleaned up in finally
+    assert launch.call_args.kwargs["env"] == {"HOME": str(iso_cwd)}
     assert launch.call_args.args == (
-        agy.ANTIGRAVITY_BIN, "--print", "/quota", "--output-format", "json",
+        agy._resolve_antigravity_bin({"HOME": str(iso_cwd)}),
+        "--print",
+        "/quota",
+        "--output-format",
+        "json",
     )
+
+    owner.process = None
+    weekly2, short2 = await agy.probe_antigravity_quota()
+    assert len(weekly2) + len(short2) == 5
+    assert launch.call_args.kwargs["cwd"] == str(tmp_path)
     assert launch.call_args.kwargs["env"] == {"HOME": str(tmp_path)}
-    egress.assert_awaited_once()
+    assert egress.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_quota_isolates_when_external_flock_held_and_resolves_bin(tmp_path, monkeypatch):
+    import fcntl
+    import json
+    import os
+    import stat
+    import time
+    from types import SimpleNamespace
+
+    from app import antigravity_acp, models, provider_safety
+
+    acp_dir = tmp_path / ".gemini/antigravity-acp"
+    acp_dir.mkdir(parents=True)
+    token = acp_dir / "antigravity-oauth-token"
+    token.write_text(json.dumps({"access_token": "dummy"}))
+    (acp_dir / "settings.json").write_text(json.dumps({"useG1Credits": False}))
+    (tmp_path / ".gemini/oauth_creds.json").write_text(json.dumps({"refresh_token": "r"}))
+    cfg_dir = tmp_path / ".gemini/config"
+    cfg_dir.mkdir(parents=True)
+    (cfg_dir / "config.json").write_text(json.dumps({"userSettings": {"useAiCredits": False}}))
+    link = tmp_path / agy.TOKEN_RELATIVE_PATH
+    link.parent.mkdir(parents=True)
+    link.symlink_to("../antigravity-acp/antigravity-oauth-token")
+
+    # Simulate external acp_mux daemon holding exclusive flock on .orchestra-acp.lock.
+    lock_fd = os.open(tmp_path / ".orchestra-acp.lock", os.O_CREAT | os.O_RDWR, 0o600)
+    fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    observed: dict = {}
+
+    async def fake_exec(*args, **kwargs):
+        cwd = Path(kwargs["cwd"])
+        observed["args"] = args
+        observed["cwd"] = cwd
+        observed["mode"] = stat.S_IMODE(cwd.stat().st_mode)
+        observed["has_lock"] = (cwd / ".orchestra-acp.lock").exists()
+        observed["link_is_symlink"] = (cwd / agy.TOKEN_RELATIVE_PATH).is_symlink()
+        observed["link_target_match"] = (
+            (cwd / agy.TOKEN_RELATIVE_PATH).resolve()
+            == (cwd / ".gemini/antigravity-acp/antigravity-oauth-token").resolve()
+        )
+        observed["oauth_creds"] = (cwd / ".gemini/oauth_creds.json").read_text()
+        observed["settings"] = (cwd / ".gemini/antigravity-acp/settings.json").read_text()
+        return SimpleNamespace(
+            returncode=0,
+            communicate=AsyncMock(return_value=(json.dumps(quota_response(time.time())).encode(), None)),
+        )
+
+    try:
+        owner = SimpleNamespace(_start_lock=asyncio.Lock(), _check_settings=lambda: None, process=None)
+        monkeypatch.setattr(agy, "canonical_profile", lambda: tmp_path)
+        monkeypatch.setattr(antigravity_acp, "get_profile", lambda _: owner)
+        monkeypatch.setattr(models, "is_provider_disabled", lambda _: False)
+        monkeypatch.setattr(agy, "cli_environment", lambda h: {"HOME": str(h), "PATH": ""})
+        monkeypatch.setattr(agy.asyncio, "create_subprocess_exec", fake_exec)
+        monkeypatch.setattr(provider_safety, "verify_provider_egress", AsyncMock())
+
+        weekly, short = await agy.probe_antigravity_quota()
+        assert len(weekly) + len(short) == 5
+        assert observed["cwd"] != tmp_path
+        assert observed["cwd"].name.startswith("orch-agy-quota-")
+        assert observed["mode"] == 0o700
+        assert observed["has_lock"] is False
+        assert observed["link_is_symlink"] is True
+        assert observed["link_target_match"] is True
+        assert "refresh_token" in observed["oauth_creds"]
+        assert "useG1Credits" in observed["settings"]
+        assert Path(observed["args"][0]).name == "agy"
+        assert not observed["cwd"].exists()
+    finally:
+        os.close(lock_fd)
 
 
 @pytest.mark.parametrize("model, bucket", [
