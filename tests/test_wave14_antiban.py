@@ -196,16 +196,18 @@ def test_limits_command_includes_antigravity_within_telegram_caption_limit(isola
     assert "Agy Gemini · неделя" in labels
 
 
-def test_antigravity_180k_compact_threshold(isolated_db, tmp_path, monkeypatch):
+def test_antigravity_85pct_compact_threshold(isolated_db, tmp_path, monkeypatch):
     from types import SimpleNamespace
-    assert session_turns.ANTIGRAVITY_AUTO_COMPACT_TOKENS == 180_000
+    assert not hasattr(session_turns, "ANTIGRAVITY_AUTO_COMPACT_TOKENS")
+    assert not hasattr(session_turns, "_antigravity_cache_is_cold")
+    assert session_turns.ANTIGRAVITY_AUTO_COMPACT_PCT == 85
     assert session_turns.ANTIGRAVITY_HOT_COMPACT_PCT == 85
     now = 1_795_000_000.0
     monkeypatch.setattr(session_turns.time, "time", lambda: now)
 
     s = AgentSession(
-        id="s-agy-180k",
-        name="agy-180k",
+        id="s-agy-85pct",
+        name="agy-85pct",
         scope=str(tmp_path),
         cwd=str(tmp_path),
         model="antigravity/gemini-4-neon-medium",
@@ -213,30 +215,26 @@ def test_antigravity_180k_compact_threshold(isolated_db, tmp_path, monkeypatch):
         role="orchestrator",
     )
     s._last_context["max_tokens"] = 1_000_000
-    s._last_context["total_tokens"] = 185_000
+    s._last_context["total_tokens"] = 221_000
     logs = []
     s._log = lambda kind, msg, **kw: logs.append((kind, msg))
 
-    # 1) Hot cache (elapsed=420s < 1800s): ceiling stays 85%, NO 18% trigger or log spam
+    # 1) Hot cache (elapsed=420s): ceiling is 85%, NO trigger at 22%
     s._backend = SimpleNamespace(_last_turn_completed_at=now - 420)
-    assert session_turns._antigravity_cache_is_cold(s) is False
     assert session_turns._auto_compact_threshold_pct(s) == 85
-    s._turns.schedule_context_compaction(18)
+    s._turns.schedule_context_compaction(22)
     assert logs == []
 
-    # 2) Hot cache at 85%: triggers manual compaction warning cleanly at 85%
+    # 2) Long idle (elapsed=7200s / 2h): ceiling MUST remain 85%, NO cold 18% drop at 221K (22%)
+    s._backend._last_turn_completed_at = now - 7200
+    assert session_turns._auto_compact_threshold_pct(s) == 85
+    s._turns.schedule_context_compaction(22)
+    assert logs == []
+
+    # 3) At 85% (850K) after idle -> triggers manual compaction notice cleanly at 85%
     s._last_context["total_tokens"] = 850_000
     s._turns.schedule_context_compaction(85)
     assert len(logs) == 1 and "85% >= 85%" in logs[0][1]
-
-    # 3) Cold cache (elapsed=1900s >= 1800s): drops threshold to 18% (180K)
-    logs.clear()
-    s._backend._last_turn_completed_at = now - 1900
-    s._last_context["total_tokens"] = 180_000
-    assert session_turns._antigravity_cache_is_cold(s) is True
-    assert session_turns._auto_compact_threshold_pct(s) == 18
-    s._turns.schedule_context_compaction(18)
-    assert len(logs) == 1 and "180,000" in logs[0][1] and "cold cache" in logs[0][1]
 
 
 def test_estimated_usage_and_db_accounting(isolated_db):

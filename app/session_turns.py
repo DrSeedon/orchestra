@@ -43,9 +43,8 @@ TURN_END_HOLD_MAX_WAITING = 8
 
 # Leave room for the CLI's own compaction and any in-flight context growth.
 CRITICAL_AUTO_COMPACT_PCT = 95
-ANTIGRAVITY_AUTO_COMPACT_TOKENS = 180_000
-ANTIGRAVITY_CACHE_TTL_SEC = 1800.0
-ANTIGRAVITY_HOT_COMPACT_PCT = 85
+ANTIGRAVITY_AUTO_COMPACT_PCT = 85
+ANTIGRAVITY_HOT_COMPACT_PCT = ANTIGRAVITY_AUTO_COMPACT_PCT
 CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT = 1
 # V-995: a resumed Claude session gets the whole refreshed system prompt prepended to the
 # next message and the CLI re-attaches the instruction files on top. Measured on the
@@ -71,27 +70,11 @@ def injection_overflows_context(s: "AgentSession", incoming_chars: int) -> bool:
     return tokens + extra + max_tokens * INJECTION_RESERVE_PCT // 100 >= max_tokens
 
 
-def _antigravity_cache_is_cold(
-    s: "AgentSession", ttl_sec: float = ANTIGRAVITY_CACHE_TTL_SEC
-) -> bool:
-    last_at = getattr(getattr(s, "_backend", None), "_last_turn_completed_at", None)
-    if not isinstance(last_at, (int, float)) or isinstance(last_at, bool) or last_at <= 0:
-        return False
-    return (time.time() - float(last_at)) >= ttl_sec
-
-
 def _auto_compact_threshold_pct(s: "AgentSession") -> int:
     """Return our threshold, staying ahead of the CLI threshold when known."""
     threshold = CRITICAL_AUTO_COMPACT_PCT
     if getattr(s, "backend_type", "") == "antigravity" or str(getattr(s, "model", "")).startswith("antigravity/"):
-        if _antigravity_cache_is_cold(s):
-            max_tok = s._last_context.get("max_tokens")
-            if isinstance(max_tok, int) and not isinstance(max_tok, bool) and max_tok > 0:
-                threshold = min(threshold, math.ceil(ANTIGRAVITY_AUTO_COMPACT_TOKENS * 100 / max_tok))
-            else:
-                threshold = min(threshold, 18)
-        else:
-            threshold = min(threshold, ANTIGRAVITY_HOT_COMPACT_PCT)
+        threshold = min(threshold, ANTIGRAVITY_AUTO_COMPACT_PCT)
     cli_tokens = s._last_context.get("auto_compact_threshold")
     max_tokens = s._last_context.get("max_tokens")
     if isinstance(cli_tokens, bool) or isinstance(max_tokens, bool):
@@ -1300,23 +1283,12 @@ class TurnManager:
         """Run both automatic compaction decisions from one validated context."""
         s = self.s
         from app.runtime_registry import get_runtime
-        tokens_now = int(s._last_context.get("total_tokens") or 0)
         if not get_runtime(s.backend_type).capabilities.automated_prompts:
-            is_agy = (
-                getattr(s, "backend_type", "") == "antigravity"
-                or str(getattr(s, "model", "")).startswith("antigravity/")
-            )
-            cold_trigger = is_agy and _antigravity_cache_is_cold(s) and tokens_now >= ANTIGRAVITY_AUTO_COMPACT_TOKENS
             threshold_pct = _auto_compact_threshold_pct(s)
-            if live_pct >= threshold_pct or cold_trigger:
-                reason = (
-                    f"{tokens_now:,} tokens >= {ANTIGRAVITY_AUTO_COMPACT_TOKENS:,} on cold cache"
-                    if cold_trigger
-                    else f"{live_pct}% >= {threshold_pct}%"
-                )
+            if live_pct >= threshold_pct:
                 s._log(
                     "status",
-                    f"Automatic compaction disabled by runtime policy; owner manual compaction required ({reason})",
+                    f"Automatic compaction disabled by runtime policy; owner manual compaction required ({live_pct}% >= {threshold_pct}%)",
                 )
             return
         if self._compact_codex_before_limit():
