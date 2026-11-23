@@ -54,6 +54,7 @@ QUOTA_BUCKETS = (
 )
 QUOTA_CACHE_TTL = 900.0
 QUOTA_FORCE_COOLDOWN = 60.0
+ANTIGRAVITY_CACHE_TTL_SEC = 3300.0
 
 # Official Google AI Studio / Vertex AI API-equivalent rates per 1M tokens
 # (Nov 2026 promo through Nov 30, 2026: Carbon/Argon $2/$10, cached 95% off = $0.10;
@@ -106,7 +107,7 @@ def estimate_antigravity_turn_usage(
     if ctx <= 0 and total_out_chars <= 0:
         return None
     now_ts = time.time() if now is None else float(now)
-    warm = last_turn_at is not None and (now_ts - float(last_turn_at)) < 1800.0
+    warm = last_turn_at is not None and (now_ts - float(last_turn_at)) < ANTIGRAVITY_CACHE_TTL_SEC
     api_calls = max(1, int(tool_calls or 0) + 1)
     prompt_total = max(0, ctx) * api_calls
     output_tokens = max(1, total_out_chars // 4) if total_out_chars > 0 else 0

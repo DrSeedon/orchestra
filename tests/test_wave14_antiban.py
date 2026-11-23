@@ -262,7 +262,7 @@ def test_estimated_usage_and_db_accounting(isolated_db):
         context_tokens=100_000,
         tool_calls=1,
         output_chars=400,
-        last_turn_at=base - 120,
+        last_turn_at=base - 2400,  # 40 min < 3300s (55 min warm TTL)
         now=base,
     )
     assert warm["warm"] is True
