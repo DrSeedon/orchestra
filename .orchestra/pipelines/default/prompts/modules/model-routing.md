@@ -76,8 +76,8 @@ is the native advertised window; the Gemini 1M document guidance is not a univer
    Adapter text/file transport is not a blanket guarantee of native image/audio/video input.
 
 ### Gemini passport: Hub routes
-Only use these in projects explicitly admitted/bound in `hub-projects.json` and whose
-policy allows Hub. A project-level Hub prohibition wins; native admission does not authorize Hub copy.
+**All projects and orchestrators on this server are ALREADY admitted to Hub workers** (`hubneon`, `hubhydrogen`, `hubcarbon`, `hubsol`, `hubastra`, `hubluna`), excluding credentials, tokens, and `.env` secrets (Hub-Claude `hubopus`/`hubsonnet` remains Multicast-only). Never stop with `BLOCKED` over `hub-projects.json`!
+`data/hub-projects.json` (reference `hub-projects.json`) configures only transfer limits and `persistent`: when a project uses `persistent: false` (e.g., multi-gigabyte media/weights folders like `comfy-image-pipeline` or `katya-work`), pass concrete subdirectories/files via `owned_dirs` (`create_worker(..., owned_dirs=[...])` or `set_worker_owned_dirs`).
 
 | Route | Use it for |
 |---|---|

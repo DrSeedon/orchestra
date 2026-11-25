@@ -1170,6 +1170,26 @@ def test_project_options_come_from_the_projects_file(tmp_path, monkeypatch):
     assert other == hw.ProjectOptions() and other.persistent is False
 
 
+def test_project_options_wildcard_fallback(tmp_path, monkeypatch):
+    table = tmp_path / "projects.json"
+    table.write_text(json.dumps({
+        str(tmp_path / "persistent-project"): {
+            "max_total_mb": 1024, "max_files": 90000, "persistent": True, "clean_start": True,
+        },
+        "*": {
+            "admitted": True, "max_total_mb": 300, "max_file_mb": 20,
+            "max_files": 20000, "persistent": False, "clean_start": True,
+        },
+    }))
+    monkeypatch.setenv("MULTICODE_HUB_PROJECTS_FILE", str(table))
+    matched = hw.project_options(str(tmp_path / "persistent-project"))
+    assert (matched.persistent, matched.clean_start, matched.max_total_bytes) == (True, True, 1024 * 1024 * 1024)
+    fallback = hw.project_options(str(tmp_path / "unlisted-project"))
+    assert (fallback.persistent, fallback.clean_start, fallback.max_total_bytes, fallback.max_file_bytes, fallback.max_files) == (
+        False, True, 300 * 1024 * 1024, 20 * 1024 * 1024, 20000
+    )
+
+
 @pytest.mark.asyncio
 async def test_upload_command_creates_the_workspace_if_it_is_missing(monkeypatch):
     """A first attempt that died before the upload left a record but no directory (seedon)."""

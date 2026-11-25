@@ -129,8 +129,11 @@ def project_options(scope: str) -> ProjectOptions:
     path = Path(os.environ.get("MULTICODE_HUB_PROJECTS_FILE", "").strip() or DATA_DIR / "hub-projects.json")
     try:
         table = json.loads(path.read_text())
+        real_scope = os.path.realpath(scope or "")
         entry = next((v for k, v in table.items()
-                      if os.path.realpath(k) == os.path.realpath(scope or "")), None)
+                      if k != "*" and os.path.realpath(k) == real_scope), None)
+        if not isinstance(entry, dict):
+            entry = table.get("*")
     except (OSError, ValueError, AttributeError):
         entry = None
     if not isinstance(entry, dict):
