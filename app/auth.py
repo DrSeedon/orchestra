@@ -1,10 +1,14 @@
-"""Dashboard authentication — deterministic HMAC tokens from .env credentials."""
+"""Dashboard authentication — random DB-backed revocable session tokens."""
 
 import hashlib
 import hmac
 import os
+import secrets
+import time
 
 from fastapi import HTTPException, Request
+
+DASHBOARD_SESSION_TTL_SECONDS = 30 * 24 * 3600
 
 
 def is_auth_enabled() -> bool:
@@ -36,13 +40,50 @@ def check_credentials(username: str, password: str) -> bool:
     )
 
 
-def _make_token(username: str) -> str:
-    secret = os.environ.get("DASHBOARD_PASSWORD", "")
-    return hmac.new(secret.encode(), username.encode(), hashlib.sha256).hexdigest()
+def _cred_fingerprint(username: str, password: str) -> str:
+    return hashlib.sha256(f"{username}\x00{password}".encode()).hexdigest()
+
+
+def _token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def create_session(username: str) -> str:
-    return _make_token(username)
+    """Create a cryptographically random dashboard session token persisted in SQLite."""
+    from app import db
+
+    token = secrets.token_urlsafe(32)
+    now = time.time()
+    expires_at = now + DASHBOARD_SESSION_TTL_SECONDS
+    user = os.environ.get("DASHBOARD_USER", "")
+    password = os.environ.get("DASHBOARD_PASSWORD", "")
+    fingerprint = _cred_fingerprint(user, password)
+    with db._conn() as conn:
+        db._ensure_dashboard_sessions_schema(conn)
+        conn.execute("DELETE FROM dashboard_sessions WHERE expires_at <= ?", (now,))
+        conn.execute(
+            """INSERT INTO dashboard_sessions (
+                   token_hash, username, cred_fingerprint, created_at, expires_at, revoked_at
+               ) VALUES (?, ?, ?, ?, ?, NULL)""",
+            (_token_hash(token), username, fingerprint, now, expires_at),
+        )
+    return token
+
+
+def revoke_session(token: str) -> None:
+    """Revoke a dashboard session token immediately in SQLite and purge expired rows."""
+    if not token:
+        return
+    from app import db
+
+    now = time.time()
+    with db._conn() as conn:
+        db._ensure_dashboard_sessions_schema(conn)
+        conn.execute(
+            "UPDATE dashboard_sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL",
+            (now, _token_hash(token)),
+        )
+        conn.execute("DELETE FROM dashboard_sessions WHERE expires_at <= ?", (now,))
 
 
 def create_csrf_token(username: str) -> str:
@@ -59,7 +100,21 @@ def validate_session(token: str) -> bool:
     password = os.environ.get("DASHBOARD_PASSWORD", "")
     if not user or not password:
         return False
-    return hmac.compare_digest(token, _make_token(user))
+    from app import db
+
+    now = time.time()
+    expected_fp = _cred_fingerprint(user, password)
+    with db._conn() as conn:
+        db._ensure_dashboard_sessions_schema(conn)
+        row = conn.execute(
+            "SELECT cred_fingerprint, expires_at, revoked_at FROM dashboard_sessions WHERE token_hash = ?",
+            (_token_hash(token),),
+        ).fetchone()
+    if row is None or row["revoked_at"] is not None:
+        return False
+    if float(row["expires_at"]) <= now:
+        return False
+    return hmac.compare_digest(row["cred_fingerprint"], expected_fp)
 
 
 def require_operator_session(request: Request) -> None:

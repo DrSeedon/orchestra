@@ -211,22 +211,58 @@ DOMPurify.addHook('uponSanitizeElement', (node) => {
     if (['STYLE', 'HTML', 'HEAD', 'BODY', 'META', 'LINK', 'TITLE', 'SCRIPT'].includes(node.tagName)) node.remove();
 });
 
+const _SAFE_IMG_SRC_RE = /^(?:\/(?:uploads|charts|api|static)\/|data:image\/(?:png|jpe?g|gif|webp|bmp);base64,)/i;
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'IMG' && node.hasAttribute('src')) {
+        const src = (node.getAttribute('src') || '').trim();
+        if (!_SAFE_IMG_SRC_RE.test(src)) node.removeAttribute('src');
+    }
+});
+
+function _sanitizeHtmlForMarkdown(rawHtml) {
+    if (typeof DOMPurify !== 'undefined' && typeof DOMPurify.sanitize === 'function') {
+        return DOMPurify.sanitize(rawHtml, {
+            ADD_TAGS: ['input'],
+            ADD_ATTR: ['checked', 'disabled', 'type', 'loading'],
+        });
+    }
+    return rawHtml;
+}
+
 const _autolinkRe = /(?<!\w)((?:https?:\/\/|ftp:\/\/)[^\s<>\]\)]+|(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:\/[^\s<>\]\)]*)?)(?!\w)/g;
-// Walk only text nodes — skipping A/PRE/CODE avoids double-linking already-linked content and mangling code blocks
+// Sanitize before any DOM parsing, use an inert DOMParser document, and walk only text nodes.
 function autolinkText(html) {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
+    const sanitized = _sanitizeHtmlForMarkdown(html);
+    let container;
+    if (typeof DOMParser === 'function') {
+        const doc = new DOMParser().parseFromString(sanitized, 'text/html');
+        container = doc?.body || null;
+    }
+    if (!container) {
+        if (typeof DOMPurify !== 'undefined' && typeof DOMPurify.sanitize === 'function') {
+            const frag = DOMPurify.sanitize(sanitized, {
+                ADD_TAGS: ['input'],
+                ADD_ATTR: ['checked', 'disabled', 'type', 'loading'],
+                RETURN_DOM_FRAGMENT: true,
+            });
+            container = document.createElement('div');
+            if (frag) container.appendChild(frag);
+        } else {
+            return sanitized;
+        }
+    }
+    const ownerDoc = container.ownerDocument || document;
     const walk = (node) => {
         if (node.nodeType === 3) {
             const t = node.textContent;
             if (!_autolinkRe.test(t)) return;
             // Reset lastIndex after test() — regex with /g retains state between calls
             _autolinkRe.lastIndex = 0;
-            const frag = document.createDocumentFragment();
+            const frag = ownerDoc.createDocumentFragment();
             let last = 0, m;
             while ((m = _autolinkRe.exec(t)) !== null) {
-                if (m.index > last) frag.appendChild(document.createTextNode(t.slice(last, m.index)));
-                const a = document.createElement('a');
+                if (m.index > last) frag.appendChild(ownerDoc.createTextNode(t.slice(last, m.index)));
+                const a = ownerDoc.createElement('a');
                 const href = m[0].match(/^https?:\/\/|^ftp:\/\//) ? m[0] : 'http://' + m[0];
                 a.href = href;
                 a.target = '_blank';
@@ -235,23 +271,23 @@ function autolinkText(html) {
                 frag.appendChild(a);
                 last = m.index + m[0].length;
             }
-            if (last < t.length) frag.appendChild(document.createTextNode(t.slice(last)));
+            if (last < t.length) frag.appendChild(ownerDoc.createTextNode(t.slice(last)));
             node.parentNode.replaceChild(frag, node);
         } else if (node.nodeType === 1 && !['A', 'PRE', 'CODE', 'SCRIPT', 'STYLE'].includes(node.tagName)) {
             [...node.childNodes].forEach(walk);
         }
     };
-    [...tmp.childNodes].forEach(walk);
-    return tmp.innerHTML;
+    [...container.childNodes].forEach(walk);
+    return container.innerHTML;
 }
 
 const _origMarkedParse = marked.parse.bind(marked);
 // Patch marked.parse to: (1) escape lone ~ so marked doesn't misinterpret as strikethrough,
-// (2) autolink bare URLs that marked leaves as plain text
+// (2) sanitize HTML before parsing into an inert DOM fragment and autolinking bare URLs
 marked.parse = (src, ...args) => {
     const escaped = src.replace(/(?<!\~)\~(?!\~)/g, '\\~');
     const html = _origMarkedParse(escaped, ...args);
-    return autolinkText(html);
+    return autolinkText(_sanitizeHtmlForMarkdown(html));
 };
 
 // Global click handler: inline code in markdown acts as a copy button,

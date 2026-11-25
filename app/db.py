@@ -187,6 +187,22 @@ def _ensure_skillcache_schema(connection):
             statement = ""
 
 
+def _ensure_dashboard_sessions_schema(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS dashboard_sessions (
+               token_hash TEXT PRIMARY KEY,
+               username TEXT NOT NULL,
+               cred_fingerprint TEXT NOT NULL,
+               created_at REAL NOT NULL,
+               expires_at REAL NOT NULL,
+               revoked_at REAL
+           )"""
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_dashboard_sessions_expires ON dashboard_sessions(expires_at)"
+    )
+
+
 def init_db(path: Path | None = None) -> None:
     with _conn(path) as connection:
         version = connection.execute('PRAGMA user_version').fetchone()[0]
@@ -198,6 +214,7 @@ def init_db(path: Path | None = None) -> None:
             _ensure_always_on_schema(connection)
             _ensure_tool_raw_input_schema(connection)
             _ensure_skillcache_schema(connection)
+            _ensure_dashboard_sessions_schema(connection)
             return
         if version or connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").fetchone():
             raise RuntimeError('database schema needs offline migration before starting Orchestra')
@@ -213,6 +230,7 @@ def init_db(path: Path | None = None) -> None:
         _ensure_always_on_schema(connection)
         _ensure_tool_raw_input_schema(connection)
         _ensure_skillcache_schema(connection)
+        _ensure_dashboard_sessions_schema(connection)
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
 
 

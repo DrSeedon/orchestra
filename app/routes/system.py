@@ -114,22 +114,87 @@ async def login_page(request: Request):
                                       headers={"Cache-Control": "no-cache"})
 
 
+_LOGIN_WINDOW_SECONDS = 900
+_LOGIN_MAX_USER_FAILS = 10
+_LOGIN_MAX_IP_FAILS = 20
+_login_failures: dict[tuple[str, str], list[float]] = {}
+_login_ip_failures: dict[str, list[float]] = {}
+
+
+def _reset_login_rate_limits() -> None:
+    _login_failures.clear()
+    _login_ip_failures.clear()
+
+
+def _login_client_ip(request: Request) -> str:
+    peer = request.client.host if request.client else ""
+    if peer in ("127.0.0.1", "::1", "testclient"):
+        real_ip = (request.headers.get("x-real-ip") or "").strip()
+        if real_ip:
+            return real_ip
+        forwarded = (request.headers.get("x-forwarded-for") or "").split(",", 1)[0].strip()
+        if forwarded:
+            return forwarded
+    return peer or "unknown"
+
+
+def _prune_login_attempts(bucket: list[float], now: float) -> list[float]:
+    cutoff = now - _LOGIN_WINDOW_SECONDS
+    return [ts for ts in bucket if ts > cutoff]
+
+
 @router.post("/login")
 async def login_submit(request: Request, username: str = Form(""), password: str = Form("")):
-    from app.auth import check_credentials, create_session
+    import time
+    from app.auth import DASHBOARD_SESSION_TTL_SECONDS, check_credentials, create_session
+
     if not is_auth_enabled():
         return RedirectResponse("/", status_code=302)
+
+    now = time.monotonic()
+    client_ip = _login_client_ip(request)
+    user_key = (client_ip, username.strip().lower())
+    user_fails = _prune_login_attempts(_login_failures.get(user_key, []), now)
+    ip_fails = _prune_login_attempts(_login_ip_failures.get(client_ip, []), now)
+    _login_failures[user_key] = user_fails
+    _login_ip_failures[client_ip] = ip_fails
+    if len(user_fails) >= _LOGIN_MAX_USER_FAILS or len(ip_fails) >= _LOGIN_MAX_IP_FAILS:
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"error": "Too many failed login attempts. Try again later."},
+            status_code=429,
+            headers={"Retry-After": str(_LOGIN_WINDOW_SECONDS)},
+        )
+
     if check_credentials(username, password):
+        _login_failures.pop(user_key, None)
+        _login_ip_failures.pop(client_ip, None)
         token = create_session(username)
         response = RedirectResponse("/", status_code=302)
         secure = request.url.scheme == "https" or os.environ.get("COOKIE_SECURE") == "1"
-        response.set_cookie("session", token, httponly=True, samesite="lax", max_age=2592000, secure=secure)
+        response.set_cookie(
+            "session",
+            token,
+            httponly=True,
+            samesite="lax",
+            max_age=DASHBOARD_SESSION_TTL_SECONDS,
+            secure=secure,
+        )
         return response
-    return templates.TemplateResponse(request, "login.html", {"error": "Invalid credentials"})
+
+    user_fails.append(now)
+    ip_fails.append(now)
+    _login_failures[user_key] = user_fails
+    _login_ip_failures[client_ip] = ip_fails
+    return templates.TemplateResponse(request, "login.html", {"error": "Invalid credentials"}, status_code=401)
 
 
 @router.post("/logout")
 async def logout(request: Request):
+    from app.auth import revoke_session
+
+    revoke_session(request.cookies.get("session", ""))
     response = RedirectResponse("/login", status_code=302)
     response.delete_cookie("session")
     return response

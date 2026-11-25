@@ -1,8 +1,25 @@
+# Default binds strictly to loopback to prevent unencrypted login exposure.
+# For public deployment, place behind TLS (HTTPS) with COOKIE_SECURE=1 and redirect HTTP -> HTTPS:
+#   server { listen 80; server_name your.domain; return 301 https://$host$request_uri; }
+#   limit_req_zone $binary_remote_addr zone=orchestra_login:10m rate=5r/m;
 server {
-    listen 80;
+    listen 127.0.0.1:80;
+    listen [::1]:80;
     server_name _;
 
     client_max_body_size 50M;
+
+    location = /login {
+        # Enable after placing /etc/nginx/conf.d/orchestra-login-rate.conf:
+        # limit_req zone=orchestra_login burst=5 nodelay;
+        # limit_req_status 429;
+        proxy_pass http://127.0.0.1:8888;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:8888;

@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import logging
 import math
+import os
 import tempfile
 import uuid
 from pathlib import Path
@@ -401,6 +402,65 @@ async def tg_delivery_stats():
     return _tg_delivery_snapshots()
 
 
+def _session_allowed_file_roots(source: dict | None) -> list[Path]:
+    """Return resolved roots reachable by an authenticated MCP session's send_file."""
+    from app.task_runtime import task_repository_path
+
+    if not isinstance(source, dict):
+        return []
+    home_resolved = Path.home().resolve()
+    broad_forbidden = {
+        Path("/"), home_resolved, Path("/mnt"), Path("/mnt/data"), Path("/opt"), Path("/tmp"),
+    }
+    roots: list[Path] = []
+    for key in ("scope", "worktree_path", "cwd"):
+        raw = str(source.get(key) or "").strip()
+        if not raw:
+            continue
+        try:
+            resolved = Path(raw).resolve()
+        except OSError:
+            continue
+        if resolved not in broad_forbidden and resolved not in roots:
+            roots.append(resolved)
+    task_id = str(source.get("task_id") or "").strip()
+    if task_id and Path(task_id).name == task_id and task_id not in (".", ".."):
+        try:
+            task_dir = (task_repository_path().resolve() / task_id).resolve()
+            if task_dir not in roots:
+                roots.append(task_dir)
+        except OSError:
+            pass
+    for export_root in (CHART_DIR, UPLOADS_DIR):
+        try:
+            resolved = export_root.resolve()
+            if resolved not in roots:
+                roots.append(resolved)
+        except OSError:
+            pass
+    return roots
+
+
+def _is_session_file_allowed(source: dict | None, raw_path: str) -> bool:
+    """Reject symlinks or paths resolving outside the authenticated MCP session's project roots."""
+    roots = _session_allowed_file_roots(source)
+    if not roots:
+        return False
+    try:
+        resolved = Path(raw_path).resolve()
+    except (ValueError, OSError):
+        return False
+    resolved_str = str(resolved)
+    for root in roots:
+        root_str = str(root)
+        try:
+            if os.path.commonpath([root_str, resolved_str]) == root_str:
+                return True
+        except (ValueError, OSError):
+            continue
+    return False
+
+
 @router.post("/api/tg/send_file")
 async def tg_send_file(req: dict, request: Request):
     from app.auth import validate_session
@@ -424,12 +484,11 @@ async def tg_send_file(req: dict, request: Request):
         return JSONResponse({"error": "path required"}, status_code=400)
     if not event_id:
         return JSONResponse({"error": "event_id required"}, status_code=400)
-    unsafe_paths = [item for item in paths if not _is_safe_path(item)] if is_batch else []
-    if unsafe_paths or (not is_batch and not _is_safe_path(path)):
-        return JSONResponse({"error": "access denied"}, status_code=403)
-
     source_session_id = None
+    source = None
+    is_operator = False
     if validate_session(request.cookies.get("session", "")):
+        is_operator = True
         scope = str(req.get("scope", ""))
         sender = str(req.get("sender", ""))
     else:
@@ -440,6 +499,12 @@ async def tg_send_file(req: dict, request: Request):
             return keyed_auth_required()
         scope = str(source.get("scope") or "")
         sender = str(source.get("name") or "")
+
+    candidate_paths = paths if is_batch else [path]
+    if any(not _is_safe_path(item) for item in candidate_paths):
+        return JSONResponse({"error": "access denied"}, status_code=403)
+    if not is_operator and any(not _is_session_file_allowed(source, item) for item in candidate_paths):
+        return JSONResponse({"error": "access denied"}, status_code=403)
 
     from app import tg_bridge
     orch_name, thread_id = tg_bridge._resolve_topic(scope, sender)
