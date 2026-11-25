@@ -135,7 +135,7 @@ def test_passport_lists_all_routes_and_actual_transport_limits():
     root=Path(__file__).resolve().parents[1]
     text=(root/".orchestra/pipelines/default/prompts/modules/model-routing.md").read_text()
     kb=(root/".orchestra/kb/models-and-quotas.md").read_text()
-    for name in (*ALIASES,"gemini-pro-orchestrator-g1-pro","hubcarbon","hubhydrogen","hubargon"):
+    for name in (*ALIASES,"gemini-pro-orchestrator-g1-pro","hubneon","hubcarbon","hubhydrogen","hubargon"):
         assert name in text
     assert "1,000,000" in text and "1 MiB" in text and "Semaphore(3)" in text
     assert "1–2" in text and "hub-projects.json" in text and "Carbon" in text

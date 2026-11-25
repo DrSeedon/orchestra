@@ -8,7 +8,8 @@ Select worker models by task fit, subject to live admission in `app/models.py`, 
 |---|---|---|
 | `hubsol` | Default coding, refactors and deep audits for workers without VPS local secrets (Hub Sol 6.2) | Admitted Hub worker route across all projects; reserve local `sol` for rare tasks needing local VPS contour |
 | `hubastra` | Hard debugging, math/science and escalations after `hubsol` | Admitted Hub Codex route; pass clean handoff state (diff + deterministic error) |
-| `hubcarbon` | Frontier cross-domain reasoning, architecture and UI/vision review | Admitted Hub worker & specialist route |
+| `hubneon` | **Primary Hub Gemini worker & specialist (`high` effort)**: multi-file engineering, architecture, UI/vision review and deep analysis | Default Hub Gemini worker & specialist route (replaces `hubcarbon`); local VPS OAuth Neon remains orchestrator-only |
+| `hubcarbon` | Rare reserve for `1M`-context audits and exceptional cross-domain synthesis (default Hub Gemini worker is `hubneon`) | Reserve Hub Gemini worker route (`1M` context) |
 | `hubhydrogen` | High-speed agentic coding, large-context review, scripting and tests | Admitted Hub worker route |
 | `hubargon` | **REMOVED by Google (25.11.2026)** — do not assign `Gemini 4 Argon` to new workers; use `Neon` / `Hydrogen` / `Carbon` instead | Retired from new spawns |
 | `hubopus` | Complex architecture, multi-file coding and deep debugging | **Multicast projects only** (`multicode`, `multicast`, `obelisk`, `polus`, `empire-front`) |
@@ -62,7 +63,7 @@ is the native advertised window; the Gemini 1M document guidance is not a univer
    orchestrator messages keep their existing event-driven contract.
 2. Launch at most **1–2 local workers together**. The shared profile has `Semaphore(3)`;
    leave room for the owner's interactive session. This does not guarantee vendor internal-call limits.
-3. Neon (`antigravity/gemini-4-neon-medium` default) is **orchestrator-only** (workers must use `hubsol`, `sol`, or other admitted routes, never Neon). Antigravity `xhigh` (`gemini-4-neon-xhigh`, `gemini-4-hydrogen-xhigh`) is disabled. If an Antigravity orchestrator needs > 5 tool calls, parsing/scraping, or headless CDP browser checks, delegate to a `hubsol` or `sol` worker. Neon, Hydrogen and 3.8 Flash share **Gemini Models** (`gemini-weekly` / `gemini-5h`).
+3. Local VPS OAuth Neon (`antigravity/gemini-4-neon-medium` default) is **orchestrator-only** (local OAuth workers must never use Neon; Hub workers use `hubneon` at `high` effort or `hubsol` / other admitted routes). Antigravity `xhigh` (`gemini-4-neon-xhigh`, `gemini-4-hydrogen-xhigh`) is disabled. If an Antigravity orchestrator needs > 5 tool calls, parsing/scraping, or headless CDP browser checks, delegate to a `hubsol` or `sol` worker. Neon, Hydrogen and 3.8 Flash share **Gemini Models** (`gemini-weekly` / `gemini-5h`).
    Argon and Orchestrator (Argon) use `gemini-argon-wtu-weekly`. Local Claude 5.5 uses `3p-weekly` / `3p-5h`.
    Respect fresh 5h/weekly observations; unknown/stale observations are not invented capacity.
 4. **Local Carbon is unavailable on this g1-pro VPS**: never spawn `agy-carbon`,
@@ -80,7 +81,8 @@ policy allows Hub. A project-level Hub prohibition wins; native admission does n
 
 | Route | Use it for |
 |---|---|
-| `hubcarbon` (Hub Carbon) | Flagship Carbon through the Hub Ultra pool: cross-domain synthesis, difficult architecture, UI review and vision review when the actual media-input path is supported. Carbon is available here, not through this local g1-pro profile. |
+| `hubneon` (Hub Neon, `high` effort) | **Primary recommended Hub Gemini worker & specialist** (instead of `hubcarbon`): multi-file engineering, architecture, diff/security audit and UI/vision review on the Hub pool (`hubneon` is admitted for Hub workers; local VPS OAuth Neon remains orchestrator-only). |
+| `hubcarbon` (Hub Carbon) | Rare reserve for `1M`-context audits and exceptional cross-domain synthesis / vision review when supported; prefer `hubneon` (`high`) for normal Hub Gemini worker/specialist tasks. Carbon is available here, not through this local g1-pro profile. |
 | `hubhydrogen` (Hub Hydrogen) | Broker-hosted Hydrogen for fast coding/research/document work in permitted Hub projects. |
 | `hubargon` (Hub Argon) | **REMOVED by Google (25.11.2026)** — do NOT assign to new workers; migrate to `Neon` / `hubhydrogen` / `hubcarbon`. |
 
@@ -96,6 +98,6 @@ Never silently fall back between local/Hub routes, copy forbidden projects or en
 
 ### Hard routing invariants
 - **Project boundary**: Hub-Claude (`hubopus`, `hubsonnet`, `hub-claude-*`) and direct Anthropic (`claude-*`, runtime `claude`) remain Multicast-only. Owner exception 2026-11-18: our six local `antigravity/claude-{opus,sonnet}-5-5-{low,medium,high}` routes (`agy-opus*` / `agy-sonnet*`) may serve all VPS projects, sparingly and only for rare difficult work. They retain the same no-cron/timer/polling and shared `Semaphore(3)` rules.
-- **Hub data authorization** (owner decision, 2026-11-04): all project code, internal company documents, commercial offers, tenders and KB indexes (including Seedon) are fully authorized on admitted Hub routes (`hubcarbon`, `hubhydrogen`, `hubargon`, `hubsol`, `hubsonnet`, `hubluna`). Never block Hub dispatch over internal docs or KB; exclude only credentials, tokens and `.env` secrets.
+- **Hub data authorization** (owner decision, 2026-11-04): all project code, internal company documents, commercial offers, tenders and KB indexes (including Seedon) are fully authorized on admitted Hub routes (`hubneon`, `hubcarbon`, `hubhydrogen`, `hubargon`, `hubsol`, `hubsonnet`, `hubluna`). Never block Hub dispatch over internal docs or KB; exclude only credentials, tokens and `.env` secrets.
 - **Fail closed, no silent fallback**: never select disabled providers (`local`/`heretic` are permanently disabled; respect `disabled_providers.json`), invent aliases, mutate role/task metadata to evade refusal, or fall back to paid API credits without explicit task `billing="api_credit"` approval.
 </model-routing>

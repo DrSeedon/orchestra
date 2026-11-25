@@ -88,7 +88,7 @@ def test_selectable_models_match_the_curated_catalog():
         "GigaChat-2-Pro", "GigaChat-3-Lightning", "GigaChat-3-Pro",
         "hub-claude-haiku-5-5", "hub-claude-sonnet-5-5", "hub-claude-opus-5-5",
         "hub-gpt-6-luna", "hub-gpt-6.2-sol", "hub-gpt-6.2-astra", "hub-grok-4.7",
-        "hub-gemini-4-argon", "hub-gemini-4-carbon", "hub-gemini-4-hydrogen",
+        "hub-gemini-4-neon", "hub-gemini-4-argon", "hub-gemini-4-carbon", "hub-gemini-4-hydrogen",
     }
     # Antigravity (05.11.2026) and Gemini Web (05.11.2026) runtimes declare their own rows.
     from app.gemini_web_auth import MODELS as gemini_web_models

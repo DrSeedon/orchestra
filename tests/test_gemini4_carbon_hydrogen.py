@@ -6,6 +6,7 @@ from app.pipeline import get_role, load_pipeline, resolve_effort
 
 
 def test_carbon_and_hydrogen_aliases_and_context_limits():
+    assert models.resolve_model("hubneon") == "hub-gemini-4-neon"
     assert models.resolve_model("hubcarbon") == "hub-gemini-4-carbon"
     assert models.resolve_model("hubhydrogen") == "hub-gemini-4-hydrogen"
     assert models.resolve_model("agy-carbon") == "antigravity/gemini-4-carbon-medium"
@@ -23,7 +24,7 @@ def test_carbon_and_hydrogen_aliases_and_context_limits():
 
 
 @pytest.mark.parametrize("scope", ["/home/kesha/orchestra", "/home/kesha/seedon", "/mnt/multicast/game"])
-@pytest.mark.parametrize("alias", ["hubcarbon", "hubhydrogen", "hub-gemini-4-carbon", "hub-gemini-4-hydrogen"])
+@pytest.mark.parametrize("alias", ["hubneon", "hubcarbon", "hubhydrogen", "hub-gemini-4-neon", "hub-gemini-4-carbon", "hub-gemini-4-hydrogen"])
 def test_carbon_and_hydrogen_admitted_across_all_project_scopes(scope, alias, monkeypatch):
     monkeypatch.delenv("ORCHESTRA_ALLOW_CLAUDE_ALL", raising=False)
     models.ensure_hub_worker_allowed(alias, role="worker", pipeline="default", scope=scope, task_id="t1")
@@ -33,6 +34,7 @@ def test_default_pipeline_effort_for_carbon_and_hydrogen():
     load_pipeline.cache_clear()
     for role_name in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer", "specialist"):
         role = get_role("default", role_name)
+        assert resolve_effort(role.effort, "hub-gemini-4-neon", "hub") == "high"
         assert resolve_effort(role.effort, "hub-gemini-4-carbon", "hub") == "high"
         assert resolve_effort(role.effort, "hub-gemini-4-hydrogen", "hub") == "high"
 
@@ -75,6 +77,42 @@ async def test_hub_backend_model_selection_supports_carbon_and_unlisted_hydrogen
         }
     with pytest.raises(ValueError, match="does not support effort 'max'"):
         await hb._model_selection(mc, "hub-gemini-4-hydrogen", "max")
+
+    # Unlisted Neon fallback + explicit listed Neon catalog path
+    for eff in ("low", "medium", "high", "xhigh"):
+        sel = await hb._model_selection(mc, "hub-gemini-4-neon", eff)
+        assert sel == {
+            "instanceId": "antigravity",
+            "model": "gemini-4-neon",
+            "options": {"reasoningEffort": eff},
+        }
+    with pytest.raises(ValueError, match="does not support effort 'max'"):
+        await hb._model_selection(mc, "hub-gemini-4-neon", "max")
+
+    hb_listed = backend_hub.HubBackend(model="hub-gemini-4-neon", cwd="/tmp")
+    mc_listed = AsyncMock()
+    mc_listed.tool_call = AsyncMock(return_value={
+        "providers": [{
+            "providerInstanceId": "antigravity",
+            "models": [{
+                "id": "gemini-4-neon",
+                "options": [{
+                    "id": "reasoningEffort",
+                    "type": "select",
+                    "options": [{"id": "low"}, {"id": "medium"}, {"id": "high"}, {"id": "xhigh"}],
+                }],
+            }],
+        }],
+    })
+    for eff in ("low", "medium", "high", "xhigh"):
+        sel = await hb_listed._model_selection(mc_listed, "hub-gemini-4-neon", eff)
+        assert sel == {
+            "instanceId": "antigravity",
+            "model": "gemini-4-neon",
+            "options": {"reasoningEffort": eff},
+        }
+    with pytest.raises(ValueError, match="does not support effort 'max'"):
+        await hb_listed._model_selection(mc_listed, "hub-gemini-4-neon", "max")
 
 
 def test_antigravity_gemini4_dashboard_visibility_and_frontend_tokens():

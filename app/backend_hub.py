@@ -44,12 +44,14 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
     "hub-gpt-6-luna": ("codex", "gpt-6-luna"),
     "hub-gpt-6.2-sol": ("codex", "gpt-6.2-sol"),
     "hub-gemini-4-argon": ("antigravity", "gemini-4-argon"),
+    "hub-gemini-4-neon": ("antigravity", "gemini-4-neon"),
     "hub-gemini-4-carbon": ("antigravity", "gemini-4-carbon"),
     "hub-gemini-4-hydrogen": ("antigravity", "gemini-4-hydrogen"),
     "hub-grok-4.7": ("grok", "grok-4.7"),
 }
 # Live Antigravity ACP models whose family options are not yet in T3's static catalog.
 HUB_UNLISTED_EFFORT_OPTIONS: dict[tuple[str, str], tuple[str, tuple[str, ...]]] = {
+    ("antigravity", "gemini-4-neon"): ("reasoningEffort", ("low", "medium", "high", "xhigh")),
     ("antigravity", "gemini-4-hydrogen"): ("reasoningEffort", ("low", "medium", "high", "xhigh")),
 }
 TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}

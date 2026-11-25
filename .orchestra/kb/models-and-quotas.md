@@ -3,7 +3,11 @@
 Канонический паспорт роутинга и транспортных ограничений: [model-routing.md](../pipelines/default/prompts/modules/model-routing.md).  
 Архив ранних замеров (V-541, V-542, V-548–V-550, V-568, V-599, V-605, V-608, V-616–V-624, V-649, V-656–V-671, V-723–V-813): [models-and-quotas-history.md](models-and-quotas-history.md).
 
-## Established (действует на 21.11.2026)
+## Established (действует на 25.11.2026)
+
+### 0. Основной Hub Gemini воркер — `hubneon` (`hub-gemini-4-neon`, `high`) (Волна 28, `25.11.2026`)
+- **Приоритет Hub Gemini:** `hubneon` (`hub-gemini-4-neon`, `effort: high`) — основной рекомендуемый Hub Gemini воркер и `specialist` **вместо `hubcarbon`** (`hub-gemini-4-carbon` сохранён в `ALLOWED_HUB_WORKER_MODELS` и как редкий резерв для `1M`-контекстных аудитов и совместимости БД/истории).
+- **Граница local vs Hub:** локальный OAuth `antigravity/gemini-4-neon-*` на VPS остаётся строго `orchestrator-only`, а для Hub-воркеров и специалистов открыт именно `hubneon`.
 
 ### 1. Три независимых пула Antigravity (Google) и 26 моделей
 - В Orchestra и Кеше открыты все 3 пула квоты **Google Antigravity** (Волна 19, `d79440678`, 26 моделей каталога в `app/models.py`):

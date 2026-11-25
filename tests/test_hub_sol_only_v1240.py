@@ -283,7 +283,7 @@ def test_only_the_owner_hub_stack_is_enabled_for_agents_by_default(monkeypatch):
         if spec.runtime == 'hub' and models.get_model_flags(spec.id)['agents']
     }
     assert enabled == models.ALLOWED_HUB_WORKER_MODELS == {
-        'hub-claude-opus-5-5', 'hub-claude-sonnet-5-5', 'hub-gemini-4-argon',
-        'hub-gemini-4-carbon', 'hub-gemini-4-hydrogen',
-        'hub-gpt-6.1-sol', 'hub-gpt-6-luna', 'hub-gpt-6-astra',
+        'hub-claude-haiku-5-5', 'hub-claude-opus-5-5', 'hub-claude-sonnet-5-5',
+        'hub-gemini-4-neon', 'hub-gemini-4-argon', 'hub-gemini-4-carbon', 'hub-gemini-4-hydrogen',
+        'hub-gpt-6.2-sol', 'hub-gpt-6-luna', 'hub-gpt-6.2-astra',
     }

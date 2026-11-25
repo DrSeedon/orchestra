@@ -174,6 +174,11 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         input_modalities=(),
     ),
     ModelSpec(
+        id="hub-gemini-4-neon", name="Hub: Gemini 4 Neon",
+        runtime="hub", provider="multicode", context_length=0, default_agents=True,
+        input_modalities=(),
+    ),
+    ModelSpec(
         id="hub-gemini-4-carbon", name="Hub: Gemini 4 Carbon",
         runtime="hub", provider="multicode", context_length=0, default_agents=True,
         input_modalities=(),
@@ -433,6 +438,7 @@ ALIASES = {
     "hubsol": "hub-gpt-6.2-sol",
     "hubastra": "hub-gpt-6.2-astra",
     "hubargon": "hub-gemini-4-argon",
+    "hubneon": "hub-gemini-4-neon",
     "hubcarbon": "hub-gemini-4-carbon",
     "hubhydrogen": "hub-gemini-4-hydrogen",
     "hubgrok": "hub-grok-4.7",
@@ -1189,7 +1195,8 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
         if runtime not in ("claude", "codex"):
             return ""
     return ("The MultiCode hub pool has its own quota: ordinary workers may use "
-            "model='hubopus' (xhigh effort), model='hubsonnet' (high), model='hubcarbon' (medium), "
+            "model='hubopus' (xhigh effort), model='hubsonnet' (high), "
+            "model='hubneon' (high), model='hubcarbon' (high; 1M reserve), "
             "model='hubhydrogen' (high), model='hubargon' (medium), "
             "model='hubsol' or model='hubluna'. "
             "Select the route explicitly; if unavailable, report the blocker or wait; "
@@ -1201,6 +1208,7 @@ LOCAL_LUNA_MODEL = "gpt-6-luna"
 HUB_SOL_ONLY_RULE = "hub_workers_require_sol"
 HUB_SOL_MODEL = "hub-gpt-6.2-sol"
 HUB_ARGON_MODEL = "hub-gemini-4-argon"
+HUB_NEON_MODEL = "hub-gemini-4-neon"
 HUB_CARBON_MODEL = "hub-gemini-4-carbon"
 HUB_HYDROGEN_MODEL = "hub-gemini-4-hydrogen"
 HUB_HAIKU_MODEL = "hub-claude-haiku-5-5"
@@ -1215,7 +1223,7 @@ NATIVE_CODEX_AGENT_MODELS = frozenset({
     "gpt-5.3-codex-spark",
 })
 ALLOWED_HUB_WORKER_MODELS = frozenset({
-    HUB_HAIKU_MODEL, HUB_OPUS_MODEL, HUB_SONNET_MODEL, HUB_CARBON_MODEL,
+    HUB_HAIKU_MODEL, HUB_OPUS_MODEL, HUB_SONNET_MODEL, HUB_NEON_MODEL, HUB_CARBON_MODEL,
     HUB_HYDROGEN_MODEL, HUB_ARGON_MODEL, HUB_SOL_MODEL, HUB_LUNA_MODEL, HUB_ASTRA_MODEL,
 })
 HUB_SPECIALIST_ROLE = "specialist"
@@ -1266,7 +1274,7 @@ def ensure_hub_worker_allowed(
     if is_hub and model_id not in ALLOWED_HUB_WORKER_MODELS:
         raise ValueError(
             f"{HUB_SOL_ONLY_RULE}: hub worker model '{model}' is forbidden in every scope; "
-            "use hubopus, hubsonnet, hubcarbon, hubhydrogen, hubargon, hubsol, hubastra or hubluna. "
+            "use hubopus, hubsonnet, hubneon, hubcarbon, hubhydrogen, hubargon, hubsol, hubastra or hubluna. "
             "model_reason and catalog flags do not grant an exception. If the selected "
             "route is at capacity or unavailable, report the blocker or wait; do not "
             "automatically fall back to another model, native workers or API credits. "
@@ -1320,7 +1328,7 @@ def ensure_spawn_allowed(
     ):
         raise ValueError(
             f"{AGENT_HUB_ROUTE_RULE}: model '{model_id}' is disabled for agents on "
-            "subscription routes; use hubsol, hubargon, hubsonnet or hubluna for Hub work. "
+            "subscription routes; use hubsol, hubneon, hubargon, hubsonnet or hubluna for Hub work. "
             "Native exceptions are the exact g1-pro Gemini worker allowlist "
             "(agy-neon, agy-hydrogen, agy-argon, agy-flash and our local Claude 5.5 routes) and model='luna' for explicitly local "
             "work with a non-empty model_reason "

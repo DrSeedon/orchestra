@@ -11,6 +11,7 @@ action vs admitted worker delegation) defined in the shared orchestration module
 On Gemini Neon orchestrators (`antigravity/gemini-4-neon-medium`, orchestrator-only; `xhigh` banned):
 never execute long chains (> 5 sequential tool calls), scraping/parsing sweeps, or headless browser/CDP
 checks yourself — delegate multi-step execution and verification to `hubsol` / `sol` workers.
+For Hub Gemini workers and specialists, prefer `hubneon` (`high` effort) as the primary Hub Gemini route instead of `hubcarbon` (reserve `hubcarbon` for rare `1M`-context audits); local VPS OAuth Neon remains orchestrator-only.
 </decision-tree>
 
 <tools>

@@ -81,7 +81,7 @@ and a descriptive entry in `.orchestra/kb/README.md` to reach agents.
   MemoryMax=2G; use `/mnt/data` for large temporary files. Stop only precisely owned PIDs.
 - Owner decision, 2026-11-04: all project tasks, internal company data, documents,
   commercial offers, tenders and KB indexes, including Seedon, may be sent to
-  `hubargon`, `hubsol`, `hubsonnet` and `hubluna`. Their presence must not block Hub
+  `hubneon`, `hubargon`, `hubsol`, `hubsonnet` and `hubluna`. Their presence must not block Hub
   dispatch. Credential exclusion still applies. Disabled providers remain disabled;
   provider failure does not authorize a paid fallback.
 - New paid API routes require permission. Harness admits exact free routes and only

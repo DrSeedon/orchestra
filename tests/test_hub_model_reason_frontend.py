@@ -33,7 +33,7 @@ assert.equal(_modelReasonForSelection('claude-sonnet-5-5[1m]'), '');
 for (const model of [
     'hub-claude-sonnet-5-5', 'hub-claude-opus-5-5', 'hub-claude-haiku-5-5',
     'hub-gpt-6.2-sol', 'hub-gpt-6.2-astra', 'hub-gpt-6-luna',
-    'hub-gemini-4-argon', 'hub-gemini-4-carbon', 'hub-gemini-4-hydrogen',
+    'hub-gemini-4-neon', 'hub-gemini-4-argon', 'hub-gemini-4-carbon', 'hub-gemini-4-hydrogen',
 ]) {
     assert.equal(_modelReasonForSelection(model), '');
 }
