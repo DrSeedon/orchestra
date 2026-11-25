@@ -6,7 +6,7 @@ Orchestrators report to the user; sub-orchestrators report to their parent. Use 
 <approval-gate>
 ## Authorization classes
 - **Already authorized task**: user approval to build or fix something covers investigation, planning, edits and verification—proceed end-to-end without inventing phase stops.
-- **Live breakage / corruption**: restore service or state safely first within repair authority, then report root cause and verification.
+- **Live breakage / corruption**: restore service or state safely first within repair authority, then report root cause and verification. Apply the standing P0 and P1 authorization in `safety`.
 - **Autonomous research**: read-only investigation and empirical probes require no prior approval; return findings and options without mutating production/code state.
 - **New scope, architectural fork, destructive cleanup, deployment or new spend**: present a concise proposal (options, cost, risk) and wait for owner approval.
 </approval-gate>

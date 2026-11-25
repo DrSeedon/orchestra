@@ -63,6 +63,13 @@ def cached_profile(home: Path):
     return _owners.get(Path(home).resolve())
 
 
+def orchestra_mcp_turn_active(session_id: str) -> bool:
+    return bool(session_id) and any(
+        owner.active_orchestra_mcp_session == session_id and not owner.failure
+        for owner in _owners.values()
+    )
+
+
 def get_profile(home: Path):
     home = Path(home).resolve()
     owner = _owners.get(home)
@@ -117,6 +124,8 @@ class AcpProfile:
         self.max_concurrent_turns = max_turns
         self.turn_semaphore = asyncio.Semaphore(max_turns)
         self.turn_lock = self.turn_semaphore
+        self._mcp_turn_lock = asyncio.Lock()
+        self.active_orchestra_mcp_session = ""
         self._setup_lock = asyncio.Lock()
         self.session_locks: dict[str, asyncio.Lock] = {}
         self._start_lock = asyncio.Lock()
@@ -142,19 +151,44 @@ class AcpProfile:
     async def turn_slot(self, backend):
         # A timed-out native prompt may still run. Retain its slot until actual
         # close/transport death, rather than over-admitting three more prompts.
+        app_session_id = getattr(backend, "app_session_id", "")
+        # The provider's MCP registry can expose a sibling's server. One
+        # authenticated caller per profile makes the tool-side check decisive.
+        # Mux turns share the profile but must never hold an Orchestra MCP grant.
+        scoped = bool(app_session_id or getattr(backend, "owner_id", ""))
+        held = False
         try:
-            async with asyncio.timeout(self.request_timeout):
+            async with asyncio.timeout(self.prompt_max_timeout if scoped else self.request_timeout):
+                if scoped:
+                    await self._mcp_turn_lock.acquire()
+                    held = True
                 await self.turn_semaphore.acquire()
         except TimeoutError:
+            if held:
+                self._mcp_turn_lock.release()
             raise AcpSessionError("ACP prompt capacity busy/uncertain; no submission") from None
+        except BaseException:
+            if held:
+                self._mcp_turn_lock.release()
+            raise
         try:
+            if scoped:
+                self.active_orchestra_mcp_session = app_session_id
             yield
         finally:
-            sid = backend.session_id
-            if sid in self.uncertain_sessions and sid not in self._quarantined_slots and not self.failure:
-                self._quarantined_slots.add(sid)
-            else:
-                self.turn_semaphore.release()
+            try:
+                if scoped:
+                    self.active_orchestra_mcp_session = ""
+                    if self.uncertain_sessions and not self.failure:
+                        await self.close("ACP prompt outcome uncertain; retire MCP transport before next caller")
+            finally:
+                sid = backend.session_id
+                if not scoped and sid in self.uncertain_sessions and sid not in self._quarantined_slots and not self.failure:
+                    self._quarantined_slots.add(sid)
+                else:
+                    self.turn_semaphore.release()
+                if held:
+                    self._mcp_turn_lock.release()
 
     def session_lock(self, session_id: str) -> asyncio.Lock:
         lock = self.session_locks.get(session_id)
@@ -372,7 +406,9 @@ class AcpProfile:
                 self.uncertain_sessions.add(sid)
             raise
         except asyncio.CancelledError:
-            # The backend shields submitted prompts and sends protocol cancellation.
+            # A cancelled request future does not terminate an already written prompt.
+            if prompt and started and not future.done():
+                self.uncertain_sessions.add(sid)
             raise
         except TimeoutError:
             if not prompt or not started:

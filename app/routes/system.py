@@ -3238,6 +3238,19 @@ async def read_bug_reports():
     )
 
 
+@router.get("/api/antigravity/mcp-turn")
+async def antigravity_mcp_turn(request: Request):
+    from app.antigravity_acp import orchestra_mcp_turn_active
+    from app.mcp_proof import PROOF_HEADER, check_mcp_proof
+
+    session_id = request.headers.get("x-orchestra-session-id", "").strip()
+    if not check_mcp_proof(session_id, request.headers.get(PROOF_HEADER, "")):
+        return JSONResponse({"error": {"code": "mcp_proof_required"}}, status_code=403)
+    if not orchestra_mcp_turn_active(session_id):
+        return JSONResponse({"error": {"code": "acp_mcp_turn_refused"}}, status_code=403)
+    return {"ok": True}
+
+
 @router.get("/api/orchestrators")
 async def list_orchestrators():
     from app.prompting import is_orchestrator_role

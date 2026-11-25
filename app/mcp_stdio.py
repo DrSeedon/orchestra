@@ -49,6 +49,7 @@ _cli_parser = argparse.ArgumentParser(add_help=False)
 _cli_parser.add_argument("--scope", default="")
 _cli_parser.add_argument("--sender", default="")
 _cli_parser.add_argument("--session-id", default="")
+_cli_parser.add_argument("--require-active-acp-turn", action="store_true")
 _cli_args, _ = _cli_parser.parse_known_args()
 
 ORCHESTRA_URL = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888")
@@ -65,6 +66,7 @@ SESSION_ID = _cli_args.session_id or os.environ.get("ORCHESTRA_SESSION_ID", "")
 PARENT_NAME = os.environ.get("PARENT_NAME", "")
 _INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")
 _MCP_PROOF = os.environ.get("ORCHESTRA_MCP_PROOF", "")
+_ACP_MCP_GUARD = _cli_args.require_active_acp_turn
 ACCESS_MODE = os.environ.get("ORCHESTRA_ACCESS_MODE", "full").strip().lower()
 # Backend plants this nonce in our env. We write a proof file so Grok's same-name
 # MCP merge cannot pass off a foreign `orchestra` server as ours.
@@ -240,6 +242,10 @@ class OrchestraMCP(FastMCP):
 
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         try:
+            if _ACP_MCP_GUARD:
+                admission = await _api("GET", "/api/antigravity/mcp-turn", timeout=5)
+                if not isinstance(admission, dict) or admission.get("ok") is not True:
+                    raise ApiToolError(code="acp_mcp_turn_refused", message="No active ACP turn for this MCP session")
             if name in DISABLED_TOOLS:
                 raise ApiToolError(
                     code="tool_disabled",

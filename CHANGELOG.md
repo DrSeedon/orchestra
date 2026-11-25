@@ -6,9 +6,9 @@
 
 ## Unreleased
 
-- **Antigravity registers Orchestra MCP separately for each session.** A shared ACP
-  daemon receives a stable, distinct server name for each session's tools, keeping
-  file delivery and other calls bound to the originating session.
+- **Antigravity authorizes Orchestra MCP calls against the active session.** Each
+  session has its own MCP server name. A shared profile admits one MCP-capable
+  turn at a time, and its tools check the active session before dispatching.
 
 - **Error-watch classifies the optional shared-private non-Git warning as noise**
   (V-1297; `app/error_watch.py`). Only complete journal warnings from the optional

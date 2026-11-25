@@ -1338,6 +1338,7 @@ class AntigravityBackend:
                 if app_session_id:
                     suffix = hashlib.sha256(app_session_id.encode()).hexdigest()[:12]
                     name = f"orchestra_{suffix}"
+                    args_in.append("--require-active-acp-turn")
                 _scope = str(env_dict.get("ORCHESTRA_SCOPE") or "").strip()
                 _sender = str(env_dict.get("WORKER_NAME") or "").strip()
                 _sid = str(env_dict.get("ORCHESTRA_SESSION_ID") or "").strip()
@@ -1351,7 +1352,7 @@ class AntigravityBackend:
             args = [config["command"], *args_in] if clean else args_in
             servers.append({"name": name, "command": command,
                 "args": args, "env": [
-                    {"name": key, "value": str(value)} for key, value in config.get("env", {}).items()]})
+                    {"name": key, "value": str(value)} for key, value in env_dict.items()]})
         return servers
 
     async def events(self):

@@ -209,10 +209,97 @@ def test_parallel_acp_sessions_register_distinct_orchestra_mcp_names(tmp_path):
     assert first["name"] != second["name"]
     assert resumed == first
     for server, session_id in ((first, "first-app-session"), (second, "second-app-session")):
+        assert "--require-active-acp-turn" in server["args"]
         assert server["args"][-2:] == ["--session-id", session_id]
         assert canonical_name({"rawInput": {"ServerName": server["name"], "ToolName": "send_files"}}) == (
             "mcp__orchestra__send_files"
         )
+
+
+@pytest.mark.asyncio
+async def test_shared_acp_guard_blocks_foreign_tools_before_dispatch(monkeypatch, tmp_path):
+    from app import antigravity_acp, mcp_stdio
+    from app.main import AuthMiddleware
+    from app.mcp_proof import issue_mcp_proof
+    from app.routes.system import antigravity_mcp_turn
+
+    token = "synthetic-acp-guard-token"
+    monkeypatch.setenv("INTERNAL_TOKEN", token)
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "acp.db")
+    db.init_db()
+    profile = antigravity_acp.AcpProfile(tmp_path)
+    monkeypatch.setitem(antigravity_acp._owners, tmp_path, profile)
+    first = SimpleNamespace(app_session_id="app-a", session_id="native-a")
+    second = SimpleNamespace(app_session_id="app-b", session_id="native-b")
+    external = SimpleNamespace(owner_id="mux-owner", session_id="native-mux")
+    app = FastAPI()
+    app.add_api_route("/api/antigravity/mcp-turn", antigravity_mcp_turn)
+    app.add_middleware(AuthMiddleware)
+    monkeypatch.setattr(db, "get_session", lambda sid: {
+        "model": "codex/test" if sid == "codex" else "antigravity/test",
+    })
+    monkeypatch.setattr(mcp_stdio, "_ACP_MCP_GUARD", True)
+    server = mcp_stdio.OrchestraMCP("stand")
+    dispatched = []
+    principal = "app-a"
+    proof = None
+
+    @server.tool()
+    def observe() -> str:
+        dispatched.append(principal)
+        return "ok"
+
+    @app.get("/api/stand-function")
+    async def older_tool_request():
+        return {"dispatched": True}
+
+    async def guard_api(method, path, **kwargs):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.request(method, path, headers={
+                "authorization": f"Bearer {token}",
+                "x-orchestra-session-id": principal,
+                "x-orchestra-mcp-proof": issue_mcp_proof(principal) if proof is None else proof,
+            })
+            return response.json()
+
+    monkeypatch.setattr(mcp_stdio, "_api", guard_api)
+    try:
+        assert (await server.call_tool("observe", {})).isError
+        async with profile.turn_slot(first):
+            assert not (await server.call_tool("observe", {})).isError
+            proof = issue_mcp_proof("app-b")
+            assert (await server.call_tool("observe", {})).isError
+            proof = None
+            principal = "app-b"
+            assert (await server.call_tool("observe", {})).isError
+            assert (await guard_api("GET", "/api/stand-function"))["error"]["code"] == "acp_mcp_turn_refused"
+
+            waiting = asyncio.Event()
+            entered = asyncio.Event()
+
+            async def other_turn():
+                waiting.set()
+                async with profile.turn_slot(second):
+                    entered.set()
+                    assert not (await server.call_tool("observe", {})).isError
+
+            sibling = asyncio.create_task(other_turn())
+            await waiting.wait()
+            assert not entered.is_set()
+        await asyncio.wait_for(sibling, 1)
+
+        async with profile.turn_slot(external):
+            assert (await server.call_tool("observe", {})).isError
+        assert dispatched == ["app-a", "app-b"]
+        principal = "codex"
+        assert await guard_api("GET", "/api/stand-function") == {"dispatched": True}
+
+        async with profile.turn_slot(first):
+            profile.uncertain_sessions.add(first.session_id)
+        assert "outcome uncertain" in profile.failure
+        assert not antigravity_acp.orchestra_mcp_turn_active(first.app_session_id)
+    finally:
+        await profile.close("test complete")
 
 
 def test_acp_mcp_servers_injects_cli_flags_and_mcp_stdio_parses_them(monkeypatch, tmp_path):

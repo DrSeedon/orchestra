@@ -701,6 +701,23 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         method = request.method
+        internal_request = check_internal_token(request.headers.get("authorization", ""))
+        # Older ACP MCP instances may still have a valid session proof after a
+        # resume. Enforce the turn boundary at HTTP ingress as well as in stdio.
+        sid = request.headers.get("x-orchestra-session-id", "").strip()
+        proof = request.headers.get("x-orchestra-mcp-proof", "")
+        if path.startswith("/api/") and internal_request and sid:
+            from app.db import get_session
+            from app.mcp_proof import check_mcp_proof
+
+            source = get_session(sid)
+            if source and str(source.get("model") or "").startswith("antigravity/"):
+                from app.antigravity_acp import orchestra_mcp_turn_active
+
+                if not check_mcp_proof(sid, proof):
+                    return JSONResponse({"error": {"code": "mcp_proof_required"}}, status_code=403)
+                if not orchestra_mcp_turn_active(sid):
+                    return JSONResponse({"error": {"code": "acp_mcp_turn_refused"}}, status_code=403)
         parts = path.split("/")
         if (
             method == "POST"
@@ -728,7 +745,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         # Internal token bypasses cookie auth — allows MCP subprocess and workers
         # to call the API without a browser session
-        if check_internal_token(request.headers.get("authorization", "")):
+        if internal_request:
             return await call_next(request)
         if not is_auth_enabled():
             return await call_next(request)

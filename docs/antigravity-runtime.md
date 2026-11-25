@@ -38,6 +38,11 @@ cancelled. Current implementation supports stdio MCP configuration only. Delta c
 one assembled final text is persisted. Tool progress/results retain names, IDs and
 actual content; only terminal completed/failed updates become tool results.
 
+Orchestra registers a distinct MCP server name per app session and authorizes its tools
+against the profile's current turn before dispatch. The shared profile admits one
+Orchestra or mux caller at a time. Mux turns have no Orchestra MCP grant. An uncertain
+terminal outcome retires the transport before another caller receives a grant.
+
 ## Passive observation and credentials
 
 Readiness, usage API polls, forced refresh and background usage collection never run
