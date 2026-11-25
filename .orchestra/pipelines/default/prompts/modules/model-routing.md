@@ -6,16 +6,16 @@ Select worker models by task fit, subject to live admission in `app/models.py`, 
 ### Available route aliases
 | Alias | Typical fit when admitted | Admission & scope boundary |
 |---|---|---|
-| `hubsol` | Default coding, refactors, deep read-only audits and synthesis | Admitted Hub worker route across all projects |
+| `hubsol` | Default coding, refactors and deep audits for workers without VPS local secrets (Hub Sol 6.2) | Admitted Hub worker route across all projects; reserve local `sol` for rare tasks needing local VPS contour |
 | `hubastra` | Hard debugging, math/science and escalations after `hubsol` | Admitted Hub Codex route; pass clean handoff state (diff + deterministic error) |
 | `hubcarbon` | Frontier cross-domain reasoning, architecture and UI/vision review | Admitted Hub worker & specialist route |
 | `hubhydrogen` | High-speed agentic coding, large-context review, scripting and tests | Admitted Hub worker route |
-| `hubargon` | UI/frontend design, independent second opinions and document comparison | Admitted Hub worker & `specialist` route |
+| `hubargon` | **REMOVED by Google (25.11.2026)** — do not assign `Gemini 4 Argon` to new workers; use `Neon` / `Hydrogen` / `Carbon` instead | Retired from new spawns |
 | `hubopus` | Complex architecture, multi-file coding and deep debugging | **Multicast projects only** (`multicode`, `multicast`, `obelisk`, `polus`, `empire-front`) |
 | `hubsonnet` | Routine coding, scripting and bounded collection | **Multicast projects only** |
 | `free` | Zero-cost cloud pool for bounded extraction, parsing and checks | Admitted zero-cost cloud route (`openrouter` free pool) |
-| `hubluna` | Legacy bounded Hub collection when explicitly requested | Prefer `hubsol` or `free` for new spawns |
-| `sol` / `codex` (GPT-6.2 Sol), `astra` (GPT-6.2 Astra), `luna` | Native local Codex routes (`luna` requires explicit `model_reason` naming a local-only constraint) | Subject to local provider & manual/local admission guards |
+| `hubluna` / `luna` | **MANDATORY** for all watchdogs, cron duties (`*-cron`, `*-watch*`), periodic digests, alerts, triage and small routine tasks not covered by `SkillCache` (`hubluna` on Hub / `luna` locally) | Never spend `sol` / `hubsol` / `astra` / `hubastra` on cron/watchdog duties; local `luna` uses `model_reason` naming cron/watchdog/local contour |
+| `sol` / `codex` (GPT-6.2 Sol), `astra` (GPT-6.2 Astra) | Native local Codex routes — **rare local VPS work only** (when task needs local VPS state/secrets; coding without VPS secrets goes to `hubsol`) | Never assign to watchdogs/cron; subject to local admission guards |
 
 ### Gemini passport: local VPS / Antigravity (g1-pro)
 These routes execute and retain files/history on the VPS; **no Hub workspace copy**.
@@ -35,9 +35,7 @@ for sources and rates. These external results do not establish a local Hydrogen 
 | `agy-hydrogen-med` = `antigravity/gemini-4-hydrogen-medium` | The same long-context work when the task and acceptance criteria are clear; a lighter default than high. |
 | `agy-hydrogen-xhigh` = `antigravity/gemini-4-hydrogen-xhigh` | Exceptionally tangled multi-file analysis; use explicitly rather than by default. |
 | `antigravity/gemini-4-hydrogen-low` | Straightforward extraction/read-only passes with a clear contract. |
-| `agy-argon` = `antigravity/gemini-4-argon-medium` | Deep analysis, architecture, complex commercial/document editing, long-regulation comparison and an independent Google second opinion alongside Codex. |
-| `agy-argon-high` = `antigravity/gemini-4-argon-high` | Harder versions of those reasoning/review tasks. |
-| `antigravity/gemini-4-argon-low` | Bounded Argon tasks where the reasoning path is already specified. |
+| `agy-argon` / `agy-argon-high` | **REMOVED by Google (25.11.2026)** — do NOT assign `Gemini 4 Argon` to new workers (retired legacy aliases; replace with `Neon` / `Hydrogen` / `Carbon`). |
 | `antigravity/gemini-pro-orchestrator-g1-pro` | The profile's dedicated long-context orchestrator/analysis route; select only the exact advertised ID/configuration. |
 | `agy-flash` = `antigravity/gemini-3.8-flash-medium` | Light classification, field extraction and short summaries. Earlier small-task observations were about 3–10 seconds, not an SLA. |
 | `agy-flash-high` = `antigravity/gemini-3.8-flash-high` | Slightly harder bounded extraction/synthesis while retaining the lightweight model. |
@@ -64,7 +62,7 @@ is the native advertised window; the Gemini 1M document guidance is not a univer
    orchestrator messages keep their existing event-driven contract.
 2. Launch at most **1–2 local workers together**. The shared profile has `Semaphore(3)`;
    leave room for the owner's interactive session. This does not guarantee vendor internal-call limits.
-3. Neon (`antigravity/gemini-4-neon-medium` default) is **orchestrator-only** (workers must use `gpt-6.2-sol` or admitted Hub routes, never Neon). Antigravity `xhigh` (`gemini-4-neon-xhigh`, `gemini-4-hydrogen-xhigh`) is disabled. If an Antigravity orchestrator needs > 5 tool calls, parsing/scraping, or headless CDP browser checks, delegate to a `gpt-6.2-sol` worker. Neon, Hydrogen and 3.8 Flash share **Gemini Models** (`gemini-weekly` / `gemini-5h`).
+3. Neon (`antigravity/gemini-4-neon-medium` default) is **orchestrator-only** (workers must use `hubsol`, `sol`, or other admitted routes, never Neon). Antigravity `xhigh` (`gemini-4-neon-xhigh`, `gemini-4-hydrogen-xhigh`) is disabled. If an Antigravity orchestrator needs > 5 tool calls, parsing/scraping, or headless CDP browser checks, delegate to a `hubsol` or `sol` worker. Neon, Hydrogen and 3.8 Flash share **Gemini Models** (`gemini-weekly` / `gemini-5h`).
    Argon and Orchestrator (Argon) use `gemini-argon-wtu-weekly`. Local Claude 5.5 uses `3p-weekly` / `3p-5h`.
    Respect fresh 5h/weekly observations; unknown/stale observations are not invented capacity.
 4. **Local Carbon is unavailable on this g1-pro VPS**: never spawn `agy-carbon`,
@@ -82,9 +80,9 @@ policy allows Hub. A project-level Hub prohibition wins; native admission does n
 
 | Route | Use it for |
 |---|---|
-| `hubcarbon` = `hub-gemini-4-carbon` | Flagship Carbon through the Hub Ultra pool: cross-domain synthesis, difficult architecture, UI review and vision review when the actual media-input path is supported. Carbon is available here, not through this local g1-pro profile. |
-| `hubhydrogen` = `hub-gemini-4-hydrogen` | Broker-hosted Hydrogen for fast coding/research/document work in permitted Hub projects. |
-| `hubargon` = `hub-gemini-4-argon` | Broker-hosted Argon for analysis, document comparison and independent second opinions in permitted Hub projects. |
+| `hubcarbon` (Hub Carbon) | Flagship Carbon through the Hub Ultra pool: cross-domain synthesis, difficult architecture, UI review and vision review when the actual media-input path is supported. Carbon is available here, not through this local g1-pro profile. |
+| `hubhydrogen` (Hub Hydrogen) | Broker-hosted Hydrogen for fast coding/research/document work in permitted Hub projects. |
+| `hubargon` (Hub Argon) | **REMOVED by Google (25.11.2026)** — do NOT assign to new workers; migrate to `Neon` / `hubhydrogen` / `hubcarbon`. |
 
 Hub capacity/subscription and workspace transfer are separate from this VPS's g1-pro quota.
 Never silently fall back between local/Hub routes, copy forbidden projects or enable paid credits.

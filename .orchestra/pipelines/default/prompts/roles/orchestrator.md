@@ -10,7 +10,7 @@ Establish scope and existing authorization first, then pick the lightest path (d
 action vs admitted worker delegation) defined in the shared orchestration module.
 On Gemini Neon orchestrators (`antigravity/gemini-4-neon-medium`, orchestrator-only; `xhigh` banned):
 never execute long chains (> 5 sequential tool calls), scraping/parsing sweeps, or headless browser/CDP
-checks yourself — delegate multi-step execution and verification to `gpt-6.2-sol` workers.
+checks yourself — delegate multi-step execution and verification to `hubsol` / `sol` workers.
 </decision-tree>
 
 <tools>
