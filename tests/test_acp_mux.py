@@ -203,6 +203,37 @@ async def test_mux_quota_hard_stop_uses_both_account_windows(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(("cache_key", "window", "usage"), [
+    ("data", "gemini-weekly", {"remaining_fraction": 0.0266}),
+    ("five_hour", "gemini-5h", 95),
+])
+async def test_mux_reports_quota_window_before_reserving_turn(home, monkeypatch, cache_key, window, usage):
+    from app.routes import system
+
+    monkeypatch.setattr(system, "_antigravity_usage_cache", {cache_key: {window: usage}})
+    mux = acp_mux.AcpMux(home)
+    await mux.start()
+    try:
+        reader, writer = await asyncio.open_unix_connection(mux.path)
+        try:
+            send(writer, 1, "session/open", origin="telegram", cwd=str(home), token="a" * 64)
+            assert "result" in await message(reader)
+            send(writer, 2, "session/prompt", origin="telegram", model="gemini-4-neon-medium",
+                 turnId="a" * 32, blocks=[{"type": "text", "text": "Read sleep log"}])
+            response = await message(reader)
+            assert response["id"] == 2
+            assert "антибан-стоп" in response["error"]
+            assert window in response["error"]
+            assert "95%" in response["error"]
+            assert not (home / ".acp-mux-wakes.sqlite3").exists()
+        finally:
+            writer.close()
+            await writer.wait_closed()
+    finally:
+        await mux.close()
+
+
+@pytest.mark.asyncio
 async def test_disconnect_during_drain_cancels_after_submission(home, monkeypatch):
     from types import SimpleNamespace
     from app.antigravity_acp import AcpSessionError

@@ -6,6 +6,10 @@
 
 ## Unreleased
 
+- **Kesha receives the Antigravity quota window that stopped a turn.** The ACP
+  broker reports the weekly or five-hour window when its existing 95% guard
+  blocks submission.
+
 - **Antigravity explains command failures with empty output.** Command failures
   without diagnostics display an explicit message and keep the provider result.
   Managed sessions receive instructions for invoking lazy Orchestra MCP tools.

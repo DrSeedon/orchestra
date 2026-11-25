@@ -47,6 +47,12 @@ MODEL = re.compile(
 )
 
 
+class AcpMuxQuotaStop(AcpSessionError):
+    def __init__(self, window: str):
+        super().__init__("ACP quota hard stop")
+        self.window = window
+
+
 def _trusted_peer(writer, home):
     sock = writer.get_extra_info("socket")
     credentials = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i"))
@@ -178,11 +184,11 @@ async def _check_quota(model: str = ""):
             remaining = usage.get("remaining_fraction")
             if isinstance(remaining, (float, int)):
                 if remaining <= 0.05:
-                    raise AcpSessionError("ACP quota hard stop")
+                    raise AcpMuxQuotaStop(metric)
                 continue
             usage = usage.get("used_percent", usage.get("utilization"))
         if isinstance(usage, (int, float)) and usage >= 95:
-            raise AcpSessionError("ACP quota hard stop")
+            raise AcpMuxQuotaStop(metric)
 
 
 def _reserve_turn(home, event_id, origin, *, owner, sid):
@@ -533,6 +539,11 @@ class Connection:
                 return
             if (cd := get_antigravity_cooldown()) is not None:
                 self.send({"id": rpc_id, "error": cd["message"]})
+                return
+            if isinstance(exc, AcpMuxQuotaStop):
+                self.send({"id": rpc_id, "error": (
+                    f"Antigravity: антибан-стоп по окну {exc.window}. Сработал порог 95% квоты."
+                )})
                 return
             if not isinstance(exc, AcpError):
                 logger.error("ACP mux prompt failure (%s)", type(exc).__name__)
