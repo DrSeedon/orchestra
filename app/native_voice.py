@@ -51,12 +51,10 @@ def format_native_voice_tag(
     )
 
 
-async def convert_to_ogg_opus(src_path: str | Path, dst_path: str | Path) -> Path:
-    """Convert/remux an uploaded audio or video track into .ogg (Opus) cleanly."""
-    src = Path(src_path)
-    dst = Path(dst_path)
+async def _run_ffmpeg_ogg(args: list[str], dst: Path) -> tuple[bool, str]:
+    """Run one ffmpeg attempt producing a non-empty .ogg destination file."""
     process = await asyncio.create_subprocess_exec(
-        "ffmpeg", "-nostdin", "-y", "-i", str(src), "-vn", "-acodec", "libopus", str(dst),
+        "ffmpeg", "-nostdin", "-y", *args, str(dst),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -66,9 +64,25 @@ async def convert_to_ogg_opus(src_path: str | Path, dst_path: str | Path) -> Pat
         process.kill()
         await process.communicate()
         raise ValueError("audio conversion to .ogg timed out")
-    if process.returncode != 0 or not dst.is_file() or dst.stat().st_size == 0:
-        detail = stderr.decode(errors="replace").strip()[:200]
-        raise ValueError(f"ffmpeg .ogg conversion failed: {detail or process.returncode}")
+    ok = process.returncode == 0 and dst.is_file() and dst.stat().st_size > 0
+    detail = stderr.decode(errors="replace").strip()[:200] or str(process.returncode)
+    return ok, detail
+
+
+async def convert_to_ogg_opus(src_path: str | Path, dst_path: str | Path) -> Path:
+    """Remux Opus streams instantly via -c:a copy; fall back to libopus only when needed."""
+    src = Path(src_path)
+    dst = Path(dst_path)
+    if src.resolve() != dst.resolve():
+        dst.unlink(missing_ok=True)
+    ok, _ = await _run_ffmpeg_ogg(["-i", str(src), "-vn", "-c:a", "copy"], dst)
+    if ok:
+        return dst
+    if src.resolve() != dst.resolve():
+        dst.unlink(missing_ok=True)
+    ok, detail = await _run_ffmpeg_ogg(["-i", str(src), "-vn", "-acodec", "libopus"], dst)
+    if not ok:
+        raise ValueError(f"ffmpeg .ogg conversion failed: {detail}")
     return dst
 
 

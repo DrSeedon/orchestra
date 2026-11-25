@@ -242,6 +242,22 @@ async function _voiceDeleteDraft(id = _voiceDraftId) {
     _voiceDraftBlob = null;
 }
 
+function _isNativeAudioTarget(target = _voiceTarget) {
+    const sessionName = target?.sessionName || (typeof selectedAgent !== 'undefined' ? selectedAgent : '') || '';
+    const scope = target?.scope || (typeof currentScope !== 'undefined' ? currentScope : '') || '';
+    let model = '';
+    if (typeof currentSessions !== 'undefined' && Array.isArray(currentSessions) && sessionName) {
+        const match = currentSessions.find(s => s && s.name === sessionName && (!scope || !s.scope || s.scope === scope))
+            || currentSessions.find(s => s && s.name === sessionName);
+        model = match?.model || '';
+    }
+    if (!model && (!sessionName || (typeof selectedAgent !== 'undefined' && sessionName === selectedAgent))) {
+        model = (typeof document !== 'undefined' ? document.querySelector?.('#ai-model')?.textContent : '') || '';
+    }
+    const normalized = String(model || '').trim().toLowerCase();
+    return normalized.startsWith('antigravity/gemini-') || /^agy-(?:neon|hydrogen|argon|flash)\b/.test(normalized);
+}
+
 function _voiceDraftPanel(state = 'idle', detail = '') {
     const panel = $('#voice-draft');
     if (!panel) return;
@@ -249,7 +265,7 @@ function _voiceDraftPanel(state = 'idle', detail = '') {
     panel.hidden = state === 'idle';
     $('#voice-draft-label').textContent = detail;
     $('#voice-retry-btn').hidden = state !== 'ready' && state !== 'error';
-    $('#voice-retry-btn').textContent = T(_voicePendingMessage ? 'Send again' : 'Transcribe again');
+    $('#voice-retry-btn').textContent = T((_voicePendingMessage || _isNativeAudioTarget()) ? 'Send again' : 'Transcribe again');
     $('#voice-delete-btn').hidden = state === 'idle';
     $('#voice-delete-btn').disabled = state === 'sending';
 }
@@ -271,7 +287,8 @@ async function _voiceRestoreDraft() {
             scope: draft.scope || currentScope || '',
         };
         _voiceDraftBlob = draft.blob;
-        _voiceDraftPanel('ready', T('Voice recording recovered. Ready to transcribe.'));
+        const nativeAudio = _isNativeAudioTarget(_voiceTarget);
+        _voiceDraftPanel('ready', T(nativeAudio ? 'Voice recording recovered. Ready to send.' : 'Voice recording recovered. Ready to transcribe.'));
     } catch (error) {
         _voiceStorageFailed(error);
     } finally {
@@ -281,21 +298,22 @@ async function _voiceRestoreDraft() {
 
 function _voiceMimeType() {
     const choices = [
+        'audio/ogg;codecs=opus',
         'audio/webm;codecs=opus',
         'audio/mp4;codecs=mp4a.40.2',
         'audio/mp4',
         'audio/webm',
-        'audio/ogg;codecs=opus',
     ];
     return choices.find(type => MediaRecorder.isTypeSupported(type)) || '';
 }
 
-function _voiceSetState(state) {
+function _voiceSetState(state, target = _voiceTarget) {
     const controls = $('#voice-controls');
     if (!controls) return;
     controls.dataset.state = state;
     $('#voice-btn').disabled = state === 'requesting' || state === 'stopping' || state === 'uploading' || state === 'transcribing' || state === 'sending';
-    $('#voice-state-label').textContent = ({requesting: T('Microphone…'), stopping: T('Finishing…'), recording: T('Recording'), uploading: T('Uploading… 0%'), transcribing: T('Transcribing…'), sending: T('Sending voice message…')})[state] || T('Recording');
+    const sendLabel = _isNativeAudioTarget(target) ? T('Sending native audio…') : T('Sending voice message…');
+    $('#voice-state-label').textContent = ({requesting: T('Microphone…'), stopping: T('Finishing…'), recording: T('Recording'), uploading: T('Uploading… 0%'), transcribing: T('Transcribing…'), sending: sendLabel})[state] || T('Recording');
     $('#voice-cancel-btn').disabled = state !== 'recording';
 }
 
@@ -440,13 +458,15 @@ async function _sendVoiceMessage(message, target) {
 async function _sendVoiceBlob(blob, mimeType) {
     _voiceDraftBlob = blob;
     _voiceDeleteRequested = false;
+    const target = _voiceTarget || {sessionName: selectedAgent || '', scope: currentScope || ''};
+    const nativeAudio = _isNativeAudioTarget(target);
     _voiceDraftPanel('uploading', T('Uploading… 0%'));
     _voiceSetProgress(0);
-    _voiceSetState('uploading');
+    _voiceSetState('uploading', target);
     const body = new FormData();
     body.append('audio', blob, `voice.${_voiceExtension(mimeType)}`);
-    body.append('session_name', _voiceTarget?.sessionName || selectedAgent || '');
-    body.append('scope', _voiceTarget?.scope || currentScope || '');
+    body.append('session_name', target.sessionName);
+    body.append('scope', target.scope);
     try {
         const result = await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
@@ -462,8 +482,13 @@ async function _sendVoiceBlob(blob, mimeType) {
                 }
             });
             xhr.upload.addEventListener('load', () => {
-                _voiceSetState('transcribing');
-                _voiceDraftPanel('transcribing', T('Transcribing…'));
+                if (nativeAudio) {
+                    _voiceSetState('sending', target);
+                    _voiceDraftPanel('sending', T('Sending native audio…'));
+                } else {
+                    _voiceSetState('transcribing', target);
+                    _voiceDraftPanel('transcribing', T('Transcribing…'));
+                }
                 _voiceSetProgress(100);
             });
             xhr.addEventListener('load', () => {
@@ -473,15 +498,15 @@ async function _sendVoiceBlob(blob, mimeType) {
                 resolve(data);
             });
             xhr.addEventListener('error', () => reject(new Error(T('Network error.'))));
-            xhr.addEventListener('timeout', () => reject(new Error(T('Transcription timed out.'))));
+            xhr.addEventListener('timeout', () => reject(new Error(T(nativeAudio ? 'Audio send timed out.' : 'Transcription timed out.'))));
             xhr.send(body);
         });
         _voiceXhr = null;
-        if (result.native_audio) {
-            _voiceSetState('sending');
+        if (result.native_audio || nativeAudio) {
+            _voiceSetState('sending', target);
             _voiceDraftPanel('sending', T('Sending native audio…'));
         } else {
-            _voiceSetState('transcribing');
+            _voiceSetState('transcribing', target);
             _voiceDraftPanel('transcribing', T('Transcribing…'));
         }
         _voiceSetProgress(100);
@@ -490,13 +515,13 @@ async function _sendVoiceBlob(blob, mimeType) {
         await _sendVoiceMessage(appended.message, appended.target);
     } catch (error) {
         if (_voiceDeleteRequested) return;
-        _voiceDraftPanel('error', `${T('Transcription failed')}: ${error.message}`);
+        _voiceDraftPanel('error', `${T(nativeAudio ? 'Audio send failed' : 'Transcription failed')}: ${error.message}`);
         _voiceDraftBlob = blob;
         _voiceSessionActive = true;
-        _voiceSetState('idle');
+        _voiceSetState('idle', target);
     } finally {
         _voiceXhr = null;
-        _voiceSetState('idle');
+        _voiceSetState('idle', target);
     }
 }
 

@@ -124,24 +124,36 @@ async def _process_dashboard_voice(row: dict) -> None:
     keep_audio_file = False
     try:
         path = Path(row["path"])
-        duration = await _audio_duration_seconds(str(path))
-        if not math.isfinite(duration) or duration <= 0:
-            raise ValueError("audio duration is invalid")
-        if duration > VOICE_MAX_SECONDS:
-            raise ValueError("recording is too long (max 5 minutes)")
         session = await manager.ensure_loaded_by_id(row["session_id"])
         if not session:
             raise RuntimeError(f"target session {row['session_id']} is unavailable")
         if supports_native_audio_input(session):
             ogg_path = UPLOADS_DIR / f"dashboard-voice-{voice_id}.ogg"
             if path.suffix.lower() != ".ogg":
+                UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
                 await convert_to_ogg_opus(path, ogg_path)
-                path.unlink(missing_ok=True)
             else:
                 ogg_path = path
+            try:
+                duration = await _audio_duration_seconds(str(ogg_path))
+                if not math.isfinite(duration) or duration <= 0:
+                    raise ValueError("audio duration is invalid")
+                if duration > VOICE_MAX_SECONDS:
+                    raise ValueError("recording is too long (max 5 minutes)")
+            except Exception:
+                if ogg_path != path:
+                    ogg_path.unlink(missing_ok=True)
+                raise
+            if ogg_path != path:
+                path.unlink(missing_ok=True)
             text = format_native_voice_tag(ogg_path, duration, source="dashboard")
             keep_audio_file = True
         else:
+            duration = await _audio_duration_seconds(str(path))
+            if not math.isfinite(duration) or duration <= 0:
+                raise ValueError("audio duration is invalid")
+            if duration > VOICE_MAX_SECONDS:
+                raise ValueError("recording is too long (max 5 minutes)")
             text, error = await transcribe_audio(
                 str(path),
                 f"dashboard-{voice_id}",
@@ -271,11 +283,6 @@ async def transcribe_upload(
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp:
             temp.write(content)
             temp_path = temp.name
-        duration = await _audio_duration_seconds(temp_path)
-        if not math.isfinite(duration) or duration <= 0:
-            return JSONResponse({"error": "audio duration is invalid"}, status_code=400)
-        if duration > VOICE_MAX_SECONDS:
-            return JSONResponse({"error": "recording is too long (max 5 minutes)"}, status_code=413)
 
         from app.deps import manager
         target = None
@@ -293,6 +300,17 @@ async def transcribe_upload(
                 await asyncio.to_thread(ogg_path.write_bytes, content)
             else:
                 await convert_to_ogg_opus(temp_path, ogg_path)
+            try:
+                duration = await _audio_duration_seconds(str(ogg_path))
+            except Exception:
+                ogg_path.unlink(missing_ok=True)
+                raise
+            if not math.isfinite(duration) or duration <= 0:
+                ogg_path.unlink(missing_ok=True)
+                return JSONResponse({"error": "audio duration is invalid"}, status_code=400)
+            if duration > VOICE_MAX_SECONDS:
+                ogg_path.unlink(missing_ok=True)
+                return JSONResponse({"error": "recording is too long (max 5 minutes)"}, status_code=413)
             from app.tg_bridge import _cleanup_uploads
             await asyncio.to_thread(_cleanup_uploads)
             text = format_native_voice_tag(ogg_path, duration, source="dashboard")
@@ -303,6 +321,12 @@ async def transcribe_upload(
                 "url": f"/uploads/{ogg_path.name}",
                 "duration": int(round(duration)),
             }
+
+        duration = await _audio_duration_seconds(temp_path)
+        if not math.isfinite(duration) or duration <= 0:
+            return JSONResponse({"error": "audio duration is invalid"}, status_code=400)
+        if duration > VOICE_MAX_SECONDS:
+            return JSONResponse({"error": "recording is too long (max 5 minutes)"}, status_code=413)
 
         from app.transcription import transcribe_audio
         digest = hashlib.sha256(content).hexdigest()

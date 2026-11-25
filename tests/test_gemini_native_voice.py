@@ -338,3 +338,230 @@ console.log(JSON.stringify(out));
         assert data["vnote"]["items"][0]["audioPath"] == "/home/kesha/orchestra/data/uploads/vn-1.ogg"
         assert len(data["audio"]["items"]) == 1
         assert data["audio"]["items"][0]["audioPath"] == "/home/kesha/orchestra/data/uploads/track.mp3"
+
+    def test_convert_to_ogg_opus_remux_fast_path_and_libopus_fallback(self, tmp_path):
+        import io
+        import wave
+
+        chunked_webm = Path(__file__).parent / "fixtures" / "dashboard_voice_chunked.webm"
+        remux_dst = tmp_path / "remuxed.ogg"
+
+        cmds = []
+        real_exec = asyncio.create_subprocess_exec
+
+        async def spy_exec(*args, **kwargs):
+            cmds.append(args)
+            return await real_exec(*args, **kwargs)
+
+        with patch.object(native_voice.asyncio, "create_subprocess_exec", side_effect=spy_exec):
+            out = asyncio.run(native_voice.convert_to_ogg_opus(chunked_webm, remux_dst))
+        assert out == remux_dst
+        assert remux_dst.is_file() and remux_dst.stat().st_size > 0
+        assert len(cmds) == 1
+        assert "-c:a" in cmds[0] and "copy" in cmds[0]
+        assert "libopus" not in cmds[0]
+        dur_ogg = asyncio.run(tg_routes._audio_duration_seconds(str(remux_dst)))
+        assert 3.0 <= dur_ogg <= 4.0
+
+        # Non-Opus .wav must fail stream copy cleanly and fall back to libopus.
+        wav_buf = io.BytesIO()
+        with wave.open(wav_buf, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(8000)
+            w.writeframes(b"\0\0" * 4000)
+        wav_src = tmp_path / "pcm.wav"
+        wav_src.write_bytes(wav_buf.getvalue())
+        fallback_dst = tmp_path / "fallback.ogg"
+        cmds.clear()
+        with patch.object(native_voice.asyncio, "create_subprocess_exec", side_effect=spy_exec):
+            out_fb = asyncio.run(native_voice.convert_to_ogg_opus(wav_src, fallback_dst))
+        assert out_fb == fallback_dst
+        assert fallback_dst.is_file() and fallback_dst.stat().st_size > 0
+        assert len(cmds) == 2
+        assert "-c:a" in cmds[0] and "copy" in cmds[0]
+        assert "-acodec" in cmds[1] and "libopus" in cmds[1]
+
+    def test_transcribe_upload_gemini_checks_duration_after_ogg_conversion(self, tmp_path, monkeypatch):
+        from app import deps
+
+        uploads = tmp_path / "uploads"
+        uploads.mkdir()
+        monkeypatch.setattr(tg_routes, "UPLOADS_DIR", uploads)
+        monkeypatch.setattr(transcription, "DEEPGRAM_API_KEY", "", raising=False)
+
+        gem_session = SimpleNamespace(name="gem-1", scope="/s", model="antigravity/gemini-4-neon-medium")
+        monkeypatch.setattr(deps.manager, "get_by_name", lambda name, scope: gem_session if name == "gem-1" else None)
+
+        seen_paths = []
+        real_duration = tg_routes._audio_duration_seconds
+
+        async def spy_duration(path):
+            seen_paths.append(str(path))
+            return await real_duration(path)
+
+        monkeypatch.setattr(tg_routes, "_audio_duration_seconds", spy_duration)
+        chunked_webm = (Path(__file__).parent / "fixtures" / "dashboard_voice_chunked.webm").read_bytes()
+
+        with (
+            patch.object(transcription, "transcribe_audio", new=AsyncMock(side_effect=AssertionError("Deepgram must not be called"))),
+            patch("app.tg_bridge._cleanup_uploads", lambda: None),
+        ):
+            with TestClient(fastapi_app) as client:
+                resp = client.post(
+                    "/api/transcribe",
+                    data={"send": "false", "session_name": "gem-1", "scope": "/s"},
+                    files={"audio": ("mic.webm", chunked_webm, "audio/webm")},
+                )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["native_audio"] is True
+        assert seen_paths == [body["path"]]
+        assert body["path"].endswith(".ogg")
+        assert 3 <= body["duration"] <= 4
+
+        # Too-long duration after conversion deletes the newly created .ogg file and returns 413.
+        monkeypatch.setattr(tg_routes, "VOICE_MAX_SECONDS", 2)
+        with (
+            patch.object(transcription, "transcribe_audio", new=AsyncMock(side_effect=AssertionError("Deepgram must not be called"))),
+            patch("app.tg_bridge._cleanup_uploads", lambda: None),
+        ):
+            with TestClient(fastapi_app) as client:
+                resp_long = client.post(
+                    "/api/transcribe",
+                    data={"send": "false", "session_name": "gem-1", "scope": "/s"},
+                    files={"audio": ("mic.webm", chunked_webm, "audio/webm")},
+                )
+        assert resp_long.status_code == 413
+        assert len(list(uploads.glob("dashboard-voice-*.ogg"))) == 1
+
+    def test_chat_js_native_audio_skips_transcribing_labels(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const code = fs.readFileSync("app/static/js/chat.js", "utf8");
+const i18nCode = fs.readFileSync("app/static/js/i18n.js", "utf8");
+const i18nSandbox = {
+  window: {},
+  document: { documentElement: {}, readyState: "loading", addEventListener() {}, getElementById: () => null },
+  localStorage: { getItem: () => "ru", setItem() {} },
+};
+i18nSandbox.window = i18nSandbox;
+vm.runInNewContext(i18nCode, i18nSandbox);
+const I18N_RU = i18nSandbox.orchDict;
+
+function makeEl() {
+  return {
+    dataset: {},
+    style: { setProperty() {} },
+    hidden: false,
+    disabled: false,
+    textContent: "",
+    setAttribute() {},
+  };
+}
+const els = {
+  "#voice-draft": makeEl(),
+  "#voice-draft-label": makeEl(),
+  "#voice-retry-btn": makeEl(),
+  "#voice-delete-btn": makeEl(),
+  "#voice-controls": makeEl(),
+  "#voice-btn": makeEl(),
+  "#voice-state-label": makeEl(),
+  "#voice-cancel-btn": makeEl(),
+  ".voice-progress": makeEl(),
+  "#voice-progress-bar": makeEl(),
+  "#ai-model": { textContent: "" },
+};
+let xhrInstances = [];
+class FakeXHR {
+  constructor() {
+    this.listeners = {};
+    this.upload = { listeners: {}, addEventListener: (k, fn) => { (this.upload.listeners[k] ||= []).push(fn); } };
+    xhrInstances.push(this);
+  }
+  addEventListener(k, fn) { (this.listeners[k] ||= []).push(fn); }
+  open() {}
+  send() {}
+}
+const sandbox = {
+  $: (sel) => els[sel] || null,
+  document: { querySelector: (sel) => els[sel] || null },
+  FormData: class { append() {} },
+  XMLHttpRequest: FakeXHR,
+  MediaRecorder: { isTypeSupported: (t) => t === "audio/ogg;codecs=opus" || t === "audio/webm;codecs=opus" },
+  T: (k, vars) => {
+    let s = I18N_RU[k] || k;
+    if (vars) for (const [vk, vv] of Object.entries(vars)) s = s.replace("{" + vk + "}", vv);
+    return s;
+  },
+  currentSessions: [
+    { name: "gem-1", scope: "/s", model: "antigravity/gemini-4-neon-medium" },
+    { name: "codex-1", scope: "/s", model: "gpt-6.2-sol" },
+  ],
+  selectedAgent: "gem-1",
+  currentScope: "/s",
+  _voiceTarget: { sessionName: "gem-1", scope: "/s" },
+  _voiceDraftBlob: null,
+  _voiceDraftId: null,
+  _voicePendingMessage: null,
+  _voiceDeleteRequested: false,
+  _voiceSessionActive: false,
+  _voiceRestorePending: false,
+  _voiceXhr: null,
+  _voiceLoadDraft: async () => ({ id: "d1", sessionName: "gem-1", scope: "/s", blob: { size: 123 } }),
+  _voiceStorageFailed: () => {},
+  _voiceExtension: () => "webm",
+  _appendVoiceTranscript: (t) => ({ message: t, target: sandbox._voiceTarget }),
+  _sendVoiceMessage: async () => {},
+};
+const sliceStart = code.indexOf("function _isNativeAudioTarget");
+const sliceEnd = code.indexOf("async function startVoiceInput()");
+if (sliceStart < 0 || sliceEnd < 0) throw new Error("Voice slice not found");
+vm.runInNewContext(code.slice(sliceStart, sliceEnd), sandbox);
+
+if (sandbox._voiceMimeType() !== "audio/ogg;codecs=opus") throw new Error("Unexpected mime preference: " + sandbox._voiceMimeType());
+if (!sandbox._isNativeAudioTarget({ sessionName: "gem-1", scope: "/s" })) throw new Error("Expected Gemini target");
+if (sandbox._isNativeAudioTarget({ sessionName: "codex-1", scope: "/s" })) throw new Error("Unexpected non-Gemini match");
+
+(async () => {
+  await sandbox._voiceRestoreDraft();
+  const restored = els["#voice-draft-label"].textContent;
+  const retryText = els["#voice-retry-btn"].textContent;
+  if (restored !== "Голосовая запись восстановлена. Готова к отправке.") throw new Error("Bad restored label: " + restored);
+  if (retryText !== "Отправить ещё раз") throw new Error("Bad retry button: " + retryText);
+
+  const pGem = sandbox._sendVoiceBlob({ size: 10 }, "audio/webm;codecs=opus");
+  const x1 = xhrInstances[xhrInstances.length - 1];
+  for (const fn of (x1.upload.listeners.load || [])) fn();
+  const stateDuring = els["#voice-controls"].dataset.state;
+  const labelDuring = els["#voice-draft-label"].textContent;
+  const btnDuring = els["#voice-state-label"].textContent;
+  if (stateDuring !== "sending" || labelDuring !== "Отправка аудио…" || btnDuring !== "Отправка аудио…") {
+    throw new Error("Unexpected native upload load UI: " + JSON.stringify({ stateDuring, labelDuring, btnDuring }));
+  }
+  for (const fn of (x1.listeners.error || [])) fn();
+  await pGem;
+  const errGem = els["#voice-draft-label"].textContent;
+  if (!errGem.startsWith("Ошибка отправки аудио:")) throw new Error("Unexpected native error label: " + errGem);
+
+  sandbox._voiceTarget = { sessionName: "codex-1", scope: "/s" };
+  sandbox.selectedAgent = "codex-1";
+  const pCodex = sandbox._sendVoiceBlob({ size: 10 }, "audio/webm;codecs=opus");
+  const x2 = xhrInstances[xhrInstances.length - 1];
+  for (const fn of (x2.upload.listeners.load || [])) fn();
+  const stateCodex = els["#voice-controls"].dataset.state;
+  const labelCodex = els["#voice-draft-label"].textContent;
+  if (stateCodex !== "transcribing" || labelCodex !== "Расшифровка…") {
+    throw new Error("Unexpected codex upload load UI: " + JSON.stringify({ stateCodex, labelCodex }));
+  }
+  for (const fn of (x2.listeners.error || [])) fn();
+  await pCodex;
+  const errCodex = els["#voice-draft-label"].textContent;
+  if (!errCodex.startsWith("Ошибка расшифровки:")) throw new Error("Unexpected codex error label: " + errCodex);
+  console.log("CHAT_JS_NATIVE_AUDIO_OK");
+})().catch((err) => { console.error(err); process.exit(1); });
+"""
+        proc = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True)
+        assert "CHAT_JS_NATIVE_AUDIO_OK" in proc.stdout
+
