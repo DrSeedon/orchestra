@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import fcntl
+import hashlib
 import json
 import logging
 import math
@@ -1331,6 +1332,12 @@ class AntigravityBackend:
             args_in = list(config.get("args", []))
             env_dict = config.get("env", {}) or {}
             if name == "orchestra":
+                # The ACP daemon is shared. A provider-side lookup by server name
+                # must never select a sibling session's authenticated MCP process.
+                app_session_id = getattr(self, "app_session_id", "")
+                if app_session_id:
+                    suffix = hashlib.sha256(app_session_id.encode()).hexdigest()[:12]
+                    name = f"orchestra_{suffix}"
                 _scope = str(env_dict.get("ORCHESTRA_SCOPE") or "").strip()
                 _sender = str(env_dict.get("WORKER_NAME") or "").strip()
                 _sid = str(env_dict.get("ORCHESTRA_SESSION_ID") or "").strip()

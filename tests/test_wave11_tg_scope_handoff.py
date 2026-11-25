@@ -178,6 +178,43 @@ def test_acp_tg_delivery_format_log_suppresses_thinking_update_result(monkeypatc
         assert acp_tg_delivery.format_log({"type": kind, "content": "noisy dump"}, tb) == []
 
 
+def test_parallel_acp_sessions_register_distinct_orchestra_mcp_names(tmp_path):
+    from app.acp_tools import canonical_name
+
+    def server_for(session_id, project, agent, *, resume_session_id=None):
+        backend = AntigravityBackend(SimpleNamespace(
+            model="antigravity/gemini-4-neon-medium",
+            cwd=str(tmp_path / project),
+            system_prompt="",
+            context_limit=100000,
+            resume_session_id=resume_session_id,
+            profile="",
+            mcp_servers={"orchestra": {
+                "command": "python3",
+                "args": ["-m", "app.mcp_stdio"],
+                "env": {
+                    "ORCHESTRA_SESSION_ID": session_id,
+                    "ORCHESTRA_SCOPE": str(tmp_path / project),
+                    "WORKER_NAME": agent,
+                },
+            }},
+        ))
+        backend.app_session_id = session_id
+        return backend._acp_mcp_servers()[0]
+
+    first = server_for("first-app-session", "first-project", "first-agent")
+    second = server_for("second-app-session", "second-project", "second-agent")
+    resumed = server_for("first-app-session", "first-project", "first-agent", resume_session_id="native-id")
+
+    assert first["name"] != second["name"]
+    assert resumed == first
+    for server, session_id in ((first, "first-app-session"), (second, "second-app-session")):
+        assert server["args"][-2:] == ["--session-id", session_id]
+        assert canonical_name({"rawInput": {"ServerName": server["name"], "ToolName": "send_files"}}) == (
+            "mcp__orchestra__send_files"
+        )
+
+
 def test_acp_mcp_servers_injects_cli_flags_and_mcp_stdio_parses_them(monkeypatch, tmp_path):
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "be.db")
     db.init_db()

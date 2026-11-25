@@ -6,6 +6,10 @@
 
 ## Unreleased
 
+- **Antigravity registers Orchestra MCP separately for each session.** A shared ACP
+  daemon receives a stable, distinct server name for each session's tools, keeping
+  file delivery and other calls bound to the originating session.
+
 - **Error-watch classifies the optional shared-private non-Git warning as noise**
   (V-1297; `app/error_watch.py`). Only complete journal warnings from the optional
   helper, with matching cwd paths and the exact `not a git repository` cause, are
