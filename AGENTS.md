@@ -48,7 +48,7 @@ and a descriptive entry in `.orchestra/kb/README.md` to reach agents.
   no force-push, discarded commits or shared-worktree stash operations.
 - Successful tests do not authorize merge, push, deployment or service startup. Workers
   report their result; merge authority and lifecycle gates belong to the orchestrator.
-- Owner decision, 2026-11-25: resolve confirmed P0 and P1 defects autonomously, from
+- Owner decision, 2026-11-25: resolve confirmed P0, P1 and P2 defects autonomously, from
   diagnosis through verification and the authorized rollout. This is standing approval for repairs.
 - Existing authorization covers bug fixes and red CI repair; it does not cover data
   deletion, new spending, disruptive restarts or consequential architectural choices.

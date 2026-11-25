@@ -39,6 +39,32 @@ def test_b07_acp_tools_empty_result_never_fabricates_title_and_extracts_diffs():
     assert res2[2]["is_error"] is True
 
 
+@pytest.mark.parametrize(
+    "status,raw_output,diagnostic_expected",
+    [
+        ("failed", {}, True),
+        ("failed", {"output": ""}, True),
+        ("failed", {"output": "", "stderr": "permission denied", "exitCode": 1}, False),
+        ("completed", {"output": ""}, False),
+    ],
+)
+def test_acp_failed_command_explains_missing_diagnostics(status, raw_output, diagnostic_expected):
+    update = {
+        "toolCallId": "command",
+        "name": "run_command",
+        "status": status,
+        "content": [{"type": "content", "content": {"type": "text", "text": ""}}],
+    }
+    if raw_output:
+        update["rawOutput"] = raw_output
+    _, text, metadata = acp_tools.ToolReducer().apply(update)[-1]
+    assert ("Antigravity returned no diagnostic output" in text) is diagnostic_expected
+    assert metadata["is_error"] is (status == "failed")
+    assert metadata["has_output"] is (not diagnostic_expected)
+    if raw_output:
+        assert text.endswith(json.dumps(raw_output, sort_keys=True))
+
+
 def test_b08_track_parent_report_normalizes_wire_and_grok_variants():
     s = SimpleNamespace(
         parent_name="boss", parent_id="p-1", last_task_sender=None,

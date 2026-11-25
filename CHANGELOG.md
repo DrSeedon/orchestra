@@ -6,6 +6,10 @@
 
 ## Unreleased
 
+- **Antigravity explains command failures with empty output.** Command failures
+  without diagnostics display an explicit message and keep the provider result.
+  Managed sessions receive instructions for invoking lazy Orchestra MCP tools.
+
 - **Antigravity authorizes Orchestra MCP calls against the active session.** Each
   session has its own MCP server name. A shared profile admits one MCP-capable
   turn at a time, and its tools check the active session before dispatching.

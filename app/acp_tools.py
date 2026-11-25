@@ -129,9 +129,15 @@ class ToolReducer:
         output,unsupported=display_content(state)
         raw_diffs = extract_diffs(state)
         has_output = bool(str(output or "").strip())
+        failed = state.get("status") == "failed"
+        result_text = output if has_output else ""
+        if failed and name == "run_command" and output.strip() in ("", '{"output": ""}'):
+            diagnostic = "Command failed. Antigravity returned no diagnostic output."
+            result_text = f"{diagnostic}\n{result_text}" if result_text else diagnostic
+            has_output = False
         meta={"tool_use_id":tid,"tool_name":name,"status":state.get("status"),
               "tool_status":state.get("status"),"has_output":has_output,
-              "title":state.get("title",""),"kind":state.get("kind"),"is_error":state.get("status")=="failed",
+              "title":state.get("title",""),"kind":state.get("kind"),"is_error":failed,
               "unsupported":unsupported,"acp_revision":self.revisions[tid],"raw_input":deepcopy(raw)}
         if raw_diffs:
             meta["raw_diffs"] = raw_diffs
@@ -144,7 +150,7 @@ class ToolReducer:
         self.inputs[tid] = input_key
         if state.get("status") in {"completed","failed"}:
             # Never fabricate fake answer from display title when tool emitted no output (B07).
-            result.append(("tool_result",output if has_output else "",dict(meta)))
+            result.append(("tool_result",result_text,dict(meta)))
         elif tid in self.started:
             result.append(("tool_stream",output if has_output else str(state.get("title",name)),{**meta,"replace":True}))
         return result

@@ -1122,6 +1122,15 @@ class AntigravityBackend:
                         if step_index == 0:
                             if fresh_context:
                                 blocks.insert(0, {"type": "text", "text": fresh_context})
+                            if not self._instructions_sent and self.app_session_id and "orchestra" in self.mcp_servers:
+                                server_name = self._orchestra_mcp_name()
+                                blocks.insert(0, {"type": "text", "text": (
+                                    f"Your Orchestra MCP server is {server_name}. "
+                                    "For tools listed under Lazy (including merge_worker when listed there), "
+                                    "read the schema for this server and use the built-in call_mcp_tool "
+                                    f"with ServerName={server_name}, ToolName and Arguments. "
+                                    "Use direct mcp_<server>_<tool> names only for tools listed under Eager."
+                                )})
                             if self.system_prompt and not self._instructions_sent:
                                 # ACP v1 has no stable system-prompt method; deliver role instructions
                                 # as explicit first-turn context, never a shared agent file in HOME.
@@ -1321,6 +1330,10 @@ class AntigravityBackend:
             self._stream_finished = True
             self._queue.put_nowait(None)
 
+    def _orchestra_mcp_name(self):
+        suffix = hashlib.sha256(self.app_session_id.encode()).hexdigest()[:12]
+        return f"orchestra_{suffix}"
+
     def _acp_mcp_servers(self):
         servers = []
         for name, config in self.mcp_servers.items():
@@ -1334,10 +1347,8 @@ class AntigravityBackend:
             if name == "orchestra":
                 # The ACP daemon is shared. A provider-side lookup by server name
                 # must never select a sibling session's authenticated MCP process.
-                app_session_id = getattr(self, "app_session_id", "")
-                if app_session_id:
-                    suffix = hashlib.sha256(app_session_id.encode()).hexdigest()[:12]
-                    name = f"orchestra_{suffix}"
+                if getattr(self, "app_session_id", ""):
+                    name = self._orchestra_mcp_name()
                     args_in.append("--require-active-acp-turn")
                 _scope = str(env_dict.get("ORCHESTRA_SCOPE") or "").strip()
                 _sender = str(env_dict.get("WORKER_NAME") or "").strip()

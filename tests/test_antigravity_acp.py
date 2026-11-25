@@ -168,6 +168,26 @@ async def test_resume_capability_no_history_replay(stand):
 
 
 @pytest.mark.asyncio
+async def test_managed_acp_resume_explains_how_to_call_its_lazy_mcp_tools(stand):
+    from app import db
+    from app.native_requests import bind_session
+
+    db.init_db()
+    backend = stand.backend(resume="existing-session", role="")
+    backend.app_session_id = "managed-app"
+    await backend.connect()
+    bind_session(backend._owner, backend.session_id, backend.app_session_id)
+    assert end(await turn(backend, "first")).metadata["ok"]
+    assert end(await turn(backend, "next")).metadata["ok"]
+    registration = next(row for row in stand.trace() if row["method"] == "session/resume")
+    server = registration["params"]["mcpServers"][0]["name"]
+    prompts = [row for row in stand.trace() if row["method"] == "prompt_start"]
+    assert f"ServerName={server}" in prompts[0]["role"]
+    assert "call_mcp_tool" in prompts[0]["role"] and "merge_worker" in prompts[0]["role"]
+    assert prompts[1]["role"] == ""
+
+
+@pytest.mark.asyncio
 async def test_unsupported_resume_never_silently_creates_new(stand, monkeypatch):
     monkeypatch.setenv("AGY_MOCK_MODE", "no-resume")
     assert not end(await turn(stand.backend(resume="retained-session"), "no")).metadata["ok"]
