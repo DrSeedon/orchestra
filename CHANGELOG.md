@@ -6,6 +6,10 @@
 
 ## Unreleased
 
+- **Hourly laptop backup catch-up resumes after an interrupted manifest upload**
+  (V-772). The stale-copy check uses the newest archive with a manifest, and
+  catch-up uploads only the missing manifest when the archive checksum matches.
+
 - **Kesha receives the Antigravity quota window that stopped a turn.** The ACP
   broker reports the weekly or five-hour window when its existing 95% guard
   blocks submission.

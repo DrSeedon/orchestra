@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import sqlite3
 import subprocess
 import sys
@@ -264,6 +265,109 @@ def _run_task_push(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(backup, "_service_paths", lambda: (db_path, tmp_path / "tasks"))
     monkeypatch.setattr(backup, "_scan_and_push_tasks", lambda _repo: None)
     return db_path
+
+
+def _run_laptop_lookup(command: str, directory: Path) -> str:
+    program, flag, script = shlex.split(command)
+    assert (program, flag) == ("python3", "-c")
+    script = script.replace(repr("/mnt/data/orchestra-backups"), repr(str(directory)))
+    result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
+    if result.returncode:
+        raise RuntimeError(result.stderr)
+    return result.stdout
+
+
+@pytest.mark.parametrize("older_manifest", [None, "valid", "malformed", "blank", "directory"])
+def test_laptop_lookup_skips_only_missing_manifests(tmp_path, monkeypatch, older_manifest):
+    (tmp_path / "orchestra-db-2026-11-26.sqlite.zst").touch()
+    monkeypatch.setattr(backup, "_ssh", lambda command: _run_laptop_lookup(command, tmp_path))
+
+    if older_manifest is None:
+        assert backup._latest_laptop_backup_created_at() is None
+        return
+
+    older = tmp_path / "orchestra-db-2026-11-25.sqlite.zst"
+    older.touch()
+    manifest = backup._manifest_path(older)
+    if older_manifest == "valid":
+        manifest.write_text('{"created_at_utc": "2026-11-25T02:00:00+02:00"}')
+        assert backup._latest_laptop_backup_created_at() == datetime(
+            2026, 11, 25, tzinfo=timezone.utc
+        )
+        return
+
+    if older_manifest == "directory":
+        manifest.mkdir()
+        error = "IsADirectoryError"
+    elif older_manifest == "blank":
+        manifest.write_text('{"created_at_utc": ""}')
+        error = "invalid laptop backup manifest timestamp"
+    else:
+        manifest.write_text("{")
+        error = "JSONDecodeError"
+    with pytest.raises(RuntimeError, match=error):
+        backup._latest_laptop_backup_created_at()
+
+
+@pytest.mark.parametrize("stale_pair", [False, True])
+def test_hourly_task_push_repairs_orphan_by_uploading_only_manifest(
+    tmp_path, monkeypatch, capsys, stale_pair,
+):
+    db_path = _run_task_push(tmp_path, monkeypatch)
+    archive = _write_local_archives(db_path, "2026-11-26")
+    manifest = backup._manifest_path(archive)
+    manifest.write_text(json.dumps({"created_at_utc": datetime.now(timezone.utc).isoformat()}))
+    laptop = tmp_path / "laptop"
+    laptop.mkdir()
+    remote_archive = laptop / archive.name
+    remote_archive.write_bytes(archive.read_bytes())
+    remote_manifest = laptop / manifest.name
+    if stale_pair:
+        older = laptop / "orchestra-db-2026-11-25.sqlite.zst"
+        older.touch()
+        stale_time = datetime.now(timezone.utc) - timedelta(days=4)
+        backup._manifest_path(older).write_text(
+            json.dumps({"created_at_utc": stale_time.isoformat()})
+        )
+    uploaded = []
+
+    def ssh(command: str) -> str:
+        args = shlex.split(command)
+        if args[0] == "python3" and "iterdir()" in args[2]:
+            return _run_laptop_lookup(command, laptop)
+        if args[0] == "if":
+            assert not remote_manifest.exists()
+            return "__ORCHESTRA_BACKUP_MISSING__"
+        if args[0] in ("sha256sum", "stat"):
+            path = Path(args[-1])
+            if not path.exists():
+                raise RuntimeError("remote file missing")
+            if args[0] == "stat":
+                return str(path.stat().st_size)
+            return backup._sha256(path)
+        if args[0] == "mv":
+            Path(args[-2]).rename(args[-1])
+        else:
+            assert args[0] in ("mkdir", "zstd", "python3"), command
+        return ""
+
+    def rsync(source, partial, _seconds):
+        uploaded.append(source)
+        partial.write_bytes(source.read_bytes())
+        return True
+
+    monkeypatch.setattr(backup, "LAPTOP_DIR", str(laptop))
+    monkeypatch.setattr(backup, "_ssh", ssh)
+    monkeypatch.setattr(backup, "_rsync_to_laptop", rsync)
+    monkeypatch.setattr(backup, "_laptop_tunnel_available", lambda: True)
+    monkeypatch.setattr(backup, "_verify_archive", lambda *_args: {})
+
+    assert backup.main() == int(stale_pair)
+    expected_error = f"laptop copy was older than 3 days; refreshed from {archive.name}"
+    assert (expected_error in capsys.readouterr().err) == stale_pair
+    assert uploaded == [manifest]
+    assert remote_manifest.read_bytes() == manifest.read_bytes()
+    assert backup._latest_laptop_backup_created_at() is not None
 
 
 def test_daily_is_silent_when_laptop_tunnel_is_down(

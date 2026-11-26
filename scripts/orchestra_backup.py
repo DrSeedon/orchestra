@@ -409,10 +409,24 @@ def _latest_laptop_backup_created_at() -> datetime | None:
     remote_script = """import json
 from pathlib import Path
 p=Path('/mnt/data/orchestra-backups')
-files=sorted(p.glob('orchestra-db-????-??-??.sqlite.zst'), reverse=True)
-if files:
-    manifest=files[0].with_name(files[0].name[:-len('.sqlite.zst')] + '.json')
-    print(json.loads(manifest.read_text(encoding='utf-8'))['created_at_utc'])
+try:
+    files = sorted(p.iterdir(), reverse=True)
+except FileNotFoundError:
+    files = []
+for archive in files:
+    if not archive.match('orchestra-db-????-??-??.sqlite.zst'):
+        continue
+    manifest = archive.with_name(archive.name[:-len('.sqlite.zst')] + '.json')
+    try:
+        contents = manifest.read_text(encoding='utf-8')
+    except FileNotFoundError:
+        # The transfer budget can expire after the archive is published.
+        continue
+    created_at = json.loads(contents)['created_at_utc']
+    if not isinstance(created_at, str) or not created_at.strip():
+        raise ValueError('invalid laptop backup manifest timestamp')
+    print(created_at)
+    break
 """
     result = _ssh(f"python3 -c {shlex.quote(remote_script)}").strip()
     if not result:

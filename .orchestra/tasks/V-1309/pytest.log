@@ -1,0 +1,5 @@
+V-1309 / V-772 backup regression checks
+
+Hub bundle, offline: 37 passed, 2 failed. Both failures require scripts/secret_scan.py, which is absent from the bundle.
+Hub bundle, offline rerun excluding those two tests: 37 passed, 2 deselected.
+Full VPS checkout, as reported by Orchestra-orchestrator: 39 passed out of 39.
