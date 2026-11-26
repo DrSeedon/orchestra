@@ -2500,7 +2500,7 @@ async def delete_session(name: str, scope: str, force: bool = False):
                     status_code=400,
                 )
     try:
-        await manager.remove(sid)
+        await manager.remove(sid, force=force)
     except Exception as e:
         logger.error(f"session remove failed for {name}: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)

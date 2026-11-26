@@ -857,6 +857,7 @@ class HubBackend:
             state.project_id = project["id"] if isinstance(project, dict) else ""
             if not state.project_id:
                 raise hw.HubWorkspaceError("hub project registration returned no id")
+            state.ephemeral_project = True
             state.save()
         return notes
 
@@ -1375,11 +1376,15 @@ class HubBackend:
 
 async def archive_for_worktree(worktree: str, *, keep_ws_id: str = "",
                                ssh: hw.HubSsh | None = None, mc=None,
-                               skip: frozenset[str] = frozenset()) -> list[str]:
+                               skip: frozenset[str] = frozenset(),
+                               best_effort_remote_cleanup: bool = False) -> list[str]:
     """Close remote Hub resources after retaining local workspace metadata.
 
     Destructive release_for_worktree keeps its separate explicit-purge meaning.
     Preflight every record before remote archival or caller lifecycle teardown.
+    When best_effort_remote_cleanup=True, a network/remote failure *after*
+    durable local archival (state.archived=True) logs and returns instead of
+    blocking DB archival; cleanup_orphaned_hub_artifacts finishes the tail later.
     """
     states = [state for state in hw.states_for_worktree(worktree)
               if state.ws_id != keep_ws_id and state.ws_id not in skip]
@@ -1399,8 +1404,22 @@ async def archive_for_worktree(worktree: str, *, keep_ws_id: str = "",
     archived: list[str] = []
     try:
         for state in states:
-            await hw.archive_workspace(state, ssh, mc)
-            archived.append(state.ws_id)
+            try:
+                await hw.archive_workspace(state, ssh, mc)
+                archived.append(state.ws_id)
+            except Exception as exc:
+                latest = hw.WorkspaceState.load(state.ws_id)
+                if (best_effort_remote_cleanup
+                        and latest is not None
+                        and latest.archived
+                        and not isinstance(exc, hw.HubFilePolicyError)):
+                    logger.warning(
+                        "hub remote cleanup pending for %s after durable archive (non-blocking): %s",
+                        state.ws_id, exc,
+                    )
+                    archived.append(state.ws_id)
+                    continue
+                raise
     finally:
         if owns_client:
             await mc.__aexit__(None, None, None)
@@ -1459,3 +1478,172 @@ async def sweep_orphans(live_worktrees: set[str] | dict[str, str], *, min_age: f
     """
     return {"released": [], "remote_dirs": [], "projects": [],
             "kept": len(_all_states()), "errors": []}
+
+
+_ORPHAN_CLEANUP_LOCK = asyncio.Lock()
+
+
+def _collect_live_hub_owners(
+    live_worktrees: set[str] | None,
+    live_ws_ids: set[str] | None,
+) -> tuple[set[str], set[str], str | None]:
+    """Collect active/idle/running session worktrees & hub ws_ids from DB + caller."""
+    paths: set[str] = {os.path.realpath(p) for p in (live_worktrees or ()) if p}
+    ws_ids: set[str] = {w for w in (live_ws_ids or ()) if w}
+    try:
+        from app.db import get_all_sessions
+        rows = get_all_sessions()
+    except Exception as exc:
+        if live_worktrees is None or live_ws_ids is None:
+            return paths, ws_ids, f"failed to read live sessions from DB: {exc}"
+        return paths, ws_ids, None
+    for row in rows:
+        wt = row.get("worktree_path") or ""
+        if wt:
+            paths.add(os.path.realpath(wt))
+        elif row.get("scope") and row.get("backend_type") == "hub":
+            paths.add(os.path.realpath(row["scope"]))
+        sid = row.get("session_id") or ""
+        if sid and str(sid).startswith("hub-"):
+            ws_ids.add(str(sid))
+    return paths, ws_ids, None
+
+
+async def cleanup_orphaned_hub_artifacts(
+    *,
+    ssh: hw.HubSsh | None = None,
+    mc=None,
+    live_worktrees: set[str] | None = None,
+    live_ws_ids: set[str] | None = None,
+    exclude_ws_ids: set[str] | None = None,
+) -> dict:
+    """Idempotent janitor: finish remote Hub cleanup for already archived/deleted sessions.
+
+    Never touches live (idle/running/starting) sessions or records with pending_sync.
+    Never deletes non-ephemeral user projects (archives only the thread instead).
+    Best-effort per worker: transport errors are logged and reported without raising.
+    """
+    report: dict = {
+        "projects_deleted": [],
+        "threads_archived": [],
+        "dirs_removed": [],
+        "traces_scrubbed": [],
+        "kept": 0,
+        "already_clean": 0,
+        "errors": [],
+    }
+    async with _ORPHAN_CLEANUP_LOCK:
+        live_paths, live_ids, db_err = _collect_live_hub_owners(live_worktrees, live_ws_ids)
+        if db_err:
+            logger.warning("cleanup_orphaned_hub_artifacts aborted safely: %s", db_err)
+            report["errors"].append(db_err)
+            return report
+
+        excluded = exclude_ws_ids or set()
+        candidates: list[hw.WorkspaceState] = []
+        for state in _all_states():
+            wt_real = os.path.realpath(state.worktree) if state.worktree else ""
+            if state.ws_id in excluded or state.ws_id in live_ids or (wt_real and wt_real in live_paths):
+                report["kept"] += 1
+                continue
+            if state.pending_sync:
+                report["kept"] += 1
+                continue
+            if state.remote_released and hw.is_traces_scrubbed(state.ws_id):
+                report["already_clean"] += 1
+                continue
+            candidates.append(state)
+
+        if not candidates:
+            return report
+
+        ssh = ssh or hw.HubSsh.from_env()
+        owns_mc = False
+        need_mc = mc is None and any((not st.remote_released) and st.project_id for st in candidates)
+        if need_mc:
+            problem = hub_configured()
+            if problem:
+                logger.warning("cleanup_orphaned_hub_artifacts: hub MCP unavailable (%s); continuing SSH-only where safe", problem)
+                report["errors"].append(f"mcp: {problem}")
+            else:
+                mc = MultiCodeClient.from_env()
+                await mc.__aenter__()
+                owns_mc = True
+
+        try:
+            remote_root: str | None = None
+            if ssh is not None:
+                try:
+                    remote_root = await ssh.root()
+                except Exception as exc:
+                    msg = f"ssh root failed: {exc}"
+                    logger.warning("cleanup_orphaned_hub_artifacts: %s", msg)
+                    report["errors"].append(msg)
+                    ssh = None
+
+            for state in candidates:
+                if not state.archived:
+                    state.archived = True
+                    state.save()
+
+                if not state.remote_released:
+                    release_ok = True
+                    if state.project_id:
+                        if mc is None:
+                            release_ok = False
+                            report["errors"].append(f"{state.ws_id}: MCP client unavailable for project {state.project_id}")
+                        else:
+                            try:
+                                outcome = await hw._cleanup_project_or_archive_thread(state, mc)
+                                if outcome == "deleted":
+                                    report["projects_deleted"].append(state.project_id)
+                                elif outcome == "thread_archived" and state.thread_id:
+                                    report["threads_archived"].append(state.thread_id)
+                            except Exception as exc:
+                                release_ok = False
+                                msg = f"{state.ws_id}: project cleanup failed: {exc}"
+                                logger.warning("cleanup_orphaned_hub_artifacts: %s", msg)
+                                report["errors"].append(msg)
+
+                    if state.remote_dir:
+                        if ssh is None:
+                            release_ok = False
+                            report["errors"].append(f"{state.ws_id}: SSH unavailable for dir removal")
+                        elif not hw.is_safe_hub_workspace_dir(state.remote_dir, expected_root=remote_root):
+                            release_ok = False
+                            msg = f"{state.ws_id}: refused unsafe workspace path {state.remote_dir!r}"
+                            logger.warning("cleanup_orphaned_hub_artifacts: %s", msg)
+                            report["errors"].append(msg)
+                        else:
+                            try:
+                                await ssh.remove(state.remote_dir)
+                                report["dirs_removed"].append(state.remote_dir)
+                            except Exception as exc:
+                                release_ok = False
+                                msg = f"{state.ws_id}: dir remove failed: {exc}"
+                                logger.warning("cleanup_orphaned_hub_artifacts: %s", msg)
+                                report["errors"].append(msg)
+
+                    if release_ok:
+                        state.remote_released = True
+                        state.save()
+
+                if not hw.is_traces_scrubbed(state.ws_id):
+                    if ssh is None:
+                        report["errors"].append(f"{state.ws_id}: SSH unavailable for trace scrub")
+                    else:
+                        scrub = getattr(ssh, "scrub_traces", None)
+                        if callable(scrub):
+                            try:
+                                await scrub(state.ws_id, state.thread_id)
+                                hw.mark_traces_scrubbed(state.ws_id)
+                                report["traces_scrubbed"].append(state.ws_id)
+                            except Exception as exc:
+                                msg = f"{state.ws_id}: trace scrub failed: {exc}"
+                                logger.warning("cleanup_orphaned_hub_artifacts: %s", msg)
+                                report["errors"].append(msg)
+        finally:
+            if owns_mc and mc is not None:
+                await mc.__aexit__(None, None, None)
+
+        return report

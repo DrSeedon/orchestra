@@ -16,7 +16,9 @@ import asyncio
 import hashlib
 import io
 import json
+import logging
 import os
+import posixpath
 import re
 import shlex
 import shutil
@@ -32,6 +34,8 @@ from pathlib import Path
 
 from app.hub_outbox import MAX_OUTBOX_BYTES, OUTBOX_NAME
 from app import publication_secrets
+
+logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 STATE_DIR = DATA_DIR / "hub-workspaces"
@@ -72,16 +76,24 @@ _WS_ID = re.compile(r"^hub-[0-9a-f]{16}$")
 _BASE_ID = re.compile(r"^proj-[0-9a-f]{12}$")
 _THREAD_ID = re.compile(r"^[A-Za-z0-9:_-]{1,80}$")
 _SCRUB_SCRIPT = r"""
-ws="$1"; tid="$2"
+ws="$1"; tid="$2"; logdir="$3"
+[ -n "$ws" ] || exit 0
 for d in "$HOME/.claude/projects" "$HOME/.cache/claude-cli-nodejs"; do
   [ -d "$d" ] && find "$d" -maxdepth 1 -mindepth 1 -type d -name "*$ws*" -exec rm -rf -- {} +
 done
 for d in "$HOME/.claude/sessions" "$HOME/.codex/sessions" "$HOME/.grok/sessions"; do
   [ -d "$d" ] && grep -rlF -- "$ws" "$d" 2>/dev/null | xargs -r rm -f --
 done
-logdir="$3"
-if [ "$tid" != "-" ] && [ "$logdir" != "-" ] && [ -d "$logdir" ]; then
-  find "$logdir" -maxdepth 1 -type f -name "*$(printf %s "$tid" | tr ':' '-')*" -delete
+if [ "$tid" != "-" ] && [ -n "$tid" ]; then
+  stid="$(printf %s "$tid" | tr ':' '-')"
+  if [ -n "$stid" ]; then
+    default_logdir="$HOME/.t3/userdata/logs/provider"
+    for pdir in "$logdir" "$default_logdir"; do
+      if [ "$pdir" != "-" ] && [ -n "$pdir" ] && [ -d "$pdir" ]; then
+        find "$pdir" -maxdepth 1 -type f \( -name "events.$stid.log*" -o -name "*$stid*" \) -delete
+      fi
+    done
+  fi
 fi
 exit 0
 """
@@ -817,9 +829,14 @@ class HubSsh:
     async def remove(self, remote_dir: str) -> None:
         _check_remote(remote_dir, base_ok=False)
         root = await self.root()
-        if os.path.dirname(remote_dir) != root:
+        if not root or root == "/" or not is_safe_hub_workspace_dir(remote_dir, expected_root=root):
             raise HubWorkspaceError("refusing to remove a path outside the workspace root")
-        await self.run(f"rm -rf -- {shlex.quote(remote_dir)}", timeout=300)
+        q_target = shlex.quote(remote_dir)
+        q_root = shlex.quote(root.rstrip("/"))
+        await self.run(
+            f'case {q_target} in {q_root}/hub-*) rm -rf -- {q_target} ;; *) exit 1 ;; esac',
+            timeout=300,
+        )
 
 
 def _ssh_failure(remote: str, rc: int, out: bytes | None, err: bytes | None, streamed: bool) -> str:
@@ -831,6 +848,58 @@ def _ssh_failure(remote: str, rc: int, out: bytes | None, err: bytes | None, str
     words = remote.split()
     kind = " ".join(words[:2]) if words else "?"
     return f"hub SSH command failed rc={rc}: {said} [remote command: {kind[:60]}]"
+
+
+def is_ephemeral_hub_dir(remote_dir: str) -> bool:
+    """Return True iff remote_dir points strictly to .../orchestra-ws/<host>/hub-<16hex>."""
+    if not remote_dir or not _SAFE_REMOTE.match(remote_dir) or ".." in remote_dir.split("/"):
+        return False
+    norm = posixpath.normpath(remote_dir)
+    if not norm.startswith("/"):
+        return False
+    parts = [part for part in norm.split("/") if part]
+    return (
+        len(parts) >= 4
+        and parts[-3] == "orchestra-ws"
+        and bool(parts[-2])
+        and bool(_WS_ID.fullmatch(parts[-1]))
+    )
+
+
+def is_safe_hub_workspace_dir(remote_dir: str, expected_root: str | None = None) -> bool:
+    """Strict path guard preventing traversal or accidental deletion outside hub-* workspaces."""
+    if not remote_dir or not _SAFE_REMOTE.match(remote_dir) or ".." in remote_dir.split("/"):
+        return False
+    norm = posixpath.normpath(remote_dir)
+    if not norm.startswith("/"):
+        return False
+    parent = posixpath.dirname(norm)
+    name = posixpath.basename(norm)
+    if not parent or parent == "/" or not _WS_ID.fullmatch(name):
+        return False
+    if expected_root is not None:
+        exp_norm = posixpath.normpath(expected_root)
+        if not exp_norm or exp_norm == "/" or ".." in exp_norm.split("/"):
+            return False
+        return parent == exp_norm
+    return is_ephemeral_hub_dir(norm)
+
+
+def is_ephemeral_hub_project(project_meta: dict | None, *, expected_remote_dir: str = "") -> bool:
+    """True only for ephemeral Hub worker projects named hub-* under orchestra-ws/.../hub-*."""
+    if not isinstance(project_meta, dict):
+        return False
+    title = str(project_meta.get("title") or "").strip()
+    ws_root = str(project_meta.get("workspaceRoot") or "").strip().rstrip("/")
+    if not ws_root:
+        return False
+    ws_norm = posixpath.normpath(ws_root)
+    title_ok = title.startswith("hub-") or bool(_WS_ID.fullmatch(title.removeprefix("orchestra ").strip()))
+    if not title_ok or not is_ephemeral_hub_dir(ws_norm):
+        return False
+    if expected_remote_dir and is_ephemeral_hub_dir(expected_remote_dir):
+        return ws_norm == posixpath.normpath(expected_remote_dir)
+    return True
 
 
 def _check_remote(remote_dir: str, *, base_ok: bool = True) -> None:
@@ -1218,6 +1287,7 @@ class WorkspaceState:
     # Legacy records remain active until lifecycle ownership proves closure.
     archived: bool = False
     remote_released: bool = False
+    ephemeral_project: bool | None = None
     artifact_warnings: list[list[str]] = field(default_factory=list)
 
     def assert_file_policy(self) -> None:
@@ -1233,7 +1303,11 @@ class WorkspaceState:
     def save(self) -> None:
         STATE_DIR.mkdir(parents=True, exist_ok=True)
         tmp = self.path().with_suffix(".tmp")
-        tmp.write_text(json.dumps(self.__dict__, sort_keys=True))
+        payload = {
+            k: v for k, v in self.__dict__.items()
+            if not (k == "ephemeral_project" and v is None)
+        }
+        tmp.write_text(json.dumps(payload, sort_keys=True))
         os.replace(tmp, self.path())
 
     @classmethod
@@ -1597,6 +1671,75 @@ async def archive_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mc
     await _delete_archived_remote(latest, ssh, mcp)
 
 
+def _is_unsupported_tool_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return any(tok in msg for tok in ("unknown tool", "not found tool", "not available", "unsupported"))
+
+
+async def _read_hub_project_meta(mcp, project_id: str) -> tuple[dict | None, bool]:
+    """Return (project_meta, already_gone) for project_id using t3_project_read / t3_project_list."""
+    try:
+        res = await mcp.tool_call("t3_project_read", {"projectId": project_id})
+        if isinstance(res, dict):
+            proj = res.get("project") if isinstance(res.get("project"), dict) else res
+            if isinstance(proj, dict) and (proj.get("id") or proj.get("workspaceRoot") or proj.get("title")):
+                return proj, False
+        return None, False
+    except Exception as exc:
+        if _gone(exc) and not _is_unsupported_tool_error(exc):
+            return None, True
+        if not _is_unsupported_tool_error(exc):
+            raise
+    cursor = None
+    while True:
+        args = {"limit": 100, **({"cursor": cursor} if cursor else {})}
+        page = await mcp.tool_call("t3_project_list", args)
+        for proj in page.get("projects", []) if isinstance(page, dict) else []:
+            if isinstance(proj, dict) and proj.get("id") == project_id:
+                return proj, False
+        cursor = page.get("nextCursor") if isinstance(page, dict) else None
+        if cursor is None:
+            return None, True
+
+
+async def _cleanup_project_or_archive_thread(state: WorkspaceState, mcp) -> str:
+    """Delete ephemeral hub-* T3 projects; for non-ephemeral projects archive only the thread."""
+    if not state.project_id or mcp is None:
+        return "skipped"
+    if state.ephemeral_project is False:
+        if state.thread_id:
+            try:
+                await mcp.tool_call("t3_thread_organize", {"threadId": state.thread_id, "action": "archive"})
+            except Exception as error:
+                if not _gone(error):
+                    raise
+        logger.warning("Refusing to delete non-ephemeral Hub project %s; archived thread %s only",
+                       state.project_id, state.thread_id)
+        return "thread_archived"
+    if is_ephemeral_hub_dir(state.remote_dir):
+        meta, gone = await _read_hub_project_meta(mcp, state.project_id)
+        if gone:
+            return "already_gone"
+        if meta is not None and not is_ephemeral_hub_project(meta, expected_remote_dir=state.remote_dir):
+            if state.thread_id:
+                try:
+                    await mcp.tool_call("t3_thread_organize", {"threadId": state.thread_id, "action": "archive"})
+                except Exception as error:
+                    if not _gone(error):
+                        raise
+            logger.warning(
+                "Refusing to delete non-ephemeral Hub project %s (title=%r, root=%r); archived thread %s only",
+                state.project_id, meta.get("title"), meta.get("workspaceRoot"), state.thread_id,
+            )
+            return "thread_archived"
+    try:
+        await mcp.tool_call("t3_project_delete", {"projectId": state.project_id, "force": True})
+    except Exception as error:
+        if not _gone(error):
+            raise
+    return "deleted"
+
+
 async def _delete_archived_remote(state: WorkspaceState, ssh: HubSsh | None, mcp) -> None:
     assert_archive_ready(state)
     if not state.archived or not _WS_ID.fullmatch(state.ws_id):
@@ -1606,14 +1749,14 @@ async def _delete_archived_remote(state: WorkspaceState, ssh: HubSsh | None, mcp
         raise HubWorkspaceError("Hub archive cleanup pending: transports unavailable")
     # remove() independently validates installation root and exact hub-* directory.
     if state.project_id:
-        try:
-            await mcp.tool_call("t3_project_delete", {"projectId": state.project_id, "force": True})
-        except Exception as error:
-            if not _gone(error):
-                raise
+        await _cleanup_project_or_archive_thread(state, mcp)
     await ssh.remove(state.remote_dir)
     state.remote_released = True
     state.save()
+    scrub = getattr(ssh, "scrub_traces", None)
+    if callable(scrub):
+        await scrub(state.ws_id, state.thread_id)
+        mark_traces_scrubbed(state.ws_id)
 
 
 async def release_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mcp=None) -> None:
@@ -1664,3 +1807,35 @@ def local_scratch() -> Path:
 
 def rmtree_quiet(path: Path) -> None:
     shutil.rmtree(path, ignore_errors=True)
+
+
+def _traces_scrubbed_path() -> Path:
+    return STATE_DIR / ".traces_scrubbed.json"
+
+
+def _load_traces_scrubbed() -> set[str]:
+    try:
+        raw = json.loads(_traces_scrubbed_path().read_text(encoding="utf-8"))
+        if isinstance(raw, list):
+            return {str(item) for item in raw if _WS_ID.fullmatch(str(item))}
+    except (OSError, ValueError, TypeError):
+        pass
+    return set()
+
+
+def is_traces_scrubbed(ws_id: str) -> bool:
+    return bool(_WS_ID.fullmatch(ws_id or "")) and ws_id in _load_traces_scrubbed()
+
+
+def mark_traces_scrubbed(ws_id: str) -> None:
+    if not _WS_ID.fullmatch(ws_id or ""):
+        return
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    items = _load_traces_scrubbed()
+    if ws_id in items:
+        return
+    items.add(ws_id)
+    target = _traces_scrubbed_path()
+    tmp = target.with_suffix(".tmp")
+    tmp.write_text(json.dumps(sorted(items)), encoding="utf-8")
+    os.replace(tmp, target)

@@ -92,12 +92,21 @@ def enc_cli_dir(cwd: str) -> str:
 # Клиент MCP отваливается по таймауту через 30 с (mcp_stdio.py). Ждём заведомо меньше,
 # чтобы вызывающий получил внятный отказ, а не ReadTimeout, неотличимый от мёртвого сервера.
 LOCK_WAIT_LIMIT_SECONDS = 25.0
-async def _archive_hub_workspaces(worktree: str, name: str, *, required: bool = True) -> None:
-    """Hub close is strict; native cleanup retains its existing best-effort boundary."""
+async def _archive_hub_workspaces(
+    worktree: str,
+    name: str,
+    *,
+    required: bool = True,
+    best_effort_remote_cleanup: bool = False,
+) -> None:
+    """Archive/cleanup Hub workspaces with best-effort tail tolerance after durable archival."""
     from app.backend_hub import archive_for_worktree
 
     try:
-        archived = await archive_for_worktree(worktree)
+        archived = await archive_for_worktree(
+            worktree,
+            best_effort_remote_cleanup=best_effort_remote_cleanup,
+        )
     except Exception as exc:
         if required:
             raise
@@ -539,6 +548,7 @@ class SessionManager:
         self._session_locks: dict[str, asyncio.Lock] = {}
         self._spawn_locks: dict[tuple[str, str], asyncio.Lock] = {}
         self._scope_ownership_locks: dict[str, asyncio.Lock] = {}
+        self._background_cleanup_tasks: set[asyncio.Task] = set()
         # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
         self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
         # #220 T2: рестарт закрывает приём новых ходов, пока дренажит уже идущие
@@ -1450,20 +1460,72 @@ class SessionManager:
                 self.sessions.pop(session_id, None)
                 return True
 
-    async def remove(self, session_id: str) -> None:
+    def _schedule_hub_orphan_cleanup(self) -> None:
+        """Run idempotent orphaned Hub cleanup in the background without blocking close."""
+        from app.backend_hub import cleanup_orphaned_hub_artifacts
+
+        live_worktrees: set[str] = set()
+        live_ws_ids: set[str] = set()
+        for live in self.sessions.values():
+            if live.worktree_path:
+                live_worktrees.add(os.path.realpath(live.worktree_path))
+            elif live.scope and live.backend_type == "hub":
+                live_worktrees.add(os.path.realpath(live.scope))
+            ws_id = getattr(getattr(live, "_backend", None), "session_id", None) or live.session_id
+            if ws_id and str(ws_id).startswith("hub-"):
+                live_ws_ids.add(str(ws_id))
+
+        async def _run() -> None:
+            try:
+                report = await cleanup_orphaned_hub_artifacts(
+                    live_worktrees=live_worktrees,
+                    live_ws_ids=live_ws_ids,
+                )
+                if (report["projects_deleted"] or report["threads_archived"]
+                        or report["dirs_removed"] or report["traces_scrubbed"] or report["errors"]):
+                    logger.info("hub orphan janitor after close: %s", report)
+            except asyncio.CancelledError:
+                return
+            except Exception as exc:
+                logger.warning("hub orphan janitor after close failed: %s", err_text(exc))
+
+        try:
+            task = asyncio.create_task(_run(), name="hub-orphan-janitor")
+        except RuntimeError:
+            return
+        tasks = getattr(self, "_background_cleanup_tasks", None)
+        if tasks is None:
+            tasks = self._background_cleanup_tasks = set()
+        tasks.add(task)
+        task.add_done_callback(tasks.discard)
+
+    async def remove(self, session_id: str, *, force: bool = False) -> None:
         session = self.sessions.get(session_id)
         if session is None:
             row = get_session(session_id)
             if row is None:
                 return
             session = self._hydrate_row(row)
-        if await self._archive_missing_hub_thread_locally(session, session_id):
+        if not force and await self._archive_missing_hub_thread_locally(session, session_id):
             return
-        # For Hub workers, retained evidence or archival failure must block close
-        # before jobs, the provider connection, worktree or lifecycle are touched.
-        if session.worktree_path:
-            await _archive_hub_workspaces(session.worktree_path, session.name,
-                                          required=session.backend_type == "hub")
+        # For Hub workers, retained evidence or pre-archive refusal blocks close
+        # (unless force=True); post-archive remote cleanup failures are logged
+        # non-blockingly so DB archival still succeeds and the janitor retries later.
+        hub_target = session.worktree_path
+        if not hub_target and session.backend_type == "hub" and session.scope:
+            other_live = [
+                r for r in get_all_sessions(session.scope)
+                if r.get("id") != session_id and r.get("backend_type") == "hub" and not r.get("worktree_path")
+            ]
+            if not other_live:
+                hub_target = session.scope
+        if hub_target:
+            await _archive_hub_workspaces(
+                hub_target,
+                session.name,
+                required=(session.backend_type == "hub" and not force),
+                best_effort_remote_cleanup=(session.backend_type == "hub"),
+            )
         from app.bg_jobs import bg_manager
         await bg_manager.cancel_by_session(session_id)
         # #219 T1b, AC-2: убитый ребёнок обязан породить ПОЛОЖИТЕЛЬНЫЙ терминальный
@@ -1500,6 +1562,8 @@ class SessionManager:
                 await owner.release_session(session.session_id)
         self.sessions.pop(session_id, None)
         await asyncio.to_thread(self._cleanup_cli_home, session_id)
+        if getattr(session, "backend_type", "") == "hub":
+            self._schedule_hub_orphan_cleanup()
 
     async def remove_scope(self, scope: str, delete_tg_topics: bool = False) -> dict[str, dict]:
         """Убрать все сессии scope; с delete_tg_topics — и TG-топики его оркестраторов,
@@ -2841,6 +2905,15 @@ class SessionManager:
                 report = await sweep_orphans(live)
                 if report["released"] or report["remote_dirs"] or report["projects"] or report["errors"]:
                     logger.info("hub sweep: %s", report)
+                from app.backend_hub import cleanup_orphaned_hub_artifacts
+                janitor_report = await cleanup_orphaned_hub_artifacts(
+                    live_worktrees=set(live.keys()),
+                    live_ws_ids={ws for ws in live.values() if ws},
+                )
+                if (janitor_report["projects_deleted"] or janitor_report["threads_archived"]
+                        or janitor_report["dirs_removed"] or janitor_report["traces_scrubbed"]
+                        or janitor_report["errors"]):
+                    logger.info("hub orphan janitor: %s", janitor_report)
             except asyncio.CancelledError:
                 return
             except Exception as e:
