@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app import agentic_compact, temp_rules
+from app.codex_speed import CodexSpeed, codex_speed_view
 from app.events import AgentEvent, InjectedMessage, MessageProvenance
 from app.models import backend_for_model, get_model_spec, ensure_hub_worker_allowed, hub_worker_context
 from app.prompting import (
@@ -445,6 +446,7 @@ class AgentSession:
     cwd: str
     model: str = "claude-sonnet-5-5[1m]"
     model_reason: str = field(default="", kw_only=True)
+    codex_speed: CodexSpeed = field(default="standard", kw_only=True)
     _pending_model_reason: tuple[str, str] | None = field(default=None, init=False, repr=False)
     system_prompt: str = ""
     prompt_overlay: str | None = None
@@ -1008,6 +1010,7 @@ class AgentSession:
             role=self.role,
             profile=self.profile,
             effort=self.effort,
+            codex_speed_source=(lambda: self.codex_speed) if not validation_profile else None,
             context_limit=spec.context_length,
             codex_skill_index_fallback=(
                 runtime == "codex"
@@ -5790,6 +5793,7 @@ class AgentSession:
             "compaction": self.compaction_state(),
             "backend_type": self.backend_type,
             "runtime": self.backend_type,
+            **codex_speed_view(self.backend_type, self.model, self.codex_speed),
             "provider": get_model_spec(self.model).provider,
             "provider_account": (getattr(self._backend, "provider_account", None)
                                  if self.model.startswith("gemini-web/") else None),

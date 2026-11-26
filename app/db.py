@@ -110,6 +110,13 @@ def _ensure_usage_analytics_schema(connection: sqlite3.Connection) -> None:
 
 
 
+def _ensure_codex_speed_schema(connection: sqlite3.Connection) -> None:
+    if not any(row[1] == "codex_speed" for row in connection.execute("PRAGMA table_info(sessions)")):
+        connection.execute("ALTER TABLE sessions ADD COLUMN codex_speed TEXT NOT NULL DEFAULT 'standard'")
+    if not any(row[1] == "codex_speed" for row in connection.execute("PRAGMA table_info(turn_usage)")):
+        connection.execute("ALTER TABLE turn_usage ADD COLUMN codex_speed TEXT")
+
+
 def _ensure_session_model_reasons_schema(connection: sqlite3.Connection) -> None:
     # Additive metadata; existing v3 databases keep their canonical sessions table unchanged.
     connection.execute("""CREATE TABLE IF NOT EXISTS session_model_reasons (
@@ -210,6 +217,7 @@ def init_db(path: Path | None = None) -> None:
             connection.execute("BEGIN IMMEDIATE")
             _ensure_usage_analytics_schema(connection)
             _ensure_session_model_reasons_schema(connection)
+            _ensure_codex_speed_schema(connection)
             _ensure_restart_cut_turns_schema(connection)
             _ensure_always_on_schema(connection)
             _ensure_tool_raw_input_schema(connection)
@@ -612,6 +620,15 @@ def publish_ready_session(s: dict, task_identity: dict | None = None) -> None:
                     task_source=("canonical" if stable_id and snapshot_ref else "legacy"),
                     connection=c,
                 )
+
+
+def set_session_codex_speed(session_id: str, expected_model: str, speed: str) -> bool:
+    with _conn() as c:
+        result = c.execute(
+            "UPDATE sessions SET codex_speed=? WHERE id=? AND model=? AND status!='archived'",
+            (speed, session_id, expected_model),
+        )
+        return result.rowcount == 1
 
 
 def update_session_lifecycle(
@@ -2756,6 +2773,7 @@ def turn_usage_add(
     runtime: str,
     model: str,
     billing_mode: str = "subscription",
+    codex_speed: str | None = None,
     ok: bool,
     stop_reason: str,
     cost_usd: float | None,
@@ -2789,6 +2807,8 @@ def turn_usage_add(
         return False
     if billing_mode not in {"subscription", "api_credit", "openrouter_credit", "free"}:
         raise ValueError("unsupported billing_mode")
+    if codex_speed not in (None, "standard", "fast") or (codex_speed and runtime != "codex"):
+        raise ValueError("unsupported Codex speed for turn usage")
     quota_pcts = (
         quota_five_hour_pct,
         quota_seven_day_pct,
@@ -2839,8 +2859,9 @@ def turn_usage_add(
                 provider_api_duration_ms, model_estimate_duration_ms,
                 tool_duration_sum_ms, tool_union_duration_ms,
                 tool_intervals_count, tool_intervals_missing, source_records_json,
-                quota_primary_pct, quota_sampled_at, invocation_id, invocation_events, invocation_exclusion)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                quota_primary_pct, quota_sampled_at, invocation_id, invocation_events, invocation_exclusion,
+                codex_speed)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 event_id,
                 observed_at,
@@ -2874,6 +2895,7 @@ def turn_usage_add(
                 quota_primary_pct,
                 quota_sampled_at,
                 invocation_id, invocation_events, invocation_exclusion,
+                codex_speed,
             ),
         )
         inserted = cursor.rowcount == 1

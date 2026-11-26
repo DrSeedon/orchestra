@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterator, Callable, Optional
 
+from app.codex_speed import CODEX_FAST_ALLOWANCE, CODEX_FAST_API_MULTIPLIER, CodexSpeed
 from app.runtime_process_group import RuntimeProcessGroup
 from app.backend_jsonrpc import (
     JsonRpcStdioTransport,
@@ -80,8 +81,8 @@ def context_window_after_retarget(
 # The long-context tier is per request, while Codex's measured 258,400-token request window
 # is below its 272K threshold. Spark is listed explicitly but has no published final price.
 CODEX_TOKEN_PRICES = {
-    "gpt-6.2-sol": {"input": 2.0, "cached": 0.10, "output": 10.0},
-    "gpt-6.2-astra": {"input": 8.0, "cached": 0.40, "output": 40.0},
+    "gpt-6.2-sol": {"input": 2.0, "cached": 0.10, "write": 2.5, "output": 10.0},
+    "gpt-6.2-astra": {"input": 8.0, "cached": 0.40, "write": 10.0, "output": 40.0},
     # Promotional pricing from 22.08.2026, published "at least through November 21, 2026":
     # input −20%, output −33%. Verified in the source table, not from the announcement.
     # Rows already in `turn_usage` keep their own day's price, as with Terra/Luna below.
@@ -224,7 +225,8 @@ async def _run_process(
 
 
 def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
-                cache_write_input_tokens: int, output_tokens: int) -> float:
+                cache_write_input_tokens: int, output_tokens: int, *,
+                speed: CodexSpeed | None = None) -> float:
     """API-equivalent cost with cached input charged at its actual lower rate."""
     if model not in CODEX_TOKEN_PRICES:
         raise ValueError(f"No token price configured for {model}")
@@ -234,7 +236,8 @@ def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
     cached = min(max(0, cached_input_tokens), max(0, input_tokens))
     cache_write = min(max(0, cache_write_input_tokens), max(0, input_tokens - cached))
     fresh = max(0, input_tokens - cached - cache_write)
-    return (fresh * prices["input"] + cached * prices["cached"]
+    multiplier = CODEX_FAST_API_MULTIPLIER if speed == "fast" else 1
+    return multiplier * (fresh * prices["input"] + cached * prices["cached"]
             + cache_write * prices.get("write", prices["input"])
             + max(0, output_tokens) * prices["output"]) / 1_000_000
 
@@ -634,7 +637,8 @@ class CodexBackend(JsonRpcStdioTransport):
                  is_orchestrator: bool = False,
                  history_import: object | None = None,
                  validation_profile: bool = False,
-                 evaluation_actor_id: str = ""):
+                 evaluation_actor_id: str = "",
+                 speed_source: Callable[[], CodexSpeed] | None = None):
         self.model = model
         if reasoning_effort is None:
             from app.pipeline import default_codex_effort
@@ -651,6 +655,8 @@ class CodexBackend(JsonRpcStdioTransport):
             if is_orchestrator or resume_thread_id or history_import or mcp_servers or mcp_env:
                 raise ValueError("evaluation requires a fresh worker without MCP/history")
         self._evaluation_actor_id = evaluation_actor_id
+        self._speed_source = speed_source
+        self._active_turn_speed: CodexSpeed | None = None
         self._evaluation_stopped = False
         # #224: приватный CODEX_HOME этого агента; готовится лениво в _prepare_codex_home,
         # чтобы конструктор оставался безопасным для вызова без session id.
@@ -1119,6 +1125,13 @@ class CodexBackend(JsonRpcStdioTransport):
                 "model": self.model,
                 "effort": self.reasoning_effort,
             }
+            speed = None
+            self._active_turn_speed = None
+            if self._speed_source is not None and self.model in CODEX_FAST_ALLOWANCE:
+                speed = self._speed_source()
+                # A turn override keeps any external thread settings separate and
+                # does not change the tier of a turn receiving a steer.
+                params["serviceTierForTurn"] = "priority" if speed == "fast" else "default"
             if self._evaluation_actor_id and self._evaluation_stopped:
                 raise RuntimeError("evaluation backend stopped before turn/start")
             result = await self._request("turn/start", params)
@@ -1126,6 +1139,7 @@ class CodexBackend(JsonRpcStdioTransport):
             if not turn_id:
                 raise RuntimeError("Codex app-server returned no turn id")
             self._active_turn_id = turn_id
+            self._active_turn_speed = speed
         finally:
             self._starting_user_turn = None
             for notification in early_notifications:
@@ -2100,6 +2114,8 @@ class CodexBackend(JsonRpcStdioTransport):
         if method == "_process/exited":
             event_id = self._active_turn_id or ""
             self._active_turn_id = None
+            speed = self._active_turn_speed
+            self._active_turn_speed = None
             self._turn_compaction = None
             timing = self._finish_turn_timing()
             reader_failure = params.get("reader_failure") or ""
@@ -2122,7 +2138,8 @@ class CodexBackend(JsonRpcStdioTransport):
                 "model_error": model_error,
                 "errors": [model_error],
                 "reader_failure": reader_failure,
-                "cost_usd": 0,
+                "codex_speed": speed,
+                "cost_usd": None if speed else 0,
                 **timing,
                 **normalized_usage.metadata(),
             }, usage=normalized_usage)]
@@ -2514,10 +2531,12 @@ class CodexBackend(JsonRpcStdioTransport):
                 unknown_reason="Codex did not report last-call context",
             ),
         )
+        speed = self._active_turn_speed
+        self._active_turn_speed = None
         cost_error = ""
         try:
             cost = _codex_cost(
-                self.model, turn_input, turn_cached, turn_cache_write, turn_output
+                self.model, turn_input, turn_cached, turn_cache_write, turn_output, speed=speed,
             )
         except Exception as cost_exception:
             cost = 0.0
@@ -2531,6 +2550,7 @@ class CodexBackend(JsonRpcStdioTransport):
             "cost_usd": cost,
             "cost_usd_cached": cost,
             "cost_is_delta": True,
+            "codex_speed": speed,
             **timing,
             "reasoning_tokens": delta.get("reasoning_tokens"),
             "cache_hit": int(turn_cached * 100 / turn_input) if turn_input else 0,

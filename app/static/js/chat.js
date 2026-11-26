@@ -13,7 +13,7 @@ let chatSendInFlight = false;
 let _chatAfterTurnDraft = null;
 
 async function sendChat(options = {}) {
-    if (chatSendInFlight || !currentScope || !selectedAgent) return;
+    if (chatSendInFlight || !currentScope || !selectedAgent || isCodexSpeedPending()) return;
     const afterTurn = Boolean(options.afterTurn);
     const targetName = selectedAgent;
     const targetScope = currentScope;
@@ -89,7 +89,7 @@ async function sendChat(options = {}) {
     } finally {
         chatSendInFlight = false;
         if (_chatAfterTurnDraft === afterTurnDraft) _chatAfterTurnDraft = null;
-        if (actionButton && isCurrent()) actionButton.disabled = false;
+        if (actionButton && isCurrent()) actionButton.disabled = isCodexSpeedPending();
     }
 }
 

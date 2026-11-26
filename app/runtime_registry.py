@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Awaitable, Callable, Literal
 
+from app.codex_speed import CodexSpeed
 from app.backend_protocol import BackendLike
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,7 @@ class BackendBuildContext:
     effort: str | None
     context_limit: int
     codex_skill_index_fallback: bool = False
+    codex_speed_source: Callable[[], CodexSpeed] | None = None
     history_import: object | None = None
     validation_profile: bool = False
     config_dir_override: str = ""
@@ -291,6 +293,7 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
         is_orchestrator=context.is_orchestrator,
         history_import=context.history_import,
         validation_profile=context.validation_profile,
+        speed_source=context.codex_speed_source,
     )
 
 

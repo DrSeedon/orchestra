@@ -6,6 +6,10 @@
 
 ## Unreleased
 
+- **Codex chats can switch between Standard and Fast.** The selected speed is
+  saved per chat and applies from the next native turn. Usage records retain
+  the speed, and Fast turns use Fast API-equivalent rates in cost totals.
+
 - **Hourly laptop backup catch-up resumes after an interrupted manifest upload**
   (V-772). The stale-copy check uses the newest archive with a manifest, and
   catch-up uploads only the missing manifest when the archive checksum matches.

@@ -357,6 +357,7 @@ CREATE TABLE sessions (
                 last_summary TEXT DEFAULT '',
                 created_at TEXT NOT NULL,
                 finished_at TEXT, cli_pid INTEGER DEFAULT 0, cli_started_at INTEGER DEFAULT 0, context_pct INTEGER DEFAULT 0, context_tokens INTEGER DEFAULT 0, progress_pct INTEGER DEFAULT 0, progress_status TEXT DEFAULT '', backend_type TEXT DEFAULT 'claude', task_id TEXT DEFAULT '', description TEXT DEFAULT '', cost_usd_cached REAL DEFAULT 0.0, context_cost REAL DEFAULT 0.0, cost_reset_v1 INTEGER DEFAULT 0, total_turns INTEGER DEFAULT 0, total_input_tokens INTEGER DEFAULT 0, total_output_tokens INTEGER DEFAULT 0, total_cache_read_tokens INTEGER DEFAULT 0, total_cache_create_tokens INTEGER DEFAULT 0, total_tool_calls INTEGER DEFAULT 0, template_hash TEXT DEFAULT '', disabled_tools TEXT DEFAULT '[]', role TEXT DEFAULT 'worker', parent_id TEXT DEFAULT '', parent_name TEXT DEFAULT '', pipeline TEXT DEFAULT '', owned_dirs TEXT DEFAULT '', tg_topic INTEGER DEFAULT 0, session_id_history TEXT DEFAULT '[]', effort TEXT DEFAULT '',
+                codex_speed TEXT NOT NULL DEFAULT 'standard',
                 UNIQUE(name, scope)
             );
 
@@ -586,7 +587,8 @@ CREATE TABLE turn_usage (
                 tool_union_duration_ms INTEGER,
                 tool_intervals_count INTEGER,
                 tool_intervals_missing INTEGER,
-                source_records_json TEXT NOT NULL DEFAULT '[]'
+                source_records_json TEXT NOT NULL DEFAULT '[]',
+                codex_speed TEXT
             );
 
 CREATE TABLE claude_history_usage_messages (

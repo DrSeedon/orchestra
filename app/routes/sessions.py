@@ -2193,6 +2193,52 @@ async def update_owned_dirs(name: str, req: dict):
     return {"ok": True, "owned_dirs": applied}
 
 
+class CodexSpeedRequest(BaseModel):
+    scope: str
+    speed: Literal["standard", "fast"]
+
+
+@router.post("/api/sessions/{name}/codex-speed")
+async def set_codex_speed(name: str, req: CodexSpeedRequest, request: Request):
+    from app.auth import is_auth_enabled, validate_session
+    from app.codex_speed import CODEX_FAST_ALLOWANCE
+    from app.db import set_session_codex_speed
+
+    # Native agents authenticate with an internal token. Speed changes that
+    # multiply subscription consumption require a dashboard session.
+    if request.headers.get("authorization") or (
+        is_auth_enabled() and not validate_session(request.cookies.get("session", ""))
+    ):
+        return JSONResponse({"error": "dashboard authentication required"}, status_code=403)
+    found = manager.get_by_name(name, req.scope)
+    if found is None:
+        return _worker_not_found(name, req.scope)
+    session_id = found.id
+    async with manager.get_session_lock(session_id):
+        found = manager.get_by_name(name, req.scope)
+        if found is None or found.id != session_id:
+            return _worker_not_found(name, req.scope)
+        async with found._lifecycle_lock:
+            if found.backend_type != "codex" or found.model not in CODEX_FAST_ALLOWANCE:
+                return JSONResponse({"error": "Fast is unavailable for this model"}, status_code=409)
+            await found._drain_persist()
+            async def apply_speed() -> bool:
+                updated = await asyncio.to_thread(set_session_codex_speed, found.id, found.model, req.speed)
+                if updated:
+                    found.codex_speed = req.speed
+                return updated
+
+            write = asyncio.create_task(apply_speed())
+            try:
+                updated = await asyncio.shield(write)
+            except asyncio.CancelledError:
+                await write
+                raise
+            if not updated:
+                return JSONResponse({"error": "session changed; refresh and retry"}, status_code=409)
+            return {"codex_speed": found.codex_speed}
+
+
 @router.post("/api/sessions/{name}/change-model")
 async def change_model(name: str, req: dict):
     scope = req.get("scope", "")

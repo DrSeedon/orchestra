@@ -945,6 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     window.OrchestraOwnerActivity?.init();
     $('#send-btn').addEventListener('click', sendChat);
+    $('#codex-speed-select')?.addEventListener('change', changeCodexSpeed);
     $('#send-after-turn-btn').addEventListener('click', () => sendChat({afterTurn: true}));
     $('#stop-btn').addEventListener('click', stopAgent);
     $('#chat-input').addEventListener('keydown', (e) => {
@@ -2749,7 +2750,59 @@ async function selectAgent(name) {
     await _showChatFor(name, currentScope);
 }
 
+const codexSpeedPending = new Map();
+
+function selectedCodexSpeedSession() {
+    return currentSessions.find(s => s.name === selectedAgent && s.scope === currentScope);
+}
+
+function isCodexSpeedPending() {
+    return codexSpeedPending.has(selectedCodexSpeedSession()?.id);
+}
+
+function renderCodexSpeed() {
+    const control = $('#codex-speed-control');
+    if (!control) return;
+    const session = selectedCodexSpeedSession();
+    const factor = session?.codex_fast_allowance_multiplier;
+    control.hidden = !factor || session.status === 'archived' || session.status === 'quarantined';
+    if (control.hidden) return;
+
+    const select = $('#codex-speed-select');
+    select.value = codexSpeedPending.get(session.id) || session.codex_speed || 'standard';
+    select.disabled = isCodexSpeedPending();
+    control.dataset.fast = String(select.value === 'fast');
+    const multiplier = new Intl.NumberFormat(orchLocale()).format(factor);
+    const hint = $('#codex-speed-hint');
+    hint.textContent = T('From next turn · Fast uses {factor}× allowance', {factor: multiplier});
+    hint.title = T('Applies to new turns. USD shows the estimated API cost. Fast API rates are 2× Standard.');
+}
+
+async function changeCodexSpeed(event) {
+    const session = selectedCodexSpeedSession();
+    if (!session?.codex_fast_allowance_multiplier || isCodexSpeedPending()) return;
+    const speed = event.target.value;
+    const {id, name, scope} = session;
+    const stillSelected = () => selectedCodexSpeedSession()?.id === id;
+    codexSpeedPending.set(id, speed);
+    updateInputState();
+    try {
+        const result = await api(`/api/sessions/${encodeURIComponent(name)}/codex-speed`, {
+            method: 'POST', body: JSON.stringify({scope, speed}),
+        });
+        const current = currentSessions.find(s => s.id === id);
+        if (current) current.codex_speed = result.codex_speed;
+    } catch (error) {
+        if (stillSelected()) addChatEntry('error', error.message);
+    } finally {
+        codexSpeedPending.delete(id);
+        if (stillSelected()) updateInputState();
+        _pollWake('sessions');
+    }
+}
+
 function updateInputState() {
+    renderCodexSpeed();
     const input = $('#chat-input');
     const btn = $('#send-btn');
     const afterTurnBtn = $('#send-after-turn-btn');
@@ -2774,8 +2827,8 @@ function updateInputState() {
     } else {
         input.placeholder = T('Message {agent}...', {agent: selectedAgent});
         input.disabled = false;
-        btn.disabled = false;
-        if (afterTurnBtn) afterTurnBtn.disabled = false;
+        btn.disabled = isCodexSpeedPending();
+        if (afterTurnBtn) afterTurnBtn.disabled = isCodexSpeedPending();
     }
 }
 
@@ -3229,6 +3282,7 @@ function fetchAgentContext(name) {
 function renderAgentList(sessions) {
     if (!sessions) return;
     currentSessions = sessions;
+    renderCodexSpeed();
     const list = $('#agent-list');
     list.innerHTML = '';
 

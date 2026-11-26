@@ -1747,6 +1747,7 @@ class SessionManager:
             owned_dirs=parse_owned_dirs(row.get("owned_dirs")),
             tg_topic=bool(row.get("tg_topic") or 0),
             effort=row.get("effort") or None,
+            codex_speed="fast" if row.get("codex_speed") == "fast" else "standard",
             loaded=False,
             db_row=row,
         )
@@ -2354,6 +2355,7 @@ class SessionManager:
             disabled_tools=parse_disabled_tools(db_row.get("disabled_tools")),
             mcp_servers_custom=custom_mcp,
             backend_type=stored_bt, effort=db_row.get("effort") or None,
+            codex_speed="fast" if db_row.get("codex_speed") == "fast" else "standard",
             runtime_handoff=db_row.get("runtime_handoff") or "",
             history_import_source=db_row.get("history_import_source") or None,
             last_summary=db_row.get("last_summary") or "",
@@ -2544,7 +2546,10 @@ class SessionManager:
         turn_map = get_last_turn_map()
         uncertain_targets = targets_with_uncertain_delivery()
         report_holds = status_map()
+        from app.codex_speed import codex_speed_view
+
         for r in result:
+            r.update(codex_speed_view(runtime_for_record(r), r["model"], r.get("codex_speed", "standard")))
             r.setdefault("runtime_connection", "not_loaded")
             if r["id"] in uncertain_targets:
                 r["delivery_uncertain"] = True

@@ -597,6 +597,7 @@ class TurnManager:
                 runtime=s.backend_type,
                 model=s.model,
                 billing_mode=str(meta.get("billing_mode") or "subscription"),
+                codex_speed=meta.get("codex_speed"),
                 ok=ok,
                 stop_reason=sr,
                 **cost_fields,
@@ -710,6 +711,8 @@ class TurnManager:
                 f"${_fc(s._turn_cost)} turn, ${_fc(s._context_cost)} ctx, "
                 f"${_fc(s._session_cost)} session, ${_fc(s.cost_usd)} total"
             )
+        if meta.get("codex_speed") == "fast":
+            cost_summary = f"Codex Fast · {cost_summary} (API estimate)"
         if meta.get("price_may_be_understated") is True:
             cost_summary += (
                 f" {PRICE_MAY_BE_UNDERSTATED_MARKER}"

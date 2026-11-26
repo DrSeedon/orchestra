@@ -2375,7 +2375,7 @@ async def usage_turns_endpoint(
     limit = max(1, min(int(limit), 5000))
     query = (
         "SELECT event_id, ts, session_id, scope, task_id, runtime, model, ok, stop_reason, "
-        "billing_mode, cost_usd, cost_unaccounted, input_tokens, output_tokens, "
+        "billing_mode, codex_speed, cost_usd, cost_unaccounted, input_tokens, output_tokens, "
         "cache_read_tokens, cache_create_tokens, turn_duration_ms, api_duration_ms, "
         "reasoning_tokens, duration_basis, source_records_json FROM turn_usage"
     )
